@@ -1,6 +1,6 @@
 import { prepareDeck, resolveDeck, deckHeading } from "./deck-physics.mjs";
 import { RescueController, waitingInWater } from "./rescue.mjs";
-import { LANES, STATIONS, ENTRY, ARRIVAL, createCoach, queuePosition } from "./spatial.mjs";
+import { ENTRY, VENUES, createCoach } from "./spatial.mjs";
 export { LANES, STATIONS } from "./spatial.mjs";
 export const TYPES = {
   beginner: { label: "Beginner", color: "#71ba54", speed: 0.55, icon: "🐢" },
@@ -87,9 +87,12 @@ export function loopPosition(p, center = 0) {
   return { x: center - 0.6 + (p - 30), z: -7.2, angle: Math.PI / 2 };
 }
 export class PoolSimulation extends RescueController {
-  constructor(level = 1, seed = Date.now()) {
-    super();
-    this.level = Math.max(1, Math.min(SHIFTS.length, Math.floor(level) || 1));
+  constructor(level = 1, seed = Date.now(), options = {}) {
+    const lvl = Math.max(1, Math.min(SHIFTS.length, Math.floor(level) || 1));
+    const venue =
+      typeof options.venue === "object" ? options.venue : VENUES[options.venue || SHIFTS[lvl - 1].venue || "club"];
+    super(venue);
+    this.level = lvl;
     this.difficulty = Math.min(3, this.level);
     this.config = SHIFTS[this.level - 1];
     this.seed = seed >>> 0;
@@ -111,7 +114,7 @@ export class PoolSimulation extends RescueController {
     this.finsAvailable = 3;
     this.clutter = [];
     this.uid = 0;
-    this.coach = createCoach();
+    this.coach = createCoach(this.venue);
     this.stats = {
       served: 0,
       happy: 0,
@@ -137,14 +140,16 @@ export class PoolSimulation extends RescueController {
   director() {
     if (this.level === 1)
       return ["beginner", "intermediate", "beginner", "intermediate"].map((type, i) => ({
-        at: ARRIVAL.firstDelay + i * 3,
+        at: this.venue.arrival.firstDelay + i * 3,
         type,
         sick: false,
       }));
     const n = this.config.total,
       span = this.config.duration - 30;
     return Array.from({ length: n }, (_, i) => ({
-      at: ARRIVAL.firstDelay + (i === 0 ? 0 : Math.max(2, (i * span) / (n - 1) + (this.random() - 0.5) * 3)),
+      at:
+        this.venue.arrival.firstDelay +
+        (i === 0 ? 0 : Math.max(2, (i * span) / (n - 1) + (this.random() - 0.5) * 3)),
       type:
         i === 0
           ? "beginner"
@@ -188,7 +193,7 @@ export class PoolSimulation extends RescueController {
       type,
       side,
       status: "queue",
-      ...queuePosition(side, q),
+      ...this.venue.queuePosition(side, q),
       queueSlot: q,
       angle: 0,
       h: 100,
@@ -236,14 +241,15 @@ export class PoolSimulation extends RescueController {
         ? 9 + (p.phase / 6.28) * 4
         : Infinity;
     if (spec.entrance) {
+      const door = this.venue.arrival;
       p.status = "arriving";
       p.queueTarget = { x: p.x, z: p.z };
-      p.x = side * ARRIVAL.insideX;
-      p.z = ARRIVAL.doorZ;
-      p.arrivalHold = ARRIVAL.hold;
-      p.path = [{ x: side * ARRIVAL.outsideX, z: ARRIVAL.doorZ }, p.queueTarget];
+      p.x = side * door.insideX;
+      p.z = door.doorZ;
+      p.arrivalHold = door.hold;
+      p.path = [{ x: side * door.outsideX, z: door.doorZ }, p.queueTarget];
       this.keepDoorOpen(side);
-      this.emit("door-open", { side, x: side * ARRIVAL.doorX, z: ARRIVAL.doorZ });
+      this.emit("door-open", { side, x: side * door.doorX, z: door.doorZ });
     }
     this.people.push(p);
     this.emit("spawn", { id: p.id });
@@ -255,6 +261,12 @@ export class PoolSimulation extends RescueController {
   }
   get(id) {
     return this.people.find((p) => p.id === id);
+  }
+  get lanes() {
+    return this.venue.lanes;
+  }
+  isDeck(x, z) {
+    return this.venue.isDeck(x, z, this.level);
   }
   lanePeople(i) {
     return this.people.filter((p) => p.lane === i && p.status === "swim");
@@ -278,15 +290,15 @@ export class PoolSimulation extends RescueController {
       p.z <= ENTRY.walkZ
         ? [{ x: p.x, z: ENTRY.walkZ }, { x: target.x, z: ENTRY.walkZ }, target]
         : [
-            { x: side * 6.3, z: p.z },
-            { x: side * 6.3, z: ENTRY.walkZ },
+            { x: side * this.venue.pool.corridorX, z: p.z },
+            { x: side * this.venue.pool.corridorX, z: ENTRY.walkZ },
             { x: target.x, z: ENTRY.walkZ },
             target,
           ];
   }
 
   assign(lane) {
-    if (!Number.isInteger(lane) || lane < 0 || lane > 2) return false;
+    if (!Number.isInteger(lane) || lane < 0 || lane >= this.lanes.length) return false;
     if (this.status !== "playing") return false;
     if (this.rescue) {
       this.emit("toast", { text: "Rescue in progress. Get the swimmer safely out first." });
@@ -308,7 +320,7 @@ export class PoolSimulation extends RescueController {
     p.assignedAt = this.time;
     p.p = 30;
     this.stats.totalWait += p.wait;
-    this.walk(p, { x: LANES[lane] + 0.6, z: ENTRY.edgeZ });
+    this.walk(p, { x: this.lanes[lane] + 0.6, z: ENTRY.edgeZ });
     this.emit("assigned", { id: p.id, lane });
     this.selected = null;
     return true;
@@ -338,12 +350,13 @@ export class PoolSimulation extends RescueController {
   keepDoorOpen(side) {
     const remaining = this.doors[side];
     this.doors[side] =
-      remaining < 0.45 ? ARRIVAL.doorDuration - (remaining / 0.45) * 0.3 : Math.max(1, remaining);
+      remaining < 0.45 ? this.venue.arrival.doorDuration - (remaining / 0.45) * 0.3 : Math.max(1, remaining);
   }
   returnRoute(side) {
+    const door = this.venue.arrival;
     return [
-      { x: side * ARRIVAL.outsideX, z: ARRIVAL.doorZ },
-      { x: side * ARRIVAL.insideX, z: ARRIVAL.doorZ },
+      { x: side * door.outsideX, z: door.doorZ },
+      { x: side * door.insideX, z: door.doorZ },
     ];
   }
   depart(p, served = true) {
@@ -380,7 +393,7 @@ export class PoolSimulation extends RescueController {
     else
       p.path = fromQueue
         ? this.returnRoute(p.side)
-        : [{ x: p.side * 6.3, z: p.z }, ...this.returnRoute(p.side)];
+        : [{ x: p.side * this.venue.pool.corridorX, z: p.z }, ...this.returnRoute(p.side)];
     p.lane = null;
     if (this.selected === p.id) this.selected = null;
   }
@@ -392,14 +405,15 @@ export class PoolSimulation extends RescueController {
   }
   beginWaterExit(p) {
     // Finish in the water at the nearer end, then climb out beside the blocks.
+    const P = this.venue.pool;
     p.exitEnd = p.z >= 0 ? 1 : -1;
     p.exitPhase = "water";
     p.exitProgress = 0;
-    const x = LANES[p.lane ?? 1] + 1.15;
+    const x = this.lanes[p.lane ?? 1] + 1.15;
     p.path = [
-      { x: p.x, z: p.exitEnd * 7.2 },
-      { x, z: p.exitEnd * 7.2 },
-      { x, z: p.exitEnd * 8.25 },
+      { x: p.x, z: p.exitEnd * P.turnZ },
+      { x, z: p.exitEnd * P.turnZ },
+      { x, z: p.exitEnd * P.climbZ },
     ];
     p.bumpTime = 0;
     p.slipTime = 0;
@@ -414,9 +428,10 @@ export class PoolSimulation extends RescueController {
         p.angle = p.exitEnd > 0 ? 0 : Math.PI;
       }
     } else {
+      const P = this.venue.pool;
       p.exitProgress = Math.min(1, p.exitProgress + dt / 0.65);
       const t = p.exitProgress * p.exitProgress * (3 - 2 * p.exitProgress);
-      p.z = p.exitEnd * (8.25 + 1.7 * t);
+      p.z = p.exitEnd * (P.climbZ + (P.endWalkZ - P.climbZ) * t);
       if (p.exitProgress === 1) {
         p.exitPhase = "deck";
         p.actualSpeed = 0;
@@ -428,11 +443,11 @@ export class PoolSimulation extends RescueController {
         p.stunned = Math.max(p.stunned || 0, 1);
         // Reach the outside corner first, then follow the long side back to the locker.
         p.path = [
-          { x: p.side * 6.3, z: p.exitEnd * 9.95 },
-          { x: p.side * 6.3, z: ARRIVAL.doorZ },
+          { x: p.side * P.corridorX, z: p.exitEnd * P.endWalkZ },
+          { x: p.side * P.corridorX, z: this.venue.arrival.doorZ },
           ...this.returnRoute(p.side),
         ];
-        this.emit("splash", { x: p.x, z: p.exitEnd * 8.25 });
+        this.emit("splash", { x: p.x, z: p.exitEnd * P.climbZ });
       }
     }
     return true;
@@ -462,7 +477,7 @@ export class PoolSimulation extends RescueController {
     if (
       entity.path.length > 1 &&
       Math.hypot(entity.path[0].x - entity.x, entity.path[0].z - entity.z) <
-        (entity.path[0].z === ARRIVAL.doorZ ? 0.08 : 0.58)
+        (entity.path[0].z === this.venue.arrival.doorZ ? 0.08 : 0.58)
     )
       entity.path.shift();
     const target = entity.path[0],
@@ -479,13 +494,14 @@ export class PoolSimulation extends RescueController {
       let x = entity.x + heading.x * speed * dt,
         z = entity.z + heading.z * speed * dt;
       // A passing sidestep on the return route must also stay outside the water.
+      const P = this.venue.pool;
       if (
         (entity.exitPhase === "deck" || (entity.status === "enter" && entity.path.length > 1)) &&
-        Math.abs(x) < 5.65 &&
-        Math.abs(z) < 9
+        Math.abs(x) < P.keepOutX &&
+        Math.abs(z) < P.keepOutZ
       ) {
-        if (Math.abs(entity.x) >= 5.65) x = Math.sign(entity.x) * 5.65;
-        else z = Math.sign(entity.z) * 9;
+        if (Math.abs(entity.x) >= P.keepOutX) x = Math.sign(entity.x) * P.keepOutX;
+        else z = Math.sign(entity.z) * P.keepOutZ;
       }
       entity.x = x;
       entity.z = z;
@@ -555,7 +571,7 @@ export class PoolSimulation extends RescueController {
       p.collisionCooldown = Math.max(0, p.collisionCooldown - dt);
       if (p.status === "arriving") {
         if (p.arrivalHold > 0) p.arrivalHold = Math.max(0, p.arrivalHold - dt);
-        else if (this.moveAlong(p, dt, ARRIVAL.walkSpeed)) {
+        else if (this.moveAlong(p, dt, this.venue.arrival.walkSpeed)) {
           p.status = "queue";
           p.angle = 0;
           this.emit("arrived", { id: p.id });
@@ -565,7 +581,10 @@ export class PoolSimulation extends RescueController {
         p.h = clamp(100 - (p.wait / p.waitLimit) * 100 - (p.deckPenalty || 0), 0, 100);
         if (p.h <= 0) this.lose(p);
       } else if (p.status === "enter" || p.status === "exit") {
-        if (p.status === "exit" && Math.hypot(p.x - p.side * ARRIVAL.doorX, p.z - ARRIVAL.doorZ) < 2.4)
+        if (
+          p.status === "exit" &&
+          Math.hypot(p.x - p.side * this.venue.arrival.doorX, p.z - this.venue.arrival.doorZ) < 2.4
+        )
           this.keepDoorOpen(p.side);
         if (this.moveAlong(p, dt, p.status === "exit" ? 4.5 : 3.3)) {
           if (p.status === "exit") {
@@ -600,7 +619,7 @@ export class PoolSimulation extends RescueController {
       }
     }
     resolveDeck(this);
-    for (let i = 0; i < 3; i++) this.updateLane(i, dt);
+    for (let i = 0; i < this.lanes.length; i++) this.updateLane(i, dt);
     if (this.closed === 0) {
       const swimmers = this.people.filter((p) => p.status === "swim").length;
       this.contamination = clamp(
@@ -643,7 +662,7 @@ export class PoolSimulation extends RescueController {
       let speed = p.desiredSpeed * (p.hasFins ? 1.3 : 1);
       if (p.problem) speed = p.p >= 29.9 || p.p <= 0.1 ? 0 : 1.9;
       if (p.collisionTime > 0) speed = 0;
-      const pos = loopPosition(p.p, LANES[i]);
+      const pos = loopPosition(p.p, this.lanes[i]);
       if (aqua.length && Math.abs(pos.z) < 2.1 + aqua.length * 0.2) speed = Math.min(speed, 0.55);
       desired.set(p.id, speed);
     }
@@ -667,7 +686,7 @@ export class PoolSimulation extends RescueController {
       p.collisionTime = Math.max(0, p.collisionTime - dt);
       if (p.type === "aqua") {
         const idx = aqua.indexOf(p);
-        p.x = LANES[i] + (idx % 2 ? -0.55 : 0.55);
+        p.x = this.lanes[i] + (idx % 2 ? -0.55 : 0.55);
         const targetZ = p.problem ? ENTRY.waterZ : -1.5 + Math.floor(idx / 2) * 1.2;
         p.z += clamp(targetZ - p.z, -dt * 2.4, dt * 2.4);
         p.actualSpeed = 0;
@@ -708,7 +727,7 @@ export class PoolSimulation extends RescueController {
                 id: ++this.uid,
                 type: "goggles",
                 owner: p.id,
-                x: LANES[i],
+                x: this.lanes[i],
                 z: ENTRY.dropZ,
               });
               this.emit("toast", {
@@ -720,10 +739,10 @@ export class PoolSimulation extends RescueController {
         }
         p.p = (p.p + p.actualSpeed * dt) % CIRCUIT;
         p.traveled += p.problem ? 0 : p.actualSpeed * dt;
-        let pos = loopPosition(p.p, LANES[i]);
+        let pos = loopPosition(p.p, this.lanes[i]);
         if (!circle) {
-          pos.x = LANES[i] + (laps.indexOf(p) === 0 ? -0.65 : 0.65);
-          if (n === 1) pos.x = LANES[i];
+          pos.x = this.lanes[i] + (laps.indexOf(p) === 0 ? -0.65 : 0.65);
+          if (n === 1) pos.x = this.lanes[i];
         }
         p.x = pos.x;
         p.z = pos.z;

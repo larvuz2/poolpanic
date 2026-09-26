@@ -927,6 +927,35 @@ try {
   });
   $("loading").hidden = true;
   requestAnimationFrame(animate);
+  // QA hook (?debug): drive the fixed-step simulation faster than real time for screenshots and repros.
+  if (new URLSearchParams(location.search).has("debug"))
+    window.__pool = {
+      get sim() {
+        return sim;
+      },
+      get world() {
+        return world;
+      },
+      get mode() {
+        return mode;
+      },
+      play(n = level) {
+        level = n;
+        start();
+      },
+      step(seconds = 1, drive = null) {
+        for (let t = 0; t < seconds; t += 1 / 60) {
+          drive?.(sim);
+          sim.tick(1 / 60);
+          if (sim.events.length) events();
+        }
+        updateUI();
+      },
+      unlockAll() {
+        records.unlocked = SHIFTS.length;
+        updateChoices();
+      },
+    };
 } catch (e) {
   console.error(e);
   $("loading").innerHTML =

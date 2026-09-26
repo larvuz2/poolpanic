@@ -1,15 +1,16 @@
 import { SanitationController } from "./sanitation.mjs";
-import { RESCUE as R, RING_MOUNTS, LANES, ENTRY, isDeckPosition } from "./spatial.mjs";
+import { RESCUE as R, ENTRY } from "./spatial.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const waitingInWater = (s, p) =>
   !!s.rescue && !p.rescueRecover && (p.status === "swim" || (p.status === "exit" && p.exitPhase === "water"));
 
 export class RescueController extends SanitationController {
-  constructor() {
+  constructor(venue) {
     super();
+    this.venue = venue;
     this.rescue = null;
-    this.lifeRings = RING_MOUNTS.map((mount, id) => ({ id, mount, state: "wall", owner: null, ...mount }));
+    this.lifeRings = venue.ringMounts.map((mount, id) => ({ id, mount, state: "wall", owner: null, ...mount }));
   }
   get lifeRing() {
     return (
@@ -76,26 +77,33 @@ export class RescueController extends SanitationController {
   canInteract() {
     return !this.coach.swimming && !this.coach.waterTransition && super.canInteract();
   }
-  nearestInteraction() {
-    if (!this.canInteract()) return null;
+  collectInteractions(options) {
+    super.collectInteractions(options);
+    if (this.level < 2) return;
     const c = this.coach,
-      r = this.lifeRings
+      tier = -200,
+      ring = this.lifeRings
         .filter((r) => ["wall", "deck"].includes(r.state))
         .sort((a, b) => distance(c, a) - distance(c, b))[0],
       carried = this.lifeRings.find((r) => r.state === "coach");
-    if (this.level >= 2) {
-      if (c.carry === "lifering" && carried && distance(c, carried.mount) < 1.8)
-        return { kind: "ring-return", label: "Hang up life ring", ...carried.mount };
-      if (!c.carry && r && distance(c, r) < 1.8)
-        return { kind: "lifering", ringId: r.id, label: "Pick up life ring", x: r.x, z: r.z };
-    }
-    return super.nearestInteraction();
-  }
-  interact() {
-    const option = this.nearestInteraction();
-    if (option?.kind === "lifering") return this.fetch("lifering", option.ringId);
-    if (option?.kind === "ring-return") return this.returnItem();
-    return super.interact();
+    if (c.carry === "lifering" && carried && distance(c, carried.mount) < 1.8)
+      options.push({
+        kind: "ring-return",
+        label: "Hang up life ring",
+        ...carried.mount,
+        rank: tier,
+        run: () => this.returnItem(),
+      });
+    if (!c.carry && ring && distance(c, ring) < 1.8)
+      options.push({
+        kind: "lifering",
+        ringId: ring.id,
+        label: "Pick up life ring",
+        x: ring.x,
+        z: ring.z,
+        rank: tier + 0.1,
+        run: () => this.fetch("lifering", ring.id),
+      });
   }
   fetch(item, ringId) {
     if (item !== "lifering") return super.fetch(item);
@@ -140,7 +148,7 @@ export class RescueController extends SanitationController {
         .filter((r) => ["wall", "deck"].includes(r.state))
         .sort((a, b) => distance(this.coach, a) - distance(this.coach, b))[0];
       return this.guideTo(
-        this.coach.carry === "lifering" ? this.waterPoint() : ring || R.wall,
+        this.coach.carry === "lifering" ? this.waterPoint() : ring || this.venue.ringMounts[0],
         this.coach.carry === "lifering"
           ? "Walk to the edge, then swim the ring to " + p.name + "."
           : "Get a glowing life ring to rescue " + p.name + ".",
@@ -171,7 +179,8 @@ export class RescueController extends SanitationController {
       this.canInteract() &&
       distance(c, this.waterPoint()) < 1.5
     ) {
-      const to = { x: clamp(c.x, -4.4, 4.4), z: clamp(c.z, -7.7, 7.7) };
+      const P = this.venue.pool;
+      const to = { x: clamp(c.x, -P.entryX, P.entryX), z: clamp(c.z, -P.entryZ, P.entryZ) };
       c.waterTransition = { kind: "dive", from: { x: c.x, z: c.z }, to, t: 0 };
       c.vx = c.vz = c.vy = 0;
       c.dashTime = 0;
@@ -185,11 +194,12 @@ export class RescueController extends SanitationController {
   leaveWater() {
     const c = this.coach;
     if (!c.swimming || c.waterTransition) return false;
+    const P = this.venue.pool;
     const sides = [
-      { gap: 4.55 - Math.abs(c.x), to: { x: Math.sign(c.x) * 6.2, z: c.z } },
-      { gap: 7.85 - Math.abs(c.z), to: { x: c.x, z: Math.sign(c.z) * 9.95 } },
+      { gap: P.swimX - Math.abs(c.x), to: { x: Math.sign(c.x) * P.climbOutX, z: c.z } },
+      { gap: P.swimZ - Math.abs(c.z), to: { x: c.x, z: Math.sign(c.z) * P.endWalkZ } },
     ].sort((a, b) => a.gap - b.gap);
-    const exit = sides.find((a) => a.gap < 0.35 && isDeckPosition(a.to.x, a.to.z, this.level));
+    const exit = sides.find((a) => a.gap < 0.35 && this.isDeck(a.to.x, a.to.z));
     if (!exit) return false;
     c.waterTransition = { kind: "climb", from: { x: c.x, z: c.z }, to: exit.to, t: 0 };
     c.vx = c.vz = 0;
@@ -229,8 +239,9 @@ export class RescueController extends SanitationController {
     const rate = Math.min(1, dt * 10);
     c.vx += (x * R.swimSpeed - c.vx) * rate;
     c.vz += (z * R.swimSpeed - c.vz) * rate;
-    c.x = clamp(c.x + c.vx * dt, -4.55, 4.55);
-    c.z = clamp(c.z + c.vz * dt, -7.85, 7.85);
+    const P = this.venue.pool;
+    c.x = clamp(c.x + c.vx * dt, -P.swimX, P.swimX);
+    c.z = clamp(c.z + c.vz * dt, -P.swimZ, P.swimZ);
     if (Math.hypot(c.vx, c.vz) > 0.1) c.angle = Math.atan2(c.vx, c.vz);
     const p = this.get(this.rescue?.victim);
     if (p && this.rescue.stage === "stranded" && c.carry === "lifering" && distance(c, p) < 1.25) {
@@ -249,8 +260,8 @@ export class RescueController extends SanitationController {
       this.feedback("helped", { id: p.id });
     }
     if (
-      (Math.abs(c.x) >= 4.54 && x * Math.sign(c.x) > 0.3) ||
-      (Math.abs(c.z) >= 7.84 && z * Math.sign(c.z) > 0.3)
+      (Math.abs(c.x) >= P.swimX - 0.01 && x * Math.sign(c.x) > 0.3) ||
+      (Math.abs(c.z) >= P.swimZ - 0.01 && z * Math.sign(c.z) > 0.3)
     )
       this.leaveWater();
   }
@@ -259,11 +270,14 @@ export class RescueController extends SanitationController {
     p.status = "recovering";
     p.recoveryStage = "to-bench";
     p.stunned = 1;
+    const P = this.venue.pool,
+      bench = this.venue.rescue;
+    const x = Math.sign(bench.bench.x) * P.corridorX;
     p.path = [
-      { x: -6.3, z: p.exitEnd * 9.95 },
-      { x: -6.3, z: R.approach.z },
-      { ...R.approach },
-      { ...R.bench },
+      { x, z: p.exitEnd * P.endWalkZ },
+      { x, z: bench.approach.z },
+      { ...bench.approach },
+      { ...bench.bench },
     ];
     this.emit("rescue-safe", { id: p.id });
     this.emit("toast", { text: p.name + " is safely out. Swimming resumes!" });
@@ -275,7 +289,7 @@ export class RescueController extends SanitationController {
         p.recoveryStage = "resting";
         p.restTime = R.restSeconds;
         p.angle = Math.PI / 2;
-        Object.assign(this.lifeRings[p.rescueRingId], { state: "deck", owner: null, ...R.approach });
+        Object.assign(this.lifeRings[p.rescueRingId], { state: "deck", owner: null, ...this.venue.rescue.approach });
       }
     } else {
       p.restTime = Math.max(0, p.restTime - dt);
@@ -286,8 +300,8 @@ export class RescueController extends SanitationController {
         p.resumingWorkout = true;
         p.lane = p.resumeLane;
         p.h = Math.min(100, p.h + 12);
-        this.walk(p, { x: LANES[p.lane] + 0.6, z: ENTRY.edgeZ });
-        p.path.unshift({ ...R.approach });
+        this.walk(p, { x: this.lanes[p.lane] + 0.6, z: ENTRY.edgeZ });
+        p.path.unshift({ ...this.venue.rescue.approach });
       }
     }
     return true;

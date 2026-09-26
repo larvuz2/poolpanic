@@ -1,5 +1,5 @@
 import { CoachController } from "./coach.mjs";
-import { SANITATION as S, LANES, ENTRY } from "./spatial.mjs";
+import { ENTRY } from "./spatial.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export class SanitationController extends CoachController {
@@ -25,43 +25,66 @@ export class SanitationController extends CoachController {
           : "water settling")
     );
   }
-  nearestInteraction() {
-    if (!this.canInteract()) return null;
+  collectInteractions(options) {
+    super.collectInteractions(options);
+    if (this.level < 3) return;
     const c = this.coach,
-      q = this.cleanup;
-    if (this.level >= 3) {
-      if (c.carry === "skimmer") {
-        if (c.skimmerLoaded && distance(c, S.bin) < 1.8)
-          return { kind: "dispose", label: "Empty skimmer into bin", ...S.bin };
-        if (!c.skimmerLoaded && distance(c, S.rack) < 1.8)
-          return { kind: "hang-skimmer", label: "Hang up skimmer", ...S.rack };
-        if (
-          !c.skimmerLoaded &&
-          q?.stage === "floating" &&
-          distance(c, this.waterPoint()) < 1.55 &&
-          distance(c, q) <= S.reach
-        )
-          return { kind: "scoop", label: c.scoopTimer ? "Scooping…" : "Scoop the floater", x: q.x, z: q.z };
-      } else if (!c.carry && distance(c, S.rack) < 1.8)
-        return { kind: "skimmer", label: "Pick up pool skimmer", ...S.rack };
-      if (c.carry === "chlorine" && q?.stage === "treat" && distance(c, this.waterPoint()) < 1.55)
-        return { kind: "water", label: "Dose chlorine · target 40–65", ...this.waterPoint() };
-    }
-    return super.nearestInteraction();
-  }
-  interact() {
-    const option = this.nearestInteraction();
-    if (option?.kind === "skimmer") return this.fetch("skimmer");
-    if (option?.kind === "hang-skimmer") return this.returnItem();
-    if (option?.kind === "dispose") return this.disposeWaste();
-    if (option?.kind === "scoop") return this.scoop();
-    return super.interact();
+      q = this.cleanup,
+      S = this.venue.sanitation,
+      tier = -100;
+    if (c.carry === "skimmer") {
+      if (c.skimmerLoaded && distance(c, S.bin) < 1.8)
+        options.push({
+          kind: "dispose",
+          label: "Empty skimmer into bin",
+          ...S.bin,
+          rank: tier,
+          run: () => this.disposeWaste(),
+        });
+      if (!c.skimmerLoaded && distance(c, S.rack) < 1.8)
+        options.push({
+          kind: "hang-skimmer",
+          label: "Hang up skimmer",
+          ...S.rack,
+          rank: tier + 0.1,
+          run: () => this.returnItem(),
+        });
+      if (
+        !c.skimmerLoaded &&
+        q?.stage === "floating" &&
+        distance(c, this.waterPoint()) < 1.55 &&
+        distance(c, q) <= S.reach
+      )
+        options.push({
+          kind: "scoop",
+          label: c.scoopTimer ? "Scooping…" : "Scoop the floater",
+          x: q.x,
+          z: q.z,
+          rank: tier + 0.2,
+          run: () => this.scoop(),
+        });
+    } else if (!c.carry && distance(c, S.rack) < 1.8)
+      options.push({
+        kind: "skimmer",
+        label: "Pick up pool skimmer",
+        ...S.rack,
+        rank: tier + 0.3,
+        run: () => this.fetch("skimmer"),
+      });
+    if (c.carry === "chlorine" && q?.stage === "treat" && distance(c, this.waterPoint()) < 1.55)
+      options.push({
+        kind: "water",
+        label: "Dose chlorine · target 40–65",
+        ...this.waterPoint(),
+        rank: tier + 0.4,
+        run: () => this.deliverWater(1),
+      });
   }
   fetch(item) {
     if (item !== "skimmer") return super.fetch(item);
     if (this.level < 3 || !this.canInteract() || this.coach.carry) return false;
-    if (distance(this.coach, S.rack) > 1.8)
-      return this.guideTo(S.rack, "The pool skimmer hangs on the side wall. Walk over and press E.");
+    if (distance(this.coach, this.venue.sanitation.rack) > 1.8)
+      return this.guideTo(this.venue.sanitation.rack, "The pool skimmer hangs on the side wall. Walk over and press E.");
     this.coach.carry = "skimmer";
     this.coach.skimmerLoaded = false;
     this.feedback();
@@ -71,8 +94,8 @@ export class SanitationController extends CoachController {
     const c = this.coach;
     if (c.carry !== "skimmer") return super.returnItem();
     if (!this.canInteract()) return false;
-    if (c.skimmerLoaded) return this.guideTo(S.bin, "Empty the loaded net into the waste bin first.");
-    if (distance(c, S.rack) > 1.8) return this.guideTo(S.rack, "Return the skimmer to its wall hooks.");
+    if (c.skimmerLoaded) return this.guideTo(this.venue.sanitation.bin, "Empty the loaded net into the waste bin first.");
+    if (distance(c, this.venue.sanitation.rack) > 1.8) return this.guideTo(this.venue.sanitation.rack, "Return the skimmer to its wall hooks.");
     c.carry = null;
     c.scoopTimer = 0;
     if (this.cleanup?.stage === "return") this.cleanup.stage = "treat";
@@ -94,7 +117,7 @@ export class SanitationController extends CoachController {
       c.scoopCooldown > 0
     )
       return false;
-    if (distance(c, this.waterPoint()) >= 1.55 || distance(c, q) > S.reach)
+    if (distance(c, this.waterPoint()) >= 1.55 || distance(c, q) > this.venue.sanitation.reach)
       return this.guideTo(q, "Move along the pool edge until the floater is in reach.");
     c.scoopTimer = 0.42;
     c.scoopCooldown = 0.85;
@@ -106,8 +129,8 @@ export class SanitationController extends CoachController {
   disposeWaste() {
     const c = this.coach;
     if (!this.canInteract() || c.carry !== "skimmer" || !c.skimmerLoaded) return false;
-    if (distance(c, S.bin) > 1.8)
-      return this.guideTo(S.bin, "Walk to the waste bin and press E to empty the net.");
+    if (distance(c, this.venue.sanitation.bin) > 1.8)
+      return this.guideTo(this.venue.sanitation.bin, "Walk to the waste bin and press E to empty the net.");
     c.skimmerLoaded = false;
     if (this.cleanup) this.cleanup.stage = "return";
     this.feedback("waste-bin");
@@ -153,10 +176,11 @@ export class SanitationController extends CoachController {
   }
   evacDeckRoute(p) {
     const slot = this.people.filter((a) => a.id < p.id && a.side === p.side).length;
-    const end = { x: p.side * (6.7 + Math.floor(slot / 8) * 0.75), z: -2.7 + (slot % 8) * 1.35 };
+    const P = this.venue.pool;
+    const end = { x: p.side * (P.evacX + Math.floor(slot / 8) * 0.75), z: -2.7 + (slot % 8) * 1.35 };
     return [
-      { x: LANES[p.resumeLane] + 1.15, z: ENTRY.walkZ },
-      { x: p.side * 6.3, z: ENTRY.walkZ },
+      { x: this.lanes[p.resumeLane] + 1.15, z: ENTRY.walkZ },
+      { x: p.side * P.corridorX, z: ENTRY.walkZ },
       { x: end.x, z: ENTRY.walkZ },
       end,
     ];
@@ -202,8 +226,8 @@ export class SanitationController extends CoachController {
     this.closed = 1;
     this.cleanup = {
       stage: "floating",
-      x: clamp(p.x, -4.4, 4.4),
-      z: clamp(p.z, -7.7, 7.7),
+      x: clamp(p.x, -this.venue.pool.entryX, this.venue.pool.entryX),
+      z: clamp(p.z, -this.venue.pool.entryZ, this.venue.pool.entryZ),
       vx: 0.48,
       vz: 0.62,
       phase: this.random() * 6.28,
@@ -239,7 +263,7 @@ export class SanitationController extends CoachController {
           c.carry === "skimmer" &&
           this.canInteract() &&
           distance(c, this.waterPoint()) < 1.55 &&
-          distance(c, q) <= S.reach &&
+          distance(c, q) <= this.venue.sanitation.reach &&
           distance(q, c.scoopTarget) < 0.85
         ) {
           q.stage = "caught";
@@ -263,12 +287,13 @@ export class SanitationController extends CoachController {
       }
       q.x += q.vx * dt;
       q.z += q.vz * dt;
-      if (Math.abs(q.x) > 4.35) {
-        q.x = clamp(q.x, -4.35, 4.35);
+      const P = this.venue.pool;
+      if (Math.abs(q.x) > P.floatX) {
+        q.x = clamp(q.x, -P.floatX, P.floatX);
         q.vx = -q.vx;
       }
-      if (Math.abs(q.z) > 7.6) {
-        q.z = clamp(q.z, -7.6, 7.6);
+      if (Math.abs(q.z) > P.floatZ) {
+        q.z = clamp(q.z, -P.floatZ, P.floatZ);
         q.vz = -q.vz;
       }
       this.contamination = Math.min(100, this.contamination + dt * 2.7);
@@ -290,7 +315,7 @@ export class SanitationController extends CoachController {
           p.status = "queue";
           p.lane = lane;
           p.resumingWorkout = true;
-          this.walk(p, { x: LANES[lane] + 0.6, z: ENTRY.edgeZ });
+          this.walk(p, { x: this.lanes[lane] + 0.6, z: ENTRY.edgeZ });
         }
       this.emit("reopened");
       this.emit("toast", {

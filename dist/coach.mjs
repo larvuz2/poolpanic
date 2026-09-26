@@ -1,4 +1,4 @@
-import { LANES, STATIONS, ENTRY, COACH_TUNING as T, isDeckPosition } from "./spatial.mjs";
+import { ENTRY, COACH_TUNING as T } from "./spatial.mjs";
 const names = {
   fins: "fins",
   chlorine: "chlorine",
@@ -69,10 +69,10 @@ export class CoachController {
     const slices = Math.max(1, Math.ceil((Math.max(Math.abs(c.vx), Math.abs(c.vz)) * dt) / 0.12));
     for (let i = 0; i < slices; i++) {
       const x = c.x + (c.vx * dt) / slices;
-      if (isDeckPosition(x, c.z, this.level)) c.x = x;
+      if (this.isDeck(x, c.z)) c.x = x;
       else c.vx = 0;
       const z = c.z + (c.vz * dt) / slices;
-      if (isDeckPosition(c.x, z, this.level)) c.z = z;
+      if (this.isDeck(c.x, z)) c.z = z;
       else c.vz = 0;
     }
     if (Math.hypot(c.vx, c.vz) > 0.12) c.angle = Math.atan2(c.vx, c.vz);
@@ -115,12 +115,14 @@ export class CoachController {
   }
   servicePoint(p) {
     if (p.status !== "swim") return { x: p.x, z: p.z };
+    const P = this.venue.pool,
+      last = this.lanes.length - 1;
     const points = [
-      { x: LANES[p.lane] + 1.15, z: -9.55 },
-      { x: p.x, z: 9.55 },
+      { x: this.lanes[p.lane] + 1.15, z: -P.serviceZ },
+      { x: p.x, z: P.serviceZ },
     ];
-    if (p.lane === 0) points.push({ x: -5.9, z: p.z });
-    if (p.lane === 2) points.push({ x: 5.9, z: p.z });
+    if (p.lane === 0) points.push({ x: -P.sideServiceX, z: p.z });
+    if (p.lane === last) points.push({ x: P.sideServiceX, z: p.z });
     const reachable = points.filter((a) => distance(a, p) <= T.handoffReach);
     return (reachable.length ? reachable : points).sort((a, b) =>
       reachable.length ? distance(a, this.coach) - distance(b, this.coach) : distance(a, p) - distance(b, p),
@@ -130,30 +132,38 @@ export class CoachController {
     if (!["queue", "enter", "swim"].includes(p.status) || distance(this.coach, p) > T.handoffReach)
       return false;
     if (p.status !== "swim") return true;
-    const c = this.coach;
+    const c = this.coach,
+      P = this.venue.pool;
     return (
-      (Math.abs(c.z) >= 8.65 && Math.sign(c.z) === Math.sign(p.z)) ||
-      (p.lane === 0 && c.x <= -5.3) ||
-      (p.lane === 2 && c.x >= 5.3)
+      (Math.abs(c.z) >= P.reachZ && Math.sign(c.z) === Math.sign(p.z)) ||
+      (p.lane === 0 && c.x <= -P.reachX) ||
+      (p.lane === this.lanes.length - 1 && c.x >= P.reachX)
     );
   }
   waterPoint() {
-    const c = this.coach;
-    return { x: Math.max(-5.2, Math.min(5.2, c.x)), z: Math.max(-8.55, Math.min(8.55, c.z)) };
+    const c = this.coach,
+      P = this.venue.pool;
+    return { x: Math.max(-P.edgeX, Math.min(P.edgeX, c.x)), z: Math.max(-P.edgeZ, Math.min(P.edgeZ, c.z)) };
   }
+  // Every controller layer contributes ranked options; E runs the best one. Lower rank wins. Incident
+  // layers use negative tiers so an active emergency's action outranks routine service nearby.
   nearestInteraction() {
     if (!this.canInteract()) return null;
-    const c = this.coach,
-      options = [];
+    const options = [];
+    this.collectInteractions(options);
+    return options.sort((a, b) => a.rank - b.rank)[0] || null;
+  }
+  collectInteractions(options) {
+    const c = this.coach;
     if (c.carry === "chlorine" && this.closed <= 0 && distance(c, this.waterPoint()) < 1.55) {
       const p = this.waterPoint();
-      options.push({ kind: "water", label: "Treat the water", ...p, rank: 0.1 });
+      options.push({ kind: "water", label: "Treat the water", ...p, rank: 0.1, run: () => this.deliverWater(1) });
     }
     for (const p of this.people) {
       if (!this.swimmerInReach(p)) continue;
       const point = this.servicePoint(p),
         rank = distance(c, point) + (p.id === this.selected ? -0.4 : 0);
-      let label, kind;
+      let label, kind, run;
       if (c.carry === "fins" && p.needsFins && !p.hasFins) {
         label = "Give fins to " + p.name;
         kind = "deliver";
@@ -166,13 +176,30 @@ export class CoachController {
       } else if (!c.carry && p.problem === "cramp") {
         label = "Help " + p.name + " with cramp";
         kind = "assist";
+        run = () => {
+          this.select(p.id);
+          return this.assist();
+        };
       } else if (!c.carry && p.status === "queue") {
         label = "Select " + p.name;
         kind = "select";
+        run = () => {
+          this.select(p.id);
+          this.emit("toast", { text: "Choose a lane for " + p.name + "." });
+          return true;
+        };
       }
-      if (kind) options.push({ kind, id: p.id, label, ...point, rank: rank + (kind === "select" ? 4 : 0) });
+      if (kind)
+        options.push({
+          kind,
+          id: p.id,
+          label,
+          ...point,
+          rank: rank + (kind === "select" ? 4 : 0),
+          run: run || (() => this.deliver(p.id)),
+        });
     }
-    for (const [item, point] of Object.entries(STATIONS)) {
+    for (const [item, point] of Object.entries(this.venue.stations)) {
       if (distance(c, point) > T.reach) continue;
       if (!c.carry) {
         options.push({
@@ -188,6 +215,7 @@ export class CoachController {
                 : "Pick up eye relief",
           ...point,
           rank: distance(c, point) + 2,
+          run: () => this.fetch(item),
         });
       } else if ((c.carry === item && item !== "fins") || (c.carry === "goggles" && item === "relief"))
         options.push({
@@ -195,6 +223,7 @@ export class CoachController {
           label: "Return " + names[c.carry],
           ...point,
           rank: distance(c, point) + 2,
+          run: () => this.returnItem(),
         });
     }
     if (!c.carry)
@@ -207,10 +236,17 @@ export class CoachController {
             x: f.x,
             z: f.z,
             rank: distance(c, f) + 0.3,
+            run: () => this.pickup(f.id),
           });
     if (c.carry === "fins")
-      options.push({ kind: "drop-fins", label: "Drop fins on the floor", x: c.x, z: c.z, rank: 99 });
-    return options.sort((a, b) => a.rank - b.rank)[0] || null;
+      options.push({
+        kind: "drop-fins",
+        label: "Drop fins on the floor",
+        x: c.x,
+        z: c.z,
+        rank: 99,
+        run: () => this.dropCarriedFins(),
+      });
   }
   interact() {
     if (!this.canInteract()) return false;
@@ -223,29 +259,14 @@ export class CoachController {
       });
       return false;
     }
-    if (option.kind === "drop-fins") return this.dropCarriedFins();
-    if (option.kind === "fetch") return this.fetch(option.item);
-    if (option.kind === "return") return this.returnItem();
-    if (option.kind === "deliver") return this.deliver(option.id);
-    if (option.kind === "water") return this.deliverWater(1);
-    if (option.kind === "pickup") return this.pickup(option.id);
-    if (option.kind === "assist") {
-      this.select(option.id);
-      return this.assist();
-    }
-    if (option.kind === "select") {
-      this.select(option.id);
-      this.emit("toast", { text: "Choose lane 1, 2, or 3 for " + this.get(option.id).name + "." });
-      return true;
-    }
-    return false;
+    return option.run();
   }
   dropCarriedFins() {
     const c = this.coach;
     if (!this.canInteract() || c.carry !== "fins") return false;
     let x = c.x - Math.sin(c.angle) * 0.5,
       z = c.z - Math.cos(c.angle) * 0.5;
-    if (!isDeckPosition(x, z, this.level)) {
+    if (!this.isDeck(x, z)) {
       x = c.x;
       z = c.z;
     }
@@ -262,7 +283,8 @@ export class CoachController {
     this.emit(type, { x: this.coach.x, z: this.coach.z, ...extra });
   }
   fetch(item) {
-    if (this.status !== "playing" || !STATIONS[item]) return false;
+    const station = this.venue.stations[item];
+    if (this.status !== "playing" || !station) return false;
     const c = this.coach;
     if (c.carry) {
       this.emit("toast", {
@@ -270,9 +292,9 @@ export class CoachController {
       });
       return false;
     }
-    if (distance(c, STATIONS[item]) > T.reach)
+    if (distance(c, station) > T.reach)
       return this.guideTo(
-        STATIONS[item],
+        station,
         "Walk to the " + (item === "fins" ? "fin rack" : names[item] + " station") + " and press E.",
       );
     if (!this.canInteract()) return false;
@@ -289,7 +311,7 @@ export class CoachController {
   returnItem() {
     const c = this.coach;
     if (!c.carry || this.status !== "playing") return false;
-    const point = STATIONS[c.carry === "goggles" ? "relief" : c.carry];
+    const point = this.venue.stations[c.carry === "goggles" ? "relief" : c.carry];
     if (distance(c, point) > T.reach)
       return this.guideTo(
         point,
@@ -375,7 +397,7 @@ export class CoachController {
     const point = this.waterPoint();
     if (distance(c, point) > 1.55)
       return this.guideTo(
-        { x: LANES[lane] + 1.15, z: ENTRY.serviceZ },
+        { x: this.lanes[lane] + 1.15, z: ENTRY.serviceZ },
         "Walk to the pool edge and press E to pour.",
       );
     if (!this.canInteract()) return false;
