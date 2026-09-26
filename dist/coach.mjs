@@ -157,7 +157,13 @@ export class CoachController {
     const c = this.coach;
     if (c.carry === "chlorine" && this.closed <= 0 && distance(c, this.waterPoint()) < 1.55) {
       const p = this.waterPoint();
-      options.push({ kind: "water", label: "Treat the water", ...p, rank: 0.1, run: () => this.deliverWater(1) });
+      options.push({
+        kind: "water",
+        label: "Treat the water",
+        ...p,
+        rank: 0.1,
+        run: () => this.deliverWater(1),
+      });
     }
     for (const p of this.people) {
       if (!this.swimmerInReach(p)) continue;

@@ -10,7 +10,13 @@ export class RescueController extends SanitationController {
     super();
     this.venue = venue;
     this.rescue = null;
-    this.lifeRings = venue.ringMounts.map((mount, id) => ({ id, mount, state: "wall", owner: null, ...mount }));
+    this.lifeRings = venue.ringMounts.map((mount, id) => ({
+      id,
+      mount,
+      state: "wall",
+      owner: null,
+      ...mount,
+    }));
   }
   get lifeRing() {
     return (
@@ -289,7 +295,11 @@ export class RescueController extends SanitationController {
         p.recoveryStage = "resting";
         p.restTime = R.restSeconds;
         p.angle = Math.PI / 2;
-        Object.assign(this.lifeRings[p.rescueRingId], { state: "deck", owner: null, ...this.venue.rescue.approach });
+        Object.assign(this.lifeRings[p.rescueRingId], {
+          state: "deck",
+          owner: null,
+          ...this.venue.rescue.approach,
+        });
       }
     } else {
       p.restTime = Math.max(0, p.restTime - dt);

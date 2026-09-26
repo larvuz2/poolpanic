@@ -1,7 +1,7 @@
 import { screenMovement, queuePosition } from "./spatial.mjs";
 import { normalizeRecords, starsFor, recordResult } from "./progression.mjs";
 import { guidanceState, cuePulse } from "./guidance.mjs";
-import { PoolSimulation, TYPES, SHIFTS, LANES, loopPosition } from "./sim.mjs";
+import { PoolSimulation, TYPES, SHIFTS, loopPosition } from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
@@ -52,11 +52,11 @@ function makeDemo() {
   ].forEach(([type, lane, p]) => {
     const a = s.spawn({ type });
     a.status = "swim";
-    a.lane = lane;
+    a.lane = Math.min(lane + (s.lanes.length > 3 ? 1 : 0), s.lanes.length - 1);
     a.p = p;
     a.actualSpeed = TYPES[type].speed * 1.6;
     a.h = 95;
-    const pos = loopPosition(p, LANES[lane]);
+    const pos = loopPosition(p, s.lanes[a.lane]);
     a.x = pos.x;
     a.z = pos.z;
     a.angle = pos.angle;
@@ -68,7 +68,41 @@ function makeDemo() {
   q.queasy = false;
   s.events = [];
   s.selected = null;
+  syncVenue(s);
   return s;
+}
+// Rebuild the 3D world, lane buttons and station labels when a shift uses another venue or lighting mood.
+let worldVersion = -1;
+function syncVenue(s) {
+  if (!world) return;
+  world.setVenue(s.venue, s.config.lighting);
+  if (worldVersion !== world.version) {
+    worldVersion = world.version;
+    renderLaneControls(s.venue);
+    for (const e of stationLabels) e.remove();
+    stationLabels = world.labels.map((l) => {
+      const e = document.createElement("div");
+      e.className = "station-label";
+      e.textContent = l.text;
+      e.hidden = true;
+      $("world-labels").appendChild(e);
+      return e;
+    });
+    clearBubbles();
+  }
+}
+function renderLaneControls(venue) {
+  $("lane-controls").innerHTML =
+    venue.lanes
+      .map(
+        (x, i) =>
+          `<button class="lane-btn" data-lane="${i}" aria-label="Assign selected swimmer to lane ${i + 1}"><div class="lane-top"><span class="lane-no">LANE 0${i + 1}</span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Jump on in</span><span class="lane-caps"></span></div></button>`,
+      )
+      .join("") +
+    (venue.trampoline
+      ? `<button class="lane-btn trampoline-btn" data-lane="trampoline" aria-label="Send selected daredevil to the trampoline"><div class="lane-top"><span class="lane-no">🤸 TRAMP</span><span class="lane-mode">READY</span></div><div class="lane-bottom"><span class="lane-count">Daredevils only</span><span class="lane-caps"></span></div></button>`
+      : "");
+  $("lane-controls").classList.toggle("five-lanes", venue.lanes.length > 3);
 }
 function start() {
   audio.panic = false;
@@ -79,6 +113,7 @@ function start() {
   document.activeElement?.blur();
   document.querySelectorAll("dialog[open]").forEach((d) => d.close());
   sim = new PoolSimulation(level);
+  syncVenue(sim);
   sim.start({ countdown: true });
   mode = "countdown";
   audio.init();
@@ -420,11 +455,12 @@ function updateUI() {
   $("assist").querySelector(".interact-label").textContent = sim.nearestInteraction()?.label || "Interact";
   $("pause").disabled = !["playing", "countdown"].includes(mode);
   const p = sim.get(sim.selected);
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < sim.lanes.length; i++) {
     const people = sim.lanePeople(i),
       count = sim.occupancy(i),
       average = people.length ? people.reduce((sum, p) => sum + p.h, 0) / people.length : 100;
     const b = document.querySelector('[data-lane="' + i + '"]');
+    if (!b) continue;
     b.classList.toggle(
       "assignable",
       mode === "playing" &&
@@ -636,7 +672,11 @@ function updateBubbles() {
       screen = world.project(data.x, data.y, data.z);
     stationLabels[i].style.left = screen.x + "px";
     stationLabels[i].style.top = screen.y + "px";
-    stationLabels[i].hidden = mode === "menu" || sim.level < (data.minLevel || 1);
+    stationLabels[i].hidden =
+      mode === "menu" ||
+      sim.level < (data.minLevel || 1) ||
+      (data.when ? !data.when(sim) : false) ||
+      !screen.visible;
   }
 }
 function points(e) {
@@ -716,12 +756,12 @@ function animate(t) {
       for (const p of sim.people) {
         if (p.status === "swim" && p.type !== "aqua") {
           p.p = (p.p + p.actualSpeed * dt) % 31.2;
-          const pos = loopPosition(p.p, LANES[p.lane]);
+          const pos = loopPosition(p.p, sim.lanes[p.lane]);
           p.x = pos.x;
           p.z = pos.z;
           p.angle = pos.angle;
         } else if (p.type === "aqua") {
-          p.x = LANES[p.lane];
+          p.x = sim.lanes[p.lane];
           p.z = -1;
         }
       }
@@ -752,10 +792,6 @@ function bind() {
     (s, i) =>
       `<button data-level="${i + 1}" aria-label="Level ${i + 1}"><span class="level-number">${String(i + 1).padStart(2, "0")}</span><i class="level-lock" aria-hidden="true">🔒</i><span class="level-stars" aria-hidden="true"></span></button>`,
   ).join("");
-  $("lane-controls").innerHTML = LANES.map(
-    (x, i) =>
-      `<button class="lane-btn" data-lane="${i}" aria-label="Assign selected swimmer to lane ${i + 1}"><div class="lane-top"><span class="lane-no">LANE 0${i + 1}</span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Jump on in</span><span class="lane-caps"></span></div></button>`,
-  ).join("");
   $("scoop-target").onclick = () => sim.scoop();
   $("start").onclick = start;
   document.querySelectorAll("[data-level]").forEach(
@@ -770,7 +806,9 @@ function bind() {
   );
   $("lane-controls").onclick = (e) => {
     const b = e.target.closest("[data-lane]");
-    if (b) pick({ kind: "lane", lane: Number(b.dataset.lane) });
+    if (!b) return;
+    if (b.dataset.lane === "trampoline") pick({ kind: "trampoline" });
+    else pick({ kind: "lane", lane: Number(b.dataset.lane) });
   };
   $("world-labels").onclick = (e) => {
     const b = e.target.closest("button[data-swimmer]");
@@ -859,7 +897,8 @@ function bind() {
         return;
       }
       if (mode !== "playing") return;
-      if (["1", "2", "3"].includes(key)) sim.assign(Number(key) - 1);
+      if (/^[1-9]$/.test(key) && Number(key) <= sim.lanes.length) sim.assign(Number(key) - 1);
+      if (key === "t" && sim.venue.trampoline) sim.assignTrampoline?.();
       if (key === "c") sim.fetch("chlorine");
       if (key === "f") sim.fetch("fins");
       if (key === "r") sim.fetch("relief");
@@ -917,14 +956,7 @@ try {
   audio.playing = true;
   updateChoices();
   updateUI();
-  stationLabels = world.labels.map((l) => {
-    const e = document.createElement("div");
-    e.className = "station-label";
-    e.textContent = l.text;
-    e.hidden = true;
-    $("world-labels").appendChild(e);
-    return e;
-  });
+  syncVenue(sim);
   $("loading").hidden = true;
   requestAnimationFrame(animate);
   // QA hook (?debug): drive the fixed-step simulation faster than real time for screenshots and repros.

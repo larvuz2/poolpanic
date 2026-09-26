@@ -11,7 +11,9 @@ const runtime = process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES;
 const { createCanvas } = runtime
   ? await import(pathToFileURL(runtime + "/@napi-rs/canvas/index.js"))
   : await import("@napi-rs/canvas").catch(() => {
-      throw new Error("Run `npm install` (or set CODEX_PRIMARY_RUNTIME_NODE_MODULES) for the canvas dependency.");
+      throw new Error(
+        "Run `npm install` (or set CODEX_PRIMARY_RUNTIME_NODE_MODULES) for the canvas dependency.",
+      );
     });
 globalThis.document = {
   createElement(tag) {
@@ -20,46 +22,8 @@ globalThis.document = {
   },
 };
 globalThis.window = { matchMedia: () => ({ matches: false }) };
-const world = Object.create(PoolWorld.prototype);
-Object.assign(world, {
-  scene: new THREE.Scene(),
-  camera: new THREE.PerspectiveCamera(40, 1, 0.1, 180),
-  container: { clientWidth: 1440, clientHeight: 900 },
-  renderer: { setSize() {} },
-  materials: new Map(),
-  geometries: new Map(),
-  clickables: [],
-  people: new Map(),
-  drops: new Map(),
-  particles: [],
-  flags: [],
-  bobs: [],
-  labels: [],
-  zoom: 1,
-  target: new THREE.Vector3(-1.5, 0.45, -3.2),
-  handoffs: [],
-  effectSeed: 719,
-});
-world.buildEnvironment();
-world.batchStatic();
-world.coach = world.character({ type: "coach", skin: 1, shape: 0.5 });
-world.scene.add(world.coach);
-for (const name of ["coachHalo", "actionHalo", "selection"]) {
-  world[name] = world.ring(0.62, 0xffdf52);
-  world.scene.add(world[name]);
-}
-world.laneHighlights = LANES.map((x) => {
-  const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(3, 16),
-    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }),
-  );
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.position.set(x, -0.17, 0);
-  world.scene.add(mesh);
-  return mesh;
-});
-world.buildGuidance();
-world.resize();
+// Headless construction builds the real venue, batching, characters and guidance without WebGL.
+const world = new PoolWorld({ clientWidth: 1440, clientHeight: 900 }, () => {}, { headless: true });
 world.scene.updateMatrixWorld(true);
 for (const flag of world.flags) {
   const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(flag.getWorldQuaternion(new THREE.Quaternion()));

@@ -104,7 +104,8 @@ function makeVenue(spec) {
     edgeSpots() {
       const spots = [];
       for (const side of [-1, 1])
-        for (let z = -6; z <= 6; z += 2) spots.push({ x: side * (pool.solidX + 0.45), z, face: -side, axis: "x" });
+        for (let z = -6; z <= 6; z += 2)
+          spots.push({ x: side * (pool.solidX + 0.45), z, face: -side, axis: "x" });
       for (const x of spec.lanes) spots.push({ x: x + 1.15, z: pool.solidZ + 0.45, face: -1, axis: "z" });
       return spots.filter((s) => venue.isDeck(s.x, s.z, 3, 0.3));
     },
@@ -118,10 +119,12 @@ export const CLUB = makeVenue({
   name: "Community Swim Club",
   lanes: [-3.2, 0, 3.2],
   deck: { minX: -14.1, maxX: 14.1, minZ: -15.2, maxZ: 12.65 },
+  room: { minX: -14.7, maxX: 14.7, minZ: -16.7, maxZ: 13.5 },
   doors: { insideX: 8.8, doorX: 8.05, doorZ: -14.4, outsideX: 7.25 },
   lockers: [-10.7, 10.7],
   queue: { outerX: 4.6, stepX: 1.1, startZ: -11.1, stepZ: 1.15 },
   coachStart: { x: -6.6, z: 0 },
+  cameraFollow: { kx: 0.22, maxX: 2.4 },
   stations: {
     fins: { x: -10.3, z: 7.8 },
     chlorine: { x: 10.8, z: 7.8 },
@@ -169,10 +172,13 @@ export const RESORT = makeVenue({
   name: "Riviera Splash Resort",
   lanes: [-6.4, -3.2, 0, 3.2, 6.4],
   deck: { minX: -15.6, maxX: 16.4, minZ: -15.2, maxZ: 12.65 },
+  room: { minX: -16.2, maxX: 17, minZ: -16.7, maxZ: 13.5 },
   doors: { insideX: 10.1, doorX: 9.35, doorZ: -14.4, outsideX: 8.5 },
   lockers: [-12, 12],
   queue: { outerX: 4.6, stepX: 1.1, startZ: -11.1, stepZ: 1.15 },
   coachStart: { x: -9.9, z: 0 },
+  cameraScale: 1.08,
+  cameraFollow: { kx: 0.3, maxX: 4.4 },
   stations: {
     fins: { x: -12.6, z: 7.9 },
     chlorine: { x: 13.6, z: 8.1 },
@@ -193,7 +199,16 @@ export const RESORT = makeVenue({
     medkit: { x: -14.9, z: 4.7 },
   },
   // Launch bed overhangs the far deck; jumpers land in the last lane around landZ.
-  trampoline: { lane: 4, x: 11.2, z: 1.5, bedX: 9.35, bedY: 2.62, stairBottomX: 15.55, landZ: 1.5, zone: 3.2 },
+  trampoline: {
+    lane: 4,
+    x: 11.2,
+    z: 1.5,
+    bedX: 9.35,
+    bedY: 2.62,
+    stairBottomX: 15.55,
+    landZ: 1.5,
+    zone: 3.2,
+  },
   furniture: [
     { kind: "bench", x: -12.2, z: -0.9, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
     { kind: "bench", x: 13.9, z: -1.2, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },

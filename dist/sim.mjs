@@ -90,7 +90,9 @@ export class PoolSimulation extends RescueController {
   constructor(level = 1, seed = Date.now(), options = {}) {
     const lvl = Math.max(1, Math.min(SHIFTS.length, Math.floor(level) || 1));
     const venue =
-      typeof options.venue === "object" ? options.venue : VENUES[options.venue || SHIFTS[lvl - 1].venue || "club"];
+      typeof options.venue === "object"
+        ? options.venue
+        : VENUES[options.venue || SHIFTS[lvl - 1].venue || "club"];
     super(venue);
     this.level = lvl;
     this.difficulty = Math.min(3, this.level);

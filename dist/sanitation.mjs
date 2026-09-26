@@ -84,7 +84,10 @@ export class SanitationController extends CoachController {
     if (item !== "skimmer") return super.fetch(item);
     if (this.level < 3 || !this.canInteract() || this.coach.carry) return false;
     if (distance(this.coach, this.venue.sanitation.rack) > 1.8)
-      return this.guideTo(this.venue.sanitation.rack, "The pool skimmer hangs on the side wall. Walk over and press E.");
+      return this.guideTo(
+        this.venue.sanitation.rack,
+        "The pool skimmer hangs on the side wall. Walk over and press E.",
+      );
     this.coach.carry = "skimmer";
     this.coach.skimmerLoaded = false;
     this.feedback();
@@ -94,8 +97,10 @@ export class SanitationController extends CoachController {
     const c = this.coach;
     if (c.carry !== "skimmer") return super.returnItem();
     if (!this.canInteract()) return false;
-    if (c.skimmerLoaded) return this.guideTo(this.venue.sanitation.bin, "Empty the loaded net into the waste bin first.");
-    if (distance(c, this.venue.sanitation.rack) > 1.8) return this.guideTo(this.venue.sanitation.rack, "Return the skimmer to its wall hooks.");
+    if (c.skimmerLoaded)
+      return this.guideTo(this.venue.sanitation.bin, "Empty the loaded net into the waste bin first.");
+    if (distance(c, this.venue.sanitation.rack) > 1.8)
+      return this.guideTo(this.venue.sanitation.rack, "Return the skimmer to its wall hooks.");
     c.carry = null;
     c.scoopTimer = 0;
     if (this.cleanup?.stage === "return") this.cleanup.stage = "treat";

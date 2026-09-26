@@ -15,7 +15,9 @@ for (const file of checks) {
   const ok = run.status === 0;
   if (!ok) failed++;
   const last = (ok ? run.stdout : run.stderr || run.stdout).trim().split("\n").filter(Boolean);
-  console.log(`${ok ? "PASS" : "FAIL"}  ${file.padEnd(28)} ${seconds.padStart(5)}s  ${(last.at(-1) || "").slice(0, 110)}`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"}  ${file.padEnd(28)} ${seconds.padStart(5)}s  ${(last.at(-1) || "").slice(0, 110)}`,
+  );
   if (!ok) console.log((run.stderr || run.stdout).trim().split("\n").slice(0, 25).join("\n") + "\n");
 }
 console.log(`\n${checks.length - failed}/${checks.length} checks passed.`);
