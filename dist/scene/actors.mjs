@@ -146,10 +146,10 @@ export function character(w, p) {
     kidBucket.position.set(0, 0.85, 0.42);
     root.add(kidBucket);
     bucket(w, 0, 0, 0, kidBucket, 0x3593c1);
-    const fish = fishObject(w, 0.55);
+    const fish = fishObject(w, 0.85);
     fish.name = "bucket-fish";
-    fish.position.set(0, 0.32, 0);
-    fish.rotation.x = -Math.PI / 2 + 0.25;
+    fish.position.set(0, 0.5, 0.02);
+    fish.rotation.x = -Math.PI / 2 + 0.3;
     kidBucket.add(fish);
   }
   root.scale.setScalar(VISITOR_LOOKS[p.type]?.scale || 1);

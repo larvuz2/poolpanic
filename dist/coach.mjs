@@ -85,11 +85,7 @@ export class CoachController {
         this.emit("land", { x: c.x, z: c.z });
       }
     }
-    if (
-      c.y < 0.18 &&
-      c.slipCooldown === 0 &&
-      this.clutter.some((f) => f.type === "fins" && distance(c, f) < 0.58)
-    ) {
+    if (c.y < 0.18 && c.slipCooldown === 0 && this.slipperyAt(c.x, c.z, 0.58)) {
       c.slipTime = 0.7;
       c.slipCooldown = 2;
       c.dashTime = 0;
@@ -105,6 +101,10 @@ export class CoachController {
           ? "On the move"
           : "Ready to help";
   }
+  // Anything underfoot that trips walkers: dropped fins here; wet puddles are added by the chaos layer.
+  slipperyAt(x, z, reach = 0.6) {
+    return this.clutter.some((f) => f.type === "fins" && Math.hypot(x - f.x, z - f.z) < reach);
+  }
   guideTo(point, text) {
     this.coach.goal = { ...point, label: text };
     this.emit("toast", { text });
@@ -114,7 +114,7 @@ export class CoachController {
     return this.status === "playing" && this.coach.y < 0.08 && this.coach.slipTime === 0;
   }
   servicePoint(p) {
-    if (p.status !== "swim") return { x: p.x, z: p.z };
+    if (p.status !== "swim" || p.lane == null) return { x: p.x, z: p.z };
     const P = this.venue.pool,
       last = this.lanes.length - 1;
     const points = [

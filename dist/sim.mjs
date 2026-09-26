@@ -1,5 +1,6 @@
 import { prepareDeck, resolveDeck, deckHeading } from "./deck-physics.mjs";
-import { RescueController, waitingInWater } from "./rescue.mjs";
+import { waitingInWater } from "./rescue.mjs";
+import { ChaosController } from "./chaos.mjs";
 import { ENTRY, VENUES, createCoach } from "./spatial.mjs";
 export { LANES, STATIONS } from "./spatial.mjs";
 export const TYPES = {
@@ -86,7 +87,7 @@ export function loopPosition(p, center = 0) {
   if (p < 30) return { x: center - 0.6, z: 7.2 - (p - 15.6), angle: Math.PI };
   return { x: center - 0.6 + (p - 30), z: -7.2, angle: Math.PI / 2 };
 }
-export class PoolSimulation extends RescueController {
+export class PoolSimulation extends ChaosController {
   constructor(level = 1, seed = Date.now(), options = {}) {
     const lvl = Math.max(1, Math.min(SHIFTS.length, Math.floor(level) || 1));
     const venue =
@@ -129,6 +130,7 @@ export class PoolSimulation extends RescueController {
       totalHappiness: 0,
     };
     this.schedule = this.director();
+    this.planChaos();
     this.nextArrival = 0;
     this.warnedWater = false;
   }
@@ -266,6 +268,13 @@ export class PoolSimulation extends RescueController {
   }
   get lanes() {
     return this.venue.lanes;
+  }
+  nearestLane(x) {
+    let best = 0;
+    this.lanes.forEach((lx, i) => {
+      if (Math.abs(lx - x) < Math.abs(this.lanes[best] - x)) best = i;
+    });
+    return best;
   }
   isDeck(x, z) {
     return this.venue.isDeck(x, z, this.level);
@@ -411,7 +420,8 @@ export class PoolSimulation extends RescueController {
     p.exitEnd = p.z >= 0 ? 1 : -1;
     p.exitPhase = "water";
     p.exitProgress = 0;
-    const x = this.lanes[p.lane ?? 1] + 1.15;
+    const lane = p.lane ?? this.nearestLane(p.x);
+    const x = this.lanes[lane] + 1.15;
     p.path = [
       { x: p.x, z: p.exitEnd * P.turnZ },
       { x, z: p.exitEnd * P.turnZ },
@@ -514,7 +524,10 @@ export class PoolSimulation extends RescueController {
   tickDeckTrip(p, dt) {
     p.annoyedTime = Math.max(0, (p.annoyedTime || 0) - dt);
     if (
-      !["enter", "exit", "arriving", "recovering", "evacuating"].includes(p.status) ||
+      !(
+        ["enter", "exit", "arriving", "recovering", "evacuating"].includes(p.status) ||
+        (p.status === "fleeing" && p.fleePhase === "run")
+      ) ||
       p.evacWater ||
       p.recoveryStage === "resting" ||
       ["water", "climb"].includes(p.exitPhase) ||
@@ -526,7 +539,7 @@ export class PoolSimulation extends RescueController {
       return true;
     }
     p.stunned = Math.max(0, (p.stunned || 0) - dt);
-    if (!p.stunned && this.clutter.some((f) => f.type === "fins" && Math.hypot(p.x - f.x, p.z - f.z) < 0.6)) {
+    if (!p.stunned && this.slipperyAt(p.x, p.z, 0.6)) {
       p.slipTime = 0.65;
       p.stunned = 3;
       p.annoyedTime = 0.85;
@@ -551,7 +564,7 @@ export class PoolSimulation extends RescueController {
       return;
     }
     if (this.status !== "playing") return;
-    this.time += this.cleanup ? 0 : dt;
+    this.time += this.clockHeld() ? 0 : dt;
     this.arrivalTime += dt;
     for (const side of [-1, 1]) this.doors[side] = Math.max(0, this.doors[side] - dt);
     while (this.nextArrival < this.schedule.length && this.arrivalTime >= this.schedule[this.nextArrival].at)
@@ -560,13 +573,15 @@ export class PoolSimulation extends RescueController {
     prepareDeck(this, dt);
     this.updateCoach(dt);
     this.updateSanitation(dt);
+    this.updateChaos(dt);
     for (const p of this.people) {
       if (waitingInWater(this, p) || (this.rescue && p.status === "enter")) continue;
       if (
         this.tickDeckTrip(p, dt) ||
         this.tickRecovery(p, dt) ||
         this.tickWaterExit(p, dt) ||
-        this.tickEvacuation(p, dt)
+        this.tickEvacuation(p, dt) ||
+        this.tickFleeing(p, dt)
       )
         continue;
       p.eyeCooldown = Math.max(0, p.eyeCooldown - dt);
@@ -638,10 +653,24 @@ export class PoolSimulation extends RescueController {
       }
       if (this.contamination < 30) this.warnedWater = false;
     }
-    if (this.time >= this.config.duration && !this.cleanup) {
+    if (this.time >= this.config.duration && !this.clockHeld()) {
       this.status = "ended";
       for (const p of this.people) {
-        if (["swim", "enter", "queue", "arriving", "evacuating", "panic", "recovering"].includes(p.status)) {
+        if (
+          [
+            "swim",
+            "enter",
+            "queue",
+            "arriving",
+            "evacuating",
+            "panic",
+            "recovering",
+            "fleeing",
+            "switch",
+            "injured",
+            "trampoline",
+          ].includes(p.status)
+        ) {
           this.stats.lost++;
           this.score -= this.config.closingPenalty ?? 100;
           p.status = "gone";

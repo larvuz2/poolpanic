@@ -311,18 +311,9 @@ export class SanitationController extends CoachController {
       !this.people.some((p) => p.status === "evacuating");
     q.settle = ready ? q.settle + dt : 0;
     if (q.settle >= 3) {
-      this.closed = 0;
       this.cleanup = null;
       this.waterBrown = 0;
-      for (const p of this.people)
-        if (p.status === "panic") {
-          const lane = p.resumeLane;
-          p.status = "queue";
-          p.lane = lane;
-          p.resumingWorkout = true;
-          this.walk(p, { x: this.lanes[lane] + 0.6, z: ENTRY.edgeZ });
-        }
-      this.emit("reopened");
+      this.reopenPool();
       this.emit("toast", {
         text: this.chlorine > 75 ? "Pool open—watch those red eyes!" : "All clear! Everybody back in.",
         warning: this.chlorine > 75,

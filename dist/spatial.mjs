@@ -68,6 +68,30 @@ function poolGeometry(lanes) {
   };
 }
 
+// Does segment a→b pass through the open box |x| < hx, |z| < hz? (Liang–Barsky clipping.)
+function segmentHitsBox(a, b, hx, hz) {
+  let t0 = 0,
+    t1 = 1;
+  const dx = b.x - a.x,
+    dz = b.z - a.z;
+  for (const [p, q] of [
+    [-dx, a.x + hx],
+    [dx, hx - a.x],
+    [-dz, a.z + hz],
+    [dz, hz - a.z],
+  ]) {
+    if (Math.abs(p) < 1e-9) {
+      if (q <= 0) return false;
+    } else {
+      const r = q / p;
+      if (p < 0) t0 = Math.max(t0, r);
+      else t1 = Math.min(t1, r);
+      if (t0 >= t1) return false;
+    }
+  }
+  return t1 - t0 > 1e-6;
+}
+
 function makeVenue(spec) {
   const pool = poolGeometry(spec.lanes);
   const arrival = { ...ARRIVAL_TIMING, ...spec.doors };
@@ -99,6 +123,48 @@ function makeVenue(spec) {
     queuePosition(side, slot) {
       const q = spec.queue;
       return { x: side * (q.outerX - (slot % 4) * q.stepX), z: q.startZ - Math.floor(slot / 4) * q.stepZ };
+    },
+    // Shortest deck route around the basin: straight when clear, otherwise via the corridor corners.
+    // Coach-sized bodies collide with the starting blocks, so `solid` routes pass further behind them.
+    route(from, to, { solid = false } = {}) {
+      const kx = pool.keepOutX - 0.05,
+        kz = pool.keepOutZ - 0.05;
+      const blocked = (a, b) => segmentHitsBox(a, b, kx, kz);
+      if (!blocked(from, to)) return [{ x: to.x, z: to.z }];
+      const cx = pool.corridorX,
+        backZ = solid ? ENTRY.walkZ - 0.55 : ENTRY.walkZ,
+        corners = [
+          { x: -cx, z: backZ },
+          { x: cx, z: backZ },
+          { x: cx, z: pool.endWalkZ },
+          { x: -cx, z: pool.endWalkZ },
+        ];
+      const nodes = [from, ...corners, to],
+        n = nodes.length,
+        dist = Array(n).fill(Infinity),
+        prev = Array(n).fill(-1),
+        done = Array(n).fill(false);
+      dist[0] = 0;
+      for (let k = 0; k < n; k++) {
+        let u = -1;
+        for (let i = 0; i < n; i++) if (!done[i] && (u < 0 || dist[i] < dist[u])) u = i;
+        if (u < 0 || dist[u] === Infinity) break;
+        done[u] = true;
+        for (let v = 0; v < n; v++) {
+          if (done[v] || blocked(nodes[u], nodes[v])) continue;
+          const d = dist[u] + Math.hypot(nodes[u].x - nodes[v].x, nodes[u].z - nodes[v].z);
+          if (d < dist[v]) {
+            dist[v] = d;
+            prev[v] = u;
+          }
+        }
+      }
+      const path = [];
+      for (let i = n - 1; i > 0; i = prev[i]) {
+        if (i < 0) return [{ x: to.x, z: to.z }];
+        path.unshift({ x: nodes[i].x, z: nodes[i].z });
+      }
+      return path;
     },
     // Deck spots right at the pool edge, used by visitors who want to reach the water.
     edgeSpots() {

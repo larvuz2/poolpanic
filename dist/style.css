@@ -2816,3 +2816,58 @@ button.bubble:focus-visible .face {
   border-radius: 50%;
   box-shadow: 0 0 15px #ffc44980;
 }
+
+/* Chaos incidents: visitor tags, finished banner steps and the trampoline lane button. */
+.bubble.visitor-tag .face {
+  background: #fff4dc;
+  border-color: #e3b765;
+  border-bottom-color: #8a5a2e;
+}
+.bubble.visitor-tag .type-label {
+  color: #3a2a1c;
+}
+.bubble.visitor-tag .hp {
+  width: 46px;
+  height: 6px;
+}
+.bubble.visitor-tag.urgent .face {
+  background: #d9533f;
+  border-color: #ffe3a1;
+  border-bottom-color: #6b2217;
+  box-shadow:
+    0 0 0 calc(1px + var(--cue) * 4px) rgb(255 120 80 / 0.45),
+    0 3px 8px #5a1f1440;
+}
+.bubble.visitor-tag.urgent .type-label {
+  color: #fff4dc;
+}
+.cleanup-steps .done {
+  opacity: 0.75;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+.lane-controls.five-lanes {
+  gap: 6px;
+}
+.lane-controls.five-lanes .lane-btn {
+  width: 118px;
+  padding: 9px 9px 11px;
+}
+.lane-controls.five-lanes .lane-no {
+  font-size: 21px;
+}
+.trampoline-btn {
+  border-top-color: #ffc27a;
+  background: linear-gradient(#6a3a2a, #3d2219);
+}
+.trampoline-btn.assignable {
+  background: linear-gradient(#a0572f, #6a3a2a);
+}
+.lane-btn.splash-zone {
+  border-color: #ff8a4c;
+  background: linear-gradient(#6c3b29, #3a1f18);
+}
+.lane-btn.splash-zone .lane-mode {
+  background: #ff8a4c;
+  color: #2a120b;
+}

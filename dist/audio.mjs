@@ -134,7 +134,20 @@ export class PoolAudio {
   effect(type) {
     if (!this.ctx || !this.enabled) return;
     const t = this.ctx.currentTime;
-    if (type === "cramp-alarm") {
+    if (type === "chaos") {
+      [330, 247, 330, 247].forEach((f, i) => this.tone(f, t + i * 0.18, 0.16, 0.12, "square"));
+    } else if (type === "fish-dumped") {
+      this.noise(t, 0.5, 0.2, 400);
+      [660, 523, 392, 262].forEach((f, i) => this.tone(f, t + 0.1 + i * 0.12, 0.2, 0.15, "sawtooth"));
+    } else if (type === "fish-dart") {
+      this.noise(t, 0.12, 0.06, 1200);
+      this.tone(520, t, 0.08, 0.05, "sine", 900);
+    } else if (type === "fish-caught" || type === "prevented") {
+      [523, 659, 784, 1047].forEach((f, i) => this.tone(f, t + i * 0.08, 0.2, 0.13, "triangle"));
+    } else if (type === "kid-dodge") {
+      this.noise(t, 0.18, 0.08, 1500);
+      this.tone(700, t, 0.12, 0.06, "sine", 1100);
+    } else if (type === "cramp-alarm") {
       [880, 1047, 880].forEach((f, i) => this.tone(f, t + i * 0.16, 0.12, 0.14, "sine"));
     } else if (type === "rescue-safe") {
       [523, 659, 784].forEach((f, i) => this.tone(f, t + i * 0.09, 0.2, 0.13, "triangle"));

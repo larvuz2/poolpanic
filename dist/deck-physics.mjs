@@ -4,7 +4,10 @@ const DIAMETER = 0.72;
 export const BUMP_DURATION = 0.48;
 export function onDeck(p, venue = CLUB) {
   return (
-    ["queue", "arriving", "enter", "exit", "evacuating", "panic", "recovering"].includes(p.status) &&
+    (["queue", "arriving", "enter", "exit", "evacuating", "panic", "recovering", "injured"].includes(
+      p.status,
+    ) ||
+      (p.status === "fleeing" && p.fleePhase === "run")) &&
     p.recoveryStage !== "resting" &&
     !p.evacWater &&
     !["water", "climb"].includes(p.exitPhase) &&

@@ -427,6 +427,7 @@ export class PoolWorld extends SceneKit {
 
   sync(sim, time, dt = 0.016) {
     this.clock = time;
+    this.shake = Math.max(0, (this.shake || 0) - dt * 1.4);
     for (const door of this.lockerDoors)
       door.hinge.rotation.y = door.side * 1.35 * doorOpening(sim.doors?.[door.side] || 0);
     const guide = guidanceState(sim),
@@ -743,8 +744,10 @@ export class PoolWorld extends SceneKit {
       cu.legs.forEach((l, i) => (l.rotation.x = Math.sin(time * 13 + i * Math.PI) * 0.24));
       if (c.carry === "lifering") cu.carry.position.set(0, 1.88, 0.05);
       if (c.carry === "fishnet") {
-        cu.carry.position.set(0, 1.35, 0.05);
-        cu.carry.rotation.set(Math.PI / 2 - 0.25, 0, 0);
+        // Root is prone here: its local +Y points forward, so the pole is laid along +Y ahead of the coach.
+        cu.carry.position.set(0, 0.7, -0.45);
+        cu.carry.rotation.set(-Math.PI / 2 + 0.28, 0, 0);
+        cu.carry.scale.setScalar(0.6);
       }
       this.coachHalo.visible = false;
       this.dashTrail.visible = false;
@@ -950,7 +953,17 @@ export class PoolWorld extends SceneKit {
       .copy(this.target)
       .addScaledVector(this.viewDirection, this.cameraDistance / this.zoom);
     this.camera.lookAt(this.target);
+    if (this.shake > 0 && !this.reducedMotion.matches) {
+      const s = this.shake * 0.35;
+      this.camera.position.x += Math.sin(this.clock * 61) * s;
+      this.camera.position.z += Math.cos(this.clock * 53) * s;
+      this.camera.position.y += Math.sin(this.clock * 47) * s * 0.5;
+    }
     this.camera.updateMatrixWorld(true);
+  }
+  // Brief camera shake for big moments (skipped with reduced motion).
+  kick(amount = 0.5) {
+    this.shake = Math.max(this.shake || 0, amount);
   }
   cameraBounds() {
     const w = this.container.clientWidth,

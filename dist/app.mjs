@@ -300,6 +300,18 @@ function finish() {
   ($("next-level").hidden ? $("play-again") : $("next-level")).focus();
   if (r.stars > 0) world.confetti();
 }
+const CARRY_NAMES = {
+  lifering: "life ring",
+  relief: "eye relief",
+  treats: "dog treats",
+  flashlight: "flashlight",
+  medkit: "medical kit",
+};
+function carryName(c) {
+  if (c.carry === "skimmer") return c.skimmerLoaded ? "loaded skimmer" : "pool skimmer";
+  if (c.carry === "fishnet") return c.netLoaded ? "net with the fish 🐟" : "fish net";
+  return CARRY_NAMES[c.carry] || c.carry;
+}
 function moodColor(h) {
   return h > 70 ? "#73b65b" : h > 40 ? "#e6b445" : "#eb7754";
 }
@@ -307,7 +319,8 @@ function problemIcon(p) {
   if (p.annoyedTime > 0) return "😠";
   if (sim.rescue && p.status === "swim" && p.problem !== "cramp") return "😱";
   if (p.stomachWarning) return "💩";
-  if (p.status === "panic" || p.status === "evacuating") return "😱";
+  if (p.status === "panic" || p.status === "evacuating" || p.status === "fleeing") return "😱";
+  if (p.status === "queue" && sim.fish?.stage === "loose") return "😱";
   return p.problem === "fins"
     ? "🦶"
     : p.problem === "eyes"
@@ -435,14 +448,7 @@ function updateUI() {
   $("carry").textContent = sim.coach.job
     ? sim.coach.state
     : sim.coach.carry
-      ? "Holding " +
-        (sim.coach.carry === "skimmer"
-          ? sim.coach.skimmerLoaded
-            ? "loaded skimmer"
-            : "pool skimmer"
-          : sim.coach.carry === "lifering"
-            ? "life ring"
-            : sim.coach.carry)
+      ? "Holding " + carryName(sim.coach)
       : "Empty hands";
   $("return-item").hidden = !sim.coach.carry || !!sim.coach.job;
   ["fins", "chlorine", "relief"].forEach((item) => {
@@ -488,19 +494,21 @@ function updateUI() {
       ? "A good day for a dip."
       : sim.rescue
         ? "Rescue in progress · hold your lanes."
-        : sim.closed
-          ? "Cleanup in progress · clock held."
-          : chaos > 3
-            ? "Keep calm. Mostly calm."
-            : chaos > 0
-              ? "Someone needs a little love."
-              : sim.streak >= 3
-                ? "Now we’re in the swim of it."
-                : count > 3
-                  ? "The deck is getting crowded."
-                  : "Looking good, coach.";
+        : sim.fish?.stage === "loose"
+          ? "Fish in the pool · clock held."
+          : sim.closed
+            ? "Cleanup in progress · clock held."
+            : chaos > 3
+              ? "Keep calm. Mostly calm."
+              : chaos > 0
+                ? "Someone needs a little love."
+                : sim.streak >= 3
+                  ? "Now we’re in the swim of it."
+                  : count > 3
+                    ? "The deck is getting crowded."
+                    : "Looking good, coach.";
   $("hint").textContent =
-    sim.rescueHint() ||
+    sim.incidentHint() ||
     (sim.coach.carry === "skimmer"
       ? sim.coach.skimmerLoaded
         ? "WASTE BIN · E TO EMPTY"
@@ -531,39 +539,41 @@ function updateUI() {
             ? "Eight happy swimmers unlock ×2"
             : "Peak pool energy. Keep it going.";
   }
-  $("closure").hidden = sim.closed <= 0 && !sim.rescue;
-  $("closure").firstElementChild.textContent = sim.rescue ? "🛟" : "💩";
-  document.querySelector(".cleanup-steps").hidden = !!sim.rescue;
-  $("closure-title").textContent = sim.rescue
-    ? sim.rescue.stage === "stranded"
-      ? "SWIMMER NEEDS HELP!"
-      : "HEADING TO SAFETY"
-    : sim.cleanup?.stage === "floating"
-      ? "EVERYBODY OUT!"
-      : sim.cleanup?.stage === "caught"
-        ? "TO THE WASTE BIN!"
-        : sim.cleanup?.stage === "return"
-          ? "RETURN THE SKIMMER"
-          : "BALANCE THE WATER";
-  $("closure-task").textContent = sim.rescue ? sim.rescueHint() : sim.sanitationHint();
-  document
-    .querySelectorAll("[data-cleanup-step]")
-    .forEach((el) =>
-      el.classList.toggle(
-        "active",
-        el.dataset.cleanupStep ===
-          (sim.cleanup?.stage === "caught"
-            ? "bin"
-            : sim.cleanup?.stage === "return"
-              ? "hang"
-              : sim.cleanup?.stage === "treat"
-                ? "chlorine"
-                : "skim"),
-      ),
-    );
-  audio.panic = !!sim.cleanup || !!sim.rescue;
+  renderIncidentPanel(sim.cleanup ? sanitationPanel() : sim.incidentPanel());
+  audio.panic = mode !== "menu" && sim.chaosPanic();
   audio.urgency = Math.min(1, (chaos + count) / 10);
   if (mode !== "menu") updateQueue();
+}
+function sanitationPanel() {
+  const order = ["floating", "caught", "return", "treat"],
+    stage = order.indexOf(sim.cleanup.stage);
+  return {
+    icon: "💩",
+    title: ["EVERYBODY OUT!", "TO THE WASTE BIN!", "RETURN THE SKIMMER", "BALANCE THE WATER"][stage],
+    task: sim.sanitationHint(),
+    steps: ["SKIM", "BIN", "HANG", "CHLORINE"].map((label, i) => ({
+      label: i + 1 + " · " + label,
+      active: i === stage,
+      done: i < stage,
+    })),
+  };
+}
+let panelKey = "";
+function renderIncidentPanel(panel) {
+  $("closure").hidden = !panel || mode === "menu";
+  if (!panel) return;
+  $("closure").firstElementChild.textContent = panel.icon;
+  $("closure-title").textContent = panel.title;
+  $("closure-task").textContent = panel.task || "";
+  const key = JSON.stringify(panel.steps || []);
+  if (key !== panelKey) {
+    panelKey = key;
+    const steps = document.querySelector(".cleanup-steps");
+    steps.hidden = !panel.steps?.length;
+    steps.innerHTML = (panel.steps || [])
+      .map((s) => `<span class="${s.active ? "active" : ""} ${s.done ? "done" : ""}">${s.label}</span>`)
+      .join("");
+  }
 }
 function updateContext() {
   const floater = $("scoop-target"),
@@ -595,7 +605,9 @@ function updateContext() {
     : c.swimming
       ? sim.rescue?.stage === "stranded"
         ? "SWIM TO 🦵"
-        : "SWIM TO AN EDGE"
+        : c.carry === "fishnet" && !c.netLoaded && sim.fish?.stage === "loose"
+          ? "CATCH THE FISH 🐟"
+          : "SWIM TO AN EDGE"
       : c.waterTransition
         ? "RESCUE"
         : c.slipTime
@@ -603,8 +615,7 @@ function updateContext() {
           : c.y > 0.08
             ? "Nice hop!"
             : c.carry
-              ? "Carrying " +
-                (c.carry === "relief" ? "eye relief" : c.carry === "lifering" ? "life ring" : c.carry)
+              ? "Carrying " + carryName(c)
               : "COACH";
   prompt.querySelector("kbd").hidden = !near;
 }
@@ -658,6 +669,35 @@ function updateBubbles() {
     const name = b.querySelector(".label-name");
     name.textContent = p.name;
     name.hidden = p.id !== sim.selected;
+    b.style.left =
+      Math.max(b.offsetWidth / 2 + 8, Math.min(innerWidth - b.offsetWidth / 2 - 8, screen.x)) + "px";
+    b.style.top = Math.max(tagTop + b.offsetHeight, screen.y) + "px";
+  }
+  for (const v of sim.visitors || []) {
+    const tag = sim.visitorTag(v);
+    if (!tag) continue;
+    ids.add(v.id);
+    let b = bubbles.get(v.id);
+    if (!b) {
+      b = document.createElement("div");
+      b.className = "bubble visitor-tag";
+      b.innerHTML =
+        '<div class="face"><span class="type-icon"></span><span class="type-label"></span></div><div class="hp"><i></i></div>';
+      $("world-labels").appendChild(b);
+      bubbles.set(v.id, b);
+    }
+    const screen = world.project(v.x, v.kind === "dog" ? 1.4 : v.kind === "kid" ? 1.5 : 2.3, v.z);
+    b.hidden = !screen.visible || mode === "menu";
+    b.classList.toggle("urgent", !!tag.urgent);
+    b.querySelector(".type-icon").textContent = tag.icon;
+    b.querySelector(".type-label").textContent = tag.label || "";
+    const meter = b.querySelector(".hp");
+    meter.hidden = tag.meter === undefined;
+    if (tag.meter !== undefined) {
+      meter.firstElementChild.style.width = Math.round(tag.meter * 100) + "%";
+      meter.firstElementChild.style.background =
+        tag.meter > 0.7 ? "#eb7754" : tag.meter > 0.4 ? "#e6b445" : "#73b65b";
+    }
     b.style.left =
       Math.max(b.offsetWidth / 2 + 8, Math.min(innerWidth - b.offsetWidth / 2 - 8, screen.x)) + "px";
     b.style.top = Math.max(tagTop + b.offsetHeight, screen.y) + "px";
@@ -719,6 +759,13 @@ function events() {
     } else if (e.type === "catastrophe") {
       world.splash(e.x, 0, e.z, 45);
       world.showIncident(e.x, e.z);
+      world.kick(0.5);
+    } else if (e.type === "fish-dumped") {
+      world.bigSplash(e.x, e.z, 1);
+      world.kick(0.6);
+      queueKey = "";
+    } else if (e.type === "fish-caught") {
+      world.splash(e.x, -0.1, e.z, 18);
     } else if (e.type === "handoff") {
       world.handoff({ x: e.x, z: e.z }, e.to, e.item);
       $("carry").animate([{ transform: "scale(1.18)" }, { transform: "scale(1)" }], { duration: 150 });

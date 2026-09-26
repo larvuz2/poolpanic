@@ -42,7 +42,7 @@ export class RescueController extends SanitationController {
     p.problem = "cramp";
     p.crampDone = true;
     p.actualSpeed = 0;
-    this.rescue = { victim: p.id, stage: "stranded" };
+    this.rescue = { kind: "cramp", victim: p.id, victims: [p.id], stage: "stranded" };
     for (const a of this.people) if (waitingInWater(this, a)) a.actualSpeed = 0;
     this.emit("cramp-alarm", { id: p.id, x: p.x, z: p.z });
     this.emit("toast", {
@@ -176,11 +176,17 @@ export class RescueController extends SanitationController {
     if (this.tryRescueEntry()) return;
     super.jump();
   }
+  // Water entry is a mission-specific capability, never free swimming.
+  waterMission() {
+    return this.rescue?.stage === "stranded" && this.coach.carry === "lifering" ? "rescue" : null;
+  }
+  rescueVictims() {
+    return (this.rescue?.victims || []).map((id) => this.get(id)).filter(Boolean);
+  }
   tryRescueEntry() {
     const c = this.coach;
     if (
-      this.rescue?.stage === "stranded" &&
-      c.carry === "lifering" &&
+      this.waterMission() &&
       c.rescueEntryArmed !== false &&
       this.canInteract() &&
       distance(c, this.waterPoint()) < 1.5
@@ -228,6 +234,7 @@ export class RescueController extends SanitationController {
         c.y = c.swimming ? -0.39 : 0;
         c.vy = 0;
         this.emit("splash", { x: c.x, z: c.z });
+        if (!c.swimming) this.onClimbOut();
       }
       return;
     }
@@ -238,7 +245,14 @@ export class RescueController extends SanitationController {
       return;
     }
     c.y = -0.39;
-    c.state = c.carry === "lifering" ? "Swimming with life ring" : "Swimming to the edge";
+    c.state =
+      c.carry === "lifering"
+        ? "Swimming with life ring"
+        : c.carry === "fishnet"
+          ? c.netLoaded
+            ? "Swimming with the fish"
+            : "Chasing the fish"
+          : "Swimming to the edge";
     const n = Math.max(1, Math.hypot(c.input.x, c.input.z)),
       x = c.input.x / n,
       z = c.input.z / n;
@@ -249,30 +263,60 @@ export class RescueController extends SanitationController {
     c.x = clamp(c.x + c.vx * dt, -P.swimX, P.swimX);
     c.z = clamp(c.z + c.vz * dt, -P.swimZ, P.swimZ);
     if (Math.hypot(c.vx, c.vz) > 0.1) c.angle = Math.atan2(c.vx, c.vz);
-    const p = this.get(this.rescue?.victim);
-    if (p && this.rescue.stage === "stranded" && c.carry === "lifering" && distance(c, p) < 1.25) {
-      const ring = this.lifeRings[c.carryOwner];
-      p.rescueRingId = ring.id;
-      Object.assign(ring, { state: "victim", owner: p.id });
-      c.carry = null;
-      c.carryOwner = null;
-      p.resumeLane = p.lane;
-      p.rescueRecover = true;
-      p.problem = null;
-      p.status = "exit";
-      this.beginWaterExit(p);
-      p.lane = null;
-      this.rescue.stage = "escaping";
-      this.feedback("helped", { id: p.id });
-    }
+    this.onSwimStep(dt);
     if (
       (Math.abs(c.x) >= P.swimX - 0.01 && x * Math.sign(c.x) > 0.3) ||
       (Math.abs(c.z) >= P.swimZ - 0.01 && z * Math.sign(c.z) > 0.3)
     )
       this.leaveWater();
   }
+  // Hand the carried ring to the nearest stranded victim within reach.
+  onSwimStep() {
+    const c = this.coach;
+    if (this.rescue?.stage !== "stranded" || c.carry !== "lifering") return;
+    const p = this.rescueVictims()
+      .filter((v) => !v.rescueRecover)
+      .sort((a, b) => distance(c, a) - distance(c, b))[0];
+    if (!p || distance(c, p) >= 1.25) return;
+    const ring = this.lifeRings[c.carryOwner];
+    p.rescueRingId = ring.id;
+    Object.assign(ring, { state: "victim", owner: p.id });
+    c.carry = null;
+    c.carryOwner = null;
+    p.resumeLane = p.lane ?? p.resumeLane;
+    p.rescueRecover = true;
+    if (p.problem === "cramp") p.problem = null;
+    p.status = "exit";
+    this.beginWaterExit(p);
+    p.lane = null;
+    if (this.rescueVictims().every((v) => v.rescueRecover)) this.rescue.stage = "escaping";
+    this.feedback("helped", { id: p.id });
+  }
+  onClimbOut() {}
+  // A ringed victim reached the deck. The pool resumes once every victim is out of the water.
   rescueOnDeck(p) {
+    if (p.problem === "injured") this.injuredOnDeck(p);
+    else this.benchRecovery(p);
+    const inWater = this.rescueVictims().some(
+      (v) =>
+        v !== p && (v.status === "swim" || (v.status === "exit" && ["water", "climb"].includes(v.exitPhase))),
+    );
+    if (inWater) return;
+    const kind = this.rescue?.kind;
     this.rescue = null;
+    this.emit("rescue-safe", { id: p.id });
+    this.emit("toast", {
+      text:
+        kind === "crash"
+          ? "Everyone is out of the water. Grab the medical kit and patch them up!"
+          : p.name + " is safely out. Swimming resumes!",
+      warning: kind === "crash",
+    });
+  }
+  injuredOnDeck(p) {
+    this.benchRecovery(p);
+  }
+  benchRecovery(p) {
     p.status = "recovering";
     p.recoveryStage = "to-bench";
     p.stunned = 1;
@@ -285,8 +329,6 @@ export class RescueController extends SanitationController {
       { ...bench.approach },
       { ...bench.bench },
     ];
-    this.emit("rescue-safe", { id: p.id });
-    this.emit("toast", { text: p.name + " is safely out. Swimming resumes!" });
   }
   tickRecovery(p, dt) {
     if (p.status !== "recovering") return false;
