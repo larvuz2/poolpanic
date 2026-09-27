@@ -21,7 +21,7 @@ function displace(p, x, z, sim) {
   const venue = sim.venue,
     d = venue.deck,
     P = venue.pool;
-  const safe = venue.isDeck(p.x, p.z, sim);
+  const safe = venue.isDeck(p.x, p.z, sim.level);
   const allowed = (x, z) =>
     x >= d.minX &&
     x <= d.maxX &&

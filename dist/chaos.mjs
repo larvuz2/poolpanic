@@ -285,8 +285,23 @@ export class ChaosController extends RescueController {
     }
     return true;
   }
-  // Return every evacuated or fleeing swimmer to their original lane and unfinished workout.
+  // Hold off new cramps while a daredevil is already in the air: their landing may need the rescue.
+  rescueBlocked() {
+    const j = this.get(this.jumper);
+    return (
+      super.rescueBlocked() || (!!j && ["climbing", "boarding", "bouncing", "flying"].includes(j.jumpStage))
+    );
+  }
+  // Swimmers coming back rejoin their own lane, or a neighbour while a daredevil holds the splash lane.
+  returnLane(p) {
+    const lane = super.returnLane(p),
+      blocked = this.laneBlocked();
+    return lane === blocked ? (lane > 0 ? lane - 1 : lane + 1) : lane;
+  }
+  // Return every evacuated or fleeing swimmer to their original lane and unfinished workout. A loose fish keeps
+  // the pool closed whatever else finished first; netting it reopens the pool.
   reopenPool() {
+    if (this.fish?.stage === "loose") return;
     this.closed = 0;
     for (const p of this.people)
       if (p.status === "panic" || p.status === "fleeing") {
@@ -294,7 +309,7 @@ export class ChaosController extends RescueController {
           p.status = "queue";
           continue;
         }
-        const lane = p.resumeLane ?? this.nearestLane(p.x);
+        const lane = (p.resumeLane = this.returnLane(p));
         p.status = "queue";
         p.lane = lane;
         p.resumingWorkout = true;

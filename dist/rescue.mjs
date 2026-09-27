@@ -34,6 +34,7 @@ export class RescueController extends SanitationController {
       this.cleanup ||
       this.rescue ||
       this.people.some((a) => a.rescueRecover) ||
+      this.rescueBlocked() ||
       !this.lifeRings.some((r) => ["wall", "deck", "coach"].includes(r.state)) ||
       p.status !== "swim" ||
       p.problem ||
@@ -127,6 +128,8 @@ export class RescueController extends SanitationController {
     if (distance(c, r) > 1.8) return this.guideTo(r, "Walk to the life ring and press E.");
     c.carry = "lifering";
     c.carryOwner = r.id;
+    // A fresh ring is a fresh intent: walking to the edge dives in, even right after climbing out.
+    c.rescueEntryArmed = true;
     r.state = "coach";
     r.owner = null;
     this.feedback();
@@ -175,7 +178,8 @@ export class RescueController extends SanitationController {
       this.leaveWater();
       return;
     }
-    if (this.tryRescueEntry()) return;
+    // Space at the edge is a deliberate dive, even straight after climbing out.
+    if (this.tryRescueEntry(true)) return;
     super.jump();
   }
   // Water entry is a mission-specific capability, never free swimming.
@@ -189,11 +193,19 @@ export class RescueController extends SanitationController {
   strandedVictims() {
     return this.rescueVictims().filter((v) => waitingInWater(this, v));
   }
-  tryRescueEntry() {
+  // Layers can hold off new rescues (a daredevil already in the air, for instance).
+  rescueBlocked() {
+    return false;
+  }
+  // Where a swimmer coming back from an incident rejoins the pool.
+  returnLane(p) {
+    return p.resumeLane ?? this.nearestLane(p.x);
+  }
+  tryRescueEntry(force = false) {
     const c = this.coach;
     if (
       this.waterMission() &&
-      c.rescueEntryArmed !== false &&
+      (force || c.rescueEntryArmed !== false) &&
       this.canInteract() &&
       distance(c, this.waterPoint()) < 1.5
     ) {
@@ -350,12 +362,12 @@ export class RescueController extends SanitationController {
       }
     } else {
       p.restTime = Math.max(0, p.restTime - dt);
-      if (p.restTime === 0 && !this.cleanup && !this.rescue) {
+      if (p.restTime === 0 && !this.cleanup && !this.rescue && !this.closed) {
         p.rescueRecover = false;
         p.recoveryStage = null;
         p.exitPhase = null;
         p.resumingWorkout = true;
-        p.lane = p.resumeLane;
+        p.lane = p.resumeLane = this.returnLane(p);
         p.h = Math.min(100, p.h + 12);
         this.walk(p, { x: this.lanes[p.lane] + 0.6, z: ENTRY.edgeZ });
         p.path.unshift({ ...this.venue.rescue.approach });

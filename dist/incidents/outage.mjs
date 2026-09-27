@@ -35,7 +35,8 @@ export const PowerOutage = {
     if (!o) return;
     o.elapsed += dt;
     if (o.stage === "flicker") {
-      o.t -= dt;
+      // A reset already under way holds the flicker, so finishing it in time is a save, never a blackout too.
+      if (sim.coach.busy?.kind !== "breaker") o.t -= dt;
       if (o.t <= 0) {
         o.stage = "dark";
         sim.score -= 100;

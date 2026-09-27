@@ -362,10 +362,15 @@ export class CoachController {
     if (c.carry === "goggles") {
       const p = this.get(c.carryOwner);
       if (p && p.problem === "goggles") {
-        return this.guideTo(
-          this.servicePoint(p),
-          p.name + " still needs these goggles at the starting-block end.",
-        );
+        if (["queue", "enter", "swim"].includes(p.status))
+          return this.guideTo(
+            this.servicePoint(p),
+            p.name + " still needs these goggles at the starting-block end.",
+          );
+        // The owner is out of reach for now (evacuated, fleeing, resting): hand them in so the coach's
+        // hands are free for the emergency. The owner collects them from lost and found.
+        p.problem = null;
+        this.emit("toast", { text: p.name + "’s goggles are safe at lost and found." });
       }
     }
     c.carry = null;

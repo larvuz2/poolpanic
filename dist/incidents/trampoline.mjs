@@ -67,13 +67,14 @@ export const Trampoline = {
             return true;
           },
         });
-      if (c.carry === "medkit")
+      // E only puts the kit back once everyone is patched up; the return button still works any time.
+      if (c.carry === "medkit" && !sim.people.some((p) => p.status === "injured"))
         options.push({
           kind: "return-medkit",
           label: "Put the medical kit back",
           x: cab.x,
           z: cab.z,
-          rank: injured.length ? 60 : -60 + distance(c, cab),
+          rank: -60 + distance(c, cab),
           run: () => returnMedkit(sim),
         });
     }
@@ -328,7 +329,13 @@ function land(sim, p) {
     );
     v.z = p.z + (v.z - p.z) * 0.3;
   }
-  sim.rescue = { kind: "crash", victim: p.id, victims: victims.map((v) => v.id), stage: "stranded" };
+  const ids = victims.map((v) => v.id);
+  if (sim.rescue) {
+    // Another rescue was already under way: the crash victims join it, one ring each.
+    sim.rescue.kind = "crash";
+    sim.rescue.stage = "stranded";
+    sim.rescue.victims = [...new Set([...(sim.rescue.victims || [sim.rescue.victim]), ...ids])];
+  } else sim.rescue = { kind: "crash", victim: p.id, victims: ids, stage: "stranded" };
   sim.selected = null;
   sim.score -= T.crash;
   sim.streak = 0;
@@ -400,14 +407,22 @@ function heal(sim, p) {
       ...sim.returnRoute(p.side),
     ];
   } else {
-    sim.emit("toast", {
-      text: `${p.name} is patched up and heads back to lane ${(p.resumeLane ?? 0) + 1}. +${T.healBonus}`,
-    });
-    const lane = p.resumeLane ?? sim.nearestLane(p.x);
-    p.status = "queue";
-    p.lane = lane;
+    // Back to their own lane (a neighbour if a daredevil holds the splash lane). The deck walk from the
+    // climb-out is over, and while the pool is closed they wait on deck until it reopens.
+    p.exitPhase = null;
+    p.resumeLane = sim.returnLane(p);
     p.resumingWorkout = true;
-    sim.walk(p, { x: sim.lanes[lane] + 0.6, z: -8.7 });
+    sim.emit("toast", {
+      text: `${p.name} is patched up and heads back to lane ${p.resumeLane + 1}. +${T.healBonus}`,
+    });
+    if (sim.closed) {
+      p.status = "panic";
+      p.lane = null;
+    } else {
+      p.status = "queue";
+      p.lane = p.resumeLane;
+      sim.walk(p, { x: sim.lanes[p.lane] + 0.6, z: -8.7 });
+    }
   }
   if (!sim.people.some((q) => q.status === "injured"))
     sim.emit("toast", { text: "Everyone is patched up! Put the medical kit and the life rings back." });

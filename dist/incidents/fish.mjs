@@ -73,23 +73,24 @@ export const FishKid = {
     const kid = sim.visitor(f.kid);
     if (kid) updateKid(sim, kid, f, dt);
     if (f.stage === "loose") swimFish(sim, f, dt);
-    if (f.stage === "netted") {
+    // Once the fish is netted (even if it was already handed back), the pool the fish closed reopens.
+    if (f.closedPool && ["netted", "done"].includes(f.stage)) {
       f.settle = Math.max(0, (f.settle ?? 1.2) - dt);
-      if (
-        f.settle === 0 &&
-        sim.closed &&
-        !sim.cleanup &&
-        !sim.people.some((p) => p.status === "fleeing" && p.fleePhase !== "run")
-      ) {
-        f.stage = "returning";
-        sim.reopenPool();
+      if (f.settle === 0 && !sim.people.some((p) => p.status === "fleeing" && p.fleePhase !== "run")) {
+        f.closedPool = false;
+        const returned = f.stage === "done";
+        if (!returned) f.stage = "returning";
+        if (sim.closed && !sim.cleanup) sim.reopenPool();
         sim.emit("toast", {
-          text: "Fish secured! Everybody back in. Now return it to " + (kid?.name || "the kid") + ".",
+          text: returned
+            ? "Fish secured! Everybody back in."
+            : "Fish secured! Everybody back in. Now return it to " + (kid?.name || "the kid") + ".",
         });
       }
     }
-    // The incident is over once the kid has left and the net is back on its hooks.
-    if (["prevented", "done"].includes(f.stage) && !kid && sim.fishNet.state === "wall") sim.fish = null;
+    // The incident is over once the kid has left, the pool is open again and the net is back on its hooks.
+    if (["prevented", "done"].includes(f.stage) && !f.closedPool && !kid && sim.fishNet.state === "wall")
+      sim.fish = null;
   },
   interactions(sim, options) {
     const c = sim.coach,
@@ -274,10 +275,17 @@ function updateKid(sim, kid, f, dt) {
       kid.path = sim.venue.route(kid, kid.spot);
     }
   } else if (kid.status === "waiting") {
-    if (!sim.closed && !sim.rescue) kid.status = "dumping";
+    if (!sim.closed && !sim.rescue) {
+      kid.status = "dumping";
+      kid.dumpTime = T.dumpSeconds;
+    }
   } else if (kid.status === "dumping") {
-    kid.dumpTime -= dt;
-    if (kid.dumpTime <= 0) dumpFish(sim, kid, f);
+    // Never tip the fish in while the pool is closed or a rescue is under way.
+    if (sim.closed || sim.rescue) kid.status = "waiting";
+    else {
+      kid.dumpTime -= dt;
+      if (kid.dumpTime <= 0) dumpFish(sim, kid, f);
+    }
   } else if (["sulking", "happy", "leaving"].includes(kid.status)) {
     sim.walkVisitor(kid, dt, kid.status === "happy" ? 3.2 : 2.2);
   }
@@ -310,6 +318,7 @@ function dumpFish(sim, kid, f) {
   f.z = clamp(kid.z + (kid.spot.axis === "z" ? kid.spot.face * 1.6 : 0), -P.floatZ, P.floatZ);
   f.wander = Math.atan2(-f.x, -f.z);
   f.vx = f.vz = 0;
+  f.closedPool = true;
   sim.closed = 1;
   sim.selected = null;
   sim.score -= 200;
@@ -427,6 +436,7 @@ function grabNet(sim) {
   if (c.carry) return false;
   c.carry = "fishnet";
   c.netLoaded = false;
+  c.rescueEntryArmed = true;
   sim.fishNet.state = "coach";
   sim.feedback("pickup");
   sim.emit("toast", { text: "Net in hand! Walk to the pool edge to dive in." });

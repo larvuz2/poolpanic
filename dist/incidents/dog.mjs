@@ -87,7 +87,8 @@ export const LooseDog = {
           return true;
         },
       });
-    if (c.carry === "treats")
+    // E only puts the treats back once the dog is gone; the return button still works any time.
+    if (c.carry === "treats" && (!sim.dog || sim.dog.stage === "leaving"))
       options.push({
         kind: "return-treats",
         label: "Put the treats back",

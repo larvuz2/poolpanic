@@ -271,7 +271,10 @@ function redCard(sim, k, v) {
     sim.stats.prevented++;
     sim.emit("points", { x: v.x, z: v.z, value: 100 });
     sim.emit("toast", { text: "Red card! Carl sheepishly joins the queue. +100" });
+    // Draw Carl's customer traits from the chaos stream so later arrivals match a chaos-free shift.
+    sim.random = () => sim.chaosRandom();
     const p = sim.spawn({ type: "intermediate", sick: false });
+    delete sim.random;
     const slot = { x: p.x, z: p.z };
     Object.assign(p, {
       name: "Carl",
