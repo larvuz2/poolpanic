@@ -1,5 +1,5 @@
 import { screenMovement } from "./spatial.mjs";
-import { normalizeRecords, starsFor, recordResult } from "./progression.mjs";
+import { normalizeRecords, starsFor, recordResult, isUnlocked, UNLOCK_ALL } from "./progression.mjs";
 import { guidanceState, cuePulse } from "./guidance.mjs";
 import { PoolSimulation, TYPES, SHIFTS, loopPosition } from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
@@ -151,7 +151,7 @@ function returnMenu() {
 function updateChoices() {
   document.querySelectorAll("[data-level]").forEach((b) => {
     const n = Number(b.dataset.level),
-      locked = n > records.unlocked,
+      locked = !isUnlocked(records, n),
       stars = starsFor(n, records.bests[n - 1]);
     b.classList.toggle("active", n === level);
     b.classList.toggle("completed", stars > 0);
@@ -183,7 +183,9 @@ function updateChoices() {
     shift.total +
     " SWIMMERS" +
     (shift.venue === "resort" ? " · 5 LANES + TRAMPOLINE" : "");
-  document.querySelector(".welcome-foot>span").textContent = "★ UNLOCKS THE NEXT SHIFT";
+  document.querySelector(".welcome-foot>span").textContent = UNLOCK_ALL
+    ? "ALL LEVELS OPEN FOR TESTING"
+    : "★ UNLOCKS THE NEXT SHIFT";
   $("best-score").textContent = records.bests[level - 1]
     ? "BEST · " + records.bests[level - 1].toLocaleString()
     : "MAKE YOUR FIRST SPLASH";
@@ -322,7 +324,7 @@ function finish() {
               : r.stars === 3
                 ? "Three stars! Try the next shift, or beat this run with an even longer happy streak."
                 : "A new arrival mix awaits. Can you keep the happy streak going just a little longer?";
-  $("next-level").hidden = level >= SHIFTS.length || records.unlocked <= level;
+  $("next-level").hidden = level >= SHIFTS.length || !isUnlocked(records, level + 1);
   $("next-level").textContent = "Next shift · Level " + (level + 1) + " →";
   $("play-again").textContent = "Replay level " + level + " ↻";
   $("play-again").className = $("next-level").hidden ? "primary" : "secondary";
