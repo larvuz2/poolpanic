@@ -1,7 +1,7 @@
 // 🤸 Trampoline (resort). Daredevils queue like everyone else, but they only want the tower. Assign one (T
 // or click the tower) and they walk to the stairs and wait for the splash lane to empty. The moment it is
 // clear they climb, bounce and flip into the lane. If their patience runs out they go anyway, and anyone in
-// the splash zone gets flattened: every swimmer freezes, each victim needs a life ring swum out to them,
+// the splash lane gets flattened: every swimmer freezes, each victim needs a life ring swum out to them,
 // they climb out and lie on the deck, and the coach carries the medical kit to patch each one up.
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -282,11 +282,9 @@ function land(sim, p) {
   p.y = 0;
   p.jumpStage = null;
   sim.jumper = null;
+  // Anyone still swimming in the splash lane is in the way; the two nearest take the hit.
   const hit = sim.people
-    .filter(
-      (q) =>
-        q.lane === tr.lane && ["swim", "switch"].includes(q.status) && Math.abs(q.z - tr.landZ) < tr.zone,
-    )
+    .filter((q) => q.lane === tr.lane && ["swim", "switch"].includes(q.status))
     .sort((a, b) => distance(a, p) - distance(b, p))
     .slice(0, 2);
   if (!hit.length) {

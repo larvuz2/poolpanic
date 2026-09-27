@@ -2918,3 +2918,9 @@ button.bubble:focus-visible .face {
 .bubble.injured .type-label {
   color: #7a2a20;
 }
+.modal h3 {
+  margin: 20px 0 4px;
+  font: 900 15px/1.2 var(--display);
+  letter-spacing: 0.5px;
+  color: var(--yellow);
+}

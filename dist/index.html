@@ -31,7 +31,7 @@
             <span class="clock-icon">◷</span>
             <div>
               <strong id="timer">1:30</strong
-              ><small id="level-progress" class="level-progress">LEVEL 01 / 10</small
+              ><small id="level-progress" class="level-progress">LEVEL 01 / 15</small
               ><small id="shift-label">MORNING DIP</small>
             </div>
           </div>
@@ -49,7 +49,7 @@
         ><button id="reset-view" aria-label="Reset camera" title="Reset camera">⌖</button>
       </div>
       <section id="welcome" class="welcome">
-        <div class="eyebrow"><span class="mini-pill">THE COMMUNITY SWIM CLUB</span><span>01 / 10</span></div>
+        <div class="eyebrow"><span class="mini-pill">THE COMMUNITY SWIM CLUB</span><span>01 / 15</span></div>
         <h1>YOUR SWIM<br /><em>SEASON.</em></h1>
         <div id="level-map" class="shift-choices level-map" aria-label="Choose a level"></div>
         <div class="shift-preview">
@@ -164,7 +164,9 @@
         </p>
         <p>
           Click a swimmer on the deck or their card, then click the water or a lane below. You can also press
-          E beside a waiting swimmer to select them. Keyboard: <b>1 / 2 / 3</b> assigns a lane.
+          E beside a waiting swimmer to select them. Keyboard: <b>1–5</b> assigns a lane. Select a swimmer who
+          is already swimming and pick another lane to <b>move them mid-workout</b>: they duck under the ropes
+          and keep their progress.
         </p>
         <div class="roster-guide">
           <div><i style="background: #71ba54"></i><b>Beginner</b><span>0.55× · Taking it slow</span></div>
@@ -174,6 +176,10 @@
           <div><i style="background: #f26857"></i><b>Pro</b><span>1.5× · Hates getting stuck</span></div>
           <div>
             <i style="background: #b782db"></i><b>Aqua aerobics</b><span>Stays put · Group together</span>
+          </div>
+          <div>
+            <i style="background: #f39a2b"></i><b>Daredevil</b
+            ><span>Resort only · Trampoline, never lanes</span>
           </div>
         </div>
         <ul>
@@ -206,11 +212,54 @@
             on the scoreboard.
           </li>
         </ul>
+        <h3>Chaos on deck (from level 4)</h3>
+        <ul>
+          <li>
+            <b>🐟 Fish Kid.</b> A kid marches in with a bucket and a very big fish. Catch the kid before the
+            edge and press E. Too late? The fish goes in, everybody swims for the walls and runs around
+            screaming. Grab the fish net, dive in and chase the fish down; it darts away, so cut it off. Give
+            it back to the kid and hang the net up.
+          </li>
+          <li>
+            <b>🐕 Loose Dog.</b> It steals fins and clutter, knocks walkers over and shakes pool water into
+            slippery puddles. Grab the treats, let it follow you, and lead it out through a locker door.
+          </li>
+          <li>
+            <b>💣 Cannonball Carl.</b> Show him the red card (E) before he reaches the edge and he joins the
+            queue like everyone else. Each cannonball swamps nearby swimmers, knocks goggles loose and floods
+            the deck with puddles until you catch him on dry land.
+          </li>
+          <li>
+            <b>⚡ Power Outage.</b> When the lights flicker, sprint to the fuse box and reset it. Miss it and
+            the pool goes dark: swimmers bump into each other until you fetch the flashlight and flip the
+            breakers back on.
+          </li>
+          <li>Puddles trip anyone who runs across them, you included. Jump over them or walk around.</li>
+        </ul>
+        <h3>Riviera Splash Resort (levels 11–15)</h3>
+        <ul>
+          <li>
+            <b>Five lanes and a trampoline.</b> Daredevils 🤸 only want the tower: select one and press
+            <b>T</b> (or click the tower). They wait at the stairs until the orange splash zone in lane 5 is
+            empty, then climb, bounce and flip in.
+          </li>
+          <li>
+            <b>Clear the splash lane.</b> While a daredevil waits, lane 5 is closed to new swimmers. Move
+            anyone still in it to another lane before the daredevil’s patience bar runs out.
+          </li>
+          <li>
+            <b>Crash!</b> If they jump while anyone is still in lane 5, the swimmers in the way get hurt, the
+            whole pool freezes and the clock stops. Swim a life ring out to <em>each</em> victim. They climb
+            out and lie on the deck: grab the medical kit and kneel beside each one (E, or click them) to
+            patch them up.
+          </li>
+        </ul>
         <p class="help-shortcuts">
           <b>WASD / arrows</b> move · <b>Space</b> jump · <b>Shift</b> dash · <b>E</b> pick up / deliver /
-          assist · <b>1 / 2 / 3</b> assign lane · <b>P / Esc</b> pause · <b>M</b> music. F, C, and R point you
-          toward fins, chlorine, and eye relief. Jump over dropped fins to avoid slipping. The coach enters
-          the water only with a life ring during a cramp rescue.
+          assist · <b>1–5</b> assign or move lane · <b>T</b> trampoline · <b>P / Esc</b> pause · <b>M</b>
+          music. F, C, and R point you toward fins, chlorine, and eye relief; clicking gear or a visitor walks
+          you there. Jump over dropped fins and puddles to avoid slipping. The coach only enters the water on
+          a mission: a life ring for a rescue, or the net for a loose fish.
         </p>
         <button class="primary" data-close>I've got this ↗</button>
       </dialog>
