@@ -25,6 +25,7 @@ The core promise is: **easy to understand, satisfying to move through, increasin
 
 - Hosted game: https://pool-panic.larvuz.chatgpt.site
 - GitHub repository: https://github.com/larvuz2/poolpanic
+- Netlify: `netlify.toml` configures continuous deployment straight from the GitHub repository (see [Deploy on Netlify](#deploy-on-netlify)).
 - The existing game source belongs to the ChatGPT Site's separate source repository. Its manifest is `.openai/hosting.json`.
 - On September 26, 2026, the complete Site source and this README were copied into GitHub. Both now contain the game; future changes do **not** automatically synchronize between them.
 - In the full Site checkout, `dist/` contains the editable runtime source, not merely disposable generated output. There is no build step. If this README is present but `dist/` is absent, you have the documentation-only checkout and must open the existing Site source before editing gameplay.
@@ -288,6 +289,16 @@ python3 -m http.server 8000 --directory dist
 ```
 
 Open `http://localhost:8000` (or run `npm start`). Do not open `index.html` through `file://`, which can block ES-module loading. No dependency installation or build is needed to play. Adding `?debug` to the URL exposes `window.__pool` (`play(level)`, `step(seconds, drive)`, `unlockAll()`, `sim`, `world`) for fast-forwarded repros and screenshots.
+
+### Deploy on Netlify
+
+`netlify.toml` holds every setting, so connecting the repository once is all it takes:
+
+1. In Netlify choose **Add new site → Import an existing project → GitHub** and pick `larvuz2/poolpanic`.
+2. Keep `main` as the production branch. Netlify reads the build command (`npm test`), the publish directory (`dist`) and the Node version (22) from `netlify.toml`, so leave the build fields in the UI as they are.
+3. Deploy. From then on every push to `main` redeploys automatically, and every pull request gets its own deploy preview link.
+
+There is nothing to bundle: the build step only runs the regression checks (about 30 seconds). If a check fails, that deploy fails and the previous version stays live. To publish without the checks, set `command = ""` in `netlify.toml`. The config also serves `.mjs` files with a JavaScript MIME type (the game loads as native ES modules) and adds `nosniff` and referrer-policy headers.
 
 ### Verify changes
 
