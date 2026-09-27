@@ -96,11 +96,11 @@ function renderLaneControls(venue) {
     venue.lanes
       .map(
         (x, i) =>
-          `<button class="lane-btn" data-lane="${i}" aria-label="Assign selected swimmer to lane ${i + 1}"><div class="lane-top"><span class="lane-no">LANE 0${i + 1}</span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Jump on in</span><span class="lane-caps"></span></div></button>`,
+          `<button class="lane-btn" data-lane="${i}" aria-label="Assign selected swimmer to lane ${i + 1}"><div class="lane-top"><span class="lane-no"><span class="lane-word">LANE </span>0${i + 1}</span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Jump on in</span><span class="lane-caps"></span></div></button>`,
       )
       .join("") +
     (venue.trampoline
-      ? `<button class="lane-btn trampoline-btn" data-lane="trampoline" aria-label="Send selected daredevil to the trampoline"><div class="lane-top"><span class="lane-no">🤸 TRAMP</span><span class="lane-mode">READY</span></div><div class="lane-bottom"><span class="lane-count">Daredevils only</span><span class="lane-caps"></span></div></button>`
+      ? `<button class="lane-btn trampoline-btn" data-lane="trampoline" aria-label="Send selected daredevil to the trampoline"><div class="lane-top"><span class="lane-no">🤸<span class="lane-word"> TRAMP</span></span><span class="lane-mode">READY</span></div><div class="lane-bottom"><span class="lane-count">Daredevils only</span><span class="lane-caps"></span></div></button>`
       : "");
   $("lane-controls").classList.toggle("five-lanes", venue.lanes.length > 3);
 }

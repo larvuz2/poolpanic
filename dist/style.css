@@ -2932,3 +2932,31 @@ button.bubble:focus-visible .face {
   letter-spacing: 0.5px;
   color: var(--yellow);
 }
+/* Phones: six bottom buttons share the width, so they show the lane number, state tab and swimmer dots. */
+@media (max-width: 620px) {
+  .lane-controls.five-lanes {
+    gap: 4px;
+  }
+  .lane-controls.five-lanes .lane-btn {
+    width: auto;
+    min-height: 62px;
+    padding: 10px 3px 9px;
+  }
+  .lane-controls.five-lanes .lane-word,
+  .lane-controls.five-lanes .lane-count {
+    display: none;
+  }
+  .lane-controls.five-lanes .lane-no {
+    font-size: 22px;
+  }
+  .lane-controls.five-lanes .lane-top,
+  .lane-controls.five-lanes .lane-bottom {
+    justify-content: center;
+  }
+  .lane-controls.five-lanes .lane-mode {
+    right: 50%;
+    transform: translateX(50%);
+    font-size: 6px;
+    padding: 3px 4px;
+  }
+}
