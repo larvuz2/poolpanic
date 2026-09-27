@@ -240,6 +240,7 @@ export class RescueController extends SanitationController {
     }
     if (!c.swimming) {
       super.updateCoach(dt);
+      if (c.busy) return;
       if (distance(c, this.waterPoint()) >= 1.6) c.rescueEntryArmed = true;
       this.tryRescueEntry();
       return;

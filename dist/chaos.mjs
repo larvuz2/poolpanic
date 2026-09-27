@@ -4,8 +4,11 @@
 import { RescueController } from "./rescue.mjs";
 import { ENTRY } from "./spatial.mjs";
 import { FishKid } from "./incidents/fish.mjs";
+import { LooseDog } from "./incidents/dog.mjs";
+import { CannonballCarl } from "./incidents/carl.mjs";
+import { PowerOutage } from "./incidents/outage.mjs";
 
-export const SYSTEMS = [FishKid];
+export const SYSTEMS = [PowerOutage, CannonballCarl, FishKid, LooseDog];
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -68,6 +71,9 @@ export class ChaosController extends RescueController {
     for (const system of this.systems) system.update?.(this, dt);
     this.updateHazards(dt);
   }
+  finCount() {
+    return super.finCount() + this.systems.reduce((sum, s) => sum + (s.finCount?.(this) || 0), 0);
+  }
   clockHeld() {
     return !!this.cleanup || this.systems.some((s) => s.holdsClock?.(this));
   }
@@ -121,16 +127,12 @@ export class ChaosController extends RescueController {
     const door = this.venue.arrival;
     if (Math.hypot(v.x - v.side * door.doorX, v.z - door.doorZ) < 2.4) this.keepDoorOpen(v.side);
     const arrived = this.moveAlong(v, dt, speed);
-    if (
-      arrived &&
-      ["leaving", "sulking", "happy", "escorted"].includes(v.status) &&
-      Math.abs(v.z - door.doorZ) < 0.2
-    )
-      if (Math.abs(Math.abs(v.x) - door.insideX) < 0.2) {
-        v.status = "gone";
-        this.visitors = this.visitors.filter((a) => a !== v);
-        this.emit("visitor-gone", { id: v.id, kind: v.kind });
-      }
+    const inside = Math.abs(v.z - door.doorZ) < 0.2 && Math.abs(Math.abs(v.x) - door.insideX) < 0.2;
+    if (arrived && inside && ["leaving", "sulking", "happy", "carded"].includes(v.status)) {
+      v.status = "gone";
+      this.visitors = this.visitors.filter((a) => a !== v);
+      this.emit("visitor-gone", { id: v.id, kind: v.kind });
+    }
     return arrived;
   }
   pickEdgeSpot(avoid = null) {

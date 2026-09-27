@@ -498,15 +498,25 @@ function updateUI() {
           ? "Fish in the pool · clock held."
           : sim.closed
             ? "Cleanup in progress · clock held."
-            : chaos > 3
-              ? "Keep calm. Mostly calm."
-              : chaos > 0
-                ? "Someone needs a little love."
-                : sim.streak >= 3
-                  ? "Now we’re in the swim of it."
-                  : count > 3
-                    ? "The deck is getting crowded."
-                    : "Looking good, coach.";
+            : sim.outage?.stage === "dark"
+              ? "Blackout! Lanes are bumping."
+              : sim.outage?.stage === "flicker"
+                ? "The lights are flickering…"
+                : sim.fish?.stage === "approach"
+                  ? "Is that kid carrying a FISH?"
+                  : sim.carl
+                    ? "Carl is loose. Brace for splash."
+                    : sim.dog && sim.dog.stage !== "leaving"
+                      ? "There’s a dog on the deck!"
+                      : chaos > 3
+                        ? "Keep calm. Mostly calm."
+                        : chaos > 0
+                          ? "Someone needs a little love."
+                          : sim.streak >= 3
+                            ? "Now we’re in the swim of it."
+                            : count > 3
+                              ? "The deck is getting crowded."
+                              : "Looking good, coach.";
   $("hint").textContent =
     sim.incidentHint() ||
     (sim.coach.carry === "skimmer"
@@ -766,6 +776,14 @@ function events() {
       queueKey = "";
     } else if (e.type === "fish-caught") {
       world.splash(e.x, -0.1, e.z, 18);
+    } else if (e.type === "cannonball") {
+      world.bigSplash(e.x, e.z, 1.6);
+      world.incidentView.ripple(e.x, e.z);
+      world.kick(0.75);
+    } else if (e.type === "dog-splash") {
+      world.bigSplash(e.x, e.z, 0.45);
+    } else if (e.type === "blackout") {
+      world.kick(0.25);
     } else if (e.type === "handoff") {
       world.handoff({ x: e.x, z: e.z }, e.to, e.item);
       $("carry").animate([{ transform: "scale(1.18)" }, { transform: "scale(1)" }], { duration: 150 });
@@ -814,6 +832,7 @@ function animate(t) {
       }
     }
     world.sync(sim, t / 1000, dt);
+    if (world.incidentView.consumeLightning()) audio.effect("thunder");
     world.render();
     updateBubbles();
     updateContext();

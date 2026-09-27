@@ -24,11 +24,11 @@ export class CoachController {
     c.dashTime = 0;
   }
   jump() {
-    if (this.status === "playing") this.coach.jumpBuffer = 0.12;
+    if (this.status === "playing" && !this.coach.busy) this.coach.jumpBuffer = 0.12;
   }
   dash() {
     const c = this.coach;
-    if (this.status !== "playing" || c.dashCooldown > 0 || c.slipTime > 0) return false;
+    if (this.status !== "playing" || c.dashCooldown > 0 || c.slipTime > 0 || c.busy) return false;
     const n = Math.hypot(c.input.x, c.input.z);
     c.dashX = n ? c.input.x / n : Math.sin(c.angle);
     c.dashZ = n ? c.input.z / n : Math.cos(c.angle);
@@ -37,8 +37,40 @@ export class CoachController {
     this.emit("dash", { x: c.x, z: c.z });
     return true;
   }
+  // Timed hands-on actions (resetting breakers, bandaging): the coach stays put until it completes.
+  startBusy(kind, duration, label, done) {
+    const c = this.coach;
+    c.busy = { kind, t: 0, duration, label, done };
+    c.vx = c.vz = 0;
+    c.dashTime = 0;
+    this.emit("busy", { kind, x: c.x, z: c.z });
+    return true;
+  }
+  updateBusy(dt) {
+    const c = this.coach,
+      b = c.busy;
+    if (!b) return false;
+    b.t = Math.min(b.duration, b.t + dt);
+    c.vx = c.vz = 0;
+    c.state = b.label;
+    if (b.t >= b.duration) {
+      c.busy = null;
+      b.done();
+    }
+    return true;
+  }
+  // Every pair of fins must stay accounted for: rack, coach, swimmers, deck (and anything a system adds).
+  finCount() {
+    return (
+      this.finsAvailable +
+      (this.coach.carry === "fins" ? 1 : 0) +
+      this.people.filter((p) => p.hasFins).length +
+      this.clutter.filter((f) => f.type === "fins").length
+    );
+  }
   updateCoach(dt) {
     const c = this.coach;
+    if (this.updateBusy(dt)) return;
     c.feedback = Math.max(0, c.feedback - dt);
     c.landing = Math.max(0, c.landing - dt);
     c.slipCooldown = Math.max(0, c.slipCooldown - dt);
@@ -111,7 +143,7 @@ export class CoachController {
     return false;
   }
   canInteract() {
-    return this.status === "playing" && this.coach.y < 0.08 && this.coach.slipTime === 0;
+    return this.status === "playing" && this.coach.y < 0.08 && this.coach.slipTime === 0 && !this.coach.busy;
   }
   servicePoint(p) {
     if (p.status !== "swim" || p.lane == null) return { x: p.x, z: p.z };

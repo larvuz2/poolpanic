@@ -134,7 +134,45 @@ export class PoolAudio {
   effect(type) {
     if (!this.ctx || !this.enabled) return;
     const t = this.ctx.currentTime;
-    if (type === "chaos") {
+    if (type === "dog-notice" || type === "dog-steal" || type === "dog-bowl") {
+      const n = type === "dog-notice" ? 3 : 2;
+      for (let i = 0; i < n; i++) {
+        this.tone(
+          type === "dog-notice" ? 520 : 330,
+          t + i * 0.16,
+          0.09,
+          0.14,
+          "square",
+          type === "dog-notice" ? 680 : 240,
+        );
+        this.noise(t + i * 0.16, 0.06, 0.05, 900);
+      }
+    } else if (type === "dog-shake") {
+      for (let i = 0; i < 6; i++) this.noise(t + i * 0.05, 0.05, 0.05, 2400);
+    } else if (type === "red-card") {
+      [2400, 2600, 2400, 2600, 2400].forEach((f, i) => this.tone(f, t + i * 0.05, 0.06, 0.07, "sine"));
+      this.tone(2500, t + 0.3, 0.35, 0.08, "sine");
+    } else if (type === "carl-windup") {
+      this.tone(160, t, 0.5, 0.12, "sawtooth", 420);
+    } else if (type === "carl-jump") {
+      this.tone(420, t, 0.7, 0.1, "triangle", 900);
+    } else if (type === "cannonball") {
+      this.tone(70, t, 0.6, 0.35, "sine", 35);
+      this.noise(t, 0.9, 0.3, 250);
+      this.noise(t + 0.15, 0.7, 0.18, 1200);
+    } else if (type === "outage-flicker") {
+      for (let i = 0; i < 5; i++) this.tone(120, t + i * 0.13, 0.08, 0.06, "square");
+    } else if (type === "blackout") {
+      this.tone(880, t, 0.9, 0.15, "sawtooth", 55);
+    } else if (type === "power-restored") {
+      this.tone(80, t, 0.6, 0.12, "sawtooth", 900);
+      [523, 784, 1047].forEach((f, i) => this.tone(f, t + 0.45 + i * 0.08, 0.18, 0.1, "triangle"));
+    } else if (type === "thunder") {
+      this.noise(t + 0.2, 1.4, 0.22, 90);
+      this.tone(48, t + 0.2, 1.2, 0.2, "sine", 30);
+    } else if (type === "busy") {
+      this.tone(300, t, 0.05, 0.06, "square");
+    } else if (type === "chaos") {
       [330, 247, 330, 247].forEach((f, i) => this.tone(f, t + i * 0.18, 0.16, 0.12, "square"));
     } else if (type === "fish-dumped") {
       this.noise(t, 0.5, 0.2, 400);

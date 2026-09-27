@@ -68,8 +68,8 @@ function poolGeometry(lanes) {
   };
 }
 
-// Does segment a→b pass through the open box |x| < hx, |z| < hz? (Liang–Barsky clipping.)
-function segmentHitsBox(a, b, hx, hz) {
+// Does segment a→b pass through the open box |x| < hx, minZ < z < maxZ? (Liang–Barsky clipping.)
+function segmentHitsBox(a, b, hx, minZ, maxZ) {
   let t0 = 0,
     t1 = 1;
   const dx = b.x - a.x,
@@ -77,8 +77,8 @@ function segmentHitsBox(a, b, hx, hz) {
   for (const [p, q] of [
     [-dx, a.x + hx],
     [dx, hx - a.x],
-    [-dz, a.z + hz],
-    [dz, hz - a.z],
+    [-dz, a.z - minZ],
+    [dz, maxZ - a.z],
   ]) {
     if (Math.abs(p) < 1e-9) {
       if (q <= 0) return false;
@@ -127,9 +127,11 @@ function makeVenue(spec) {
     // Shortest deck route around the basin: straight when clear, otherwise via the corridor corners.
     // Coach-sized bodies collide with the starting blocks, so `solid` routes pass further behind them.
     route(from, to, { solid = false } = {}) {
+      // Solid bodies also collide with the starting-block row just behind the basin's left end.
       const kx = pool.keepOutX - 0.05,
-        kz = pool.keepOutZ - 0.05;
-      const blocked = (a, b) => segmentHitsBox(a, b, kx, kz);
+        kz = pool.keepOutZ - 0.05,
+        minZ = solid ? -10.1 : -kz;
+      const blocked = (a, b) => segmentHitsBox(a, b, kx, minZ, kz);
       if (!blocked(from, to)) return [{ x: to.x, z: to.z }];
       const cx = pool.corridorX,
         backZ = solid ? ENTRY.walkZ - 0.55 : ENTRY.walkZ,
