@@ -2856,6 +2856,14 @@ button.bubble:focus-visible .face {
 .lane-controls.five-lanes .lane-no {
   font-size: 21px;
 }
+/* Five narrow buttons: the lane state rides on the top edge like a tab instead of beside the number. */
+.lane-controls.five-lanes .lane-mode {
+  position: absolute;
+  top: -10px;
+  right: 7px;
+  white-space: nowrap;
+  box-shadow: 0 1px 0 #ffffff30 inset;
+}
 .trampoline-btn {
   border-top-color: #ffc27a;
   background: linear-gradient(#6a3a2a, #3d2219);
