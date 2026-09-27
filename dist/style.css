@@ -2871,3 +2871,50 @@ button.bubble:focus-visible .face {
   background: #ff8a4c;
   color: #2a120b;
 }
+
+/* Resort season: sunset accents on the menu, daredevil countdowns and injured tags. */
+.welcome.resort-season {
+  background: linear-gradient(150deg, #8a4a3cf7, #3b2a44fb 70%);
+  border-color: #ffc98f;
+}
+.welcome.resort-season .mini-pill {
+  background: #ffb36b;
+  color: #3a1d12;
+}
+.level-map button.resort {
+  background: #5a3a34;
+  border-color: #c98e6a;
+}
+.level-map button.resort:disabled {
+  background: #3a2a2c;
+  border-color: #7a5a52;
+  color: #b4948a;
+}
+.level-map button.resort.completed {
+  background: #7a4a36;
+  border-color: #ffc27a;
+}
+.level-map button.resort.active {
+  border-color: var(--yellow);
+  background: #9a5a3a;
+}
+.level-map button.resort .level-number:before {
+  content: "🌴";
+  display: block;
+  font-size: 9px;
+  margin-bottom: 1px;
+}
+.bubble .stomach-meter.jump-meter {
+  border-color: #ffd29a;
+}
+.bubble .stomach-meter.jump-meter i {
+  background: #ff7a3d;
+}
+.bubble.injured .face {
+  background: #fff4f0;
+  border-color: #ff8a7a;
+  box-shadow: 0 0 0 calc(1px + var(--cue) * 3px) #ff6b5a66;
+}
+.bubble.injured .type-label {
+  color: #7a2a20;
+}

@@ -1,7 +1,7 @@
 // Chaos layer: a seeded per-shift incident schedule, visiting characters (kids, dogs, cannonballers), deck
 // hazards, fleeing swimmers and shared reopen/hint/panel plumbing. Each incident lives in its own module under
 // incidents/ and plugs into the hooks below, so systems stay small and never reach into each other.
-import { RescueController } from "./rescue.mjs";
+import { RescueController, waitingInWater } from "./rescue.mjs";
 import { ENTRY } from "./spatial.mjs";
 import { FishKid } from "./incidents/fish.mjs";
 import { LooseDog } from "./incidents/dog.mjs";
@@ -19,6 +19,35 @@ export const SYSTEMS = [PowerOutage, CannonballCarl, FishKid, LooseDog, Trampoli
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// Clicking incident gear: what it is for, and whether the coach should head there right now.
+const FIXTURES = {
+  fishNet: {
+    needed: (s) => s.fish?.stage === "loose" || s.coach.carry === "fishnet",
+    go: "Walk to the fish net and press E.",
+    about: "The fish net. You will need it if a fish ever ends up in the pool.",
+  },
+  treats: {
+    needed: (s) => !!s.dog || s.coach.carry === "treats",
+    go: "Walk to the dog treats and press E.",
+    about: "Dog treats. Handy if a dog ever wanders in.",
+  },
+  flashlight: {
+    needed: (s) => s.outage?.stage === "dark" || s.coach.carry === "flashlight",
+    go: "Walk to the flashlight and press E.",
+    about: "The flashlight, for finding the breakers in a blackout.",
+  },
+  fuseBox: {
+    needed: (s) => ["flicker", "dark"].includes(s.outage?.stage),
+    go: "Run to the fuse box and press E.",
+    about: "The fuse box. Reset it quickly if the lights start flickering.",
+  },
+  medkit: {
+    needed: (s) => s.coach.carry === "medkit" || s.people.some((p) => p.status === "injured"),
+    go: "Walk to the medical kit and press E.",
+    about: "The medical kit, for swimmers hurt in a trampoline crash.",
+  },
+};
 
 export class ChaosController extends RescueController {
   constructor(venue) {
@@ -315,15 +344,27 @@ export class ChaosController extends RescueController {
   }
   // Top-centre incident banner: icon, title, current task and step list.
   incidentPanel() {
+    if (this.rescue?.kind === "crash") {
+      const victims = this.rescueVictims(),
+        next = victims.findIndex((v) => waitingInWater(this, v));
+      return {
+        icon: "💥",
+        title: this.rescue.stage === "stranded" ? "CRASH! A RING FOR EVERYONE" : "OUT OF THE WATER",
+        task: this.rescueHint(),
+        steps: [
+          ...victims.map((v, i) => ({
+            label: "🛟 " + v.name.toUpperCase(),
+            active: i === next,
+            done: !waitingInWater(this, v),
+          })),
+          { label: "🩹 FIRST AID", active: next < 0, done: false },
+        ],
+      };
+    }
     if (this.rescue)
       return {
-        icon: this.rescue.kind === "crash" ? "💥" : "🛟",
-        title:
-          this.rescue.stage === "stranded"
-            ? this.rescue.kind === "crash"
-              ? "CRASH! RINGS FOR EVERYONE"
-              : "SWIMMER NEEDS HELP!"
-            : "HEADING TO SAFETY",
+        icon: "🛟",
+        title: this.rescue.stage === "stranded" ? "SWIMMER NEEDS HELP!" : "HEADING TO SAFETY",
         task: this.rescueHint(),
       };
     if (this.cleanup) return null;
@@ -345,6 +386,76 @@ export class ChaosController extends RescueController {
   }
   injuredOnDeck(p) {
     injuredOnDeck(this, p);
+  }
+  // Crash rescues need one ring per victim, so the hint counts down who is still waiting.
+  rescueHint() {
+    if (this.rescue?.kind !== "crash") return super.rescueHint();
+    const left = this.strandedVictims().length,
+      c = this.coach;
+    if (this.rescue.stage === "escaping") return "Victims climbing out · first aid next";
+    if (c.swimming)
+      return c.carry === "lifering"
+        ? `Swim to a 🤕 swimmer · ${left} still need${left === 1 ? "s" : ""} a ring`
+        : "Climb out · grab another life ring";
+    if (c.waterTransition) return c.waterTransition.kind === "dive" ? "Rescue dive!" : "Climbing out";
+    return c.carry === "lifering"
+      ? "Walk to the pool edge · dive in automatically"
+      : `Grab a life ring · E · ${left} hurt swimmer${left === 1 ? "" : "s"} waiting`;
+  }
+
+  // ------------------------------------------------------------------------------------------------------
+  // Pointer shortcuts: clicking gear, visitors or injured swimmers runs the matching E action when the coach
+  // is already in reach; otherwise the coach is pointed the right way.
+  interactionNear(point, reach, filter = () => true) {
+    if (!this.canInteract()) return null;
+    const options = [];
+    this.collectInteractions(options);
+    return (
+      options
+        .filter((o) => filter(o) && Math.hypot(o.x - point.x, o.z - point.z) < reach)
+        .sort((a, b) => a.rank - b.rank)[0] || null
+    );
+  }
+  useFixture(item) {
+    const point = this.venue.fixtures?.[item],
+      info = FIXTURES[item];
+    if (!point || !info || this.status !== "playing") return false;
+    const option = this.interactionNear(point, 1.3);
+    if (option) return option.run();
+    if (info.needed(this)) return this.guideTo(point, info.go);
+    this.emit("toast", { text: info.about });
+    return false;
+  }
+  approachVisitor(id) {
+    const v = this.visitor(id);
+    if (!v || this.status !== "playing") return false;
+    const option = this.interactionNear(v, 0.6);
+    if (option) return option.run();
+    if (v.kind === "dog") {
+      if (this.coach.carry !== "treats")
+        return this.guideTo(this.venue.fixtures.treats, "Grab the dog treats to lure the dog out.");
+      const door = this.venue.arrival,
+        side = Math.sign(this.coach.x) || 1;
+      return this.guideTo(
+        { x: side * door.outsideX, z: door.doorZ },
+        "Lead the dog to a locker door. It follows the treats.",
+      );
+    }
+    return this.guideTo(
+      v,
+      v.kind === "kid"
+        ? "Catch the kid before the edge and press E!"
+        : "Walk up to Carl and press E to red-card him!",
+    );
+  }
+  tendInjured(id) {
+    const p = this.get(id);
+    if (!p || p.status !== "injured" || this.status !== "playing") return false;
+    const option = this.interactionNear(p, 0.3, (o) => o.kind === "heal" && o.id === id);
+    if (option) return option.run();
+    if (this.coach.carry === "medkit")
+      return this.guideTo(p, "Kneel beside " + p.name + " and press E to patch them up.");
+    return this.guideTo(this.venue.fixtures.medkit, "Grab the medical kit to patch up " + p.name + ".");
   }
   // Tag shown over a visitor (emoji + optional meter).
   visitorTag(v) {

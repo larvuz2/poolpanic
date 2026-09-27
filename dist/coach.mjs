@@ -38,10 +38,12 @@ export class CoachController {
     return true;
   }
   // Timed hands-on actions (resetting breakers, bandaging): the coach stays put until it completes.
-  startBusy(kind, duration, label, done) {
+  // A short timed action (bandaging, flipping breakers). The coach stands still facing `face`.
+  startBusy(kind, duration, label, done, face = null) {
     const c = this.coach;
     c.busy = { kind, t: 0, duration, label, done };
     c.vx = c.vz = 0;
+    if (face) c.angle = Math.atan2(face.x - c.x, face.z - c.z);
     c.dashTime = 0;
     this.emit("busy", { kind, x: c.x, z: c.z });
     return true;

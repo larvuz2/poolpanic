@@ -164,19 +164,24 @@ const tr = (s) => s.venue.trampoline;
     [d, victim].every((v) => v.status === "injured"),
     "Victims lie on the deck",
   );
+  for (let f = 0; f < 600 && [d, victim].some((v) => v.path.length); f++) tick(s);
   for (const v of [d, victim])
     assert.ok(s.isDeck(v.x, v.z) || s.venue.isDeck(v.x, v.z, s.level, 0), "…on the deck, not in the pool");
+  assert.ok(Math.hypot(d.x - victim.x, d.z - victim.z) > 1.3, "Victims lie apart, not in a heap");
   // Medical kit to each victim.
   const cab = s.venue.fixtures.medkit;
+  assert.equal(s.tendInjured(victim.id), false, "Without the kit, clicking a victim points to the cabinet");
+  assert.deepEqual([s.coach.goal.x, s.coach.goal.z], [cab.x, cab.z]);
   go(s, cab.x + 1.1, cab.z);
   assert.equal(s.nearestInteraction()?.kind, "medkit");
-  assert.ok(s.interact());
+  assert.ok(s.useFixture("medkit"), "Clicking the cabinet in reach grabs the kit");
   assert.equal(s.coach.carry, "medkit");
   for (const v of [victim, d]) {
-    go(s, v.x + (v.x < 0 ? 0.9 : -0.9), v.z + 0.9);
-    const option = s.nearestInteraction();
-    assert.equal(option?.kind, "heal", "Beside " + v.name + " the kit patches them up");
-    s.interact();
+    // Stand on the far side from the other victim, then click this one.
+    const other = v === d ? victim : d;
+    go(s, v.x + (Math.sign(v.x - other.x) || 1) * 0.9, v.z - 0.5);
+    assert.equal(s.nearestInteraction()?.kind, "heal", "Beside " + v.name + " the kit patches them up");
+    assert.ok(s.tendInjured(v.id), "Clicking " + v.name + " starts first aid");
     assert.ok(s.coach.busy);
     tick(s, 80);
     assert.equal(v.problem, null);

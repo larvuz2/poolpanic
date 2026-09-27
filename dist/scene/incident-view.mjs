@@ -3,6 +3,7 @@
 import { THREE, COLORS } from "./kit.mjs";
 import { character, dogObject } from "./actors.mjs";
 import { CARL_TUNING } from "../incidents/carl.mjs";
+import { guidanceState } from "../guidance.mjs";
 import {
   fishObject,
   fishNetObject,
@@ -70,6 +71,61 @@ export class IncidentView {
     this.waveRing.position.y = -0.2;
     w.scene.add(this.waveRing);
     this.wave = null;
+    this.dizzy = new Map();
+    this.dizzyGeo = new THREE.OctahedronGeometry(0.075, 0);
+    this.dizzyMat = new THREE.MeshBasicMaterial({ color: 0xffe066 });
+    if (w.venue.trampoline) this.buildSplashZone(w.venue.trampoline);
+  }
+  // Orange-and-white floats and a landing target mark the part of the lane the trampoline lands in.
+  buildSplashZone(tr) {
+    const w = this.w,
+      x = w.venue.lanes[tr.lane],
+      group = new THREE.Group();
+    const zone = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.9, tr.zone * 2),
+      new THREE.MeshBasicMaterial({ color: 0xff7a3d, transparent: true, opacity: 0.07, depthWrite: false }),
+    );
+    zone.rotation.x = -Math.PI / 2;
+    zone.position.set(x, -0.16, tr.landZ);
+    group.add(zone);
+    const geo = new THREE.SphereGeometry(0.13, 10, 8),
+      zs = [];
+    for (let z = tr.landZ - tr.zone; z <= tr.landZ + tr.zone + 1e-6; z += 0.4) zs.push(z);
+    [0xff6a2b, 0xfff4e6].forEach((color, k) => {
+      const list = zs.filter((_, i) => i % 2 === k),
+        mesh = new THREE.InstancedMesh(geo, w.mat(color, { roughness: 0.35 }), list.length * 2),
+        dummy = new THREE.Object3D();
+      let n = 0;
+      for (const side of [-1, 1])
+        for (const z of list) {
+          dummy.position.set(x + side * 1.6, -0.18, z);
+          dummy.scale.set(1.05, 0.95, 1.3);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(n++, dummy.matrix);
+        }
+      mesh.castShadow = true;
+      group.add(mesh);
+    });
+    const target = new THREE.Mesh(
+      new THREE.RingGeometry(0.7, 0.92, 40),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.18,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    );
+    target.rotation.x = -Math.PI / 2;
+    target.position.set(x, -0.155, tr.landZ);
+    group.add(target);
+    w.scene.add(group);
+    // Glowing spot at the foot of the stairs while a daredevil is selected.
+    const cue = w.decal(w.glowMap, 2.6, 2.6, 0xffd24d, 0, true);
+    cue.rotation.x = -Math.PI / 2;
+    cue.position.set(tr.stairBottomX, 0.05, tr.z);
+    w.scene.add(cue);
+    this.splashZone = { zone, target, cue };
   }
   // Light multipliers for this frame (1 = normal). Blackouts dim everything; the flicker stutters.
   lightLevel(sim, time) {
@@ -90,6 +146,8 @@ export class IncidentView {
     this.syncFish(sim, time);
     this.syncPuddles(sim);
     this.syncOutage(sim, time, dt);
+    this.syncSplashZone(sim, time);
+    this.syncDizzy(sim, time);
     if (w.fishNetRack) w.fishNetRack.visible = sim.fishNet?.state !== "coach";
     if (w.flashlightRack) w.flashlightRack.visible = sim.flashlight?.state !== "coach";
     if (w.medkitRack) w.medkitRack.visible = sim.coach.carry !== "medkit";
@@ -105,6 +163,53 @@ export class IncidentView {
       this.waveRing.material.opacity = (1 - t) * 0.55;
       if (t >= 1) this.wave = null;
     } else this.waveRing.visible = false;
+  }
+  syncSplashZone(sim, time) {
+    const z = this.splashZone;
+    if (!z) return;
+    const j = sim.get(sim.jumper),
+      armed = !!j && ["waiting", "climbing", "boarding", "bouncing", "flying"].includes(j.jumpStage),
+      urgent = armed && (j.jumpStage !== "waiting" || j.jumpPatience < 5),
+      pulse = this.w.reducedMotion.matches ? 0.5 : 0.5 + 0.5 * Math.sin(time * (urgent ? 11 : 5));
+    z.zone.material.opacity = armed ? 0.14 + pulse * (urgent ? 0.26 : 0.14) : 0.07;
+    z.target.material.opacity = armed ? 0.35 + pulse * 0.45 : 0.18;
+    z.target.material.color.set(urgent ? 0xff5a2b : 0xffffff);
+    z.target.scale.setScalar(armed ? 1 + pulse * 0.14 : 1);
+    if (this.w.trampolineBed && j?.jumpStage !== "bouncing") this.w.trampolineBed.position.y = 0;
+    z.cue.material.opacity = guidanceState(sim).trampoline ? 0.35 + pulse * 0.45 : 0;
+  }
+  // Little stars circling the heads of swimmers hurt in a trampoline crash.
+  syncDizzy(sim, time) {
+    const alive = new Set(),
+      head = new THREE.Vector3(),
+      reduced = this.w.reducedMotion.matches;
+    for (const p of sim.people) {
+      if (p.problem !== "injured" || !["swim", "injured", "exit"].includes(p.status)) continue;
+      const g = this.w.people.get(p.id);
+      if (!g) continue;
+      alive.add(p.id);
+      let stars = this.dizzy.get(p.id);
+      if (!stars) {
+        stars = new THREE.Group();
+        for (let i = 0; i < 3; i++) {
+          const m = new THREE.Mesh(this.dizzyGeo, this.dizzyMat);
+          const a = (i / 3) * Math.PI * 2;
+          m.position.set(Math.cos(a) * 0.36, 0, Math.sin(a) * 0.36);
+          stars.add(m);
+        }
+        this.w.scene.add(stars);
+        this.dizzy.set(p.id, stars);
+      }
+      g.userData.head.getWorldPosition(head);
+      stars.position.set(head.x, head.y + 0.42, head.z);
+      stars.rotation.y = reduced ? 0 : time * 3.4;
+      stars.children.forEach((m, i) => (m.position.y = reduced ? 0 : Math.sin(time * 5 + i * 2) * 0.05));
+    }
+    for (const [id, stars] of this.dizzy)
+      if (!alive.has(id)) {
+        stars.removeFromParent();
+        this.dizzy.delete(id);
+      }
   }
   // Big expanding ring on the water (cannonball).
   ripple(x, z) {
@@ -125,6 +230,9 @@ export class IncidentView {
       let g = this.visitors.get(v.id);
       if (!g) {
         g = v.kind === "dog" ? dogObject(this.w) : character(this.w, v);
+        // Clicking a visitor walks the coach over (or acts, when already in reach).
+        g.userData.hit.userData = { kind: "visitor", id: v.id };
+        if (!this.w.clickables.includes(g.userData.hit)) this.w.clickables.push(g.userData.hit);
         this.visitors.set(v.id, g);
         this.w.scene.add(g);
       }
@@ -406,9 +514,13 @@ export class IncidentView {
     if (leap > 0.9 && Math.random() < 0.2) w.splash(f.x, -0.1, f.z, 4, true);
   }
 
-  // Swimmer poses owned by incidents (fleeing, leaping out of the pool).
+  // Swimmer poses owned by incidents (fleeing, trampoline stunts, crash victims lying on the deck).
   pose(sim, p, g, time) {
     const u = g.userData;
+    u.shadow.scale.set(1, 1, 1);
+    u.shadow.position.z = 0;
+    if (p.status === "trampoline") this.poseJumper(sim, p, g, time);
+    else if (p.status === "injured") this.poseInjured(sim, p, g, time);
     if (p.status === "fleeing" && p.fleePhase === "leap") {
       const t = p.leapT || 0,
         arc = Math.sin(t * Math.PI);
@@ -420,6 +532,101 @@ export class IncidentView {
       u.legs.forEach((l, i) => (l.rotation.x = Math.sin(t * Math.PI * 2 + i) * 0.6));
       u.shadow.visible = false;
     }
+  }
+  poseJumper(sim, p, g, time) {
+    const u = g.userData,
+      tr = sim.venue.trampoline,
+      stage = p.jumpStage,
+      motion = this.w.reducedMotion.matches ? 0 : 1;
+    if (!tr || !stage || stage === "toStairs") return;
+    const y = p.y || 0,
+      { arms, legs } = u;
+    g.position.y = y;
+    u.shadow.visible = y < 0.05;
+    u.hit.position.y = 0.9;
+    if (stage === "waiting") {
+      // Warming up at the foot of the stairs; frantic once patience runs low.
+      const urgent = p.jumpPatience < 5,
+        hop = Math.abs(Math.sin(time * (urgent ? 11 : 6))) * motion;
+      u.root.position.y = hop * (urgent ? 0.13 : 0.05);
+      arms.forEach((a, i) =>
+        a.rotation.set(
+          urgent
+            ? -2.8 + Math.sin(time * 12 + i * Math.PI) * 0.35 * motion
+            : -((time * 7 + i * Math.PI) % (Math.PI * 2)) * motion - 0.2,
+          0,
+          i ? -0.18 : 0.18,
+        ),
+      );
+      legs.forEach(
+        (l, i) =>
+          (l.rotation.x = urgent ? Math.max(0, Math.sin(time * 11 + i * Math.PI)) * -0.4 * motion : 0),
+      );
+    } else if (stage === "climbing") {
+      const k = time * 9 * motion;
+      u.root.rotation.x = 0.18;
+      u.root.position.y = Math.abs(Math.sin(k)) * 0.05;
+      legs.forEach((l, i) => (l.rotation.x = Math.sin(k + i * Math.PI) * 0.55 - 0.25));
+      arms.forEach((a, i) => a.rotation.set(-0.9 + Math.sin(k + i * Math.PI) * 0.35, 0, 0));
+    } else if (stage === "boarding") {
+      const k = time * 9 * motion;
+      legs.forEach((l, i) => (l.rotation.x = Math.sin(k + i * Math.PI) * 0.5));
+      arms.forEach((a, i) => a.rotation.set(-1.45, 0, i ? -1.1 : 1.1));
+    } else if (stage === "bouncing") {
+      // The bed sags under each landing; arms swing overhead at the top of every bounce.
+      const squat = Math.max(0, 1 - (y - tr.bedY) / 0.35),
+        sag = squat * 0.22;
+      g.position.y = y - sag;
+      u.root.position.y = -squat * 0.1;
+      legs.forEach((l) => (l.rotation.x = -squat * 0.5));
+      arms.forEach((a, i) => a.rotation.set(squat > 0.3 ? 0.45 : -2.9, 0, i ? -0.25 : 0.25));
+      if (this.w.trampolineBed) this.w.trampolineBed.position.y = -sag;
+    } else if (stage === "flying") {
+      // One and a half front flips around the hips, tucked in the middle, stretched into the dive.
+      const t = p.jumpT || 0,
+        e = t * t * (3 - 2 * t),
+        theta = Math.PI * 3 * e,
+        h = 0.85,
+        tuck = Math.sin(Math.min(1, Math.max(0, (t - 0.12) / 0.7)) * Math.PI);
+      u.root.rotation.x = theta;
+      u.root.position.set(0, h * (1 - Math.cos(theta)), -h * Math.sin(theta));
+      legs.forEach((l) => (l.rotation.x = -1.9 * tuck));
+      arms.forEach((a, i) => a.rotation.set(-2.9 + tuck * 1.7, 0, (i ? -0.3 : 0.3) * (1 - tuck)));
+    }
+  }
+  // Crash victims lie on their backs until the medical kit arrives, then sit up while being bandaged.
+  poseInjured(sim, p, g, time) {
+    const u = g.userData,
+      motion = this.w.reducedMotion.matches ? 0 : 1,
+      b = sim.coach.busy,
+      sit = p.healing && b?.kind === "heal" ? Math.min(1, b.t / b.duration) : 0,
+      theta = -Math.PI / 2 + sit * 1.1,
+      h = 0.45;
+    g.position.y = 0;
+    if (p.path?.length) {
+      // Limping clear of the edge, one hand on the sore head.
+      const k = time * 6 * motion;
+      u.root.rotation.set(0.14, 0, Math.sin(k) * 0.12);
+      u.legs.forEach((l, i) => (l.rotation.x = Math.sin(k + i * Math.PI) * 0.35));
+      u.arms[0].rotation.set(-2.5, 0, 0.55);
+      u.arms[1].rotation.set(0.2, 0, -0.25);
+      return;
+    }
+    u.root.rotation.set(theta, 0, Math.sin(time * 1.7 + u.phase) * 0.05 * motion * (1 - sit));
+    u.root.position.set(0, h * (1 - Math.cos(theta)) - 0.15, -h * Math.sin(theta));
+    u.legs.forEach(
+      (l, i) =>
+        (l.rotation.x = -Math.PI / 2 - theta + (i ? Math.sin(time * 3 + u.phase) * 0.12 * motion : 0)),
+    );
+    u.arms[0].rotation.set(sit ? -0.3 : 0.1, 0, sit ? 0.2 : 0.85);
+    u.arms[1].rotation.set(
+      sit ? -0.3 : -1.6 + Math.sin(time * 2.4 + u.phase) * 0.45 * motion,
+      0,
+      sit ? -0.2 : -0.3,
+    );
+    u.shadow.scale.set(1.1, 2.2, 1);
+    u.shadow.position.z = -0.25;
+    u.hit.position.y = 0.35;
   }
   poseCoach(sim, cu, time) {
     const c = sim.coach;

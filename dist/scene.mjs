@@ -92,6 +92,7 @@ export class PoolWorld extends SceneKit {
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
     this.zoom = 1;
+    this.autoZoom = 1;
     this.effectSeed = 719;
     this.clock = 0;
     this.version = 0;
@@ -486,16 +487,17 @@ export class PoolWorld extends SceneKit {
     }
     const blocked = sim.laneBlocked ? sim.laneBlocked() : -1;
     this.laneHighlights.forEach((m, i) => {
-      const danger = i === blocked;
+      const danger = i === blocked,
+        open = !!guide.lanes && i !== guide.laneExcept;
       m.material.opacity = danger
         ? 0.1 + pulse * 0.16
-        : guide.lanes
+        : open
           ? 0.14 + pulse * 0.19
           : sim.lanePeople(i).some((p) => p.h < 30)
             ? 0.07
             : 0;
-      m.material.color.set(danger ? 0xff7a3d : guide.lanes ? 0xffdf52 : 0xff5d31);
-      this.laneRims[i].visible = !!guide.lanes && !danger;
+      m.material.color.set(danger ? 0xff7a3d : open ? 0xffdf52 : 0xff5d31);
+      this.laneRims[i].visible = open && !danger;
       this.laneRims[i].material.opacity = 0.5 + pulse * 0.5;
     });
     this.syncClutter(sim);
@@ -661,7 +663,7 @@ export class PoolWorld extends SceneKit {
     const c = sim.coach,
       cg = this.coach,
       cu = cg.userData;
-    if (this.viewDirection && sim.status !== "ready") this.followCoach(c, dt);
+    if (this.viewDirection && sim.status !== "ready") this.followCoach(c, dt, this.attention(sim));
     cg.position.set(c.x, c.y || 0, c.z);
     const angle = c.angle || 0;
     cg.rotation.y += Math.atan2(Math.sin(angle - cg.rotation.y), Math.cos(angle - cg.rotation.y)) * 0.3;
@@ -906,6 +908,31 @@ export class PoolWorld extends SceneKit {
       });
     }
   }
+  // Rising sparkles for first aid.
+  sparkle(x, z, n = 16) {
+    for (let i = 0; i < n; i++) {
+      if (this.particles.length > 260) break;
+      const p = this.ball(
+        0.06,
+        this.mat(i % 2 ? 0xfff3a8 : 0xffffff, { roughness: 0.3, emissive: 0x665a20 }),
+        x + (Math.random() - 0.5) * 0.7,
+        0.5 + Math.random() * 0.5,
+        z + (Math.random() - 0.5) * 0.7,
+      );
+      p.castShadow = false;
+      this.particles.push({
+        mesh: p,
+        life: 0.7 + Math.random() * 0.5,
+        grow: 1.2,
+        gravity: -1.4,
+        velocity: new THREE.Vector3(
+          (Math.random() - 0.5) * 0.8,
+          0.8 + Math.random(),
+          (Math.random() - 0.5) * 0.8,
+        ),
+      });
+    }
+  }
   confetti() {
     for (let i = 0; i < 70; i++) {
       const m = this.box(
@@ -951,7 +978,7 @@ export class PoolWorld extends SceneKit {
   placeCamera() {
     this.camera.position
       .copy(this.target)
-      .addScaledVector(this.viewDirection, this.cameraDistance / this.zoom);
+      .addScaledVector(this.viewDirection, this.cameraDistance / (this.zoom * this.autoZoom));
     this.camera.lookAt(this.target);
     if (this.shake > 0 && !this.reducedMotion.matches) {
       const s = this.shake * 0.35;
@@ -986,25 +1013,59 @@ export class PoolWorld extends SceneKit {
       ...Object.values(v.fixtures || {}).filter((p) => p && Number.isFinite(p.x)),
     ];
   }
-  followCoach(c, dt) {
+  // Big moments the camera should frame alongside the coach: the trampoline tower during a jump, and the
+  // stranded victims of a crash.
+  attention(sim) {
+    if (sim.rescue?.kind === "crash")
+      return (sim.strandedVictims?.() || [])
+        .sort((a, b) => b.x - a.x)
+        .slice(0, 1)
+        .map((v) => new THREE.Vector3(v.x, 1.6, v.z));
+    const tr = this.venue.trampoline,
+      j = tr && sim.get?.(sim.jumper);
+    if (!j || !["waiting", "climbing", "boarding", "bouncing", "flying"].includes(j.jumpStage)) return [];
+    return [
+      new THREE.Vector3(tr.bedX - 1.2, tr.bedY + 2.4, tr.z),
+      new THREE.Vector3(this.venue.lanes[tr.lane], 0, tr.landZ),
+    ];
+  }
+  followCoach(c, dt, focus = []) {
     const follow = this.venue.cameraFollow || { kx: 0.22, maxX: 2.4 };
     const target = new THREE.Vector3(
       clamp(c.x * follow.kx, -follow.maxX, follow.maxX),
       0.45,
       clamp(c.z * 0.13, -1.5, 1.5) - 3.2,
     );
-    this.target.lerp(target, 1 - Math.exp(-dt * 2.5));
+    // Ease out while something spectacular needs to share the screen with the coach: the zoom goal keeps
+    // widening until the focus fits (within limits) and relaxes again afterwards.
+    const ease = 1 - Math.exp(-dt * 2.5),
+      bounds = this.cameraBounds();
+    if (focus.length) {
+      const top = this.project(focus[0].x, focus[0].y, focus[0].z).y,
+        settled = Math.abs(this.autoZoom - (this.zoomGoal ?? 0.9)) < 0.015;
+      this.zoomGoal = clamp(
+        (this.zoomGoal ?? 0.9) +
+          (!settled ? 0 : top < bounds.top + 10 ? -0.25 : top > bounds.top + 70 ? 0.15 : 0) * dt,
+        0.72,
+        0.95,
+      );
+      target.x = (target.x + focus[0].x * 0.35) / 1.35;
+    } else this.zoomGoal = null;
+    this.autoZoom += ((this.zoomGoal ?? 1) - this.autoZoom) * ease;
+    this.target.lerp(target, ease);
     this.placeCamera();
-    // Keep the close view, but pan far enough to retain the coach and nearby equipment.
+    // Keep the close view, but pan far enough to retain the coach and nearby equipment. Focus points go
+    // first so the coach always wins when both cannot fit.
+    for (const p of focus) p.focus = true;
     const points = [
+      ...focus,
       new THREE.Vector3(c.x, c.y + 0.1, c.z - 0.5),
       new THREE.Vector3(c.x, c.y + 2.15, c.z + 0.5),
     ];
     for (const p of this.cameraAnchors())
       if (Math.hypot(c.x - p.x, c.z - p.z) < 3.3)
         points.push(new THREE.Vector3(p.x, 0.1, p.z - 0.65), new THREE.Vector3(p.x, 2.7, p.z + 0.65));
-    const bounds = this.cameraBounds(),
-      w = this.container.clientWidth,
+    const w = this.container.clientWidth,
       h = this.container.clientHeight,
       ray = new THREE.Raycaster(),
       plane = new THREE.Plane(),
@@ -1018,8 +1079,10 @@ export class PoolWorld extends SceneKit {
         ray.setFromCamera(new THREE.Vector2((x / w) * 2 - 1, 1 - (y / h) * 2), this.camera);
         plane.set(new THREE.Vector3(0, 1, 0), -p.y);
         if (ray.ray.intersectPlane(plane, hit)) {
-          this.target.x += p.x - hit.x;
-          this.target.z += p.z - hit.z;
+          // Only correct the clamped axis (screen up/down is world X, left/right is world Z) so fixes never
+          // drift sideways with the perspective. Focus points only ever pull the view up or down.
+          if (Math.abs(y - screen.y) > 0.05) this.target.x += p.x - hit.x;
+          if (Math.abs(x - screen.x) > 0.05 && !p.focus) this.target.z += p.z - hit.z;
           this.placeCamera();
         }
       }

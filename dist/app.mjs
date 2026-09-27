@@ -1,4 +1,4 @@
-import { screenMovement, queuePosition } from "./spatial.mjs";
+import { screenMovement } from "./spatial.mjs";
 import { normalizeRecords, starsFor, recordResult } from "./progression.mjs";
 import { guidanceState, cuePulse } from "./guidance.mjs";
 import { PoolSimulation, TYPES, SHIFTS, loopPosition } from "./sim.mjs";
@@ -62,9 +62,9 @@ function makeDemo() {
     a.angle = pos.angle;
   });
   const p = s.spawn({ type: "advanced" });
-  Object.assign(p, queuePosition(-1, 0));
+  Object.assign(p, s.venue.queuePosition(-1, 0));
   const q = s.spawn({ type: "beginner" });
-  Object.assign(q, queuePosition(1, 0));
+  Object.assign(q, s.venue.queuePosition(1, 0));
   q.queasy = false;
   s.events = [];
   s.selected = null;
@@ -170,11 +170,19 @@ function updateChoices() {
       ? ""
       : Array.from({ length: 3 }, (_, i) => (i < stars ? "★" : "☆")).join("");
   });
+  const shift = SHIFTS[level - 1];
   $("welcome").querySelector(".eyebrow>span:last-child").textContent =
-    String(level).padStart(2, "0") + " / 10";
-  $("selected-shift-name").textContent = SHIFTS[level - 1].name;
+    String(level).padStart(2, "0") + " / " + SHIFTS.length;
+  $("welcome").querySelector(".eyebrow .mini-pill").textContent =
+    shift.venue === "resort" ? "RIVIERA SPLASH RESORT" : "THE COMMUNITY SWIM CLUB";
+  $("welcome").classList.toggle("resort-season", shift.venue === "resort");
+  $("selected-shift-name").textContent = shift.name;
   $("selected-shift-meta").textContent =
-    SHIFTS[level - 1].duration + " SECONDS · " + SHIFTS[level - 1].total + " SWIMMERS";
+    shift.duration +
+    " SECONDS · " +
+    shift.total +
+    " SWIMMERS" +
+    (shift.venue === "resort" ? " · 5 LANES + TRAMPOLINE" : "");
   document.querySelector(".welcome-foot>span").textContent = "★ UNLOCKS THE NEXT SHIFT";
   $("best-score").textContent = records.bests[level - 1]
     ? "BEST · " + records.bests[level - 1].toLocaleString()
@@ -229,18 +237,24 @@ function pick(data) {
   }
   if (mode !== "playing") return;
   if (data.kind === "swimmer") {
-    sim.select(data.id);
     const p = sim.get(data.id),
       item = sim.coach.carry;
-    if (
-      p &&
-      ((item === "fins" && p.needsFins && !p.hasFins) ||
-        (item === "relief" && p.problem === "eyes") ||
-        (item === "goggles" && p.problem === "goggles"))
-    )
-      sim.deliver(data.id);
+    if (p?.status === "injured") sim.tendInjured(data.id);
+    else {
+      sim.select(data.id);
+      if (
+        p &&
+        ((item === "fins" && p.needsFins && !p.hasFins) ||
+          (item === "relief" && p.problem === "eyes") ||
+          (item === "goggles" && p.problem === "goggles"))
+      )
+        sim.deliver(data.id);
+    }
     queueKey = "";
   } else if (data.kind === "lane") sim.assign(data.lane);
+  else if (data.kind === "trampoline") sim.assignTrampoline();
+  else if (data.kind === "fixture") sim.useFixture(data.item);
+  else if (data.kind === "visitor") sim.approachVisitor(data.id);
   else if (data.kind === "sanitation") {
     if (data.item === "skimmer") sim.coach.carry === "skimmer" ? sim.returnItem() : sim.fetch("skimmer");
     else sim.disposeWaste();
@@ -273,6 +287,15 @@ function finish() {
           : "Okay. Deep breath. Again.";
   $("result-score").innerHTML = r.score.toLocaleString() + "<small>POINTS</small>";
   $("new-best").hidden = !newBest;
+  const st = sim.stats,
+    extra = [
+      ["FLIPS 🤸", st.flips],
+      ["CRASHES 💥", st.crashes],
+      ["PATCHED UP 🩹", st.healed],
+      ["SAVES ✋", st.prevented],
+      ["CANNONBALLS 💣", st.cannonballs],
+      ["BLACKOUTS ⚡", st.blackouts],
+    ].filter(([, v]) => v > 0);
   $("result-stats").innerHTML = [
     ["SERVED", r.served],
     ["HAPPY", r.happy],
@@ -280,18 +303,25 @@ function finish() {
     ["AVG. WAIT", Math.round(r.avgWait) + "s"],
     ["AVG. MOOD", Math.round(r.avgHappiness) + "%"],
     ["BEST STREAK", r.bestStreak],
+    ...extra.slice(0, 3),
   ]
     .map(([label, v]) => "<div><strong>" + v + "</strong><small>" + label + "</small></div>")
     .join("");
   $("result-tip").textContent = r.catastrophes
     ? "A queasy customer cost you the pool. Next time, catch the warning signs before they get in."
-    : r.collisions > 2
-      ? "Traffic was your biggest troublemaker. Pair similar speeds and keep aqua out of fast lanes."
-      : r.lost > 3
-        ? "The deck queue needs some love. Assign waiting swimmers quickly, even if a lane is not perfect."
-        : r.stars === 3
-          ? "Three stars! Try the next shift, or beat this run with an even longer happy streak."
-          : "A new arrival mix awaits. Can you keep the happy streak going just a little longer?";
+    : st.crashes
+      ? "Crashes hurt. When a daredevil waits on the tower, select the swimmers in the splash lane and move them to another lane."
+      : st.blackouts
+        ? "When the lights flicker, sprint to the fuse box. A quick reset stops the blackout."
+        : st.cannonballs > 1
+          ? "Carl hits the deck running. Meet him before the edge and show him the red card."
+          : r.collisions > 2
+            ? "Traffic was your biggest troublemaker. Pair similar speeds and keep aqua out of fast lanes."
+            : r.lost > 3
+              ? "The deck queue needs some love. Assign waiting swimmers quickly, even if a lane is not perfect."
+              : r.stars === 3
+                ? "Three stars! Try the next shift, or beat this run with an even longer happy streak."
+                : "A new arrival mix awaits. Can you keep the happy streak going just a little longer?";
   $("next-level").hidden = level >= SHIFTS.length || records.unlocked <= level;
   $("next-level").textContent = "Next shift · Level " + (level + 1) + " →";
   $("play-again").textContent = "Replay level " + level + " ↻";
@@ -316,6 +346,9 @@ function moodColor(h) {
   return h > 70 ? "#73b65b" : h > 40 ? "#e6b445" : "#eb7754";
 }
 function problemIcon(p) {
+  if (p.problem === "injured") return "🤕";
+  if (p.status === "trampoline") return p.jumpStage === "waiting" && p.jumpPatience < 5 ? "😤" : "🤸";
+  if (p.status === "switch") return "↔️";
   if (p.annoyedTime > 0) return "😠";
   if (sim.rescue && p.status === "swim" && p.problem !== "cramp") return "😱";
   if (p.stomachWarning) return "💩";
@@ -341,15 +374,39 @@ function problemIcon(p) {
                     ? TYPES[p.type].icon
                     : "🙂";
 }
+function cardStatus(p) {
+  if (p.status === "queue")
+    return p.type === "daredevil" ? "Daredevil · wants the trampoline" : TYPES[p.type].label;
+  if (p.status === "injured") return p.healing ? "Being bandaged…" : "Hurt · needs the med kit";
+  const where = p.lane == null ? "In the pool" : "Lane " + (p.lane + 1);
+  return (
+    where +
+    " · " +
+    (p.stomachWarning
+      ? "Stomach trouble"
+      : p.problem === "injured"
+        ? "Hurt · needs a ring"
+        : p.problem === "fins"
+          ? "Needs fins"
+          : p.problem === "eyes"
+            ? "Sore eyes"
+            : p.problem === "cramp"
+              ? "Cramp"
+              : "Lost goggles")
+  );
+}
 function formatTime(t) {
   const s = Math.max(0, Math.ceil(t));
   return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 }
 function updateQueue() {
   const waiting = sim.people.filter((p) => p.status === "queue"),
-    problems = sim.people.filter((p) => p.status === "swim" && (p.problem || p.stomachWarning));
+    problems = sim.people.filter(
+      (p) => (p.status === "swim" && (p.problem || p.stomachWarning)) || p.status === "injured",
+    );
   $("queue-count").textContent = waiting.length + " waiting";
-  const list = [...waiting, ...problems];
+  // Swimmers who need the coach come first so a long queue never hides them.
+  const list = [...problems, ...waiting];
   const guide = guidanceState(sim);
   const key =
     list.map((p) => p.id + ":" + p.problem + ":" + p.stomachWarning).join(",") +
@@ -363,7 +420,7 @@ function updateQueue() {
       ? list
           .map(
             (p) =>
-              `<button class="swimmer-card ${p.id === sim.selected ? "selected" : ""} ${p.id === guide.swimmerId ? "guided" : ""}" data-swimmer="${p.id}" aria-label="Select ${p.name}, ${TYPES[p.type].label}${p.problem ? ", needs help" : ""}"><span class="portrait ${p.queasy ? "queasy" : ""}" style="background:${TYPES[p.type].color}">${TYPES[p.type].icon}</span><span class="card-info"><strong>${p.name}</strong><small>${p.status === "queue" ? TYPES[p.type].label : "Lane " + (p.lane + 1) + " · " + (p.stomachWarning ? "Stomach trouble" : p.problem === "fins" ? "Needs fins" : p.problem === "eyes" ? "Sore eyes" : p.problem === "cramp" ? "Cramp" : "Lost goggles")}</small><span class="patience-track"><i data-hp="${p.id}"></i></span></span><span class="need-icon" data-need="${p.id}"></span></button>`,
+              `<button class="swimmer-card ${p.id === sim.selected ? "selected" : ""} ${p.id === guide.swimmerId ? "guided" : ""}" data-swimmer="${p.id}" aria-label="Select ${p.name}, ${TYPES[p.type].label}${p.problem ? ", needs help" : ""}"><span class="portrait ${p.queasy ? "queasy" : ""}" style="background:${TYPES[p.type].color}">${TYPES[p.type].icon}</span><span class="card-info"><strong>${p.name}</strong><small>${cardStatus(p)}</small><span class="patience-track"><i data-hp="${p.id}"></i></span></span><span class="need-icon" data-need="${p.id}"></span></button>`,
           )
           .join("")
       : '<div class="empty-queue"><span>✓</span> All in the swim.</div>';
@@ -391,7 +448,10 @@ function updateQueue() {
   $("send-home").classList.toggle("urgent", !!p?.stomachWarning);
   $("selected-detail").hidden = !p;
   $("send-home").hidden =
-    !p || !["queue", "enter", "swim"].includes(p.status) || !!(sim.rescue && p.status === "swim");
+    !p ||
+    !["queue", "enter", "swim"].includes(p.status) ||
+    p.problem === "injured" ||
+    !!(sim.rescue && p.status === "swim");
   if (p) {
     const profile = TYPES[p.type];
     $("selected-detail").innerHTML =
@@ -402,7 +462,13 @@ function updateQueue() {
       "</b><span>" +
       Math.round(p.h) +
       "% happy · " +
-      (profile.speed ? profile.speed + "× pace" : "Aqua class") +
+      (p.type === "daredevil"
+        ? "Trampoline only · T"
+        : p.status === "swim" && !p.problem
+          ? "Pick a lane to move them"
+          : profile.speed
+            ? profile.speed + "× pace"
+            : "Aqua class") +
       "</span>";
   }
 }
@@ -460,31 +526,52 @@ function updateUI() {
   $("assist").disabled = mode !== "playing";
   $("assist").querySelector(".interact-label").textContent = sim.nearestInteraction()?.label || "Interact";
   $("pause").disabled = !["playing", "countdown"].includes(mode);
-  const p = sim.get(sim.selected);
+  const p = sim.get(sim.selected),
+    blocked = sim.laneBlocked(),
+    moving = p?.status === "swim" && !p.problem ? p : null;
   for (let i = 0; i < sim.lanes.length; i++) {
     const people = sim.lanePeople(i),
       count = sim.occupancy(i),
       average = people.length ? people.reduce((sum, p) => sum + p.h, 0) / people.length : 100;
     const b = document.querySelector('[data-lane="' + i + '"]');
     if (!b) continue;
+    const splash = i === blocked,
+      moveHere = !!moving && moving.lane !== i && !splash;
     b.classList.toggle(
       "assignable",
       mode === "playing" &&
         !sim.closed &&
         !sim.rescue &&
-        (p?.status === "queue" || sim.coach.carry === "chlorine"),
+        !splash &&
+        ((p?.status === "queue" && p.type !== "daredevil") || sim.coach.carry === "chlorine" || moveHere),
     );
+    b.classList.toggle("splash-zone", splash);
     b.classList.toggle("danger", average < 50 || people.some((p) => p.blocked > 3));
-    b.querySelector(".lane-mode").textContent =
-      count === 0 ? "OPEN" : count === 1 ? "SOLO" : count === 2 ? "SPLIT" : "CIRCLE";
-    b.querySelector(".lane-count").textContent =
-      count === 0 ? "Jump on in" : count + " swimmer" + (count === 1 ? "" : "");
+    b.querySelector(".lane-mode").textContent = splash
+      ? "SPLASH!"
+      : moveHere
+        ? "MOVE HERE"
+        : count === 0
+          ? "OPEN"
+          : count === 1
+            ? "SOLO"
+            : count === 2
+              ? "SPLIT"
+              : "CIRCLE";
+    b.querySelector(".lane-count").textContent = splash
+      ? count
+        ? "Clear this lane!"
+        : "Flip incoming"
+      : count === 0
+        ? "Jump on in"
+        : count + " swimmer" + (count === 1 ? "" : "s");
     b.querySelector(".lane-caps").innerHTML = people
       .slice(0, 8)
       .map((p) => '<i style="background:' + TYPES[p.type].color + '"></i>')
       .join("");
     b.disabled = mode !== "playing" || !!sim.rescue;
   }
+  updateTrampolineButton(p);
   const chaos = sim.people.filter(
     (p) => p.status === "swim" && (p.h < 50 || p.problem || p.blocked > 3),
   ).length;
@@ -492,31 +579,37 @@ function updateUI() {
   $("pool-status").textContent =
     mode === "menu"
       ? "A good day for a dip."
-      : sim.rescue
-        ? "Rescue in progress · hold your lanes."
-        : sim.fish?.stage === "loose"
-          ? "Fish in the pool · clock held."
-          : sim.closed
-            ? "Cleanup in progress · clock held."
-            : sim.outage?.stage === "dark"
-              ? "Blackout! Lanes are bumping."
-              : sim.outage?.stage === "flicker"
-                ? "The lights are flickering…"
-                : sim.fish?.stage === "approach"
-                  ? "Is that kid carrying a FISH?"
-                  : sim.carl
-                    ? "Carl is loose. Brace for splash."
-                    : sim.dog && sim.dog.stage !== "leaving"
-                      ? "There’s a dog on the deck!"
-                      : chaos > 3
-                        ? "Keep calm. Mostly calm."
-                        : chaos > 0
-                          ? "Someone needs a little love."
-                          : sim.streak >= 3
-                            ? "Now we’re in the swim of it."
-                            : count > 3
-                              ? "The deck is getting crowded."
-                              : "Looking good, coach.";
+      : sim.rescue?.kind === "crash"
+        ? "CRASH! Rings, then first aid."
+        : sim.rescue
+          ? "Rescue in progress · hold your lanes."
+          : sim.people.some((p) => p.status === "injured")
+            ? "Swimmers hurt on deck · med kit!"
+            : sim.fish?.stage === "loose"
+              ? "Fish in the pool · clock held."
+              : sim.closed
+                ? "Cleanup in progress · clock held."
+                : sim.outage?.stage === "dark"
+                  ? "Blackout! Lanes are bumping."
+                  : sim.outage?.stage === "flicker"
+                    ? "The lights are flickering…"
+                    : sim.fish?.stage === "approach"
+                      ? "Is that kid carrying a FISH?"
+                      : sim.carl
+                        ? "Carl is loose. Brace for splash."
+                        : sim.dog && sim.dog.stage !== "leaving"
+                          ? "There’s a dog on the deck!"
+                          : sim.get(sim.jumper)?.jumpStage === "waiting"
+                            ? "A daredevil is waiting on the tower."
+                            : chaos > 3
+                              ? "Keep calm. Mostly calm."
+                              : chaos > 0
+                                ? "Someone needs a little love."
+                                : sim.streak >= 3
+                                  ? "Now we’re in the swim of it."
+                                  : count > 3
+                                    ? "The deck is getting crowded."
+                                    : "Looking good, coach.";
   $("hint").textContent =
     sim.incidentHint() ||
     (sim.coach.carry === "skimmer"
@@ -553,6 +646,36 @@ function updateUI() {
   audio.panic = mode !== "menu" && sim.chaosPanic();
   audio.urgency = Math.min(1, (chaos + count) / 10);
   if (mode !== "menu") updateQueue();
+}
+function updateTrampolineButton(p) {
+  const b = document.querySelector('[data-lane="trampoline"]'),
+    tr = sim.venue.trampoline;
+  if (!b || !tr) return;
+  const j = sim.get(sim.jumper),
+    waiting = sim.people.filter((q) => q.status === "queue" && q.type === "daredevil").length;
+  b.classList.toggle(
+    "assignable",
+    mode === "playing" && !sim.rescue && !sim.closed && !j && p?.status === "queue" && p.type === "daredevil",
+  );
+  b.classList.toggle("danger", j?.jumpStage === "waiting" && j.jumpPatience < 5);
+  b.querySelector(".lane-mode").textContent =
+    sim.rescue?.kind === "crash"
+      ? "CRASH!"
+      : !j
+        ? "READY"
+        : j.jumpStage === "toStairs"
+          ? "WALKING"
+          : j.jumpStage === "waiting"
+            ? Math.ceil(j.jumpPatience) + "s"
+            : "FLIP!";
+  b.querySelector(".lane-count").textContent = j
+    ? j.jumpStage === "waiting"
+      ? "Clear lane " + (tr.lane + 1) + "!"
+      : j.name + " on the tower"
+    : waiting
+      ? waiting + " daredevil" + (waiting === 1 ? "" : "s") + " waiting"
+      : "Daredevils only";
+  b.disabled = mode !== "playing" || !!sim.rescue;
 }
 function sanitationPanel() {
   const order = ["floating", "caught", "return", "treat"],
@@ -612,21 +735,27 @@ function updateContext() {
   prompt.classList.toggle("can-interact", !!near);
   prompt.querySelector("span").textContent = near
     ? near.label
-    : c.swimming
-      ? sim.rescue?.stage === "stranded"
-        ? "SWIM TO 🦵"
-        : c.carry === "fishnet" && !c.netLoaded && sim.fish?.stage === "loose"
-          ? "CATCH THE FISH 🐟"
-          : "SWIM TO AN EDGE"
-      : c.waterTransition
-        ? "RESCUE"
-        : c.slipTime
-          ? "😠"
-          : c.y > 0.08
-            ? "Nice hop!"
-            : c.carry
-              ? "Carrying " + carryName(c)
-              : "COACH";
+    : c.busy
+      ? c.busy.label
+      : c.swimming
+        ? sim.rescue?.stage === "stranded"
+          ? sim.rescue.kind === "crash"
+            ? c.carry === "lifering"
+              ? "SWIM TO 🤕"
+              : "CLIMB OUT · NEXT RING"
+            : "SWIM TO 🦵"
+          : c.carry === "fishnet" && !c.netLoaded && sim.fish?.stage === "loose"
+            ? "CATCH THE FISH 🐟"
+            : "SWIM TO AN EDGE"
+        : c.waterTransition
+          ? "RESCUE"
+          : c.slipTime
+            ? "😠"
+            : c.y > 0.08
+              ? "Nice hop!"
+              : c.carry
+                ? "Carrying " + carryName(c)
+                : "COACH";
   prompt.querySelector("kbd").hidden = !near;
 }
 function clearBubbles() {
@@ -654,19 +783,30 @@ function updateBubbles() {
       $("world-labels").appendChild(b);
       bubbles.set(p.id, b);
     }
-    const screen = world.project(p.x, p.status === "swim" ? (p.type === "aqua" ? 1.15 : 0.8) : 2, p.z);
+    const screen = world.project(
+      p.x,
+      p.status === "swim" ? (p.type === "aqua" ? 1.15 : 0.8) : p.status === "injured" ? 1.15 : 2 + (p.y || 0),
+      p.z,
+    );
     b.hidden = !screen.visible;
-    b.disabled = mode !== "playing" || !["queue", "swim"].includes(p.status);
+    b.disabled = mode !== "playing" || !["queue", "swim", "injured"].includes(p.status);
     b.setAttribute("aria-label", "Select " + p.name + ", " + TYPES[p.type].label);
     b.setAttribute("aria-pressed", String(p.id === sim.selected));
-    const rescuing = sim.rescue?.victim === p.id && p.problem === "cramp";
+    const rescuing =
+      (sim.rescue?.victims || []).includes(p.id) && !p.rescueRecover && ["swim", "switch"].includes(p.status);
     b.classList.toggle("rescue-victim", rescuing);
     b.querySelector(".rescue-marker").hidden = !rescuing;
     b.classList.toggle("stomach-warning", !!p.stomachWarning);
-    const stomach = b.querySelector(".stomach-meter");
-    stomach.hidden = !p.stomachWarning;
-    stomach.querySelector("i").style.width = Math.max(0, (p.sicknessTimer / p.sicknessDuration) * 100) + "%";
-    stomach.querySelector("b").textContent = Math.ceil(p.sicknessTimer) + "s";
+    b.classList.toggle("injured", p.status === "injured");
+    // One countdown bar: stomach trouble, or a daredevil losing patience on the tower.
+    const jumpWait = p.status === "trampoline" && p.jumpStage === "waiting",
+      stomach = b.querySelector(".stomach-meter");
+    stomach.hidden = !p.stomachWarning && !jumpWait;
+    stomach.classList.toggle("jump-meter", jumpWait);
+    const left = jumpWait ? p.jumpPatience : p.sicknessTimer,
+      total = jumpWait ? sim.config.jumpPatience || 15 : p.sicknessDuration;
+    stomach.querySelector("i").style.width = Math.max(0, (left / total) * 100) + "%";
+    stomach.querySelector("b").textContent = Math.ceil(left) + "s";
     b.classList.toggle("selected", p.id === sim.selected);
     b.classList.toggle("guided", p.id === guidanceState(sim).swimmerId);
     b.querySelector(".type-icon").textContent = TYPES[p.type].icon;
@@ -782,6 +922,20 @@ function events() {
       world.kick(0.75);
     } else if (e.type === "dog-splash") {
       world.bigSplash(e.x, e.z, 0.45);
+    } else if (e.type === "crash") {
+      world.bigSplash(e.x, e.z, 1.35);
+      world.incidentView.ripple(e.x, e.z);
+      world.kick(0.95);
+      queueKey = "";
+    } else if (e.type === "trampoline-splash") {
+      world.bigSplash(e.x, e.z, 0.85);
+      world.incidentView.ripple(e.x, e.z);
+      world.kick(0.25);
+    } else if (e.type === "healed") {
+      world.sparkle(e.to?.x ?? e.x, e.to?.z ?? e.z);
+      queueKey = "";
+    } else if (e.type === "lane-switch") {
+      queueKey = "";
     } else if (e.type === "blackout") {
       world.kick(0.25);
     } else if (e.type === "handoff") {
@@ -856,7 +1010,7 @@ function animate(t) {
 function bind() {
   $("level-map").innerHTML = SHIFTS.map(
     (s, i) =>
-      `<button data-level="${i + 1}" aria-label="Level ${i + 1}"><span class="level-number">${String(i + 1).padStart(2, "0")}</span><i class="level-lock" aria-hidden="true">🔒</i><span class="level-stars" aria-hidden="true"></span></button>`,
+      `<button data-level="${i + 1}" class="${s.venue === "resort" ? "resort" : ""}" aria-label="Level ${i + 1}"><span class="level-number">${String(i + 1).padStart(2, "0")}</span><i class="level-lock" aria-hidden="true">🔒</i><span class="level-stars" aria-hidden="true"></span></button>`,
   ).join("");
   $("scoop-target").onclick = () => sim.scoop();
   $("start").onclick = start;

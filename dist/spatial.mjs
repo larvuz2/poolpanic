@@ -250,7 +250,7 @@ export const RESORT = makeVenue({
   stations: {
     fins: { x: -12.6, z: 7.9 },
     chlorine: { x: 13.6, z: 8.1 },
-    relief: { x: 13.6, z: 4.6 },
+    relief: { x: 13.6, z: 0.4 },
   },
   sanitation: { rack: { x: -15, z: -2.2 }, bin: { x: -14, z: 1.6 }, reach: 6.2 },
   ringMounts: [
@@ -266,27 +266,28 @@ export const RESORT = makeVenue({
     fuseBox: { x: 16.9, z: 11.2, angle: -Math.PI / 2 },
     medkit: { x: -14.9, z: 4.7 },
   },
-  // Launch bed overhangs the far deck; jumpers land in the last lane around landZ.
+  // Launch bed overhangs the far deck; jumpers land in the last lane around landZ. The tower stands off to
+  // the right of the scoreboard so every flip stays in view.
   trampoline: {
     lane: 4,
     x: 11.4,
-    z: 1.5,
+    z: 5,
     bedX: 9.5,
     bedY: 2.62,
     stairBottomX: 15.75,
-    landZ: 1.5,
-    zone: 3.2,
+    landZ: 5,
+    zone: 3,
   },
   furniture: [
     { kind: "bench", x: -12.2, z: -0.9, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
     { kind: "bench", x: 13.9, z: -6.2, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
     { kind: "rack", x: -12.6, z: 7.9, hx: 0.48, hz: 1.03 },
     { kind: "station", x: 13.6, z: 8.1, hx: 0.6, hz: 0.9 },
-    { kind: "station", x: 13.6, z: 4.6, hx: 0.9, hz: 0.6 },
+    { kind: "station", x: 13.6, z: 0.4, hx: 0.9, hz: 0.6 },
     { kind: "medkit-cabinet", x: -15.35, z: 4.7, hx: 0.3, hz: 0.7 },
     { kind: "lifeguard-tower", x: -13.4, z: -7.6, hx: 0.75, hz: 0.75 },
-    { kind: "tower", x: 11.4, z: 1.5, hx: 0.95, hz: 1.05 },
-    { kind: "stairs", x: 14, z: 1.5, hx: 1.45, hz: 0.55 },
+    { kind: "tower", x: 11.4, z: 5, hx: 0.95, hz: 1.05 },
+    { kind: "stairs", x: 14, z: 5, hx: 1.45, hz: 0.55 },
     { kind: "kiosk", x: 13.4, z: 11.2, hx: 1.05, hz: 1.2 },
     { kind: "palm", x: -14.7, z: 11.5, hx: 0.55, hz: 0.55 },
     { kind: "palm", x: 15.5, z: -11.2, hx: 0.55, hz: 0.55 },

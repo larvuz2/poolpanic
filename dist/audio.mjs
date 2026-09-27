@@ -172,6 +172,24 @@ export class PoolAudio {
       this.tone(48, t + 0.2, 1.2, 0.2, "sine", 30);
     } else if (type === "busy") {
       this.tone(300, t, 0.05, 0.06, "square");
+    } else if (type === "trampoline-bounce") {
+      this.tone(150, t, 0.28, 0.16, "sine", 420);
+      this.tone(300, t, 0.2, 0.05, "triangle", 700);
+    } else if (type === "trampoline-launch") {
+      this.tone(260, t, 0.55, 0.12, "triangle", 1400);
+      this.noise(t, 0.4, 0.06, 2600);
+    } else if (type === "trampoline-splash") {
+      this.noise(t, 0.6, 0.22, 380);
+      [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, t + 0.12 + i * 0.06, 0.2, 0.11, "triangle"));
+    } else if (type === "crash") {
+      this.tone(90, t, 0.5, 0.35, "sine", 40);
+      this.noise(t, 0.8, 0.28, 300);
+      [440, 415, 392, 311].forEach((f, i) => this.tone(f, t + 0.2 + i * 0.14, 0.22, 0.14, "sawtooth"));
+    } else if (type === "healed") {
+      [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, t + i * 0.05, 0.18, 0.09, "sine"));
+    } else if (type === "lane-switch") {
+      this.noise(t, 0.15, 0.06, 900);
+      this.tone(420, t, 0.12, 0.06, "sine", 620);
     } else if (type === "chaos") {
       [330, 247, 330, 247].forEach((f, i) => this.tone(f, t + i * 0.18, 0.16, 0.12, "square"));
     } else if (type === "fish-dumped") {

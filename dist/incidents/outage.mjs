@@ -70,7 +70,13 @@ export const PowerOutage = {
           ...box,
           rank: -320 + distance(c, box),
           run: () =>
-            sim.startBusy("breaker", T.quickReset, "Resetting the breaker…", () => restore(sim, true)),
+            sim.startBusy(
+              "breaker",
+              T.quickReset,
+              "Resetting the breaker…",
+              () => restore(sim, true),
+              fx.fuseBox,
+            ),
         });
       else if (c.carry === "flashlight")
         options.push({
@@ -78,7 +84,14 @@ export const PowerOutage = {
           label: "Reset the breakers",
           ...box,
           rank: -320 + distance(c, box),
-          run: () => sim.startBusy("breaker", T.fullReset, "Flipping breakers…", () => restore(sim, false)),
+          run: () =>
+            sim.startBusy(
+              "breaker",
+              T.fullReset,
+              "Flipping breakers…",
+              () => restore(sim, false),
+              fx.fuseBox,
+            ),
         });
       else
         options.push({

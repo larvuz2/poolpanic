@@ -18,6 +18,7 @@ export const TRAMPOLINE_TUNING = {
   heal: 1.2,
   healBonus: 50,
   hurtDrain: 0.9,
+  limp: 1.3,
   reach: 1.8,
 };
 const T = TRAMPOLINE_TUNING;
@@ -34,7 +35,15 @@ export const Trampoline = {
   holdsClock: (sim) => sim.rescue?.kind === "crash",
   panic: (sim) => sim.rescue?.kind === "crash" || sim.people.some((p) => p.status === "injured"),
   update(sim, dt) {
-    for (const p of sim.people) if (p.status === "injured") hurt(sim, p, dt);
+    for (const p of sim.people) {
+      if (p.status !== "injured") continue;
+      // Limp clear of the edge (and of other victims), then lie down.
+      if (p.path.length && sim.moveAlong(p, dt, T.limp)) {
+        p.path = [];
+        p.angle = p.exitEnd > 0 ? Math.PI : 0;
+      }
+      hurt(sim, p, dt);
+    }
     const c = sim.coach;
     if (c.carry === "medkit" && sim.medkit.state !== "coach") sim.medkit.state = "coach";
   },
@@ -80,7 +89,7 @@ export const Trampoline = {
           rank: -275 + distance(c, p),
           run: () => {
             p.healing = true;
-            return sim.startBusy("heal", T.heal, "Bandaging " + p.name + "…", () => heal(sim, p));
+            return sim.startBusy("heal", T.heal, "Bandaging " + p.name + "…", () => heal(sim, p), p);
           },
         });
       }
@@ -163,8 +172,8 @@ export function assignTrampoline(sim) {
   sim.stats.totalWait += p.wait;
   const cx = sim.venue.pool.corridorX;
   p.path = [
-    ...sim.venue.route(p, { x: cx, z: tr.z - 3.1 }),
-    { x: tr.stairBottomX, z: tr.z - 3.1 },
+    ...sim.venue.route(p, { x: cx, z: tr.z - 2.6 }),
+    { x: tr.stairBottomX, z: tr.z - 2.6 },
     { x: tr.stairBottomX, z: tr.z },
   ];
   sim.selected = null;
@@ -220,19 +229,25 @@ export function tickJumper(sim, p, dt) {
       p.y = H + (tr.bedY - H) * p.jumpT;
       if (p.jumpT === 1) {
         next(p, "bouncing");
-        sim.emit("trampoline-bounce");
+        p.bounce = 0;
+        sim.emit("trampoline-bounce", { x: p.x, z: p.z, height: 0 });
       }
       break;
     case "bouncing": {
+      // Three bounces, each higher than the last, then the launch.
       p.jumpT = Math.min(1, p.jumpT + dt / T.bounce);
       const phase = p.jumpT * 3,
         k = Math.floor(Math.min(2.999, phase)),
         height = [0.6, 1.05, 1.55][k];
       p.y = tr.bedY + Math.sin((phase - k) * Math.PI) * height;
+      if (k !== p.bounce) {
+        p.bounce = k;
+        sim.emit("trampoline-bounce", { x: p.x, z: p.z, height: k });
+      }
       if (p.jumpT === 1) {
         next(p, "flying");
         p.launch = { x: p.x, y: tr.bedY };
-        sim.emit("trampoline-launch");
+        sim.emit("trampoline-launch", { x: p.x, z: p.z });
       }
       break;
     }
@@ -330,13 +345,27 @@ function land(sim, p) {
 // A ringed victim reached the deck: lie down where they climbed out and wait for the medical kit.
 export function injuredOnDeck(sim, p) {
   p.status = "injured";
-  p.path = [];
   p.healing = false;
-  p.angle = p.exitEnd > 0 ? Math.PI : 0;
   p.hurtTime = 0;
   const ring = sim.lifeRings[p.rescueRingId];
   if (ring) Object.assign(ring, { state: "deck", owner: null, x: p.x + 0.9, z: p.z });
   p.rescueRecover = false;
+  p.path = [restSpot(sim, p)];
+}
+// A patch of deck a step back from the edge, clear of other victims, to lie down on.
+function restSpot(sim, p) {
+  const P = sim.venue.pool,
+    end = p.exitEnd || Math.sign(p.z) || 1,
+    z = end * (P.endWalkZ + 0.85),
+    taken = sim.people
+      .filter((q) => q !== p && q.status === "injured")
+      .map((q) => q.path[q.path.length - 1] || q);
+  for (const k of [0, 1, -1, 2, -2, 3, -3]) {
+    const spot = { x: p.x + k * 1.45, z };
+    if (sim.venue.isDeck(spot.x, spot.z, sim.level, 0.55) && !taken.some((q) => distance(q, spot) < 1.35))
+      return spot;
+  }
+  return { x: p.x, z: p.z };
 }
 
 function hurt(sim, p, dt) {
