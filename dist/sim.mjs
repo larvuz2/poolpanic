@@ -8,7 +8,10 @@ export const TYPES = {
   intermediate: { label: "Intermediate", color: "#4c97e9", speed: 1, icon: "🏊" },
   advanced: { label: "Pro", color: "#f26857", speed: 1.5, icon: "⚡" },
   aqua: { label: "Aqua aerobics", color: "#b782db", speed: 0, icon: "💦" },
+  daredevil: { label: "Daredevil", color: "#f39a2b", speed: 0, icon: "🤸" },
 };
+// A season is a list of shifts. `chaos` entries pick one incident from `kinds` at a seeded time inside
+// `window` (seconds of play); `maxChaos` caps how many incidents may run at once.
 export const SHIFTS = [
   {
     name: "Morning dip",
@@ -21,17 +24,53 @@ export const SHIFTS = [
   },
   { name: "Lunch rush", duration: 60, total: 8, thresholds: [600, 1000, 1400] },
   { name: "Peak panic", duration: 90, total: 14, thresholds: [1100, 1800, 2500] },
-  { name: "Fin club", duration: 120, total: 20, thresholds: [1800, 2900, 3800], finChance: 0.55 },
-  { name: "Aqua hour", duration: 120, total: 21, thresholds: [1800, 2900, 3900], mix: [0.18, 0.43, 0.6] },
-  { name: "Fast company", duration: 120, total: 22, thresholds: [2000, 3100, 4200], mix: [0.19, 0.43, 0.9] },
+  {
+    name: "Fin club",
+    duration: 120,
+    total: 20,
+    thresholds: [1800, 2900, 3800],
+    finChance: 0.55,
+    intro: "dog",
+    chaos: [{ kinds: ["dog"], window: [40, 65] }],
+  },
+  {
+    name: "Aqua hour",
+    duration: 120,
+    total: 21,
+    thresholds: [1800, 2900, 3900],
+    mix: [0.18, 0.43, 0.6],
+    intro: "fish",
+    chaos: [{ kinds: ["fish"], window: [35, 60] }],
+  },
+  {
+    name: "Fast company",
+    duration: 120,
+    total: 22,
+    thresholds: [2000, 3100, 4200],
+    mix: [0.19, 0.43, 0.9],
+    intro: "carl",
+    chaos: [{ kinds: ["carl"], window: [35, 60] }],
+  },
   {
     name: "Mixed company",
     duration: 135,
     total: 23,
     thresholds: [2100, 3300, 4500],
     mix: [0.36, 0.53, 0.78],
+    intro: "outage",
+    chaos: [{ kinds: ["outage"], window: [45, 75] }],
   },
-  { name: "The relay", duration: 135, total: 24, thresholds: [2200, 3500, 4700], finChance: 0.52 },
+  {
+    name: "The relay",
+    duration: 135,
+    total: 24,
+    thresholds: [2200, 3500, 4700],
+    finChance: 0.52,
+    chaos: [
+      { kinds: ["dog", "fish"], window: [28, 50] },
+      { kinds: ["carl", "outage"], window: [72, 96] },
+    ],
+  },
   {
     name: "Championship day",
     duration: 150,
@@ -39,6 +78,11 @@ export const SHIFTS = [
     thresholds: [2300, 3700, 5000],
     mix: [0.21, 0.47, 0.86],
     finChance: 0.44,
+    chaos: [
+      { kinds: ["fish", "dog"], window: [24, 42] },
+      { kinds: ["carl", "outage"], window: [58, 80] },
+      { kinds: ["dog", "fish", "carl"], window: [96, 118] },
+    ],
   },
   {
     name: "Pool legend",
@@ -47,6 +91,82 @@ export const SHIFTS = [
     thresholds: [2400, 3900, 5300],
     mix: [0.27, 0.49, 0.77],
     finChance: 0.5,
+    maxChaos: 2,
+    chaos: [
+      { kinds: ["fish", "carl"], window: [20, 36] },
+      { kinds: ["outage", "dog"], window: [44, 66] },
+      { kinds: ["dog", "carl", "fish", "outage"], window: [84, 110] },
+    ],
+  },
+  // Season two: the Riviera Splash Resort. Five lanes and a trampoline whose splash zone is lane 5.
+  {
+    name: "Splash landing",
+    venue: "resort",
+    lighting: "day",
+    duration: 120,
+    total: 18,
+    thresholds: [1800, 2900, 3800],
+    daredevilAt: [0.2, 0.52, 0.82],
+    jumpPatience: 16,
+    intro: "trampoline",
+  },
+  {
+    name: "Flip Friday",
+    venue: "resort",
+    lighting: "day",
+    duration: 135,
+    total: 22,
+    thresholds: [2100, 3300, 4400],
+    daredevilAt: [0.16, 0.42, 0.68, 0.9],
+    jumpPatience: 14,
+    chaos: [{ kinds: ["fish"], window: [40, 62] }],
+  },
+  {
+    name: "Beach party",
+    venue: "resort",
+    lighting: "sunset",
+    duration: 135,
+    total: 24,
+    thresholds: [2200, 3500, 4700],
+    mix: [0.22, 0.5, 0.82],
+    daredevilAt: [0.2, 0.5, 0.8],
+    jumpPatience: 13,
+    chaos: [
+      { kinds: ["carl"], window: [28, 46] },
+      { kinds: ["dog"], window: [76, 98] },
+    ],
+  },
+  {
+    name: "Moonlight swim",
+    venue: "resort",
+    lighting: "night",
+    duration: 150,
+    total: 26,
+    thresholds: [2400, 3800, 5100],
+    daredevilAt: [0.18, 0.42, 0.66, 0.9],
+    jumpPatience: 12,
+    chaos: [
+      { kinds: ["outage"], window: [36, 56] },
+      { kinds: ["fish", "carl"], window: [88, 110] },
+    ],
+  },
+  {
+    name: "Riviera legend",
+    venue: "resort",
+    lighting: "sunset",
+    duration: 165,
+    total: 30,
+    thresholds: [2700, 4200, 5700],
+    mix: [0.25, 0.5, 0.8],
+    finChance: 0.45,
+    daredevilAt: [0.12, 0.32, 0.52, 0.72, 0.9],
+    jumpPatience: 11,
+    maxChaos: 2,
+    chaos: [
+      { kinds: ["fish", "dog"], window: [24, 42] },
+      { kinds: ["outage", "carl"], window: [58, 82] },
+      { kinds: ["dog", "carl", "fish", "outage"], window: [100, 128] },
+    ],
   },
 ];
 export const CIRCUIT = 31.2;
@@ -165,7 +285,13 @@ export class PoolSimulation extends ChaosController {
                 ? "aqua"
                 : null,
       sick: this.level >= 3 && i >= 2 && i < n - 2 && this.random() < 0.2,
-    })).sort((a, b) => a.at - b.at);
+    }))
+      .map((entry, i) =>
+        (this.config.daredevilAt || []).some((f) => Math.round(f * (n - 1)) === i)
+          ? { ...entry, type: "daredevil", sick: false }
+          : entry,
+      )
+      .sort((a, b) => a.at - b.at);
   }
   start({ countdown = false } = {}) {
     this.countdown = countdown ? 3 : 0;
@@ -244,6 +370,8 @@ export class PoolSimulation extends ChaosController {
       this.level >= 2 && ((this.level === 2 && index === 1) || p.shape < 0.25)
         ? 9 + (p.phase / 6.28) * 4
         : Infinity;
+    if (type === "daredevil")
+      Object.assign(p, { needsFins: false, midFins: false, sick: false, crampAt: Infinity });
     if (spec.entrance) {
       const door = this.venue.arrival;
       p.status = "arriving";
@@ -283,7 +411,7 @@ export class PoolSimulation extends ChaosController {
     return this.people.filter((p) => p.lane === i && p.status === "swim");
   }
   occupancy(i) {
-    return this.people.filter((p) => p.lane === i && (p.status === "swim" || p.status === "enter")).length;
+    return this.people.filter((p) => p.lane === i && ["swim", "enter", "switch"].includes(p.status)).length;
   }
   multiplier() {
     return this.streak >= 8 ? 2 : this.streak >= 5 ? 1.5 : this.streak >= 3 ? 1.2 : 1;
@@ -320,11 +448,23 @@ export class PoolSimulation extends ChaosController {
       return false;
     }
     const p = this.get(this.selected);
-    if (this.coach.carry === "chlorine" && p?.status !== "queue") {
+    if (this.coach.carry === "chlorine" && p?.status !== "queue" && p?.status !== "swim") {
       return this.deliverWater(lane);
     }
+    if (p?.status === "swim") return this.moveLane(p, lane);
     if (!p || p.status !== "queue") {
       this.emit("toast", { text: "Pick a waiting swimmer first, then choose a lane." });
+      return false;
+    }
+    if (p.type === "daredevil") {
+      this.emit("toast", { text: p.name + " only wants the trampoline! Press T or click the tower." });
+      return false;
+    }
+    if (this.laneBlocked() === lane) {
+      this.emit("toast", {
+        text: "Lane " + (lane + 1) + " is the splash zone. Wait for the flip!",
+        warning: true,
+      });
       return false;
     }
     p.lane = lane;
@@ -334,6 +474,61 @@ export class PoolSimulation extends ChaosController {
     this.walk(p, { x: this.lanes[lane] + 0.6, z: ENTRY.edgeZ });
     this.emit("assigned", { id: p.id, lane });
     this.selected = null;
+    return true;
+  }
+  // Move a swimmer mid-workout: they duck under the ropes into another lane and keep their progress.
+  moveLane(p, lane) {
+    if (this.status !== "playing" || p.status !== "swim" || p.lane == null) return false;
+    if (["cramp", "injured"].includes(p.problem) || this.rescue || this.closed) return false;
+    if (lane === p.lane) {
+      this.emit("toast", { text: p.name + " is already in lane " + (lane + 1) + "." });
+      return false;
+    }
+    if (this.laneBlocked() === lane) {
+      this.emit("toast", {
+        text: "Lane " + (lane + 1) + " is the splash zone. Wait for the flip!",
+        warning: true,
+      });
+      return false;
+    }
+    const up = Math.cos(p.angle || 0) >= 0,
+      z = clamp(p.z, -7.2, 7.2);
+    p.switchTarget = { x: this.lanes[lane] + (up ? 0.6 : -0.6), z, p: up ? z + 7.2 : 15.6 + (7.2 - z) };
+    p.switchFrom = p.lane;
+    p.lane = lane;
+    p.status = "switch";
+    p.actualSpeed = 0;
+    p.blocked = 0;
+    p.h = Math.max(0, p.h - 3);
+    this.selected = null;
+    this.emit("lane-switch", { id: p.id, lane });
+    return true;
+  }
+  tickSwitch(p, dt) {
+    if (p.status !== "switch") return false;
+    const t = p.switchTarget,
+      d = Math.hypot(t.x - p.x, t.z - p.z),
+      step = 2.6 * dt;
+    p.angle = Math.sign(t.x - p.x) * (Math.PI / 2) || p.angle;
+    if (d <= step) {
+      p.x = t.x;
+      p.z = t.z;
+      p.status = "swim";
+      const others = this.lanePeople(p.lane).filter((a) => a !== p);
+      let candidate = t.p;
+      for (let n = 0; n < others.length; n++)
+        if (
+          others.some(
+            (a) =>
+              Math.min((a.p - candidate + CIRCUIT) % CIRCUIT, (candidate - a.p + CIRCUIT) % CIRCUIT) < 1.1,
+          )
+        )
+          candidate = (candidate + 1.5) % CIRCUIT;
+      p.p = candidate;
+    } else {
+      p.x += ((t.x - p.x) / d) * step;
+      p.z += ((t.z - p.z) / d) * step;
+    }
     return true;
   }
   home() {
@@ -479,7 +674,11 @@ export class PoolSimulation extends ChaosController {
       this.emit("drop", { x: p.x, z: p.z });
     }
     p.status = "exit";
-    p.path = this.returnRoute(p.side);
+    const door = this.venue.arrival;
+    p.path = [
+      ...this.venue.route(p, { x: p.side * door.outsideX, z: door.doorZ }),
+      ...this.returnRoute(p.side),
+    ];
     p.lane = null;
     if (this.selected === p.id) this.selected = null;
   }
@@ -581,7 +780,10 @@ export class PoolSimulation extends ChaosController {
         this.tickRecovery(p, dt) ||
         this.tickWaterExit(p, dt) ||
         this.tickEvacuation(p, dt) ||
-        this.tickFleeing(p, dt)
+        this.tickFleeing(p, dt) ||
+        this.tickSwitch(p, dt) ||
+        this.tickJumper(p, dt) ||
+        p.status === "injured"
       )
         continue;
       p.eyeCooldown = Math.max(0, p.eyeCooldown - dt);

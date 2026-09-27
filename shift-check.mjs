@@ -80,30 +80,37 @@ const tick = (s, frames) => {
     }
 }
 {
-  assert.equal(SHIFTS.length, 10);
+  assert.equal(SHIFTS.length, 15, "Two seasons: ten club shifts and five resort shifts");
   const fresh = normalizeRecords();
   assert.equal(fresh.unlocked, 1);
-  assert.equal(fresh.bests.length, 10);
+  assert.equal(fresh.bests.length, 15);
   const saved = normalizeRecords({ bests: [1644, 3100, 0], unlocked: 3 });
   assert.deepEqual(saved.bests.slice(0, 3), [1644, 3100, 0]);
   assert.equal(saved.unlocked, 3);
   assert.equal(starsFor(2, 3100), 3);
   recordResult(saved, 3, 50);
   assert.equal(saved.unlocked, 3, "A failed shift does not unlock the next level");
-  for (let n = 3; n <= 10; n++) {
+  for (let n = 3; n <= 15; n++) {
     assert.equal(recordResult(saved, n, SHIFTS[n - 1].thresholds[0]), true);
-    assert.equal(saved.unlocked, Math.min(n + 1, 10));
+    assert.equal(saved.unlocked, Math.min(n + 1, 15));
   }
-  assert.equal(saved.bests.length, 10);
-  assert.equal(normalizeRecords(JSON.parse(JSON.stringify(saved))).unlocked, 10);
+  assert.equal(saved.bests.length, 15);
+  assert.equal(normalizeRecords(JSON.parse(JSON.stringify(saved))).unlocked, 15);
+  assert.deepEqual(
+    normalizeRecords({ bests: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], unlocked: 10 }).bests.slice(10),
+    [0, 0, 0, 0, 0],
+    "Ten-level saves migrate into the fifteen-level season without reset",
+  );
   assert.deepEqual(screenMovement(1, 0), { x: -0, z: 1 });
   assert.deepEqual(screenMovement(0, -1), { x: 1, z: 0 });
   assert.equal(TYPES.advanced.label, "Pro");
   assert.equal(TYPES.intermediate.label, "Intermediate");
   assert.equal(TYPES.beginner.label, "Beginner");
 }
-for (let level = 4; level <= 10; level++) {
+for (let level = 4; level <= 15; level++) {
+  // Assignment baseline: chaos incidents are exercised by fish-check, chaos-check and season-check.
   const s = new PoolSimulation(level, 821);
+  s.chaosPlan = [];
   s.start({ countdown: true });
   tick(s, 180);
   for (let i = 0; i < Math.ceil(s.config.duration * 60) + 2; i++) {
@@ -115,24 +122,19 @@ for (let level = 4; level <= 10; level++) {
       p.crampAt = Infinity;
       s.select(p.id);
       if (p.queasy && p.sick) s.home();
-      else s.assign(p.type === "beginner" || p.type === "aqua" ? 0 : p.type === "advanced" ? 2 : 1);
+      else if (p.type !== "daredevil")
+        s.assign(p.type === "beginner" || p.type === "aqua" ? 0 : p.type === "advanced" ? 2 : 1);
     }
     s.tick(1 / 60);
     assert.ok(Number.isFinite(s.score));
-    assert.equal(
-      s.finsAvailable +
-        (s.coach.carry === "fins" ? 1 : 0) +
-        s.people.filter((p) => p.hasFins).length +
-        s.clutter.filter((p) => p.type === "fins").length,
-      3,
-    );
+    assert.equal(s.finCount(), 3);
   }
   assert.equal(s.status, "ended");
   assert.equal(s.nextArrival, s.config.total);
   assert.ok(s.stats.served > 0, "Every level runs to a playable result");
 }
 console.log(
-  "Shift checks passed: 3–2–1 and pause/resume, no lost shift time, short entry/exit paths for both lockers and all lanes, saved progress migration, ten unlocks, labels, controls, and seven complete new shifts.",
+  "Shift checks passed: 3–2–1 and pause/resume, no lost shift time, short entry/exit paths for both lockers and all lanes, saved progress migration, fifteen unlocks, labels, controls, and twelve complete assignment-baseline shifts across both venues.",
 );
 
 // First shift rewards learning to assign, with generous reaction time and no errands.

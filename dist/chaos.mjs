@@ -7,8 +7,15 @@ import { FishKid } from "./incidents/fish.mjs";
 import { LooseDog } from "./incidents/dog.mjs";
 import { CannonballCarl } from "./incidents/carl.mjs";
 import { PowerOutage } from "./incidents/outage.mjs";
+import {
+  Trampoline,
+  tickJumper,
+  blockedLane,
+  assignTrampoline,
+  injuredOnDeck,
+} from "./incidents/trampoline.mjs";
 
-export const SYSTEMS = [PowerOutage, CannonballCarl, FishKid, LooseDog];
+export const SYSTEMS = [PowerOutage, CannonballCarl, FishKid, LooseDog, Trampoline];
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -254,6 +261,10 @@ export class ChaosController extends RescueController {
     this.closed = 0;
     for (const p of this.people)
       if (p.status === "panic" || p.status === "fleeing") {
+        if (p.type === "daredevil") {
+          p.status = "queue";
+          continue;
+        }
         const lane = p.resumeLane ?? this.nearestLane(p.x);
         p.status = "queue";
         p.lane = lane;
@@ -321,6 +332,19 @@ export class ChaosController extends RescueController {
       if (panel) return panel;
     }
     return null;
+  }
+  // Trampoline (resort only): daredevil jumps, the splash-lane lock and crash victims on deck.
+  laneBlocked() {
+    return this.venue.trampoline ? blockedLane(this) : -1;
+  }
+  assignTrampoline() {
+    return assignTrampoline(this);
+  }
+  tickJumper(p, dt) {
+    return tickJumper(this, p, dt);
+  }
+  injuredOnDeck(p) {
+    injuredOnDeck(this, p);
   }
   // Tag shown over a visitor (emoji + optional meter).
   visitorTag(v) {

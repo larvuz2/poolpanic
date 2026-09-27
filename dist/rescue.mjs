@@ -3,7 +3,9 @@ import { RESCUE as R, ENTRY } from "./spatial.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const waitingInWater = (s, p) =>
-  !!s.rescue && !p.rescueRecover && (p.status === "swim" || (p.status === "exit" && p.exitPhase === "water"));
+  !!s.rescue &&
+  !p.rescueRecover &&
+  (p.status === "swim" || p.status === "switch" || (p.status === "exit" && p.exitPhase === "water"));
 
 export class RescueController extends SanitationController {
   constructor(venue) {
@@ -183,6 +185,10 @@ export class RescueController extends SanitationController {
   rescueVictims() {
     return (this.rescue?.victims || []).map((id) => this.get(id)).filter(Boolean);
   }
+  // Victims still waiting in the water for a ring (not ringed, not already out on the deck).
+  strandedVictims() {
+    return this.rescueVictims().filter((v) => waitingInWater(this, v));
+  }
   tryRescueEntry() {
     const c = this.coach;
     if (
@@ -275,9 +281,7 @@ export class RescueController extends SanitationController {
   onSwimStep() {
     const c = this.coach;
     if (this.rescue?.stage !== "stranded" || c.carry !== "lifering") return;
-    const p = this.rescueVictims()
-      .filter((v) => !v.rescueRecover)
-      .sort((a, b) => distance(c, a) - distance(c, b))[0];
+    const p = this.strandedVictims().sort((a, b) => distance(c, a) - distance(c, b))[0];
     if (!p || distance(c, p) >= 1.25) return;
     const ring = this.lifeRings[c.carryOwner];
     p.rescueRingId = ring.id;
@@ -290,7 +294,7 @@ export class RescueController extends SanitationController {
     p.status = "exit";
     this.beginWaterExit(p);
     p.lane = null;
-    if (this.rescueVictims().every((v) => v.rescueRecover)) this.rescue.stage = "escaping";
+    if (!this.strandedVictims().length) this.rescue.stage = "escaping";
     this.feedback("helped", { id: p.id });
   }
   onClimbOut() {}

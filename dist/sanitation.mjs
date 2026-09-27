@@ -171,7 +171,7 @@ export class SanitationController extends CoachController {
   evacuatePerson(p, sendHome = false) {
     p.resumeLane = p.lane ?? 1;
     p.returnToLocker = sendHome;
-    p.evacWater = p.status === "swim";
+    p.evacWater = p.status === "swim" || p.status === "switch";
     p.status = "evacuating";
     p.stomachWarning = false;
     p.sick = false;
@@ -251,7 +251,7 @@ export class SanitationController extends CoachController {
       warning: true,
     });
     for (const a of this.people)
-      if (["swim", "enter"].includes(a.status)) {
+      if (["swim", "enter", "switch"].includes(a.status)) {
         a.h = Math.max(35, a.h - 25);
         this.evacuatePerson(a, a.id === p.id);
       }
