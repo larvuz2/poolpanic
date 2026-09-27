@@ -390,8 +390,9 @@ function heal(sim, p) {
   sim.feedback("healed", { id: p.id, item: "medkit", to: { x: p.x, z: p.z } });
   if (p.type === "daredevil") {
     sim.emit("toast", { text: `${p.name} gives a wobbly thumbs up: "Totally worth it!" +${T.healBonus}` });
+    // Leaves happy, but a crash is not a served customer: no service points.
     p.status = "queue";
-    sim.depart(p, true);
+    sim.depart(p, false);
     const door = sim.venue.arrival;
     p.path = [
       ...sim.venue.route(p, { x: p.side * door.outsideX, z: door.doorZ }),
