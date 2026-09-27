@@ -7,6 +7,7 @@ import { buildResort } from "./scene/resort.mjs";
 import { character } from "./scene/actors.mjs";
 import { finsObject, lifeRingObject, skimmerObject, pooObject, bucket } from "./scene/props.mjs";
 import { IncidentView } from "./scene/incident-view.mjs";
+import { CoachCam, COACH_CAM } from "./scene/coach-cam.mjs";
 import { waitingInWater } from "./rescue.mjs";
 import { bumpLean } from "./deck-physics.mjs";
 import { CLUB, doorOpening } from "./spatial.mjs";
@@ -110,6 +111,8 @@ export class PoolWorld extends SceneKit {
     this.pointer = new THREE.Vector2();
     this.zoom = 1;
     this.autoZoom = 1;
+    // "overview" is the classic across-the-pool camera; "coach" is the first-person Coach Cam.
+    this.viewMode = "overview";
     this.effectSeed = 719;
     this.clock = 0;
     this.version = 0;
@@ -140,6 +143,7 @@ export class PoolWorld extends SceneKit {
     lighting ||= venue.id === "club" ? "indoor" : "day";
     if (this.scene) {
       disposeScene(this.scene);
+      if (this.coachCam) disposeScene(this.coachCam.scene);
       for (const t of this.textures) t.dispose();
       this.envTarget?.dispose();
     }
@@ -188,6 +192,13 @@ export class PoolWorld extends SceneKit {
     });
     this.buildGuidance();
     this.incidentView = new IncidentView(this);
+    const look = this.coachCam && {
+      yaw: this.coachCam.yaw,
+      pitch: this.coachCam.pitch,
+      hfov: this.coachCam.hfov,
+    };
+    this.coachCam = new CoachCam(this);
+    if (look) Object.assign(this.coachCam, look);
     this.version++;
   }
   setVenue(venue, lighting) {
@@ -676,11 +687,32 @@ export class PoolWorld extends SceneKit {
       this.splash(p.x, -0.16, p.z, 2, true);
   }
 
+  // A fresh model of a carried item (the third-person coach and the Coach Cam hands each hold their own).
+  carryObject(kind) {
+    const item = this.incidentView.carryModel(kind);
+    if (item) return item;
+    const g = new THREE.Group();
+    if (kind === "fins") g.add(finsObject(this));
+    else if (kind === "lifering") g.add(lifeRingObject(this));
+    else if (kind === "skimmer") g.add(skimmerObject(this));
+    else if (kind === "chlorine") bucket(this, 0, 0, 0, g);
+    else if (kind === "relief") {
+      this.cyl(0.12, 0.12, 0.36, 0x78c7ce, 0, 0, 0, g);
+      this.cyl(0.08, 0.11, 0.1, 0xf9f2cf, 0, 0.24, 0, g);
+    } else if (kind === "goggles") {
+      this.box(0.44, 0.12, 0.14, COLORS.navy, 0, 0, 0, 0.03, g);
+      for (const x of [-0.12, 0.12]) this.box(0.15, 0.1, 0.03, 0xbfe8db, x, 0, 0.08, 0.02, g);
+    } else return null;
+    return g;
+  }
   syncCoach(sim, time, dt) {
     const c = sim.coach,
       cg = this.coach,
       cu = cg.userData;
-    if (this.viewDirection && sim.status !== "ready") this.followCoach(c, dt, this.attention(sim));
+    const firstPerson = this.viewMode === "coach";
+    if (firstPerson) this.coachCam.update(sim, time, dt);
+    else if (this.viewDirection && sim.status !== "ready") this.followCoach(c, dt, this.attention(sim));
+    cg.visible = !firstPerson;
     cg.position.set(c.x, c.y || 0, c.z);
     const angle = c.angle || 0;
     cg.rotation.y += Math.atan2(Math.sin(angle - cg.rotation.y), Math.cos(angle - cg.rotation.y)) * 0.3;
@@ -701,7 +733,8 @@ export class PoolWorld extends SceneKit {
     );
     cu.root.position.y = walking && !air ? Math.abs(Math.sin(time * 12)) * 0.045 : 0;
     cu.root.rotation.x = c.dashTime > 0 && !this.reducedMotion.matches ? 0.25 : 0;
-    this.dashTrail.visible = c.dashTime > 0 && sim.status === "playing" && !this.reducedMotion.matches;
+    this.dashTrail.visible =
+      !firstPerson && c.dashTime > 0 && sim.status === "playing" && !this.reducedMotion.matches;
     this.dashTrail.position.copy(cg.position);
     this.dashTrail.rotation.y = c.angle;
     const coachLean = bumpLean(c, this.reducedMotion.matches);
@@ -713,7 +746,7 @@ export class PoolWorld extends SceneKit {
     cu.shadow.scale.setScalar(1 + (c.y || 0) * 0.25);
     this.coachHalo.position.set(c.x, 0.034, c.z);
     this.coachHalo.scale.setScalar(c.dashTime > 0 ? 1.18 : 1);
-    this.coachHalo.visible = sim.status !== "ready";
+    this.coachHalo.visible = sim.status !== "ready" && !firstPerson;
     const nearby = sim.nearestInteraction(),
       marker = nearby || c.goal;
     this.actionHalo.visible = !!marker && sim.status === "playing";
@@ -726,19 +759,8 @@ export class PoolWorld extends SceneKit {
     if (c.carry !== cu.carryKind) {
       cu.carry.clear();
       cu.carryKind = c.carry;
-      const item = this.incidentView.carryModel(c.carry);
+      const item = this.carryObject(c.carry);
       if (item) cu.carry.add(item);
-      else if (c.carry === "fins") cu.carry.add(finsObject(this));
-      else if (c.carry === "lifering") cu.carry.add(lifeRingObject(this));
-      else if (c.carry === "skimmer") cu.carry.add(skimmerObject(this));
-      else if (c.carry === "chlorine") bucket(this, 0, 0, 0, cu.carry);
-      else if (c.carry === "relief") {
-        this.cyl(0.12, 0.12, 0.36, 0x78c7ce, 0, 0, 0, cu.carry);
-        this.cyl(0.08, 0.11, 0.1, 0xf9f2cf, 0, 0.24, 0, cu.carry);
-      } else if (c.carry === "goggles") {
-        this.box(0.44, 0.12, 0.14, COLORS.navy, 0, 0, 0, 0.03, cu.carry);
-        for (const x of [-0.12, 0.12]) this.box(0.15, 0.1, 0.03, 0xbfe8db, x, 0, 0.08, 0.02, cu.carry);
-      }
     }
     if (c.carry === "lifering") {
       cu.carry.position.set(0, 1.02, 0.55);
@@ -974,10 +996,32 @@ export class PoolWorld extends SceneKit {
     }
   }
 
+  // Switch between the overview camera and the first-person Coach Cam (hands, head bob, mouse look).
+  setViewMode(mode, sim = null) {
+    const next = mode === "coach" ? "coach" : "overview";
+    if (next === this.viewMode && !sim) return;
+    this.viewMode = next;
+    if (next === "coach" && sim) this.coachCam.reset(sim);
+    if (next !== "coach" && typeof document !== "undefined" && document.pointerLockElement)
+      document.exitPointerLock?.();
+    this.resize();
+  }
   resize() {
     const w = this.container.clientWidth,
       h = this.container.clientHeight;
     this.renderer?.setSize(w, h);
+    if (this.viewMode === "coach") {
+      // Full-screen first-person projection: no view offset for the overview's HUD framing.
+      this.camera.clearViewOffset();
+      this.camera.aspect = w / h;
+      this.camera.near = 0.06;
+      this.camera.fov = this.coachCam.verticalFov(w / h);
+      this.camera.updateProjectionMatrix();
+      this.coachCam.resize(w / h);
+      return;
+    }
+    this.camera.near = 0.1;
+    this.camera.aspect = w / h;
     this.camera.fov = 42;
     const reserve = w <= 620 ? (h <= 740 ? Math.max(220, 820 - h * 0.9) : 150) : h <= 540 ? 86 : 0;
     this.playHeight = Math.max(150, h - reserve);
@@ -1105,12 +1149,25 @@ export class PoolWorld extends SceneKit {
       }
   }
   zoomBy(f) {
-    this.zoom = clamp(this.zoom * f, 0.9, 1.3);
+    // In the Coach Cam, zoom narrows or widens the field of view instead.
+    if (this.viewMode === "coach") this.coachCam.adjustFov(f > 1 ? -3 : 3);
+    else this.zoom = clamp(this.zoom * f, 0.9, 1.3);
     this.resize();
   }
   resetView() {
     this.zoom = 1;
+    this.coachCam.hfov = COACH_CAM.hfov;
     this.resize();
+  }
+  // What the Coach Cam crosshair is on (a clickable's userData), or null.
+  centerTarget() {
+    return this.viewMode === "coach" ? this.coachCam.centerTarget(this.raycaster, this.clickables) : null;
+  }
+  pickAt(nx, ny) {
+    this.pointer.set(nx, ny);
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObjects(this.clickables, false);
+    if (hits[0]) this.onPick(hits[0].object.userData);
   }
   handoff(from, to, item) {
     const mesh = item === "fins" ? finsObject(this) : new THREE.Group();
@@ -1137,27 +1194,57 @@ export class PoolWorld extends SceneKit {
   bindInput() {
     const canvas = this.renderer.domElement;
     let start = null;
-    canvas.addEventListener("pointerdown", (e) => {
-      start = { x: e.clientX, y: e.clientY };
-    });
-    canvas.addEventListener("pointerup", (e) => {
-      if (!start || Math.hypot(start.x - e.clientX, start.y - e.clientY) > 10) return;
+    const ndc = (e) => {
       const rect = canvas.getBoundingClientRect();
-      this.pointer.set(
+      return [
         ((e.clientX - rect.left) / rect.width) * 2 - 1,
         (-(e.clientY - rect.top) / rect.height) * 2 + 1,
-      );
-      this.raycaster.setFromCamera(this.pointer, this.camera);
-      const hits = this.raycaster.intersectObjects(this.clickables, false);
-      if (hits[0]) this.onPick(hits[0].object.userData);
+      ];
+    };
+    const locked = () => document.pointerLockElement === canvas;
+    canvas.addEventListener("pointerdown", (e) => {
+      start = { x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, moved: 0 };
+    });
+    canvas.addEventListener("pointerup", (e) => {
+      if (this.viewMode === "coach") {
+        // Coach Cam: with the mouse captured, a click acts on whatever the crosshair is on. Otherwise a
+        // click captures the mouse for looking around, and a tap acts on what was tapped.
+        if (locked()) this.pickAt(0, 0);
+        else if (start && start.moved < 10) {
+          if (e.pointerType === "mouse" && this.canLook?.()) {
+            try {
+              const request = canvas.requestPointerLock?.();
+              request?.catch?.(() => {});
+            } catch {}
+          } else this.pickAt(...ndc(e));
+        }
+        start = null;
+        return;
+      }
+      if (!start || Math.hypot(start.x - e.clientX, start.y - e.clientY) > 10) return;
+      this.pickAt(...ndc(e));
       start = null;
     });
     canvas.addEventListener("pointermove", (e) => {
-      const rect = canvas.getBoundingClientRect();
-      this.pointer.set(
-        ((e.clientX - rect.left) / rect.width) * 2 - 1,
-        (-(e.clientY - rect.top) / rect.height) * 2 + 1,
-      );
+      if (this.viewMode === "coach") {
+        if (locked()) this.coachCam.look(e.movementX || 0, e.movementY || 0);
+        else if (start && (e.buttons || e.pointerType !== "mouse")) {
+          // Drag to look (touch, or a mouse that has not been captured).
+          const dx = e.clientX - start.lastX,
+            dy = e.clientY - start.lastY;
+          start.lastX = e.clientX;
+          start.lastY = e.clientY;
+          start.moved += Math.abs(dx) + Math.abs(dy);
+          this.coachCam.look(
+            dx,
+            dy,
+            e.pointerType === "mouse" ? COACH_CAM.sensitivity * 1.6 : COACH_CAM.touchSensitivity,
+          );
+        }
+        canvas.style.cursor = locked() ? "none" : "grab";
+        return;
+      }
+      this.pointer.set(...ndc(e));
       this.raycaster.setFromCamera(this.pointer, this.camera);
       canvas.style.cursor = this.raycaster.intersectObjects(this.clickables, false).length
         ? "pointer"
@@ -1174,5 +1261,6 @@ export class PoolWorld extends SceneKit {
   }
   render() {
     this.renderer.render(this.scene, this.camera);
+    if (this.viewMode === "coach") this.coachCam.render(this.renderer);
   }
 }

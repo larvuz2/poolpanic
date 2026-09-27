@@ -264,6 +264,7 @@ export class RescueController extends SanitationController {
       return;
     }
     c.y = -0.39;
+    if (c.lookAngle != null) c.angle = c.lookAngle;
     c.state =
       c.carry === "lifering"
         ? "Swimming with life ring"
@@ -281,7 +282,7 @@ export class RescueController extends SanitationController {
     const P = this.venue.pool;
     c.x = clamp(c.x + c.vx * dt, -P.swimX, P.swimX);
     c.z = clamp(c.z + c.vz * dt, -P.swimZ, P.swimZ);
-    if (Math.hypot(c.vx, c.vz) > 0.1) c.angle = Math.atan2(c.vx, c.vz);
+    if (c.lookAngle == null && Math.hypot(c.vx, c.vz) > 0.1) c.angle = Math.atan2(c.vx, c.vz);
     this.onSwimStep(dt);
     if (
       (Math.abs(c.x) >= P.swimX - 0.01 && x * Math.sign(c.x) > 0.3) ||

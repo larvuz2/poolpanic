@@ -72,6 +72,8 @@ export class CoachController {
   }
   updateCoach(dt) {
     const c = this.coach;
+    // Coach Cam: the coach faces wherever the player looks, not where they walk.
+    if (c.lookAngle != null) c.angle = c.lookAngle;
     if (this.updateBusy(dt)) return;
     c.feedback = Math.max(0, c.feedback - dt);
     c.landing = Math.max(0, c.landing - dt);
@@ -109,7 +111,7 @@ export class CoachController {
       if (this.isDeck(c.x, z)) c.z = z;
       else c.vz = 0;
     }
-    if (Math.hypot(c.vx, c.vz) > 0.12) c.angle = Math.atan2(c.vx, c.vz);
+    if (c.lookAngle == null && Math.hypot(c.vx, c.vz) > 0.12) c.angle = Math.atan2(c.vx, c.vz);
     if (c.y > 0 || c.vy > 0) {
       c.vy -= T.gravity * dt;
       c.y = Math.max(0, c.y + c.vy * dt);
@@ -185,6 +187,16 @@ export class CoachController {
     if (!this.canInteract()) return null;
     const options = [];
     this.collectInteractions(options);
+    // Coach Cam: among comparable options, E prefers what is in front of the player over what is behind.
+    const c = this.coach;
+    if (c.lookAngle != null)
+      for (const o of options) {
+        if (Math.hypot(o.x - c.x, o.z - c.z) < 0.35) continue;
+        const turn = Math.atan2(o.x - c.x, o.z - c.z) - c.lookAngle,
+          off = Math.abs(Math.atan2(Math.sin(turn), Math.cos(turn)));
+        // Free within 45° of the view, up to +1.5 rank for something straight behind.
+        o.rank += Math.max(0, off - Math.PI / 4) * 0.64;
+      }
     return options.sort((a, b) => a.rank - b.rank)[0] || null;
   }
   collectInteractions(options) {
