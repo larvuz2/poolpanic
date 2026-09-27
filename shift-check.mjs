@@ -9,7 +9,7 @@ import {
   createCoach,
   queuePosition,
 } from "./dist/spatial.mjs";
-import { normalizeRecords, recordResult, starsFor } from "./dist/progression.mjs";
+import { normalizeRecords, recordResult, starsFor, isUnlocked, UNLOCK_ALL } from "./dist/progression.mjs";
 const tick = (s, frames) => {
   for (let i = 0; i < frames; i++) s.tick(1 / 60);
 };
@@ -96,6 +96,10 @@ const tick = (s, frames) => {
   }
   assert.equal(saved.bests.length, 15);
   assert.equal(normalizeRecords(JSON.parse(JSON.stringify(saved))).unlocked, 15);
+  // The playtest switch opens every level without touching saved progress.
+  assert.equal(isUnlocked(fresh, 1), true);
+  assert.equal(isUnlocked(fresh, 15), UNLOCK_ALL);
+  assert.equal(fresh.unlocked, 1, "Unlocking for testing never rewrites saved progress");
   assert.deepEqual(
     normalizeRecords({ bests: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], unlocked: 10 }).bests.slice(10),
     [0, 0, 0, 0, 0],

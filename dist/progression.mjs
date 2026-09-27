@@ -1,4 +1,10 @@
 import { SHIFTS } from "./sim.mjs";
+// Playtesting: every level is open to everyone until further notice. Saved progress still records real
+// unlocks, so setting this back to false restores star-gated progression without anyone losing progress.
+export const UNLOCK_ALL = true;
+export function isUnlocked(records, level) {
+  return UNLOCK_ALL || level <= records.unlocked;
+}
 export function normalizeRecords(saved = {}) {
   return {
     bests: SHIFTS.map((_, i) => Math.max(0, Number(saved?.bests?.[i]) || 0)),
