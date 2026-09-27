@@ -541,12 +541,11 @@ export class CoachCam {
     renderer.render(this.scene, this.camera);
     renderer.autoClear = auto;
   }
-  // What the crosshair is on: the first clickable along the view centre within reach of a short walk.
+  // What the crosshair is on: the first clickable along the view centre, at any distance (like a click in the
+  // overview), so the queue and far gear can be picked from anywhere on deck.
   centerTarget(raycaster, clickables) {
     raycaster.setFromCamera(new THREE.Vector2(0, 0), this.w.camera);
-    raycaster.far = 16;
     const hit = raycaster.intersectObjects(clickables, false)[0];
-    raycaster.far = Infinity;
     return hit ? hit.object.userData : null;
   }
 }

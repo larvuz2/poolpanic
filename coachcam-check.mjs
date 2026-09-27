@@ -1,7 +1,8 @@
 // Coach Cam (first-person view): the coach faces where the player looks, E prefers what is in front,
 // movement follows the view, the camera sits at eye height (water level when swimming) with the coach's body
 // hidden, the hands trail fast turns and settle, head bob stays subtle (off with reduced motion), landings
-// dip the view, carried items appear in the hands, and the field of view stays sane on any screen.
+// dip the view, carried items appear in the hands, the field of view stays sane on any screen, and the crosshair
+// names what a click would act on.
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import * as THREE from "./dist/assets/three.module.js";
@@ -96,6 +97,14 @@ const cam = world.coachCam;
   const wide = world.coachCam.verticalFov(16 / 9);
   assert.ok(wide > 55 && wide < 65, "About 90° across on a 16:9 screen (" + wide.toFixed(1) + "° tall)");
   assert.equal(world.coachCam.verticalFov(390 / 844), COACH_CAM.vfov[1], "Phones are capped, not fish-eyed");
+  // The crosshair names what a click would act on: a lane when looking down at the water, nothing overhead.
+  world.coachCam.pitch = -0.35;
+  world.sync(s, 0.6, 1 / 60);
+  assert.equal(world.centerTarget()?.kind, "lane", "Looking at the water, the crosshair is on a lane");
+  world.coachCam.pitch = 1.2;
+  world.sync(s, 0.62, 1 / 60);
+  assert.equal(world.centerTarget(), null, "Looking up, the crosshair is on nothing");
+  world.coachCam.pitch = COACH_CAM.startPitch;
   // Swimming puts the eyes just above the water.
   Object.assign(c, { swimming: true, y: -0.39 });
   for (let i = 0; i < 20; i++) world.sync(s, 1 + i / 60, 1 / 60);
@@ -187,5 +196,5 @@ const cam = world.coachCam;
   assert.equal(new THREE.Vector3(0, 0, 0).length(), 0);
 }
 console.log(
-  "Coach Cam checks passed: facing follows the look, E prefers what is in view, view-relative movement, eye-height and water-level camera with the body hidden, hands trail and settle, subtle bob (off with reduced motion), landing dip, carried items in hand, sane field of view.",
+  "Coach Cam checks passed: facing follows the look, E prefers what is in view, view-relative movement, eye-height and water-level camera with the body hidden, hands trail and settle, subtle bob (off with reduced motion), landing dip, carried items in hand, sane field of view, crosshair targets.",
 );

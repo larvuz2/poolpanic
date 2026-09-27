@@ -344,7 +344,7 @@ There is nothing to bundle: the build step only runs the regression checks (abou
 | `node trampoline-check.mjs` | Resort lanes, flips, splash-lane lock, lane moves, crash rings and first aid |
 | `node season-check.mjs` | Coach bot plays levels 4–15 end to end; star-target sanity and crash recovery (`--table` for scores) |
 | `node interplay-check.mjs` | Incidents colliding: goggles vs the fish net, early fish return, kid during a rescue, cramps mid-flip, second crash ring, healed victims rejoining, breaker race |
-| `node coachcam-check.mjs` | Coach Cam: facing follows the look, E prefers what is in view, view-relative movement, eye and water-level height with the body hidden, hand lag and settle, head bob (off with reduced motion), landing dip, items in hand, field of view |
+| `node coachcam-check.mjs` | Coach Cam: facing follows the look, E prefers what is in view, view-relative movement, eye and water-level height with the body hidden, hand lag and settle, head bob (off with reduced motion), landing dip, items in hand, field of view, crosshair target |
 
 Read the selected test's imports before running it in a new environment. CPU scene checks use the runtime's canvas dependency and are not GPU rendering tests. Historical checks passed during implementation, but that is not a claim that this documentation update reran every suite.
 
@@ -356,9 +356,10 @@ The Coach Cam was checked the same way in headless Chromium:
 - the menu switch at desktop, short-laptop and phone sizes;
 - drag-to-look, walking along the view, arrow-key turning, V switching and the saved setting;
 - the crosshair label;
+- with the captured state faked, aiming at a queued swimmer 11 m away and clicking to select them, then clicking a lane to send them in;
 - screenshots of the hands and the held items.
 
-Pointer lock cannot be exercised headlessly, so mouse capture is verified by code path only, and there has been no GPU or real-device pass.
+The browser's real pointer lock cannot engage headlessly, and there has been no GPU or real-device pass.
 
 ## Direction already established by the creator
 

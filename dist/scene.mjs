@@ -1207,10 +1207,12 @@ export class PoolWorld extends SceneKit {
     });
     canvas.addEventListener("pointerup", (e) => {
       if (this.viewMode === "coach") {
-        // Coach Cam: with the mouse captured, a click acts on whatever the crosshair is on. Otherwise a
-        // click captures the mouse for looking around, and a tap acts on what was tapped.
-        if (locked()) this.pickAt(0, 0);
-        else if (start && start.moved < 10) {
+        // Coach Cam: with the mouse captured, a click acts on whatever the crosshair names. Otherwise a click
+        // captures the mouse for looking around, and a tap acts on what was tapped.
+        if (locked()) {
+          const target = this.centerTarget();
+          if (target) this.onPick(target);
+        } else if (start && start.moved < 10) {
           if (e.pointerType === "mouse" && this.canLook?.()) {
             try {
               const request = canvas.requestPointerLock?.();
