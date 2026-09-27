@@ -62,6 +62,9 @@ uniform float uHalfZ;
 uniform vec3 uSun;
 uniform vec3 uShallow;
 uniform vec3 uDeep;
+uniform vec3 uSky;
+uniform vec3 uGlint;
+uniform float uGlow;
 varying vec3 vWorld;
 void main() {
   vec2 p = vWorld.xz;
@@ -84,15 +87,28 @@ void main() {
   float sparkle = pow(max(0.0, sin(p.x * 3.3 + t * 1.1) * sin(p.y * 2.9 - t * 0.9)), 18.0) * 0.18;
   float lines = caustic(p * 0.9, t * 0.8);
   color += vec3(0.8, 1.0, 0.98) * lines * 0.16 * (1.0 - uBrown * 0.8) * uLight;
-  color += vec3(1.0, 0.96, 0.86) * (glint + sparkle) * (1.0 - uBrown) * uLight;
-  color = mix(color, vec3(0.7, 0.93, 0.95) * uLight, fres * 0.22);
+  color += uGlint * (glint + sparkle) * (1.0 - uBrown) * uLight;
+  color = mix(color, uSky * uLight, fres * 0.22);
   float wall = 1.0 - smoothstep(0.0, 0.22, edge);
   color += vec3(0.75, 1.0, 1.0) * wall * 0.06 * uLight;
+  // Underwater lamps along the long walls light the water from within after dark.
+  float lamp = exp(-(uHalfX - abs(p.x)) * 0.9) * (0.35 + 0.65 * pow(abs(sin(p.y * 0.785398)), 8.0));
+  color += vec3(0.3, 0.85, 1.0) * lamp * uGlow * 0.5 * (1.0 - uDirty * 0.6);
   color *= mix(0.22, 1.0, uLight);
   gl_FragColor = vec4(color, 0.5 + fres * 0.2 + uDirty * 0.22 + uBrown * 0.2 + wall * 0.08);
 }`;
 
-export function buildPool(w, venue, { shallow = [0.2, 0.8, 0.84], deep = [0.09, 0.69, 0.79] } = {}) {
+export function buildPool(
+  w,
+  venue,
+  {
+    shallow = [0.2, 0.8, 0.84],
+    deep = [0.09, 0.69, 0.79],
+    sky = [0.7, 0.93, 0.95],
+    glint = [1, 0.96, 0.86],
+    glow = 0,
+  } = {},
+) {
   const lanes = venue.lanes,
     P = venue.pool,
     halfX = P.halfX,
@@ -176,6 +192,9 @@ export function buildPool(w, venue, { shallow = [0.2, 0.8, 0.84], deep = [0.09, 
         uSun: { value: new THREE.Vector3(-0.35, 0.9, 0.3) },
         uShallow: { value: new THREE.Vector3(...shallow) },
         uDeep: { value: new THREE.Vector3(...deep) },
+        uSky: { value: new THREE.Vector3(...sky) },
+        uGlint: { value: new THREE.Vector3(...glint) },
+        uGlow: { value: glow },
       },
       vertexShader: WATER_VERTEX,
       fragmentShader: WATER_FRAGMENT,
@@ -184,6 +203,20 @@ export function buildPool(w, venue, { shallow = [0.2, 0.8, 0.84], deep = [0.09, 
   w.water.position.y = -0.25;
   w.water.renderOrder = 2;
   w.scene.add(w.water);
+  // Underwater lamps: glowing lenses on the long walls, lit in the evening (they die in a blackout).
+  w.poolLamps = null;
+  if (glow > 0) {
+    const lens = new THREE.MeshBasicMaterial({ color: 0xbff4ff });
+    const geo = new THREE.CircleGeometry(0.16, 16);
+    for (const side of [-1, 1])
+      for (const z of [-6, -2, 2, 6]) {
+        const m = new THREE.Mesh(geo, lens);
+        m.position.set(side * (halfX - 0.115), -0.78, z);
+        m.rotation.y = -side * (Math.PI / 2);
+        w.scene.add(m);
+      }
+    w.poolLamps = { material: lens, base: new THREE.Color(0xbff4ff) };
+  }
   // Invisible lane volumes for click assignment.
   lanes.forEach((x, i) => {
     const m = new THREE.Mesh(

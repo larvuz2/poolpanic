@@ -2,7 +2,7 @@
 // whose splash zone lands in the last lane. Same toy palette as the club, warmer and sunnier.
 import { THREE, COLORS } from "./kit.mjs";
 import { buildPool, buildDeck } from "./pool.mjs";
-import { plasterTexture, grassTexture, glowTexture } from "./textures.mjs";
+import { plasterTexture, grassTexture, glowTexture, mosaicTexture } from "./textures.mjs";
 import {
   bench,
   station,
@@ -26,14 +26,15 @@ import {
 
 export function buildResort(w, venue, lighting = "day") {
   buildDeck(w, venue, {
-    base: "#e2c69b",
-    grout: "#c7a77c",
+    base: "#d9b287",
+    grout: "#a98661",
     pavers: true,
     slab: 0x3f9a8f,
     rim: 0xc49a6c,
     side: 0xd9b787,
   });
-  buildPool(w, venue, LIGHT_WATER[lighting] || LIGHT_WATER.day);
+  buildPool(w, venue, w.look.water);
+  poolSurround(w, venue);
   facade(w, venue);
   lockerBay(w, venue, -12, "CABANA A", 0x2f9aa0, "resort");
   lockerBay(w, venue, 12, "CABANA B", 0xe0513f, "resort");
@@ -85,11 +86,36 @@ export function buildResort(w, venue, lighting = "day") {
   stringLights(w, venue, lighting === "night" || lighting === "sunset");
 }
 
-const LIGHT_WATER = {
-  day: { shallow: [0.36, 0.86, 0.88], deep: [0.06, 0.58, 0.72] },
-  sunset: { shallow: [0.42, 0.78, 0.84], deep: [0.1, 0.48, 0.66] },
-  night: { shallow: [0.18, 0.72, 0.86], deep: [0.04, 0.4, 0.66] },
-};
+// A band of blue-and-white mosaic frames the basin between the gutter and the walkway.
+function poolSurround(w, venue) {
+  const P = venue.pool,
+    inner = 0.72,
+    outer = 1.42;
+  const shape = new THREE.Shape();
+  shape.moveTo(-P.halfX - outer, -P.halfZ - outer);
+  shape.lineTo(P.halfX + outer, -P.halfZ - outer);
+  shape.lineTo(P.halfX + outer, P.halfZ + outer);
+  shape.lineTo(-P.halfX - outer, P.halfZ + outer);
+  shape.closePath();
+  const hole = new THREE.Path();
+  hole.moveTo(-P.halfX - inner, -P.halfZ - inner);
+  hole.lineTo(-P.halfX - inner, P.halfZ + inner);
+  hole.lineTo(P.halfX + inner, P.halfZ + inner);
+  hole.lineTo(P.halfX + inner, -P.halfZ - inner);
+  hole.closePath();
+  shape.holes.push(hole);
+  const geo = new THREE.ShapeGeometry(shape);
+  geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position,
+    uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / 2, pos.getZ(i) / 2);
+  const tex = mosaicTexture({ seed: 41, base: "#3f8fb5", grout: "#e9f2ec", tiles: 6 });
+  w.textures.push(tex);
+  const band = new THREE.Mesh(geo, w.mat(0xffffff, { map: tex, roughness: 0.45 }));
+  band.position.y = -0.008;
+  band.receiveShadow = true;
+  w.scene.add(band);
+}
 
 function facade(w, venue) {
   const z0 = -16.35,

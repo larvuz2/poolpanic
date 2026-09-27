@@ -465,6 +465,8 @@ export class IncidentView {
     const stormy = o && o.stage !== "restored";
     for (const glass of w.windowGlass || [])
       glass.material.color.setScalar(stormy ? Math.min(1, 0.22 + this.flash) : 1);
+    if (w.poolLamps)
+      w.poolLamps.material.color.copy(w.poolLamps.base).multiplyScalar(Math.max(0.06, Math.min(1, k)));
     if (w.stringLights)
       w.stringLights.visible = w.lightingName !== "day" && !(dark || (o?.stage === "flicker" && k < 0.9));
     const c = sim.coach,
