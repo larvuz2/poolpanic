@@ -12,6 +12,8 @@ export class CoachInput {
   constructor({ onJump, onDash, onInteract, onPause, onShortcut, isPlaying }) {
     this.held = new Set();
     this.touch = new Map();
+    // Coach Cam: ← / → turn the view instead of strafing (A / D still strafe).
+    this.lookMode = false;
     this.handlers = { onJump, onDash, onInteract, onPause, onShortcut, isPlaying };
   }
   keyDown(event) {
@@ -59,6 +61,7 @@ export class CoachInput {
     let x = 0,
       z = 0;
     for (const code of this.held) {
+      if (this.lookMode && (code === "ArrowLeft" || code === "ArrowRight")) continue;
       const d = directions[code];
       if (d) {
         x += d[0];
@@ -71,6 +74,11 @@ export class CoachInput {
     }
     const length = Math.max(1, Math.hypot(x, z));
     return { x: x / length, z: z / length };
+  }
+  // Coach Cam turning from the arrow keys: −1 left, +1 right.
+  turn() {
+    if (!this.lookMode) return 0;
+    return (this.held.has("ArrowRight") ? 1 : 0) - (this.held.has("ArrowLeft") ? 1 : 0);
   }
   clear() {
     this.held.clear();

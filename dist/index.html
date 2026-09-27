@@ -56,6 +56,14 @@
           <strong id="selected-shift-name">Morning dip</strong
           ><span id="selected-shift-meta">30 SECONDS · 4 SWIMMERS</span>
         </div>
+        <label class="view-toggle" for="coach-cam">
+          <input type="checkbox" id="coach-cam" />
+          <span class="switch" aria-hidden="true"></span>
+          <span class="view-toggle-text"
+            ><b>COACH CAM</b
+            ><small>First-person view · look with the mouse · V switches in a shift</small></span
+          >
+        </label>
         <button id="start" class="primary">START SHIFT <span>▶</span></button>
         <div class="welcome-foot">
           <span>30 SECOND SHIFT</span><span id="best-score">YOUR NEXT PERSONAL BEST AWAITS</span>
@@ -133,6 +141,7 @@
       </footer>
       <button id="scoop-target" class="scoop-target" hidden>E · SCOOP</button>
       <div id="coach-prompt" class="coach-prompt" hidden><kbd>E</kbd><span>COACH</span></div>
+      <div id="crosshair" class="crosshair" aria-hidden="true" hidden><i></i><span></span></div>
       <div id="touch-controls" class="touch-controls" hidden>
         <div class="move-pad" aria-label="Move coach">
           <button data-move="0,-1" class="move-up" aria-label="Move forward">▲</button
@@ -212,6 +221,23 @@
             on the scoreboard.
           </li>
         </ul>
+        <h3>Coach Cam (optional first-person view)</h3>
+        <ul>
+          <li>
+            Switch it on in the menu, or press <b>V</b> during a shift. You see the pool through the coach’s
+            eyes, hands and all: whatever you carry is right there in front of you.
+          </li>
+          <li>
+            <b>Click the pool</b> to look around with the mouse (<b>Esc</b> frees the mouse again), or drag to
+            look on touch screens. <b>W / S</b> walk forward and back, <b>A / D</b> step sideways,
+            <b>← / →</b> turn.
+          </li>
+          <li>
+            With the mouse captured, <b>click</b> acts on whatever the crosshair is on: select a swimmer, then
+            look at a lane and click to send them there. <b>E</b> still uses what is nearby, preferring what
+            you face. The mouse wheel changes the field of view.
+          </li>
+        </ul>
         <h3>Chaos on deck (from level 4)</h3>
         <ul>
           <li>
@@ -256,10 +282,10 @@
         </ul>
         <p class="help-shortcuts">
           <b>WASD / arrows</b> move · <b>Space</b> jump · <b>Shift</b> dash · <b>E</b> pick up / deliver /
-          assist · <b>1–5</b> assign or move lane · <b>T</b> trampoline · <b>P / Esc</b> pause · <b>M</b>
-          music. F, C, and R point you toward fins, chlorine, and eye relief; clicking gear or a visitor walks
-          you there. Jump over dropped fins and puddles to avoid slipping. The coach only enters the water on
-          a mission: a life ring for a rescue, or the net for a loose fish.
+          assist · <b>1–5</b> assign or move lane · <b>T</b> trampoline · <b>V</b> Coach Cam ·
+          <b>P / Esc</b> pause · <b>M</b> music. F, C, and R point you toward fins, chlorine, and eye relief;
+          clicking gear or a visitor walks you there. Jump over dropped fins and puddles to avoid slipping.
+          The coach only enters the water on a mission: a life ring for a rescue, or the net for a loose fish.
         </p>
         <button class="primary" data-close>I've got this ↗</button>
       </dialog>

@@ -25,6 +25,62 @@ let records = normalizeRecords();
 try {
   records = normalizeRecords(JSON.parse(localStorage.getItem("pool-panic.records.v1")));
 } catch {}
+// Per-device preferences. Coach Cam (the first-person view) is off by default.
+let settings = { coachCam: false };
+try {
+  settings = { ...settings, ...JSON.parse(localStorage.getItem("pool-panic.settings.v1") || "{}") };
+} catch {}
+function saveSettings() {
+  try {
+    localStorage.setItem("pool-panic.settings.v1", JSON.stringify(settings));
+  } catch {}
+}
+// Movement input in world space: screen-relative for the overview, view-relative in the Coach Cam.
+function moveVector() {
+  const v = input.vector();
+  return world.viewMode === "coach" ? world.coachCam.movement(v.x, v.z) : screenMovement(v.x, v.z);
+}
+// Apply the chosen camera: the Coach Cam during shifts when enabled, the overview otherwise.
+function applyViewMode() {
+  const coach = settings.coachCam && mode !== "menu";
+  world.setViewMode(coach ? "coach" : "overview", coach ? sim : null);
+  input.lookMode = coach;
+  document.body.classList.toggle("coach-cam", coach);
+  if (!coach) sim.coach.lookAngle = null;
+}
+function releaseMouse() {
+  if (document.pointerLockElement) document.exitPointerLock?.();
+}
+const STATION_NAMES = { fins: "Fin rack", chlorine: "Chlorine", relief: "Eye relief" };
+const FIXTURE_NAMES = {
+  fishNet: "Fish net",
+  treats: "Dog treats",
+  flashlight: "Flashlight",
+  fuseBox: "Fuse box",
+  medkit: "Medical kit",
+};
+// What the Coach Cam crosshair is on, in words.
+function targetLabel(d) {
+  if (d.kind === "swimmer") {
+    const p = sim.get(d.id);
+    if (!p) return "";
+    if (p.status === "injured") return "Patch up " + p.name + " · click";
+    return p.id === sim.selected ? p.name + " · selected" : "Select " + p.name + " · click";
+  }
+  if (d.kind === "lane")
+    return "Lane " + (d.lane + 1) + (sim.get(sim.selected) ? " · click to send them here" : "");
+  if (d.kind === "station") return STATION_NAMES[d.item] || "";
+  if (d.kind === "lifering") return "Life ring";
+  if (d.kind === "sanitation") return d.item === "skimmer" ? "Pool skimmer" : "Waste bin";
+  if (d.kind === "fixture") return FIXTURE_NAMES[d.item] || "";
+  if (d.kind === "visitor") {
+    const v = sim.visitor?.(d.id);
+    return v ? (v.kind === "dog" ? "The dog" : v.name || "Visitor") : "";
+  }
+  if (d.kind === "trampoline") return "Trampoline tower";
+  if (d.kind === "clutter") return "Dropped gear · E";
+  return "";
+}
 const bubbles = new Map();
 let stationLabels = [];
 let hudWasPlaying = false;
@@ -116,6 +172,7 @@ function start() {
   syncVenue(sim);
   sim.start({ countdown: true });
   mode = "countdown";
+  applyViewMode();
   audio.init();
   audio.playing = true;
   document.body.classList.remove("menu");
@@ -130,11 +187,13 @@ function start() {
   updateUI();
 }
 function returnMenu() {
+  releaseMouse();
   audio.panic = false;
   input?.clear();
   accumulator = 0;
   document.querySelectorAll("dialog[open]").forEach((d) => d.close());
   mode = "menu";
+  applyViewMode();
   $("countdown").hidden = true;
   audio.playing = true;
   sim = makeDemo();
@@ -193,6 +252,7 @@ function updateChoices() {
 
 function pause() {
   if (!["playing", "countdown"].includes(mode)) return;
+  releaseMouse();
   resumeState = sim.status;
   input.clear();
   sim.clearInput();
@@ -211,6 +271,7 @@ function resume() {
 }
 function showHelp() {
   if ($("help-dialog").open) return;
+  releaseMouse();
   pausedByHelp = ["playing", "countdown"].includes(mode);
   if (pausedByHelp) {
     helpResumeState = sim.status;
@@ -268,6 +329,7 @@ function pick(data) {
 }
 
 function finish() {
+  releaseMouse();
   input.clear();
   sim.clearInput();
   accumulator = 0;
@@ -723,16 +785,35 @@ function updateContext() {
     floater.textContent = ready ? "E · SCOOP" : "GET CLOSER";
     floater.classList.toggle("in-reach", ready);
   }
-  const active = mode === "playing";
+  const active = mode === "playing",
+    firstPerson = world.viewMode === "coach";
   $("coach-prompt").hidden = !active;
   $("touch-controls").hidden = !active;
+  $("crosshair").hidden = !active || !firstPerson;
   if (!active) return;
   const c = sim.coach,
     near = sim.nearestInteraction(),
-    p = world.project(c.x, (c.y || 0) + 2.2, c.z);
-  const prompt = $("coach-prompt");
-  prompt.style.left = Math.max(90, Math.min(innerWidth - 90, p.x)) + "px";
-  prompt.style.top = Math.max(110, Math.min(innerHeight - 108, p.y)) + "px";
+    prompt = $("coach-prompt");
+  if (firstPerson) {
+    // Coach Cam: the prompt sits just above the hands; the crosshair names what a click would act on.
+    prompt.style.left = innerWidth / 2 + "px";
+    prompt.style.top = Math.round(innerHeight * 0.66) + "px";
+    prompt.hidden = !near && !c.busy && !c.swimming && !c.waterTransition && !c.slipTime;
+    const target = world.centerTarget(),
+      crosshair = $("crosshair");
+    crosshair.classList.toggle("on-target", !!target);
+    crosshair.querySelector("span").textContent = target
+      ? targetLabel(target)
+      : document.pointerLockElement
+        ? ""
+        : matchMedia("(pointer: fine)").matches
+          ? "Click the pool to look around"
+          : "Drag to look around";
+  } else {
+    const p = world.project(c.x, (c.y || 0) + 2.2, c.z);
+    prompt.style.left = Math.max(90, Math.min(innerWidth - 90, p.x)) + "px";
+    prompt.style.top = Math.max(110, Math.min(innerHeight - 108, p.y)) + "px";
+  }
   prompt.classList.toggle("slipped", c.slipTime > 0);
   prompt.classList.toggle("can-interact", !!near);
   prompt.querySelector("span").textContent = near
@@ -790,7 +871,9 @@ function updateBubbles() {
       p.status === "swim" ? (p.type === "aqua" ? 1.15 : 0.8) : p.status === "injured" ? 1.15 : 2 + (p.y || 0),
       p.z,
     );
-    b.hidden = !screen.visible;
+    b.hidden =
+      !screen.visible ||
+      (world.viewMode === "coach" && Math.hypot(p.x - sim.coach.x, p.z - sim.coach.z) > 16);
     b.disabled = mode !== "playing" || !["queue", "swim", "injured"].includes(p.status);
     b.setAttribute("aria-label", "Select " + p.name + ", " + TYPES[p.type].label);
     b.setAttribute("aria-pressed", String(p.id === sim.selected));
@@ -953,6 +1036,7 @@ function events() {
       updateUI();
     } else if (e.type === "coach-slip") toast("Whoops! Jump over fins, or pick them up with E.");
     else if (e.type === "ended") finish();
+    if (world.viewMode === "coach") world.coachCam.react(e.type, e);
     audio.effect(e.type);
   }
 }
@@ -963,8 +1047,11 @@ function animate(t) {
   try {
     if (mode === "playing" || mode === "countdown") {
       // Fixed substeps keep congestion stable even on lower frame rates.
-      const v = input.vector(),
-        movement = screenMovement(v.x, v.z);
+      if (world.viewMode === "coach") {
+        world.coachCam.turn(input.turn(), dt);
+        sim.coach.lookAngle = world.coachCam.yaw;
+      }
+      const movement = moveVector();
       sim.setMovement(movement.x, movement.z);
       accumulator = Math.min(0.12, accumulator + dt);
       while (accumulator >= 1 / 60) {
@@ -1015,6 +1102,12 @@ function bind() {
       `<button data-level="${i + 1}" class="${s.venue === "resort" ? "resort" : ""}" aria-label="Level ${i + 1}"><span class="level-number">${String(i + 1).padStart(2, "0")}</span><i class="level-lock" aria-hidden="true">🔒</i><span class="level-stars" aria-hidden="true"></span></button>`,
   ).join("");
   $("scoop-target").onclick = () => sim.scoop();
+  $("coach-cam").checked = settings.coachCam;
+  $("coach-cam").onchange = () => {
+    settings.coachCam = $("coach-cam").checked;
+    saveSettings();
+  };
+  world.canLook = () => ["playing", "countdown"].includes(mode);
   $("start").onclick = start;
   document.querySelectorAll("[data-level]").forEach(
     (b) =>
@@ -1092,8 +1185,7 @@ function bind() {
     isPlaying: () => mode === "playing",
     onJump: () => sim.jump(),
     onDash: () => {
-      const v = input.vector();
-      const m = screenMovement(v.x, v.z);
+      const m = moveVector();
       sim.setMovement(m.x, m.z);
       sim.dash();
     },
@@ -1119,6 +1211,16 @@ function bind() {
         return;
       }
       if (mode !== "playing") return;
+      if (key === "v") {
+        // Switch cameras mid-shift; the Coach Cam picks up where the coach was facing.
+        settings.coachCam = !settings.coachCam;
+        saveSettings();
+        $("coach-cam").checked = settings.coachCam;
+        applyViewMode();
+        if (settings.coachCam) world.coachCam.yaw = sim.coach.angle ?? world.coachCam.yaw;
+        toast(settings.coachCam ? "Coach Cam on · click the pool to look around" : "Overview camera");
+        return;
+      }
       if (/^[1-9]$/.test(key) && Number(key) <= sim.lanes.length) sim.assign(Number(key) - 1);
       if (key === "t" && sim.venue.trampoline) sim.assignTrampoline?.();
       if (key === "c") sim.fetch("chlorine");
@@ -1142,8 +1244,7 @@ function bind() {
   });
   $("touch-dash").onclick = () => {
     if (mode === "playing") {
-      const v = input.vector();
-      const m = screenMovement(v.x, v.z);
+      const m = moveVector();
       sim.setMovement(m.x, m.z);
       sim.dash();
     }
@@ -1204,6 +1305,11 @@ try {
           if (sim.events.length) events();
         }
         updateUI();
+      },
+      coachCam(on = true) {
+        settings.coachCam = on;
+        $("coach-cam").checked = on;
+        applyViewMode();
       },
       unlockAll() {
         records.unlocked = SHIFTS.length;

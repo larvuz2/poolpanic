@@ -58,6 +58,8 @@ A lane assignment is a management action. Equipment pickup, handoff, cleanup, an
 | F / C / R | Guidance toward fins / chlorine / eye relief |
 | P / Escape | Pause behavior through the game's input/UI routing |
 | M | Toggle audio |
+| V | Switch between the overview and the Coach Cam (first-person view) during a shift |
+| Mouse / drag in the Coach Cam | Look around; with the mouse captured, click acts on what the crosshair is on. ← / → turn instead of strafing, and the wheel sets the field of view |
 | Touch controls | Movement and actions using the same gameplay intents |
 | Fullscreen button | Fullscreen where supported by the browser |
 
@@ -74,6 +76,25 @@ The coach starts midway along the near deck. The starting blocks, queue, and arr
 The club uses warm sand/terracotta tiles, muted teal walls, glowing high windows with light shafts, and a continuous tiled environment behind the HUD. The resort is open-air: sandstone pavers, a blue-and-white mosaic band around the basin, a plastered facade with terracotta roof tiles, cabanas, palms, loungers, a snack kiosk and the trampoline tower. Lighting presets (`indoor`, `day`, `sunset`, `night`) set the sky, sun, fill, fog, image-based environment and water tint; underwater lamps light the pool after dark. Textures are generated procedurally from seeded canvases, and the basin floor and walls carry animated caustics. The UI uses dark teal arcade scoreboard surfaces, yellow primary actions, swimmer passes, inventory slots, lane plaques, and emojis. Preserve the toy-like low-poly identity and readable game presentation.
 
 Geometry, interaction hit volumes, collision proxies, camera framing, and routes must agree. The fin and chlorine fixtures were rotated 90 degrees for the horizontal presentation. Swimmers finishing at either end swim to the nearer end wall, climb out, and walk around the outside. Their water, climbing, and deck poses are distinct.
+
+## Coach Cam — optional first-person view
+
+A switch on the welcome panel turns shifts into a physical first-person view, and **V** flips between it and the overview mid-shift. It is off by default and remembered per device in `localStorage` under `pool-panic.settings.v1`. The overview stays the default and the reference framing for the game.
+
+- **The camera is the coach's eyes.** It sits at eye height (1.52 m), just above the water while swimming, and travels through dives and climbs. The coach's own body is hidden. Two cartoon forearms (yellow track-jacket sleeves) and whatever the coach carries are drawn in a second pass with their own narrower field of view (56° vertical), so they read clearly and never clip into the world.
+- **Field of view.** 92° horizontal at 16:9, adjustable from 80° to 105° with the mouse wheel or the zoom buttons; the recentre button restores 92°. The vertical angle is kept between 50° and 78°, so phones in portrait are capped instead of fish-eyed. Pitch is limited to ±80°.
+- **Two motion systems.** The camera follows the coach directly and stays steady when the coach bumps into things. It only bobs 1–2 cm walking and about 3 cm dashing, dips about 3 cm on landing, kneels while bandaging, and tips back on a slip. The hands hang off springs that settle in roughly 100–200 ms:
+  - they keep part of their place in the world on a fast turn and swing after the view;
+  - walking, they swing and bounce 2–4× more than the camera;
+  - they drop on a jump and squash on landing;
+  - they reach toward whatever is grabbed or handed over, and hold up the red card;
+  - they fly up on a slip.
+
+  Reduced motion removes the head bob and hand sway.
+- **Items live in the hands, not on the camera.** Fins, the chlorine bucket (heavy, so on slower springs), eye relief, goggles, dog treats and the medkit sit in the hands. The flashlight lights the hands during a blackout, the life ring is held in both hands, and the skimmer and fish net are held on poles. Dangling things swing like pendulums. With a fish in the net, the hoop comes right up to the coach's face and the fish fills the screen.
+- **Looking and acting.** W / S walk along the view, A / D step sideways, ← / → turn. Clicking the pool captures the mouse for looking around, and Esc frees it. With the mouse captured, a click acts on whatever the crosshair is on, and the crosshair names it: select a swimmer, then look at a lane and click to send them there. Without capture, drag to look; on touch screens, drag to look and tap to act. E still uses the nearest interaction, but prefers anything within 45° of the view over what is behind.
+- **HUD.** The E prompt sits just above the hands. It only shows when something is in reach, or when the coach is busy, swimming or slipping. Swimmer tags further than 16 m away are hidden.
+- **Simulation contract.** The app mirrors the view's heading into `sim.coach.lookAngle`. While it is set, the coach faces where the player looks (walking and swimming) and `nearestInteraction` ranks options off to the side lower. With the Coach Cam off it is `null` and the simulation behaves exactly as before. `dist/scene/coach-cam.mjs` is pure view code: it reads the simulation and never changes it.
 
 ## Swimmers, lanes, and happiness
 
@@ -266,6 +287,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/spatial.mjs` | Both venues from one pool-geometry function: stations, fixtures, rings, furniture, deck tests, routing, movement tuning |
 | `dist/scene.mjs` | Three.js world: lighting presets, environment, batching, sync of characters, camera and picking |
 | `dist/scene/*.mjs` | Scene kit, procedural textures, basin and water shader, props, characters, the club and resort builders, incident visuals |
+| `dist/scene/coach-cam.mjs` | Coach Cam: first-person camera, look and field-of-view limits, spring-driven hands, held items, crosshair picking |
 | `dist/input.mjs` | Keyboard/touch intents and held input |
 | `dist/guidance.mjs` | Shared world/HUD guidance state and pulse |
 | `dist/progression.mjs` | Record normalization, stars and unlocks |
@@ -322,12 +344,22 @@ There is nothing to bundle: the build step only runs the regression checks (abou
 | `node trampoline-check.mjs` | Resort lanes, flips, splash-lane lock, lane moves, crash rings and first aid |
 | `node season-check.mjs` | Coach bot plays levels 4–15 end to end; star-target sanity and crash recovery (`--table` for scores) |
 | `node interplay-check.mjs` | Incidents colliding: goggles vs the fish net, early fish return, kid during a rescue, cramps mid-flip, second crash ring, healed victims rejoining, breaker race |
+| `node coachcam-check.mjs` | Coach Cam: facing follows the look, E prefers what is in view, view-relative movement, eye and water-level height with the body hidden, hand lag and settle, head bob (off with reduced motion), landing dip, items in hand, field of view, crosshair target |
 
 Read the selected test's imports before running it in a new environment. CPU scene checks use the runtime's canvas dependency and are not GPU rendering tests. Historical checks passed during implementation, but that is not a claim that this documentation update reran every suite.
 
 The latest gameplay sprint verified backward slip poses, angry cues, differentiated cramp animation, preserved simulation positions, and service/rescue behavior through CPU/deterministic checks. **Live browser/GPU rendering, real device performance, and actual audio playback remain unverified in the recorded evidence.** Do not describe programmatic checks as a visual or listening pass.
 
 The September 27 update (chaos incidents, resort, lighting) was additionally inspected in headless Chromium with software WebGL (SwiftShader) screenshots of every venue and lighting preset, the trampoline flip, a crash, first aid and a night blackout. That is a rendering pass, not a GPU performance test, and audio was not listened to.
+
+The Coach Cam was checked the same way in headless Chromium:
+- the menu switch at desktop, short-laptop and phone sizes;
+- drag-to-look, walking along the view, arrow-key turning, V switching and the saved setting;
+- the crosshair label;
+- with the captured state faked, aiming at a queued swimmer 11 m away and clicking to select them, then clicking a lane to send them in;
+- screenshots of the hands and the held items.
+
+The browser's real pointer lock cannot engage headlessly, and there has been no GPU or real-device pass.
 
 ## Direction already established by the creator
 
@@ -345,6 +377,7 @@ These decisions reflect iterative feedback and should survive future work:
 - Let swimmers finish by swimming/climbing before walking around the deck.
 - Let stomach failure visibly transform the pool and require a skimmer cleanup, disposal, return, and treatment.
 - Keep music available from the menu and make emergencies audibly different.
+- Offer the first-person Coach Cam as an opt-in switch in the menu, off by default; it never replaces the overview.
 
 Earlier notes sometimes describe superseded behavior: three levels instead of the current fifteen, a single life ring instead of three, narrower handoff reach, automatic cleanup, starting-end-only exits, or an at-wall cramp assist. The current systems above take precedence. Historical intent is useful context, not a reason to restore old implementations.
 
