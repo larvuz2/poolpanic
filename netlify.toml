@@ -1,0 +1,23 @@
+# Netlify: import this repository once (Add new site → Import an existing project → GitHub) and every push
+# to the production branch deploys automatically, with a deploy preview for each pull request. All build
+# settings live here, so the site settings in the Netlify UI can stay on their defaults.
+[build]
+  # The game is static and ships as-is from dist/ (no bundling). The build step only runs the regression
+  # checks, so a change that breaks them fails its deploy instead of going live.
+  command = "npm test"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# The game loads as native ES modules, which browsers only run when served with a JavaScript MIME type.
+[[headers]]
+  for = "/*.mjs"
+  [headers.values]
+    Content-Type = "text/javascript; charset=utf-8"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
