@@ -107,7 +107,8 @@ export const Trampoline = {
         : "🩹 Grab the medical kit · E";
     if (sim.coach.carry === "medkit") return "Put the medical kit back · E";
     const j = sim.get(sim.jumper);
-    if (j?.jumpStage === "waiting") return `🤸 Clear lane ${sim.venue.trampoline.lane + 1} for ${j.name}`;
+    if (j?.jumpStage === "waiting")
+      return `🤸 Select lane ${sim.venue.trampoline.lane + 1} swimmers · pick another lane to move them`;
     return "";
   },
   panel(sim) {
@@ -130,7 +131,7 @@ export const Trampoline = {
       return {
         icon: "🤸",
         title: `CLEAR LANE ${sim.venue.trampoline.lane + 1}!`,
-        task: `${j.name} jumps in ${Math.ceil(j.jumpPatience)}s — empty the splash zone`,
+        task: `${j.name} jumps in ${Math.ceil(j.jumpPatience)}s · move everyone out of lane ${sim.venue.trampoline.lane + 1}`,
       };
     if (j && ["climbing", "boarding", "bouncing", "flying"].includes(j.jumpStage))
       return { icon: "🤸", title: "HERE COMES THE FLIP!", task: "Keep the splash lane empty" };
@@ -194,7 +195,7 @@ export function tickJumper(sim, p, dt) {
         p.angle = -Math.PI / 2;
         sim.emit("toast", {
           text: splashLaneBusy(sim)
-            ? `${p.name} is waiting on the tower. Clear lane ${tr.lane + 1} before they get impatient!`
+            ? `${p.name} is waiting on the tower. Select the swimmers in lane ${tr.lane + 1} and move them to another lane!`
             : `${p.name} is climbing the tower!`,
           warning: splashLaneBusy(sim),
         });
