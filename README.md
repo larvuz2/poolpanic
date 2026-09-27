@@ -1,8 +1,8 @@
 # Pool Panic
 
-> A playful 3D swimming-pool management game: three lanes, endless little disasters, one more shift.
+> A playful 3D swimming-pool management game: three lanes, then five, endless little disasters, one more shift.
 
-This README is the project brief and agent onboarding guide. It combines the creator's direction with the implemented prototype as inspected on September 26, 2026. Read it before changing the game. Descriptions marked as current refer to the code; proposed possibilities are not commitments or implemented features.
+This README is the project brief and agent onboarding guide. It combines the creator's direction with the implemented prototype as inspected on September 26, 2026, updated on September 27, 2026 for the chaos incidents, the Riviera Splash Resort and levels 11–15. Read it before changing the game. Descriptions marked as current refer to the code; proposed possibilities are not commitments or implemented features.
 
 ## Vision and player fantasy
 
@@ -31,12 +31,12 @@ The core promise is: **easy to understand, satisfying to move through, increasin
 
 ## Core loop
 
-1. Choose an unlocked shift from the ten-level menu.
+1. Choose an unlocked shift from the fifteen-level menu (levels 1–10 at the Community Swim Club, 11–15 at the Riviera Splash Resort).
 2. Begin with a synchronized three-second countdown.
 3. Watch a locker door open and a swimmer walk to the waiting area.
 4. Select the swimmer by their world character, clickable name/emoji tag, queue card, or nearby interaction.
-5. Assign one of three lanes, considering speed, occupancy, and stationary aqua aerobics.
-6. Move the coach to provide equipment and treatments, recover dropped gear, maintain water, and respond to incidents.
+5. Assign one of three lanes (five at the resort), considering speed, occupancy, and stationary aqua aerobics. Swimmers already in the water can be moved to another lane mid-workout.
+6. Move the coach to provide equipment and treatments, recover dropped gear, maintain water, and respond to incidents, from cramps to a fish loose in the pool.
 7. Swimmers finish, swim to an end, climb out, walk around the pool, and return to their locker room.
 8. Earn score and stars; unlock the next shift and improve device-local best scores.
 
@@ -51,7 +51,9 @@ A lane assignment is a management action. Equipment pickup, handoff, cleanup, an
 | Shift | Short dash with an internal cooldown |
 | E | Contextual nearby interaction: pickup, handoff, selection, disposal, return, or drop |
 | Click swimmer / swimmer tag / queue card | Select a swimmer |
-| Click lane / lane button, or 1 / 2 / 3 | Assign the selected waiting swimmer |
+| Click lane / lane button, or 1–5 | Assign the selected waiting swimmer, or move a selected swimmer who is already in the water |
+| T / click the trampoline tower | Send the selected daredevil to the trampoline (resort) |
+| Click gear, a visitor or an injured swimmer | Act if the coach is in reach (grab the net, patch someone up); otherwise point the way |
 | F / C / R | Guidance toward fins / chlorine / eye relief |
 | P / Escape | Pause behavior through the game's input/UI routing |
 | M | Toggle audio |
@@ -64,9 +66,11 @@ Dash lasts 0.16 seconds with a 0.82-second cooldown. There is deliberately no da
 
 The pool's long axis reads horizontally on screen. The camera is a close, elevated, across-pool view with gentle following and extra edge panning to keep the coach and nearby equipment visible. Preserve this orientation when adjusting the scene.
 
+The camera eases out on its own when a big moment has to share the screen with the coach: while a daredevil is on the trampoline tower, and while crash victims wait in the water. It corrects only the axis that left the safe area, so it never drifts sideways.
+
 The coach starts midway along the near deck. The starting blocks, queue, and arrival routes are at the left/locker-room end. Both locker bays are integrated into the wall, not isolated islands in the middle of the room. The office sits in the upper-right corner. The clubhouse end was extended to make room for arrivals and traffic.
 
-The room uses warm sand/terracotta tiles, muted teal walls, soft lighting, and a continuous tiled environment behind the HUD. The UI uses dark teal arcade scoreboard surfaces, yellow primary actions, swimmer passes, inventory slots, lane plaques, and emojis. Preserve the toy-like low-poly identity and readable game presentation.
+The club uses warm sand/terracotta tiles, muted teal walls, glowing high windows with light shafts, and a continuous tiled environment behind the HUD. The resort is open-air: sandstone pavers, a blue-and-white mosaic band around the basin, a plastered facade with terracotta roof tiles, cabanas, palms, loungers, a snack kiosk and the trampoline tower. Lighting presets (`indoor`, `day`, `sunset`, `night`) set the sky, sun, fill, fog, image-based environment and water tint; underwater lamps light the pool after dark. Textures are generated procedurally from seeded canvases, and the basin floor and walls carry animated caustics. The UI uses dark teal arcade scoreboard surfaces, yellow primary actions, swimmer passes, inventory slots, lane plaques, and emojis. Preserve the toy-like low-poly identity and readable game presentation.
 
 Geometry, interaction hit volumes, collision proxies, camera framing, and routes must agree. The fin and chlorine fixtures were rotated 90 degrees for the horizontal presentation. Swimmers finishing at either end swim to the nearer end wall, climb out, and walk around the outside. Their water, climbing, and deck poses are distinct.
 
@@ -78,6 +82,7 @@ Geometry, interaction hit volumes, collision proxies, camera framing, and routes
 | `intermediate` | Intermediate | 🏊 / blue | Medium lap speed |
 | `advanced` | Pro | ⚡ / coral | Fast; loses satisfaction when blocked by slower traffic |
 | `aqua` | Aqua aerobics | 💦 / purple | Exercises in place and obstructs lap traffic |
+| `daredevil` | Daredevil | 🤸 / orange | Resort only. Refuses lanes; only uses the trampoline |
 
 The internal `advanced` identifier still maps to the visible label **Pro**. Keep the skill words beside the emojis so icons are not the only explanation.
 
@@ -91,7 +96,7 @@ Happiness responds to waiting, blocked speed, crowding, water contamination, unr
 - The first door begins opening 3.4 seconds after Go. The swimmer walks through and becomes selectable at the queue within roughly five seconds of Go.
 - Later arrivals alternate locker rooms. Doors open for departing swimmers too, without the arrival chime.
 - The first swimmer is **not automatically selected**. A shared yellow pulse links the waiting swimmer and their badge.
-- Selecting a waiting swimmer produces a two-note sound and highlights the three lane targets in both the world and HUD.
+- Selecting a waiting swimmer produces a two-note sound and highlights the lane targets in both the world and HUD.
 - Guidance advances as swimmers are assigned, lost, or sent home. Selected-swimmer assignment takes priority over a carried chlorine bucket.
 - Queue slots are unique and reusable. The old waiting-position floor circles are hidden; useful selection glows remain.
 - Help retains detailed controls, while the opening menu avoids a written tutorial step list.
@@ -108,6 +113,10 @@ The coach has **one carrying slot**. Inventory and ownership must survive assign
 | Goggles | Recover dropped goggles and return them to the correct owner. |
 | Pool skimmer | Pick up, scoop waste, empty at the bin, and return to wall hooks before chemical recovery. |
 | Life rings | Three individually tracked rings. Carry one through rescue, recover it from the bench, and return it to its own hook. |
+| Fish net | Hangs on its wall hook. Grab it when a fish is loose, dive in, net the fish, hand it back to the kid, hang it up. |
+| Dog treats | A jar on a table (club) or at the kiosk (resort). Lures a loose dog; the treat is spent when the dog leaves. |
+| Flashlight | Needed to find the right breakers in a blackout. Return it to its holder afterwards. |
+| Medical kit | Resort cabinet. Carry it to each crash victim lying on the deck, kneel (E or click) to bandage them, then put it back. |
 
 Equipment handoff reach is 3.6 world units; ordinary station interaction is generally 1.8. Service supports either end of each lane and side access for the outer lanes. E delivers fins when possible and otherwise drops them, including near the rack; the explicit return action handles rack return. Clicking distant equipment provides guidance, not remote fulfillment.
 
@@ -139,7 +148,7 @@ Level 2 introduces an early cramp-prone swimmer. Later shifts vary susceptibilit
 6. The pool resumes when the victim climbs out. The victim rests for four seconds, then returns to their original lane and unfinished workout with equipment preserved.
 7. Retrieve the ring beside the bench and return it to its original hook.
 
-During rescue, water swimmers' workout, sickness, and frustration progression pause; the shift clock and arrivals continue. Ordinary lane assignment is blocked during the rescue. Water entry is a rescue-specific capability, not general free swimming. Rescue must not count as a completed customer or create duplicate score.
+During rescue, water swimmers' workout, sickness, and frustration progression pause; the shift clock and arrivals continue. Ordinary lane assignment is blocked during the rescue. Water entry is a mission-specific capability (a life ring during a rescue, or the net while a fish is loose), not general free swimming. Rescue must not count as a completed customer or create duplicate score.
 
 ### Stomach trouble, evacuation, and cleanup — level 3 onward
 
@@ -160,6 +169,30 @@ If the warning expires:
 
 There is no automatic timed cleanup. The player must perform the complete recovery. During cleanup the shift clock holds, while arrivals and queue patience continue. Preserve that deliberate pressure difference from cramp rescue.
 
+## Chaos incidents — level 4 onward
+
+Each shift from level 4 schedules incidents from a seeded plan (`chaos` entries in `SHIFTS`: which kinds, and a time window). A separate random stream drives them, so swimmer generation is identical with or without chaos. `maxChaos` caps how many run at once (1, or 2 on the legend levels); an incident that cannot start yet is retried a moment later, and none start in the last 14 seconds. Every incident follows the same shape: a visible warning, a prevention window worth a bonus, a comic failure with a cost, and a full physical recovery.
+
+| Incident | Warning and prevention | If missed | Recovery |
+| --- | --- | --- | --- |
+| 🐟 Fish Kid | A kid walks in carrying a bucket with a big fish and dodges once. Catch the kid on the deck and press E (+100). | The fish goes in (−200). Everyone races to the walls, leaps out and runs around in panicked circles. The pool closes and the shift clock holds while queue patience keeps draining. | Grab the fish net and walk to the edge to dive in. The fish flees, darts when cornered and tires; cut it off and net it (+75). Swimmers return to their lanes and unfinished workouts. Hand the fish back to the kid (+50) and hang up the net. |
+| 🐕 Loose Dog | A dog trots in and starts sniffing around. | It steals fins and clutter (fins stay counted), bowls walkers over, jumps in and shakes out slippery puddles, and gets the zoomies. | Grab the treats; the dog follows while you keep them close. Lead it to a locker door (+150). |
+| 💣 Cannonball Carl | Carl barrels toward the edge yelling. Red-card him first (E, +100) and he joins the queue as an ordinary customer. | Each cannonball costs 60 and breaks the streak, stalls nearby swimmers, knocks goggles onto the deck and floods the edge with puddles. He climbs out and runs to a new spot. | Red-card him on dry land (+150) and he leaves. |
+| ⚡ Power Outage | Lights flicker and the fuse box sparks for 7 seconds. A quick reset (0.8 s at the box) prevents the blackout (+100). | Blackout (−100): emergency lighting and lightning, swimmers bump into each other in the dark, lose goggles and grow grumpy. | Fetch the flashlight, flip the breakers (1.4 s, +100), return the flashlight. |
+
+Puddles are deck hazards like dropped fins: anyone running across one slips, the coach included, until it dries. Visitors walk through the locker doors like everyone else. The music switches to the panic arrangement while an incident is at its worst.
+
+## Riviera Splash Resort — levels 11 to 15
+
+A second venue with a five-lane pool and a trampoline tower on the far deck whose landing zone is in lane 5. `spatial.mjs` defines both venues from one pool-geometry function, so routes, collision boxes, service points and the camera adapt to the wider basin.
+
+- **Daredevils** queue like everyone else but only want the tower. Select one and press **T** (or click the tower or the TRAMP button). They walk to the stairs and wait.
+- **The splash lane.** While a daredevil waits, lane 5 is closed to new swimmers and glows orange. The moment it is empty, the daredevil climbs, bounces three times and lands a one-and-a-half front flip (+250, a served, happy customer).
+- **Moving swimmers.** Select a swimmer who is already swimming and pick another lane: they duck under the ropes and keep their workout progress. This is how you empty lane 5 in time.
+- **Crash.** A daredevil's patience runs out after 11–16 seconds (per shift). If anyone is still in lane 5 when they land, up to two swimmers are hit, along with the daredevil (−300). Every swimmer freezes and the shift clock holds.
+- **A ring for every victim.** Carry a life ring to the edge, dive, and swim it to one victim; they swim out on their own. Climb out and fetch another ring for the next. The pool reopens when every victim is out of the water.
+- **First aid.** Victims limp clear of the edge, lie down and slowly lose happiness. Fetch the medical kit, kneel beside each one (E or click them) to bandage them (+50 each). Healed lap swimmers return to their lane; the daredevil goes home happy anyway. Put the kit back.
+
 ## Timing and pause rules
 
 | State | Shift clock | Arrivals / queue | Pool activity |
@@ -168,32 +201,42 @@ There is no automatic timed cleanup. The player must perform the complete recove
 | Normal play | Advances | Advances | Advances |
 | Cramp rescue | Advances | Advances | Water workouts and normal lane activity held |
 | Sanitation cleanup | Held | Advances | Evacuation / manual cleanup / eventual reentry |
+| Fish loose in the pool | Held | Advances | Everyone out, panicking on deck |
+| Trampoline crash rescue | Held | Advances | Every swimmer frozen until all victims are out |
+| Dog, Carl, flicker, blackout | Advances | Advances | Advances (with the incident's disruption) |
 | Explicit pause or help pause | Held | Held | Held |
 
 Changing tabs pauses active play/countdown. Pause must freeze doors and incident progression and clear held movement. Restart/menu transitions must clean up selection, effects, timers, and carrying state through a fresh simulation.
 
-## Ten-shift season and scoring
+## Fifteen-shift season and scoring
 
-| Level | Shift | Seconds | Scheduled swimmers | 1 / 2 / 3-star score |
-| --- | --- | ---: | ---: | --- |
-| 1 | Morning dip | 30 | 4 | 150 / 300 / 400 |
-| 2 | Lunch rush | 60 | 8 | 600 / 1000 / 1400 |
-| 3 | Peak panic | 90 | 14 | 1100 / 1800 / 2500 |
-| 4 | Fin club | 120 | 20 | 1800 / 2900 / 3800 |
-| 5 | Aqua hour | 120 | 21 | 1800 / 2900 / 3900 |
-| 6 | Fast company | 120 | 22 | 2000 / 3100 / 4200 |
-| 7 | Mixed company | 135 | 23 | 2100 / 3300 / 4500 |
-| 8 | The relay | 135 | 24 | 2200 / 3500 / 4700 |
-| 9 | Championship day | 150 | 26 | 2300 / 3700 / 5000 |
-| 10 | Pool legend | 150 | 27 | 2400 / 3900 / 5300 |
+| Level | Shift | Venue · light | Seconds | Swimmers | Chaos | 1 / 2 / 3-star score |
+| --- | --- | --- | ---: | ---: | --- | --- |
+| 1 | Morning dip | Club | 30 | 4 | — | 150 / 300 / 400 |
+| 2 | Lunch rush | Club | 60 | 8 | — | 600 / 1000 / 1400 |
+| 3 | Peak panic | Club | 90 | 14 | — | 1100 / 1800 / 2500 |
+| 4 | Fin club | Club | 120 | 20 | Dog | 1800 / 2900 / 3800 |
+| 5 | Aqua hour | Club | 120 | 21 | Fish | 1800 / 2900 / 3900 |
+| 6 | Fast company | Club | 120 | 22 | Carl | 2000 / 3100 / 4200 |
+| 7 | Mixed company | Club | 135 | 23 | Outage | 2100 / 3300 / 4500 |
+| 8 | The relay | Club | 135 | 24 | Dog or fish, then Carl or outage | 2200 / 3500 / 4700 |
+| 9 | Championship day | Club | 150 | 26 | Three incidents | 2300 / 3700 / 5000 |
+| 10 | Pool legend | Club | 150 | 27 | Three, two at once | 2400 / 3900 / 5300 |
+| 11 | Splash landing | Resort · day | 120 | 18 (3 daredevils) | Trampoline only | 2200 / 3400 / 4600 |
+| 12 | Flip Friday | Resort · day | 135 | 22 (4) | Fish | 2600 / 4000 / 5400 |
+| 13 | Beach party | Resort · sunset | 135 | 24 (3) | Carl, then dog | 3000 / 4600 / 6300 |
+| 14 | Moonlight swim | Resort · night | 150 | 26 (4) | Outage, then fish or Carl | 3300 / 5000 / 6800 |
+| 15 | Riviera legend | Resort · sunset | 165 | 30 (5) | Three, two at once | 3500 / 5300 / 7200 |
+
+Star targets for levels 4–15 are checked against `season-check.mjs`: a bot that manages lanes instantly and handles every incident, but never delivers fins, eye relief or goggles, averages at least one star and fewer than three on every level. Three stars need service play on top. Resort targets were raised after these playthroughs showed that five lanes plus flips made the original numbers too generous.
 
 Level 1 is a warm-up: only Beginners and Intermediates, eight-second workouts, no equipment requests or sickness, and no closing score penalty for unfinished visits. Two happy completions can earn three stars. Preserve its easy, quick success rather than balancing it like later shifts.
 
 Later levels vary the mix, count, duration, and fin demand. Core difficulty scaling is capped at level 3, preventing endless inflation of patience and frustration pressure.
 
-A served swimmer starts from 100 points, with happiness and service-quality bonuses for low wait, no collision, little slowdown, and compatible lane peers. Happy departures build multipliers: 1.2× at three, 1.5× at five, and 2× at eight consecutive happy departures. Angry or middling departures break the streak. Prevention adds 100; wrongful ejection costs 50; lane collision costs 50; a sanitation catastrophe costs 500. Outside the warm-up, unresolved visits at closing normally cost 100 each. The simulation is authoritative for exact scoring order.
+A served swimmer starts from 100 points, with happiness and service-quality bonuses for low wait, no collision, little slowdown, and compatible lane peers. Happy departures build multipliers: 1.2× at three, 1.5× at five, and 2× at eight consecutive happy departures. Angry or middling departures break the streak. Prevention adds 100; wrongful ejection costs 50; lane collision costs 50; a sanitation catastrophe costs 500. Chaos incidents add their own bonuses and costs (see above); a clean trampoline flip scores 250 with the streak multiplier. Outside the warm-up, unresolved visits at closing normally cost 100 each. The simulation is authoritative for exact scoring order.
 
-One star unlocks the next level. Best scores and unlocks are device-local in `localStorage` under `pool-panic.records.v1`; existing older records migrate without reset. The HUD shows LEVEL X / 10. Results prioritize and focus **Next shift** when advancement is available, with **Replay level X** secondary. There are no accounts or cloud leaderboards.
+One star unlocks the next level. Best scores and unlocks are device-local in `localStorage` under `pool-panic.records.v1`; existing older records migrate without reset, including ten-level saves into the fifteen-level season. The HUD shows LEVEL X / 15, and the menu switches to sunset colours and the resort name for levels 11–15. Results prioritize and focus **Next shift** when advancement is available, with **Replay level X** secondary. There are no accounts or cloud leaderboards.
 
 ## Audio, accessibility, and feedback
 
@@ -205,20 +248,23 @@ Respect reduced motion: use steady selection cues, remove dash streaks/lean and 
 
 ## Technical architecture
 
-Self-contained static browser game using ES modules, locally included **Three.js 0.170.0**, and procedural Web Audio. There is no package/build pipeline or backend requirement. Google Fonts are optional with local fallbacks. Three.js and RoundedBoxGeometry license information is in `dist/assets/THREE-LICENSE.txt`.
+Self-contained static browser game using ES modules, locally included **Three.js 0.170.0**, and procedural Web Audio. There is no build pipeline or backend requirement. `package.json` only holds development scripts (`npm start`, `npm test`, `npm run format`) and two dev dependencies: Prettier and `@napi-rs/canvas` for the CPU scene check. Google Fonts are optional with local fallbacks. Three.js and RoundedBoxGeometry license information is in `dist/assets/THREE-LICENSE.txt`.
 
 | File | Responsibility |
 | --- | --- |
 | `dist/index.html` | Game shell, HUD, menus, controls, dialogs |
 | `dist/style.css` | Arcade interface and responsive styling |
-| `dist/app.mjs` | Runtime orchestration, UI, selection, pause, input routing, persistence, fixed-step loop |
-| `dist/sim.mjs` | Seeded simulation, swimmer types, shifts, lane traffic, happiness, incidents, scoring |
-| `dist/coach.mjs` | Arcade coach movement and physical interactions |
+| `dist/app.mjs` | Runtime orchestration, UI, selection, pause, input routing, persistence, fixed-step loop, `?debug` QA hook |
+| `dist/sim.mjs` | Seeded simulation, swimmer types, the fifteen shifts, lane traffic and lane moves, happiness, scoring |
+| `dist/coach.mjs` | Arcade coach movement, timed busy actions, ranked physical interactions |
 | `dist/sanitation.mjs` | Stomach warning, evacuation, skimmer workflow, chemistry recovery |
-| `dist/rescue.mjs` | Cramp, rings, water movement, recovery bench and return |
+| `dist/rescue.mjs` | Cramp and crash rescues, rings, water missions, recovery bench and return |
+| `dist/chaos.mjs` | Incident scheduling, visitors, puddles, fleeing swimmers, shared hooks, pointer shortcuts |
+| `dist/incidents/*.mjs` | One module per incident: `fish`, `dog`, `carl`, `outage`, `trampoline` |
 | `dist/deck-physics.mjs` | Deck contacts, separation, passing and route cooperation |
-| `dist/spatial.mjs` | Shared coordinates, stations, rings, collision boxes, movement tuning, arrival geometry |
-| `dist/scene.mjs` | Procedural Three.js world, characters, camera, picking, animations and visual feedback |
+| `dist/spatial.mjs` | Both venues from one pool-geometry function: stations, fixtures, rings, furniture, deck tests, routing, movement tuning |
+| `dist/scene.mjs` | Three.js world: lighting presets, environment, batching, sync of characters, camera and picking |
+| `dist/scene/*.mjs` | Scene kit, procedural textures, basin and water shader, props, characters, the club and resort builders, incident visuals |
 | `dist/input.mjs` | Keyboard/touch intents and held input |
 | `dist/guidance.mjs` | Shared world/HUD guidance state and pulse |
 | `dist/progression.mjs` | Record normalization, stars and unlocks |
@@ -229,7 +275,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `artifacts/final-evidence.md` | Latest gameplay sprint verification record |
 | `.openai/hosting.json` | Existing Site identity and static publishing directory |
 
-Controller inheritance is `CoachController → SanitationController → RescueController → PoolSimulation`. The simulation emits events consumed by the presentation layer. Keep render animation from accidentally advancing gameplay state. The app uses a 60 Hz fixed simulation update; movement uses acceleration/braking, gravity, and simple collision proxies rather than a general rigid-body engine. The seeded simulation enables reproducible checks.
+Controller inheritance is `CoachController → SanitationController → RescueController → ChaosController → PoolSimulation`. Each incident module implements the same small hook interface (`init`, `isActive`, `start`, `update`, `interactions`, `returnItem`, `waterMission`, `onSwimStep`, `hint`, `panel`, `tag`, and so on), so systems never reach into each other. Interactions are ranked options (`kind`, `label`, position, `rank`, `run`); E runs the lowest rank, and incident tiers outrank routine service. The simulation emits events consumed by the presentation layer. Keep render animation from accidentally advancing gameplay state. The app uses a 60 Hz fixed simulation update; movement uses acceleration/braking, gravity, and simple collision proxies rather than a general rigid-body engine. The seeded simulation enables reproducible checks.
 
 World X/Z directions differ from screen directions: screen right maps to +Z and screen up to +X. Reuse `screenMovement` and shared spatial definitions instead of applying ad hoc coordinate fixes.
 
@@ -241,11 +287,11 @@ From the full source checkout, serve the static directory over HTTP:
 python3 -m http.server 8000 --directory dist
 ```
 
-Open `http://localhost:8000`. Do not open `index.html` through `file://`, which can block ES-module loading. No dependency installation or build is needed to play.
+Open `http://localhost:8000` (or run `npm start`). Do not open `index.html` through `file://`, which can block ES-module loading. No dependency installation or build is needed to play. Adding `?debug` to the URL exposes `window.__pool` (`play(level)`, `step(seconds, drive)`, `unlockAll()`, `sim`, `world`) for fast-forwarded repros and screenshots.
 
 ### Verify changes
 
-Choose checks relevant to the change, with broader regression only for affected shared behavior:
+`npm install` once, then `npm test` (or `node run-checks.mjs [filter]`) runs every `*-check.mjs` and prints a PASS/FAIL line for each. Choose checks relevant to the change, with broader regression only for affected shared behavior:
 
 | Check | Coverage |
 | --- | --- |
@@ -260,10 +306,17 @@ Choose checks relevant to the change, with broader regression only for affected 
 | `node exit-check.mjs` | Both-end exits, climbing, locker routes and fins |
 | `node service-check.mjs` | Handoff rules and equipment behavior |
 | `node scene-check.mjs` | CPU scene construction, poses, picking and camera math |
+| `node fish-check.mjs` | Fish Kid prevention, dump and panic, net/dive/chase/reopen/return, catchability over 40 seeds |
+| `node chaos-check.mjs` | Loose Dog, Cannonball Carl and Power Outage prevention and recovery |
+| `node trampoline-check.mjs` | Resort lanes, flips, splash-lane lock, lane moves, crash rings and first aid |
+| `node season-check.mjs` | Coach bot plays levels 4–15 end to end; star-target sanity and crash recovery (`--table` for scores) |
+| `node interplay-check.mjs` | Incidents colliding: goggles vs the fish net, early fish return, kid during a rescue, cramps mid-flip, second crash ring, healed victims rejoining, breaker race |
 
 Read the selected test's imports before running it in a new environment. CPU scene checks use the runtime's canvas dependency and are not GPU rendering tests. Historical checks passed during implementation, but that is not a claim that this documentation update reran every suite.
 
 The latest gameplay sprint verified backward slip poses, angry cues, differentiated cramp animation, preserved simulation positions, and service/rescue behavior through CPU/deterministic checks. **Live browser/GPU rendering, real device performance, and actual audio playback remain unverified in the recorded evidence.** Do not describe programmatic checks as a visual or listening pass.
+
+The September 27 update (chaos incidents, resort, lighting) was additionally inspected in headless Chromium with software WebGL (SwiftShader) screenshots of every venue and lighting preset, the trampoline flip, a crash, first aid and a night blackout. That is a rendering pass, not a GPU performance test, and audio was not listened to.
 
 ## Direction already established by the creator
 
@@ -275,20 +328,20 @@ These decisions reflect iterative feedback and should survive future work:
 - Teach selection with swimmer/emoji glow, then lane glow. Make world tags clickable.
 - Use emoji plus Beginner / Intermediate / Pro words for clarity.
 - Keep a visible countdown, a brief breathing space before the first swimmer, and an easy 30-second first level.
-- Preserve the ten-level menu, obvious level indicator, stars, and Next shift as the primary successful-result action.
+- Preserve the level menu (now fifteen levels), obvious level indicator, stars, and Next shift as the primary successful-result action.
 - Keep physical errands and a single carrying slot; equipment must not disappear during transitions.
 - Make normal contacts gentle, fin slips backward and expressive, and rescue distress unmistakable.
 - Let swimmers finish by swimming/climbing before walking around the deck.
 - Let stomach failure visibly transform the pool and require a skimmer cleanup, disposal, return, and treatment.
 - Keep music available from the menu and make emergencies audibly different.
 
-Earlier notes sometimes describe superseded behavior: three levels instead of ten, a single life ring instead of three, narrower handoff reach, automatic cleanup, starting-end-only exits, or an at-wall cramp assist. The current systems above take precedence. Historical intent is useful context, not a reason to restore old implementations.
+Earlier notes sometimes describe superseded behavior: three levels instead of the current fifteen, a single life ring instead of three, narrower handoff reach, automatic cleanup, starting-end-only exits, or an at-wall cramp assist. The current systems above take precedence. Historical intent is useful context, not a reason to restore old implementations.
 
 ## Scope and future work
 
-The implemented prototype is single-player, with ten finite shifts, four swimmer types, three lanes, local progression, equipment errands, chemistry, deck/lane collisions, cramps, lost goggles, and stomach emergencies.
+The implemented prototype is single-player, with fifteen finite shifts across two venues, five swimmer types, three or five lanes, local progression, equipment errands, chemistry, deck/lane collisions, cramps, lost goggles, stomach emergencies, four chaos incidents and the resort trampoline.
 
-Children, families, divers, multiplayer, accounts, network leaderboards, additional maps, and other expansions are **outside the current prototype**, not promised features. No monetization model, release platform beyond the browser, or expanded production roadmap has been established in this brief.
+Families, multiplayer, accounts, network leaderboards, further venues, and other expansions are **outside the current prototype**, not promised features. No monetization model, release platform beyond the browser, or expanded production roadmap has been established in this brief.
 
 Future design should deepen readable interactions and the one-more-shift feeling. Add an incident only when its warning, response, recovery, timing, and interaction with existing incidents are understandable. Do not introduce an incident-frequency formula or expand scope based on guesses about past conversations.
 
