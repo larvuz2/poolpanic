@@ -358,6 +358,15 @@ Open `http://localhost:8000` (or run `npm start`). Do not open `index.html` thro
 
 There is nothing to bundle: the build step only runs the regression checks (about 30 seconds). If a check fails, that deploy fails and the previous version stays live. To publish without the checks, set `command = ""` in `netlify.toml`. The config also serves `.mjs` files with a JavaScript MIME type (the game loads as native ES modules) and adds `nosniff` and referrer-policy headers.
 
+### Media generation (fal)
+
+`.mcp.json` connects Claude Code to [fal's MCP server](https://fal.ai/docs), which runs 1,000+ image, video, audio and 3D models (key art, trailers, sound, textures) for this game and other projects. The key is never stored in the repo: the config reads it from the `FAL_KEY` environment variable.
+
+- **Claude Code on the web:** add `FAL_KEY` as an environment variable in the cloud environment's settings (environment menu in the session title bar → Edit). New sessions pick it up.
+- **Local Claude Code:** `export FAL_KEY=...` in your shell profile, then run `/mcp` to check that `fal-ai` is connected.
+
+Generated media costs fal credits per run. Commit finished assets under `dist/assets/` rather than linking fal CDN URLs, which expire.
+
 ### Verify changes
 
 `npm install` once, then `npm test` (or `node run-checks.mjs [filter]`) runs every `*-check.mjs` and prints a PASS/FAIL line for each. Choose checks relevant to the change, with broader regression only for affected shared behavior:
