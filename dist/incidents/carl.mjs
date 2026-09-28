@@ -35,6 +35,7 @@ export const CannonballCarl = {
     v.path.push(...sim.venue.route(v.path[0], spot));
     sim.carl = { stage: "approach", id: v.id, cannonballs: 0 };
     sim.emit("chaos", { kind: "carl" });
+    sim.incident("carl", v, { id: v.id, name: "Carl" });
     sim.emit("toast", {
       text: "💣 Carl is yelling CANNONBALL! Red-card him (E) before he reaches the edge.",
       warning: true,
@@ -150,6 +151,22 @@ export const CannonballCarl = {
       run: () => redCard(sim, k, v),
     });
   },
+  // Loud alert: Carl himself, until he is red-carded (a little calmer once the first cannonball is done).
+  alert(sim, alerts) {
+    const k = sim.carl,
+      v = k && k.stage !== "done" && sim.visitor(k.id);
+    if (!v || ["carded", "leaving", "joining"].includes(v.status)) return;
+    alerts.push({
+      kind: "carl",
+      icon: "🟥",
+      label: "Carl",
+      x: v.x,
+      z: v.z,
+      y: 2.1,
+      urgency: k.cannonballs ? 78 : 88,
+      id: v.id,
+    });
+  },
   hint(sim) {
     const k = sim.carl;
     if (!k || k.stage === "done") return "";
@@ -169,6 +186,12 @@ export const CannonballCarl = {
       icon: "💣",
       title: k.cannonballs ? `CANNONBALL CARL ×${k.cannonballs}` : "CANNONBALL INCOMING!",
       task: CannonballCarl.hint(sim),
+      // Before the first cannonball: how much of his run to the edge is left.
+      timer: k.cannonballs
+        ? null
+        : ["flying", "floating", "swimming", "climbing"].includes(v.status)
+          ? 0
+          : 1 - approachMeter(v),
     };
   },
   tag(sim, v) {
@@ -270,6 +293,7 @@ function redCard(sim, k, v) {
     sim.score += 100;
     sim.stats.prevented++;
     sim.emit("points", { x: v.x, z: v.z, value: 100 });
+    sim.save("red-card", v, 100, { name: "Carl" });
     sim.emit("toast", { text: "Red card! Carl sheepishly joins the queue. +100" });
     // Draw Carl's customer traits from the chaos stream so later arrivals match a chaos-free shift.
     sim.random = () => sim.chaosRandom();
@@ -296,6 +320,7 @@ function redCard(sim, k, v) {
   } else {
     sim.score += 150;
     sim.emit("points", { x: v.x, z: v.z, value: 150 });
+    sim.save("red-card", v, 150, { name: "Carl" });
     sim.emit("toast", { text: "Red card! Carl is benched for the day. +150" });
     sim.sendVisitorHome(v, "carded");
     k.stage = "done";

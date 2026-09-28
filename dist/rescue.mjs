@@ -48,6 +48,7 @@ export class RescueController extends SanitationController {
     this.rescue = { kind: "cramp", victim: p.id, victims: [p.id], stage: "stranded" };
     for (const a of this.people) if (waitingInWater(this, a)) a.actualSpeed = 0;
     this.emit("cramp-alarm", { id: p.id, x: p.x, z: p.z });
+    this.incident("cramp", p, { id: p.id, name: p.name });
     this.emit("toast", {
       text: p.name + " has a cramp! Grab a glowing life ring and walk to the pool edge.",
       warning: true,
@@ -66,6 +67,33 @@ export class RescueController extends SanitationController {
         Math.abs(a.z) < 5.6,
     );
     if (p) this.startCramp(p);
+  }
+  // Loud alert while someone waits in the water: the nearest life ring first, then the nearest victim.
+  collectAlerts(alerts) {
+    super.collectAlerts(alerts);
+    if (this.rescue?.stage !== "stranded") return;
+    const c = this.coach,
+      kind = this.rescue.kind === "crash" ? "crash" : "cramp",
+      victim = this.strandedVictims().sort((a, b) => distance(c, a) - distance(c, b))[0];
+    if (!victim) return;
+    if (c.carry === "lifering") {
+      alerts.push({
+        kind,
+        icon: "🆘",
+        label: victim.name,
+        x: victim.x,
+        z: victim.z,
+        y: 1.2,
+        urgency: 100,
+        id: victim.id,
+      });
+      return;
+    }
+    const ring = this.lifeRings
+      .filter((r) => ["wall", "deck"].includes(r.state))
+      .sort((a, b) => distance(c, a) - distance(c, b))[0];
+    if (ring)
+      alerts.push({ kind, icon: "🛟", label: "Life ring", x: ring.x, z: ring.z, y: 1.7, urgency: 100 });
   }
   rescueHint() {
     if (this.rescue?.stage === "escaping")
@@ -309,6 +337,7 @@ export class RescueController extends SanitationController {
     p.lane = null;
     if (!this.strandedVictims().length) this.rescue.stage = "escaping";
     this.feedback("helped", { id: p.id });
+    this.save("rescue", p, 0, { id: p.id, name: p.name });
   }
   onClimbOut() {}
   // A ringed victim reached the deck. The pool resumes once every victim is out of the water.

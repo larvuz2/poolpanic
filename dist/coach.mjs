@@ -146,6 +146,30 @@ export class CoachController {
     this.emit("toast", { text });
     return false;
   }
+  // ------------------------------------------------------------------------------------------------------
+  // Moments. The simulation only reports what happened and where; the presentation turns an `incident` (a new
+  // problem, or one that just got worse) into a sting and a `save` (a problem prevented or solved) into a payoff.
+  incident(kind, where = this.coach, extra = {}) {
+    this.emit("incident", { kind, x: where.x, z: where.z, ...extra });
+  }
+  save(kind, where = this.coach, value = 0, extra = {}) {
+    this.emit("save", { kind, x: where.x, z: where.z, value, ...extra });
+  }
+  // Each layer adds what needs the coach right now, pointing at the next place to go (the life ring before the
+  // victim, the treats before the dog). Urgency: 100 is someone in danger, down to ~25 for a leftover errand.
+  collectAlerts() {}
+  // The one problem that gets the loud marker: most urgent first, then nearest.
+  loudestAlert() {
+    if (this.status !== "playing") return null;
+    const alerts = [],
+      c = this.coach;
+    this.collectAlerts(alerts);
+    return (
+      alerts
+        .filter((a) => Number.isFinite(a.x) && Number.isFinite(a.z))
+        .sort((a, b) => b.urgency - a.urgency || distance(c, a) - distance(c, b))[0] || null
+    );
+  }
   canInteract() {
     return this.status === "playing" && this.coach.y < 0.08 && this.coach.slipTime === 0 && !this.coach.busy;
   }

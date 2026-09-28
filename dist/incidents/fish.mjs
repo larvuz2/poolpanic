@@ -62,6 +62,7 @@ export const FishKid = {
       elapsed: 0,
     };
     sim.emit("chaos", { kind: "fish" });
+    sim.incident("fish", kid, { id: kid.id, name: kid.name });
     sim.emit("toast", {
       text: `🐟 ${kid.name} is sneaking a FISH toward the pool! Stop him before he reaches the edge (E).`,
       warning: true,
@@ -164,8 +165,45 @@ export const FishKid = {
       sim.stats.fishCaught = (sim.stats.fishCaught || 0) + 1;
       sim.emit("points", { x: f.x, z: f.z, value: 75 });
       sim.feedback("fish-caught", { x: f.x, z: f.z });
+      sim.save("fish-caught", f, 75);
       sim.emit("toast", { text: "GOT IT! 🐟 +75 · Swim to an edge and climb out with the net." });
     }
+  },
+  // Loud alert: the kid before the edge, then the net and the fish, then handing the fish back.
+  alert(sim, alerts) {
+    const f = sim.fish,
+      c = sim.coach;
+    if (!f) return;
+    const kid = sim.visitor(f.kid);
+    if (f.stage === "approach" && kid)
+      alerts.push({
+        kind: "fish",
+        icon: "🪣",
+        label: kid.name,
+        x: kid.x,
+        z: kid.z,
+        y: 1.9,
+        urgency: 90,
+        id: kid.id,
+      });
+    else if (f.stage === "loose") {
+      const net = sim.venue.fixtures.fishNet;
+      alerts.push(
+        c.carry === "fishnet"
+          ? { kind: "fish-loose", icon: "🐟", label: "Fish", x: f.x, z: f.z, y: 0.5, urgency: 70 }
+          : { kind: "fish-loose", icon: "🥅", label: "Fish net", x: net.x, z: net.z, y: 1.8, urgency: 70 },
+      );
+    } else if (kid && (f.stage === "netted" || (c.carry === "fishnet" && c.netLoaded)))
+      alerts.push({
+        kind: "fish-return",
+        icon: "🐟",
+        label: kid.name,
+        x: kid.x,
+        z: kid.z,
+        y: 1.9,
+        urgency: 25,
+        id: kid.id,
+      });
   },
   hint(sim) {
     const f = sim.fish,
@@ -195,6 +233,8 @@ export const FishKid = {
         icon: "🐟",
         title: "FISH INCOMING!",
         task: "Stop " + (kid?.name || "the kid") + " with the bucket before the edge · E",
+        // How much of the walk to the edge is left.
+        timer: kid && kid.status !== "dumping" ? clamp(pathLength(kid) / (kid.routeLength || 1), 0, 1) : 0,
       };
     const step =
       f.stage === "loose"
@@ -304,6 +344,7 @@ function stopKid(sim, kid) {
   sim.stats.prevented++;
   sim.emit("points", { x: kid.x, z: kid.z, value: 100 });
   sim.feedback("prevented", { x: kid.x, z: kid.z });
+  sim.save("fish-stopped", kid, 100, { name: kid.name });
   sim.emit("toast", { text: `Nice save! ${kid.name}'s fish goes home in its bucket. +100` });
   return true;
 }
@@ -326,6 +367,7 @@ function dumpFish(sim, kid, f) {
   sim.stats.fishDumped = (sim.stats.fishDumped || 0) + 1;
   for (const p of sim.people) if (["swim", "enter", "switch"].includes(p.status)) sim.startFleeing(p);
   sim.emit("fish-dumped", { x: f.x, z: f.z });
+  sim.incident("fish-loose", f, { name: kid.name });
   sim.emit("points", { x: kid.x, z: kid.z, value: -200 });
   sim.emit("toast", {
     text: "🐟 FISH IN THE POOL! Everybody out! Grab the fish net and dive in after it.",
@@ -465,6 +507,7 @@ function returnFish(sim, kid) {
   if (sim.fish) sim.fish.stage = "done";
   sim.score += 50;
   sim.emit("points", { x: kid.x, z: kid.z, value: 50 });
+  sim.save("fish-returned", kid, 50, { name: kid.name });
   sim.feedback("handoff", { item: "fish", to: { x: kid.x, z: kid.z } });
   sim.emit("toast", { text: `${kid.name} is thrilled! 🐟 +50 · Hang the net back up.` });
   return true;

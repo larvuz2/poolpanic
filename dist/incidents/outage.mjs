@@ -20,10 +20,37 @@ export const PowerOutage = {
     sim.flashlight = { state: "rack" };
   },
   isActive: (sim) => !!sim.outage,
+  // Loud alert: the fuse box while the lights flicker; in the dark, the flashlight first.
+  alert(sim, alerts) {
+    const o = sim.outage,
+      fx = sim.venue.fixtures;
+    if (!o || !["flicker", "dark"].includes(o.stage)) return;
+    if (o.stage === "dark" && sim.coach.carry !== "flashlight" && sim.flashlight.state === "rack")
+      alerts.push({
+        kind: "blackout",
+        icon: "🔦",
+        label: "Flashlight",
+        x: fx.flashlight.x,
+        z: fx.flashlight.z,
+        y: 1.6,
+        urgency: 75,
+      });
+    else
+      alerts.push({
+        kind: o.stage === "dark" ? "blackout" : "flicker",
+        icon: "⚡",
+        label: "Fuse box",
+        x: fx.fuseBox.x,
+        z: fx.fuseBox.z,
+        y: 1.9,
+        urgency: o.stage === "dark" ? 75 : 92,
+      });
+  },
   panic: (sim) => sim.outage?.stage === "dark",
   start(sim) {
     sim.outage = { stage: "flicker", t: T.flicker, elapsed: 0, dark: 0 };
     sim.emit("chaos", { kind: "outage" });
+    sim.incident("flicker", sim.venue.fixtures.fuseBox);
     sim.emit("outage-flicker");
     sim.emit("toast", {
       text: "⚡ The lights are flickering! Reset the breaker at the fuse box (E) before they go out.",
@@ -42,6 +69,8 @@ export const PowerOutage = {
         sim.score -= 100;
         sim.stats.blackouts = (sim.stats.blackouts || 0) + 1;
         sim.emit("blackout");
+        sim.emit("points", { x: sim.coach.x, z: sim.coach.z, value: -100 });
+        sim.incident("blackout", sim.venue.fixtures.fuseBox);
         sim.emit("toast", {
           text: "BLACKOUT! Grab the flashlight, then reset the fuse box. −100",
           warning: true,
@@ -150,6 +179,7 @@ export const PowerOutage = {
         icon: "⚡",
         title: "LIGHTS FLICKERING!",
         task: `Reset the fuse box in ${Math.ceil(o.t)}s · E`,
+        timer: o.t / T.flicker,
       };
     const step = sim.coach.carry === "flashlight" ? 1 : 0;
     return {
@@ -196,6 +226,7 @@ function restore(sim, prevented) {
   sim.score += bonus;
   if (prevented) sim.stats.prevented++;
   sim.emit("points", { x: sim.coach.x, z: sim.coach.z, value: bonus });
+  sim.save(prevented ? "breaker" : "lights", sim.venue.fixtures.fuseBox, bonus);
   sim.emit("power-restored");
   sim.feedback("prevented");
   sim.emit("toast", {

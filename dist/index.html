@@ -15,6 +15,14 @@
     <main id="game" aria-label="Pool Panic game">
       <div id="world" aria-label="Interactive three-dimensional swimming pool"></div>
       <div id="world-labels"></div>
+      <!-- Incident moments: the loud alert's marker (on screen) or edge arrow (off screen), and save stamps. -->
+      <div id="alert-marker" class="alert-marker" aria-hidden="true" hidden>
+        <i class="alert-ring"></i><span class="alert-chip"><b></b><span></span></span>
+      </div>
+      <div id="alert-arrow" class="alert-arrow" aria-hidden="true" hidden>
+        <i class="alert-pointer"></i><b></b><span></span>
+      </div>
+      <div id="stamps" class="stamps" aria-hidden="true"></div>
       <header class="topbar">
         <a class="brand" href="./" aria-label="Pool Panic home"
           ><span class="brand-mark">≈</span
@@ -82,6 +90,14 @@
         </div>
       </div>
       <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+      <div id="sting" class="sting" role="alert" hidden>
+        <span class="sting-icon" aria-hidden="true"></span>
+        <div class="sting-body">
+          <strong class="sting-title"></strong><span class="sting-verb"></span
+          ><small class="sting-how"></small>
+        </div>
+        <b class="sting-new">NEW</b>
+      </div>
       <aside class="care-panel">
         <div class="panel-heading">
           <span>WATER CHECK</span><span id="water-label" class="quality">SPARKLING</span>
@@ -124,6 +140,7 @@
             ><span data-cleanup-step="hang">3 · HANG</span
             ><span data-cleanup-step="chlorine">4 · CHLORINE</span>
           </div>
+          <div class="closure-timer" hidden><i></i></div>
         </div>
       </div>
       <footer class="bottom-bar">
@@ -240,6 +257,12 @@
         </ul>
         <h3>Chaos on deck (from level 4)</h3>
         <ul>
+          <li>
+            <b>When something goes wrong</b>, a big sign names it and what to do (the first time, it also
+            explains how it works). The glowing marker shows where to go next, or an arrow at the edge of the
+            screen when it is out of view. A draining fuse on the banner shows how long you have. Every save
+            earns a stamp and a cheer.
+          </li>
           <li>
             <b>🐟 Fish Kid.</b> A kid marches in with a bucket and a very big fish. Catch the kid before the
             edge and press E. Too late? The fish goes in, everybody swims for the walls and runs around
