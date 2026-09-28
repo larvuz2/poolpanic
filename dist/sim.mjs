@@ -545,6 +545,7 @@ export class PoolSimulation extends ChaosController {
       this.stats.prevented++;
       this.emit("toast", { text: "Good catch! Prevention bonus +100" });
       this.emit("points", { x: p.x, z: p.z, value: 100 });
+      this.save("sent-home", p, 100, { id: p.id, name: p.name });
     } else {
       this.score -= 50;
       this.emit("toast", { text: p.name + " was healthy. Wrongful ejection −50", warning: true });

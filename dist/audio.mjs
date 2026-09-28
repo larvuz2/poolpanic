@@ -190,8 +190,6 @@ export class PoolAudio {
     } else if (type === "lane-switch") {
       this.noise(t, 0.15, 0.06, 900);
       this.tone(420, t, 0.12, 0.06, "sine", 620);
-    } else if (type === "chaos") {
-      [330, 247, 330, 247].forEach((f, i) => this.tone(f, t + i * 0.18, 0.16, 0.12, "square"));
     } else if (type === "fish-dumped") {
       this.noise(t, 0.5, 0.2, 400);
       [660, 523, 392, 262].forEach((f, i) => this.tone(f, t + 0.1 + i * 0.12, 0.2, 0.15, "sawtooth"));
@@ -260,6 +258,94 @@ export class PoolAudio {
       this.tone(659, t, 0.11, 0.13, "sine");
       this.tone(988, t + 0.055, 0.16, 0.09, "sine");
     }
+  }
+  // Incident sting: a brass-style stab under a short motif of its own, so each problem is recognisable by ear.
+  // The first sighting gets a longer tail while the lesson is on screen.
+  sting(kind, first = false) {
+    if (!this.ctx || !this.enabled) return;
+    const t = this.ctx.currentTime,
+      danger = ["cramp", "spill", "fish-loose", "blackout", "tower-go", "crash"].includes(kind);
+    // The hit: a low thump, a burst of air, and a two-note stab (a tritone when someone is in danger).
+    this.tone(95, t, 0.35, 0.3, "sine", 45);
+    this.noise(t, 0.25, 0.12, 700);
+    for (const f of danger ? [233, 330] : [262, 392]) {
+      this.tone(f, t, 0.42, 0.09, "sawtooth");
+      this.tone(f * 2, t + 0.01, 0.3, 0.035, "square");
+    }
+    const at = t + 0.22,
+      motif = {
+        cramp: () => [988, 1175, 988, 1175].forEach((f, i) => this.tone(f, at + i * 0.1, 0.09, 0.1, "sine")),
+        stomach: () => {
+          this.tone(196, at, 0.2, 0.16, "triangle", 185);
+          this.tone(147, at + 0.24, 0.35, 0.16, "triangle", 131);
+        },
+        spill: () =>
+          [392, 370, 349, 262].forEach((f, i) =>
+            this.tone(f, at + i * 0.13, 0.2, 0.12, "sawtooth", f * 0.97),
+          ),
+        fish: () =>
+          [523, 659, 784, 1047].forEach((f, i) => this.tone(f, at + i * 0.05, 0.08, 0.08, "sine", f * 1.3)),
+        "fish-loose": () => {
+          this.noise(at, 0.35, 0.14, 500);
+          [880, 740, 587].forEach((f, i) => this.tone(f, at + 0.08 + i * 0.1, 0.12, 0.1, "sine", f * 0.8));
+        },
+        dog: () =>
+          [0, 0.2].forEach((d) => {
+            this.tone(420, at + d, 0.1, 0.16, "square", 620);
+            this.noise(at + d, 0.07, 0.07, 900);
+          }),
+        carl: () => {
+          this.tone(1800, at, 0.3, 0.07, "sine", 2400);
+          this.tone(160, at + 0.05, 0.45, 0.12, "sawtooth", 420);
+        },
+        flicker: () => [0, 1, 2, 3].forEach((i) => this.tone(118, at + i * 0.08, 0.05, 0.08, "square")),
+        blackout: () => this.tone(660, at, 0.7, 0.13, "sawtooth", 60),
+        tower: () => [0, 1, 2, 3, 4, 5, 6].forEach((i) => this.noise(at + i * 0.055, 0.04, 0.09, 1800)),
+        "tower-go": () => {
+          [0, 1, 2, 3, 4, 5, 6, 7, 8].forEach((i) => this.noise(at + i * 0.04, 0.03, 0.1, 1800));
+          this.tone(300, at + 0.36, 0.3, 0.12, "triangle", 1200);
+        },
+        crash: () =>
+          [440, 415, 392, 311].forEach((f, i) => this.tone(f, at + i * 0.12, 0.2, 0.12, "sawtooth")),
+      }[kind];
+    motif?.();
+    if (first)
+      (danger ? [233, 277, 330] : [262, 330, 392]).forEach((f, i) =>
+        this.tone(f, t + 0.75 + i * 0.02, 1.1, 0.045, "triangle"),
+      );
+  }
+  // A save: the crowd on the deck cheers (a swell of voices and a scatter of claps) over a rising fanfare.
+  cheer(tier = 1) {
+    if (!this.ctx || !this.enabled) return;
+    const t = this.ctx.currentTime,
+      big = tier > 1,
+      length = big ? 1.4 : 0.8;
+    const b = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * length), this.ctx.sampleRate),
+      d = b.getChannelData(0);
+    // Voices: noise with a quick swell and a long fall, gently wobbling like a crowd.
+    for (let i = 0; i < d.length; i++) {
+      const x = i / d.length,
+        env = Math.min(1, x * 9) * Math.pow(1 - x, 1.6);
+      d[i] = (Math.random() * 2 - 1) * env * (0.75 + 0.25 * Math.sin(i / 700));
+    }
+    const s = this.ctx.createBufferSource(),
+      f = this.ctx.createBiquadFilter(),
+      g = this.ctx.createGain();
+    s.buffer = b;
+    f.type = "bandpass";
+    f.frequency.value = 1100;
+    f.Q.value = 0.7;
+    g.gain.value = big ? 0.2 : 0.12;
+    s.connect(f);
+    f.connect(g);
+    g.connect(this.master);
+    s.start(t);
+    for (let i = 0; i < (big ? 12 : 6); i++)
+      this.noise(t + 0.05 + Math.random() * length * 0.7, 0.03, 0.08, 2600);
+    (big ? [523, 659, 784, 1047] : [659, 784, 1047]).forEach((n, i) =>
+      this.tone(n, t + i * 0.07, 0.22, big ? 0.11 : 0.08, "triangle"),
+    );
+    this.tone(110, t, 0.18, 0.2, "sine", 60);
   }
   toggle() {
     this.enabled = !this.enabled;

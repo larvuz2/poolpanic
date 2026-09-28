@@ -34,6 +34,7 @@ export const LooseDog = {
     });
     sim.dog = { stage: "loose", id: v.id, carry: null, swims: 0, lost: 0 };
     sim.emit("chaos", { kind: "dog" });
+    sim.incident("dog", v, { id: v.id, name: v.name });
     sim.emit("toast", {
       text: `🐶 ${v.name} got in! Grab the dog treats and lead them back out through a locker door.`,
       warning: true,
@@ -103,6 +104,25 @@ export const LooseDog = {
     return returnTreats(sim);
   },
   finCount: (sim) => (sim.dog?.carry?.type === "fins" ? 1 : 0),
+  // Loud alert: the treats, then the dog, then the nearest locker door once it follows.
+  alert(sim, alerts) {
+    const d = sim.dog,
+      v = d && sim.visitor(d.id),
+      c = sim.coach;
+    if (!v || d.stage === "leaving") return;
+    if (d.stage === "following") {
+      const door = sim.venue.arrival,
+        exit = [-1, 1]
+          .map((side) => ({ x: side * door.outsideX, z: door.doorZ }))
+          .sort((a, b) => distance(a, c) - distance(b, c))[0];
+      alerts.push({ kind: "dog", icon: "🚪", label: "Locker door", ...exit, y: 2.2, urgency: 60 });
+    } else if (c.carry === "treats")
+      alerts.push({ kind: "dog", icon: "🐶", label: v.name, x: v.x, z: v.z, y: 1.3, urgency: 60, id: v.id });
+    else {
+      const jar = sim.venue.fixtures.treats;
+      alerts.push({ kind: "dog", icon: "🦴", label: "Treats", x: jar.x, z: jar.z, y: 1.6, urgency: 60 });
+    }
+  },
   hint(sim) {
     const d = sim.dog;
     if (!d || d.stage === "leaving") return "";
@@ -449,6 +469,7 @@ function follow(sim, d, v, dt, lured) {
       sim.stats.prevented++;
       sim.emit("points", { x: v.x, z: v.z, value: 150 });
       sim.feedback("prevented", { x: v.x, z: v.z });
+      sim.save("dog-out", v, 150, { name: v.name });
       sim.emit("toast", { text: `Good dog! ${v.name} trots home with a treat. +150` });
       return;
     }

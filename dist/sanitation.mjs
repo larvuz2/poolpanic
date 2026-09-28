@@ -3,6 +3,42 @@ import { ENTRY } from "./spatial.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export class SanitationController extends CoachController {
+  // Loud-alert targets: a swimmer about to have an accident (select them, send them to the locker room), then
+  // each cleanup step in turn.
+  collectAlerts(alerts) {
+    super.collectAlerts(alerts);
+    const c = this.coach,
+      q = this.cleanup,
+      S = this.venue.sanitation;
+    if (!q) {
+      for (const p of this.people)
+        if (p.sick && p.stomachWarning && ["queue", "enter", "swim"].includes(p.status))
+          alerts.push({
+            kind: "stomach",
+            icon: "💩",
+            label: p.name,
+            x: p.x,
+            z: p.z,
+            y: 2.1,
+            urgency: 85,
+            id: p.id,
+          });
+      return;
+    }
+    const step =
+      q.stage === "floating"
+        ? c.carry === "skimmer"
+          ? { icon: "💩", label: "Scoop it", x: q.x, z: q.z, y: 0.5 }
+          : { icon: "🧹", label: "Skimmer", ...S.rack, y: 1.8 }
+        : q.stage === "caught"
+          ? { icon: "🗑️", label: "Waste bin", ...S.bin, y: 1.4 }
+          : q.stage === "return"
+            ? { icon: "🧹", label: "Hang it up", ...S.rack, y: 1.8 }
+            : c.carry === "chlorine"
+              ? { icon: "🧪", label: "Pour it in", ...this.waterPoint(), y: 0.5 }
+              : { icon: "🧪", label: "Chlorine", ...this.venue.stations.chlorine, y: 1.6 };
+    alerts.push({ kind: "spill", urgency: 60, ...step });
+  }
   sanitationHint() {
     const q = this.cleanup;
     if (!q) return "";
@@ -216,6 +252,7 @@ export class SanitationController extends CoachController {
     if (!p.stomachWarning && p.stomachElapsed >= (p.stomachDelay ?? 5)) {
       p.stomachWarning = true;
       this.emit("stomach-warning", { id: p.id });
+      this.incident("stomach", p, { id: p.id, name: p.name });
       this.emit("toast", {
         text: p.name + " needs the locker room! Select the 💩 tag, then Send to locker.",
         warning: true,
@@ -246,6 +283,8 @@ export class SanitationController extends CoachController {
     this.streak = 0;
     this.stats.catastrophes++;
     this.emit("catastrophe", { x: p.x, z: p.z });
+    this.emit("points", { x: p.x, z: p.z, value: -500 });
+    this.incident("spill", p, { name: p.name });
     this.emit("toast", {
       text: "Everybody out! Get the pool skimmer. The shift clock waits while you clean.",
       warning: true,
@@ -314,6 +353,7 @@ export class SanitationController extends CoachController {
       this.cleanup = null;
       this.waterBrown = 0;
       this.reopenPool();
+      this.save("cleanup", { x: 0, z: 0 });
       this.emit("toast", {
         text: this.chlorine > 75 ? "Pool open—watch those red eyes!" : "All clear! Everybody back in.",
         warning: this.chlorine > 75,

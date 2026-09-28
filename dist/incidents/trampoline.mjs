@@ -99,6 +99,41 @@ export const Trampoline = {
     if (sim.coach.carry !== "medkit") return undefined;
     return returnMedkit(sim);
   },
+  // Loud alert: swimmers to move out of the splash lane while a daredevil waits, then first aid after a crash
+  // (the rescue itself is the rescue layer's alert).
+  alert(sim, alerts) {
+    const tr = sim.venue.trampoline,
+      c = sim.coach;
+    if (!tr) return;
+    const injured = sim.people
+      .filter((p) => p.status === "injured")
+      .sort((a, b) => distance(a, c) - distance(b, c));
+    if (injured.length) {
+      const kit = sim.venue.fixtures.medkit,
+        p = injured[0];
+      alerts.push(
+        c.carry === "medkit"
+          ? { kind: "injured", icon: "🩹", label: p.name, x: p.x, z: p.z, y: 1.3, urgency: 70, id: p.id }
+          : { kind: "injured", icon: "🩹", label: "Med kit", x: kit.x, z: kit.z, y: 1.6, urgency: 70 },
+      );
+    }
+    const j = sim.get(sim.jumper);
+    if (j?.jumpStage === "waiting" && splashLaneBusy(sim)) {
+      const inLane = sim.people
+        .filter((p) => p.lane === tr.lane && ["swim", "enter", "switch"].includes(p.status))
+        .sort((a, b) => Math.abs(a.z - tr.landZ) - Math.abs(b.z - tr.landZ))[0];
+      alerts.push({
+        kind: "tower",
+        icon: "🤸",
+        label: inLane ? inLane.name : "Lane " + (tr.lane + 1),
+        x: inLane?.x ?? sim.lanes[tr.lane],
+        z: inLane?.z ?? tr.landZ,
+        y: 1.3,
+        urgency: 80,
+        id: inLane?.id,
+      });
+    }
+  },
   hint(sim) {
     if (sim.rescue?.kind === "crash") return "";
     const injured = sim.people.filter((p) => p.status === "injured").length;
@@ -133,6 +168,7 @@ export const Trampoline = {
         icon: "🤸",
         title: `CLEAR LANE ${sim.venue.trampoline.lane + 1}!`,
         task: `${j.name} jumps in ${Math.ceil(j.jumpPatience)}s · move everyone out of lane ${sim.venue.trampoline.lane + 1}`,
+        timer: j.jumpPatience / (sim.config.jumpPatience ?? T.patience),
       };
     if (j && ["climbing", "boarding", "bouncing", "flying"].includes(j.jumpStage))
       return { icon: "🤸", title: "HERE COMES THE FLIP!", task: "Keep the splash lane empty" };
@@ -200,6 +236,12 @@ export function tickJumper(sim, p, dt) {
             : `${p.name} is climbing the tower!`,
           warning: splashLaneBusy(sim),
         });
+        if (splashLaneBusy(sim))
+          sim.incident(
+            "tower",
+            { x: sim.lanes[tr.lane], z: tr.landZ },
+            { id: p.id, name: p.name, lane: tr.lane + 1 },
+          );
       }
       break;
     case "waiting":
@@ -214,6 +256,12 @@ export function tickJumper(sim, p, dt) {
             warning: true,
           });
           sim.emit("chaos", { kind: "jump" });
+          if (splashLaneBusy(sim))
+            sim.incident(
+              "tower-go",
+              { x: sim.lanes[tr.lane], z: tr.landZ },
+              { id: p.id, name: p.name, lane: tr.lane + 1 },
+            );
         }
       }
       break;
@@ -301,6 +349,7 @@ function land(sim, p) {
     sim.bestStreak = Math.max(sim.bestStreak, sim.streak);
     sim.emit("trampoline-splash", { x: p.x, z: p.z });
     sim.emit("points", { x: p.x, z: p.z, value: points });
+    sim.save("landing", p, points, { name: p.name });
     sim.emit("served", { happy: true, id: p.id });
     sim.emit("toast", { text: `${p.name} sticks the landing! 🤸 +${points}` });
     p.lane = tr.lane;
@@ -341,6 +390,7 @@ function land(sim, p) {
   sim.streak = 0;
   sim.stats.crashes = (sim.stats.crashes || 0) + 1;
   sim.emit("crash", { x: p.x, z: p.z });
+  sim.incident("crash", p, { name: p.name, names: victims.map((v) => v.name) });
   sim.emit("points", { x: p.x, z: p.z, value: -T.crash });
   sim.emit("toast", {
     text: `💥 CRASH! ${victims.map((v) => v.name).join(" & ")} are hurt. Swim a life ring out to each one!`,
@@ -395,6 +445,7 @@ function heal(sim, p) {
   sim.score += T.healBonus;
   sim.stats.healed = (sim.stats.healed || 0) + 1;
   sim.emit("points", { x: p.x, z: p.z, value: T.healBonus });
+  sim.save("healed", p, T.healBonus, { id: p.id, name: p.name });
   sim.feedback("healed", { id: p.id, item: "medkit", to: { x: p.x, z: p.z } });
   if (p.type === "daredevil") {
     sim.emit("toast", { text: `${p.name} gives a wobbly thumbs up: "Totally worth it!" +${T.healBonus}` });

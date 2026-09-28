@@ -5,6 +5,7 @@ import { PoolSimulation, TYPES, SHIFTS, loopPosition } from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
+import { MomentDirector, edgeArrow } from "./moments.mjs";
 const $ = (id) => document.getElementById(id),
   audio = new PoolAudio();
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -80,6 +81,169 @@ function targetLabel(d) {
   if (d.kind === "trampoline") return "Trampoline tower";
   if (d.kind === "clutter") return "Dropped gear · E";
   return "";
+}
+// Incident moments: stings, hit-stops and the loud alert. The first sighting of each incident is remembered per
+// device, so its one-line lesson only shows once.
+let seenIncidents = [];
+try {
+  seenIncidents = JSON.parse(localStorage.getItem("pool-panic.seen.v1") || "[]");
+} catch {}
+const moments = new MomentDirector({
+  seen: Array.isArray(seenIncidents) ? seenIncidents : [],
+  remember(list) {
+    try {
+      localStorage.setItem("pool-panic.seen.v1", JSON.stringify(list));
+    } catch {}
+  },
+});
+const seconds = () => performance.now() / 1000;
+let stingAnimation = null,
+  viewClock = 0,
+  alertKey = "";
+function showSting(sting) {
+  if (!sting) return;
+  const el = $("sting"),
+    reduced = reducedMotion.matches,
+    ms = sting.duration * 1000;
+  el.className = "sting " + sting.tone + (sting.first ? " first" : "");
+  el.querySelector(".sting-icon").textContent = sting.icon;
+  el.querySelector(".sting-title").textContent = sting.title;
+  el.querySelector(".sting-verb").textContent = sting.verb;
+  el.querySelector(".sting-how").textContent = sting.how;
+  el.hidden = false;
+  document.body.classList.add("sting-on");
+  world.focusMoment(sting.x, sting.z, Math.min(2, sting.duration));
+  audio.sting(sting.kind, sting.first);
+  stingAnimation?.cancel();
+  // Slam in, hold, then fly up into the incident banner (which takes over from there).
+  const rect = el.getBoundingClientRect(),
+    rise = Math.round(118 - rect.top),
+    at = (t) => Math.min(0.99, t / ms),
+    frame = (y, scale, turn, opacity, offset) => ({
+      transform: `translate(-50%, ${y}px) scale(${scale}) rotate(${turn}deg)`,
+      opacity,
+      offset,
+    });
+  stingAnimation = el.animate(
+    reduced
+      ? [
+          { opacity: 0, transform: "translateX(-50%)" },
+          { opacity: 1, transform: "translateX(-50%)", offset: at(150) },
+          { opacity: 1, transform: "translateX(-50%)", offset: 1 - at(250) },
+          { opacity: 0, transform: "translateX(-50%)" },
+        ]
+      : [
+          frame(0, 1.75, -7, 0, 0),
+          frame(0, 0.93, -1, 1, at(140)),
+          frame(0, 1, -2, 1, at(230)),
+          frame(0, 1, -2, 1, 1 - at(280)),
+          frame(rise, 0.5, 0, 0, 1),
+        ],
+    { duration: ms, easing: "linear" },
+  );
+  stingAnimation.onfinish = () => {
+    el.hidden = true;
+    document.body.classList.remove("sting-on");
+  };
+}
+function hideMoments() {
+  stingAnimation?.cancel();
+  $("sting").hidden = true;
+  document.body.classList.remove("sting-on");
+  $("alert-marker").hidden = $("alert-arrow").hidden = true;
+  $("stamps").replaceChildren();
+  alertKey = "";
+}
+// A save: hit-stop (in the director), confetti and a cheer, and a rubber stamp slammed onto the spot.
+function showPayoff(pay) {
+  if (!pay) return;
+  const big = pay.tier > 1,
+    reduced = reducedMotion.matches;
+  audio.cheer(pay.tier);
+  if (Number.isFinite(pay.x)) world.burst(pay.x, pay.z, big);
+  if (big && !reduced) world.kick(0.12);
+  // On the spot when it is in view; otherwise as close to it as the safe area allows (centre stage when it is
+  // behind the Coach Cam).
+  const p = world.screenPoint(pay.x ?? 0, 1.9, pay.z ?? 0),
+    b = world.cameraBounds(),
+    x = p.behind ? (b.left + b.right) / 2 : Math.max(b.left + 90, Math.min(b.right - 90, p.x)),
+    y = p.behind ? (b.top + b.bottom) / 2 - 40 : Math.max(b.top + 70, Math.min(b.bottom - 40, p.y));
+  const el = document.createElement("div"),
+    title = document.createElement("span"),
+    detail = document.createElement("small");
+  el.className = `stamp tier${pay.tier} ${pay.kind}`;
+  title.textContent = pay.stamp;
+  detail.textContent = pay.value > 0 ? "+" + pay.value : pay.name;
+  el.append(title, detail);
+  el.style.left = x + "px";
+  el.style.top = y + "px";
+  $("stamps").appendChild(el);
+  const ms = big ? 1500 : 1150,
+    at = (s, turn, y = -50, opacity = 1, offset) => ({
+      transform: `translate(-50%, ${y}%) scale(${s}) rotate(${turn}deg)`,
+      opacity,
+      offset,
+    });
+  el.animate(
+    reduced
+      ? [{ opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }]
+      : [
+          at(2.4, -15, -50, 0, 0),
+          at(0.92, -7, -50, 1, 0.1),
+          at(1, -8, -50, 1, 0.16),
+          at(1, -8, -50, 1, 0.8),
+          at(0.9, -8, -95, 0, 1),
+        ],
+    { duration: ms, easing: "ease-out" },
+  ).onfinish = () => el.remove();
+}
+// The loud alert: the most urgent problem gets a marker over its next target, or an arrow at the edge of the safe
+// area when that target is off screen (or behind the Coach Cam).
+function updateAlert() {
+  const marker = $("alert-marker"),
+    arrow = $("alert-arrow"),
+    a = mode === "playing" ? sim.loudestAlert() : null;
+  if (!a) {
+    marker.hidden = arrow.hidden = true;
+    alertKey = "";
+    return;
+  }
+  const b = world.cameraBounds(),
+    rect = { left: b.left + 28, right: b.right - 28, top: b.top + 28, bottom: b.bottom - 28 },
+    p = world.screenPoint(a.x, a.y ?? 1.8, a.z),
+    edge = edgeArrow(p, rect),
+    far = Math.hypot(a.x - sim.coach.x, a.z - sim.coach.z),
+    label = a.label + (far > 4 ? " · " + Math.round(far) + " m" : ""),
+    tone = a.urgency >= 85 ? " danger" : "",
+    key = [edge ? "edge" : "mark", a.icon, label, tone].join("|");
+  marker.hidden = !!edge;
+  arrow.hidden = !edge;
+  const el = edge ? arrow : marker;
+  if (key !== alertKey) {
+    alertKey = key;
+    el.querySelector("b").textContent = a.icon;
+    el.querySelector("span:not(.alert-chip)").textContent = label;
+  }
+  if (edge) {
+    // The label sits below the badge (above it on the bottom edge) and hugs the screen edge it is near.
+    arrow.className =
+      "alert-arrow" +
+      tone +
+      (Math.sin(edge.angle) > 0.6 ? " low" : "") +
+      (edge.x > innerWidth - 110 ? " at-right" : edge.x < 110 ? " at-left" : "");
+    arrow.style.left = edge.x + "px";
+    arrow.style.top = edge.y + "px";
+    arrow.style.setProperty("--angle", edge.angle + "rad");
+  } else {
+    // A person or visitor already wears a tag: the marker sits just above it rather than on top of it.
+    const tag = a.id != null && bubbles.get(a.id),
+      over = tag && !tag.hidden ? tag.getBoundingClientRect() : null;
+    marker.className = "alert-marker" + tone;
+    const half = marker.offsetWidth / 2 + 6;
+    marker.style.left =
+      Math.max(half, Math.min(innerWidth - half, over ? over.left + over.width / 2 : p.x)) + "px";
+    marker.style.top = (over ? over.top - 4 : p.y) + "px";
+  }
 }
 const bubbles = new Map();
 let stationLabels = [];
@@ -172,6 +336,8 @@ function start() {
   syncVenue(sim);
   sim.start({ countdown: true });
   mode = "countdown";
+  moments.reset();
+  hideMoments();
   applyViewMode();
   audio.init();
   audio.playing = true;
@@ -193,6 +359,8 @@ function returnMenu() {
   accumulator = 0;
   document.querySelectorAll("dialog[open]").forEach((d) => d.close());
   mode = "menu";
+  moments.reset();
+  hideMoments();
   applyViewMode();
   $("countdown").hidden = true;
   audio.playing = true;
@@ -762,6 +930,14 @@ function renderIncidentPanel(panel) {
   $("closure").firstElementChild.textContent = panel.icon;
   $("closure-title").textContent = panel.title;
   $("closure-task").textContent = panel.task || "";
+  // Timed threats drain a fuse on the banner.
+  const timer = document.querySelector(".closure-timer"),
+    left = Number.isFinite(panel.timer) ? Math.max(0, Math.min(1, panel.timer)) : null;
+  timer.hidden = left === null;
+  if (left !== null) {
+    timer.firstElementChild.style.width = left * 100 + "%";
+    timer.classList.toggle("low", left < 0.35);
+  }
   const key = JSON.stringify(panel.steps || []);
   if (key !== panelKey) {
     panelKey = key;
@@ -965,7 +1141,11 @@ function points(e) {
   setTimeout(() => el.remove(), 1750);
 }
 function events() {
-  for (const e of sim.events.splice(0)) {
+  const batch = sim.events.splice(0),
+    // A sting says what a new incident's warning toast would; a stamp carries the points of its save.
+    stung = batch.some((e) => e.type === "incident"),
+    stamped = batch.filter((e) => e.type === "save" && e.value).map((e) => e.value);
+  for (const e of batch) {
     if (e.type === "countdown") {
       $("countdown-number").textContent = e.value;
       if (!reducedMotion.matches)
@@ -981,8 +1161,14 @@ function events() {
       audio.playing = true;
       $("countdown").hidden = true;
       updateUI();
-    } else if (e.type === "toast") toast(e.text, e.warning);
-    else if (e.type === "points") points(e);
+    } else if (e.type === "toast") {
+      if (!(stung && e.warning)) toast(e.text, e.warning);
+    } else if (e.type === "points") {
+      const i = stamped.indexOf(e.value);
+      if (i >= 0) stamped.splice(i, 1);
+      else points(e);
+    } else if (e.type === "incident") showSting(moments.incident(e, seconds()));
+    else if (e.type === "save") showPayoff(moments.save(e, seconds()));
     else if (e.type === "splash" || e.type === "collision" || e.type === "slip")
       world.splash(e.x, -0.12, e.z, e.type === "splash" ? 10 : 15);
     else if (e.type === "cramp-alarm" || e.type === "rescue-safe") {
@@ -1042,8 +1228,11 @@ function events() {
 }
 function animate(t) {
   document.documentElement.style.setProperty("--cue", cuePulse(t / 1000, reducedMotion.matches).toFixed(3));
-  const dt = Math.min((t - previous) / 1000 || 0.016, 0.06);
+  const dt = Math.min((t - previous) / 1000 || 0.016, 0.06),
+    // Incident stings slow the game down and saves freeze it for a beat; menus always run at full speed.
+    speed = mode === "playing" ? moments.timeScale(seconds()) : 1;
   previous = t;
+  viewClock += dt * speed;
   try {
     if (mode === "playing" || mode === "countdown") {
       // Fixed substeps keep congestion stable even on lower frame rates.
@@ -1053,7 +1242,8 @@ function animate(t) {
       }
       const movement = moveVector();
       sim.setMovement(movement.x, movement.z);
-      accumulator = Math.min(0.12, accumulator + dt);
+      showSting(moments.next(seconds()));
+      accumulator = Math.min(0.12, accumulator + dt * speed);
       while (accumulator >= 1 / 60) {
         sim.tick(1 / 60);
         accumulator -= 1 / 60;
@@ -1074,11 +1264,12 @@ function animate(t) {
         }
       }
     }
-    world.sync(sim, t / 1000, dt);
+    world.sync(sim, viewClock, dt * speed, dt);
     if (world.incidentView.consumeLightning()) audio.effect("thunder");
     world.render();
     updateBubbles();
     updateContext();
+    updateAlert();
     uiClock += dt;
     if (uiClock > 0.12) {
       uiClock = 0;
@@ -1293,6 +1484,9 @@ try {
       },
       get mode() {
         return mode;
+      },
+      get moments() {
+        return moments;
       },
       play(n = level) {
         level = n;

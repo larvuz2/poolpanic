@@ -215,6 +215,41 @@ A second venue with a five-lane pool and a trampoline tower on the far deck whos
 - **A ring for every victim.** Carry a life ring to the edge, dive, and swim it to one victim; they swim out on their own. Climb out and fetch another ring for the next. The pool reopens when every victim is out of the water.
 - **First aid.** Victims limp clear of the edge, lie down and slowly lose happiness. Fetch the medical kit, kneel beside each one (E or click them) to bandage them (+50 each). Healed lap swimmers return to their lane; the daredevil goes home happy anyway. Put the kit back.
 
+## Incident moments: stings, the loud alert, and payoffs
+
+Chaos only feels funny when the player can read it, so every problem announces itself the same way, one thing at a time points to where to go next, and every save pays off.
+
+- **Stings.** When an incident starts or gets worse, a big sign slams in and names it together with the action, e.g. "LOOSE DOG! Grab the treats · lead Biscuit out". The game slows down for a moment, the overview camera glides over to make room for the incident, and each incident has its own sound. The sign then flies up into the incident banner, which keeps the current step. Stings replace the warning toast they would duplicate.
+  - The first time a player meets an incident, the sting runs longer, the game nearly stops, and a one-line lesson explains how it works (a "NEW" tag marks it). Seen incidents are remembered per device in `localStorage` under `pool-panic.seen.v1`, so later stings are short.
+  - Incidents that sting: cramp, tummy trouble, the accident in the pool, fish kid, fish in the pool, loose dog, Cannonball Carl, flickering lights, blackout, a daredevil waiting over a busy splash lane, the daredevil jumping anyway, and a crash. A clean jump into an empty lane is not an incident.
+  - Two incidents at once queue rather than stack. Reduced motion keeps the camera still and drops the bounce, but keeps the slow-down and the sign.
+- **The loud alert.** Of everything going on, only the most urgent problem is loud (nearest first on a tie). A marker sits over its *next* target, not just the problem: the life ring before the victim, the treats before the dog, the flashlight before the fuse box in a blackout. When that target is off screen or under the HUD, an arrow at the edge of the safe area points to it, with the distance. In the Coach Cam, a target behind the player puts the arrow on the side to turn toward, sliding down to "behind you". Urgency, highest first:
+  1. someone in the water waiting for a ring;
+  2. flickering lights;
+  3. the fish kid;
+  4. Carl before his first cannonball;
+  5. tummy trouble;
+  6. a busy splash lane;
+  7. Carl after a cannonball;
+  8. the blackout;
+  9. fish in the pool and first aid;
+  10. the dog and the accident cleanup;
+  11. returning the fish.
+- **Fuses.** Timed threats drain a fuse on the incident banner: the flicker's seconds, the fish kid's and Carl's run to the edge, and a daredevil's patience. The fuse blinks red when it is nearly out.
+- **Payoffs.** Every save freezes the game for a beat (0.07–0.15 s). Confetti bursts from the spot, the crowd cheers, and a rubber stamp slams down with the points, replacing the usual "+points" pop. The stamps are: RESCUED!, GOOD CATCH!, ALL CLEAN!, SAVE!, GOT IT!, HAPPY KID!, GOOD DOG!, RED CARD!, LIGHTS ON!, STUCK IT! and PATCHED UP!.
+
+How it is built:
+- **The simulation reports facts.** `incident(kind, where)` and `save(kind, where, points)` emit events. Each layer and each incident's `alert()` hook feeds `loudestAlert()`.
+- **`dist/moments.mjs` decides how they land, with no DOM:**
+  - the sting and stamp text;
+  - first sightings;
+  - queueing;
+  - the time scale (slow motion and hit-stop);
+  - the edge-arrow geometry.
+- **The rest renders it.** The app draws everything. The world adds `focusMoment`, `screenPoint` and `burst`, and the audio engine adds `sting` and `cheer`.
+
+Slow motion and hit-stops slow the whole simulation, the shift clock included, so a sting never costs the player time. Menus always run at full speed.
+
 ## Timing and pause rules
 
 | State | Shift clock | Arrivals / queue | Pool activity |
@@ -290,6 +325,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/scene/coach-cam.mjs` | Coach Cam: first-person camera, look and field-of-view limits, spring-driven hands, held items, crosshair picking |
 | `dist/input.mjs` | Keyboard/touch intents and held input |
 | `dist/guidance.mjs` | Shared world/HUD guidance state and pulse |
+| `dist/moments.mjs` | Incident moments: sting and stamp text, first sightings, queueing, slow motion and hit-stop timing, edge-arrow geometry |
 | `dist/progression.mjs` | Record normalization, stars and unlocks |
 | `dist/audio.mjs` | Procedural music and effects |
 | `dist/assets/` | Bundled Three.js, rounded-box helper and license |
@@ -298,7 +334,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `artifacts/final-evidence.md` | Latest gameplay sprint verification record |
 | `.openai/hosting.json` | Existing Site identity and static publishing directory |
 
-Controller inheritance is `CoachController → SanitationController → RescueController → ChaosController → PoolSimulation`. Each incident module implements the same small hook interface (`init`, `isActive`, `start`, `update`, `interactions`, `returnItem`, `waterMission`, `onSwimStep`, `hint`, `panel`, `tag`, and so on), so systems never reach into each other. Interactions are ranked options (`kind`, `label`, position, `rank`, `run`); E runs the lowest rank, and incident tiers outrank routine service. The simulation emits events consumed by the presentation layer. Keep render animation from accidentally advancing gameplay state. The app uses a 60 Hz fixed simulation update; movement uses acceleration/braking, gravity, and simple collision proxies rather than a general rigid-body engine. The seeded simulation enables reproducible checks.
+Controller inheritance is `CoachController → SanitationController → RescueController → ChaosController → PoolSimulation`. Each incident module implements the same small hook interface (`init`, `isActive`, `start`, `update`, `interactions`, `returnItem`, `waterMission`, `onSwimStep`, `hint`, `panel`, `tag`, `alert`, and so on), so systems never reach into each other. Interactions are ranked options (`kind`, `label`, position, `rank`, `run`); E runs the lowest rank, and incident tiers outrank routine service. The simulation emits events consumed by the presentation layer. Keep render animation from accidentally advancing gameplay state. The app uses a 60 Hz fixed simulation update; movement uses acceleration/braking, gravity, and simple collision proxies rather than a general rigid-body engine. The seeded simulation enables reproducible checks.
 
 World X/Z directions differ from screen directions: screen right maps to +Z and screen up to +X. Reuse `screenMovement` and shared spatial definitions instead of applying ad hoc coordinate fixes.
 
@@ -310,7 +346,7 @@ From the full source checkout, serve the static directory over HTTP:
 python3 -m http.server 8000 --directory dist
 ```
 
-Open `http://localhost:8000` (or run `npm start`). Do not open `index.html` through `file://`, which can block ES-module loading. No dependency installation or build is needed to play. Adding `?debug` to the URL exposes `window.__pool` (`play(level)`, `step(seconds, drive)`, `unlockAll()`, `sim`, `world`) for fast-forwarded repros and screenshots.
+Open `http://localhost:8000` (or run `npm start`). Do not open `index.html` through `file://`, which can block ES-module loading. No dependency installation or build is needed to play. Adding `?debug` to the URL exposes `window.__pool` (`play(level)`, `step(seconds, drive)`, `unlockAll()`, `coachCam(on)`, `sim`, `world`, `moments`) for fast-forwarded repros and screenshots.
 
 ### Deploy on Netlify
 
@@ -344,6 +380,7 @@ There is nothing to bundle: the build step only runs the regression checks (abou
 | `node trampoline-check.mjs` | Resort lanes, flips, splash-lane lock, lane moves, crash rings and first aid |
 | `node season-check.mjs` | Coach bot plays levels 4–15 end to end; star-target sanity and crash recovery (`--table` for scores) |
 | `node interplay-check.mjs` | Incidents colliding: goggles vs the fish net, early fish return, kid during a rescue, cramps mid-flip, second crash ring, healed victims rejoining, breaker race |
+| `node moments-check.mjs` | Incident moments: every incident and save reported through real game flows, loud-alert targets and ranking, first sightings, sting queueing, slow motion and hit-stop timing, banner fuses, edge arrows (and behind-you), the camera nudge |
 | `node coachcam-check.mjs` | Coach Cam: facing follows the look, E prefers what is in view, view-relative movement, eye and water-level height with the body hidden, hand lag and settle, head bob (off with reduced motion), landing dip, items in hand, field of view, crosshair target |
 
 Read the selected test's imports before running it in a new environment. CPU scene checks use the runtime's canvas dependency and are not GPU rendering tests. Historical checks passed during implementation, but that is not a claim that this documentation update reran every suite.
@@ -360,6 +397,15 @@ The Coach Cam was checked the same way in headless Chromium:
 - screenshots of the hands and the held items.
 
 The browser's real pointer lock cannot engage headlessly, and there has been no GPU or real-device pass.
+
+Incident moments were checked the same way, at 1280×800 and 390×844, in the club and in the night resort:
+- first and repeat stings, in both warning and danger colours;
+- the banner fuse;
+- the loud marker, and edge arrows including behind-you in the Coach Cam;
+- save stamps, which replace the points pop;
+- two chaos shifts fast-forwarded to the results screen with no page errors.
+
+The new stings and cheers are procedural like the rest of the audio and were not listened to.
 
 ## Direction already established by the creator
 

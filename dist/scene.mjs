@@ -454,8 +454,11 @@ export class PoolWorld extends SceneKit {
     u.legs.forEach((l) => (l.rotation.x = 0.24 * down));
   }
 
-  sync(sim, time, dt = 0.016) {
+  // `dt` drives the world (slowed during an incident sting, stopped for a hit-stop); `realDt` drives the camera.
+  sync(sim, time, dt = 0.016, realDt = dt) {
     this.clock = time;
+    this.realDt = realDt;
+    if (this.moment) this.moment.left -= realDt;
     this.shake = Math.max(0, (this.shake || 0) - dt * 1.4);
     for (const door of this.lockerDoors)
       door.hinge.rotation.y = door.side * 1.35 * doorOpening(sim.doors?.[door.side] || 0);
@@ -536,6 +539,10 @@ export class PoolWorld extends SceneKit {
       p.mesh.position.addScaledVector(p.velocity, dt);
       p.velocity.y -= (p.gravity ?? 5.6) * dt;
       p.mesh.scale.setScalar(Math.max(0, p.life * (p.grow ?? 1.8)));
+      if (p.spin) {
+        p.mesh.rotation.x += p.spin * dt;
+        p.mesh.rotation.y += p.spin * 0.7 * dt;
+      }
       if (p.life <= 0) {
         this.scene.remove(p.mesh);
         this.particles.splice(i, 1);
@@ -711,7 +718,8 @@ export class PoolWorld extends SceneKit {
       cu = cg.userData;
     const firstPerson = this.viewMode === "coach";
     if (firstPerson) this.coachCam.update(sim, time, dt);
-    else if (this.viewDirection && sim.status !== "ready") this.followCoach(c, dt, this.attention(sim));
+    else if (this.viewDirection && sim.status !== "ready")
+      this.followCoach(c, this.realDt ?? dt, this.attention(sim));
     cg.visible = !firstPerson;
     cg.position.set(c.x, c.y || 0, c.z);
     const angle = c.angle || 0;
@@ -1053,6 +1061,31 @@ export class PoolWorld extends SceneKit {
   kick(amount = 0.5) {
     this.shake = Math.max(this.shake || 0, amount);
   }
+  // An incident sting: for a moment the overview makes room for the incident as well as the coach. The Coach
+  // Cam never turns the player's head, and reduced motion keeps the camera still.
+  focusMoment(x, z, seconds) {
+    if (this.viewMode === "coach" || this.reducedMotion.matches || !Number.isFinite(x)) return;
+    this.moment = { x, z, left: seconds };
+  }
+  // Save payoff: a fountain of confetti from the spot.
+  burst(x, z, big = true) {
+    const colors = [COLORS.coral, COLORS.yellow, COLORS.teal, 0xffffff];
+    for (let i = 0; i < (big ? 44 : 22); i++) {
+      if (this.particles.length > 300) break;
+      const a = Math.random() * Math.PI * 2,
+        s = (big ? 2.4 : 1.6) * (0.35 + Math.random());
+      const m = this.box(0.13, 0.13, 0.03, colors[i % 4], x, 0.7, z, 0.005);
+      m.castShadow = false;
+      this.particles.push({
+        mesh: m,
+        life: 0.9 + Math.random() * 0.6,
+        grow: 1,
+        gravity: 7.5,
+        spin: 5 + Math.random() * 9,
+        velocity: new THREE.Vector3(Math.cos(a) * s, 3.8 + Math.random() * 3, Math.sin(a) * s),
+      });
+    }
+  }
   cameraBounds() {
     const w = this.container.clientWidth,
       h = this.container.clientHeight,
@@ -1074,9 +1107,14 @@ export class PoolWorld extends SceneKit {
       ...Object.values(v.fixtures || {}).filter((p) => p && Number.isFinite(p.x)),
     ];
   }
-  // Big moments the camera should frame alongside the coach: the trampoline tower during a jump, and the
-  // stranded victims of a crash.
+  // Big moments the camera should frame alongside the coach: the trampoline tower during a jump, the stranded
+  // victims of a crash, and (for the length of its sting) wherever a new incident just started.
   attention(sim) {
+    if (this.moment?.left > 0) {
+      const m = new THREE.Vector3(this.moment.x, 1.2, this.moment.z);
+      m.moment = true;
+      return [m];
+    }
     if (sim.rescue?.kind === "crash")
       return (sim.strandedVictims?.() || [])
         .sort((a, b) => b.x - a.x)
@@ -1141,9 +1179,11 @@ export class PoolWorld extends SceneKit {
         plane.set(new THREE.Vector3(0, 1, 0), -p.y);
         if (ray.ray.intersectPlane(plane, hit)) {
           // Only correct the clamped axis (screen up/down is world X, left/right is world Z) so fixes never
-          // drift sideways with the perspective. Focus points only ever pull the view up or down.
-          if (Math.abs(y - screen.y) > 0.05) this.target.x += p.x - hit.x;
-          if (Math.abs(x - screen.x) > 0.05 && !p.focus) this.target.z += p.z - hit.z;
+          // drift sideways with the perspective. Focus points only ever pull the view up or down; a new
+          // incident's point pulls both ways, but softly, so the view glides over instead of cutting.
+          const k = p.moment ? 1 - Math.exp(-dt * 5) : 1;
+          if (Math.abs(y - screen.y) > 0.05) this.target.x += (p.x - hit.x) * k;
+          if (Math.abs(x - screen.x) > 0.05 && (!p.focus || p.moment)) this.target.z += (p.z - hit.z) * k;
           this.placeCamera();
         }
       }
@@ -1182,6 +1222,19 @@ export class PoolWorld extends SceneKit {
       );
     this.scene.add(mesh);
     this.handoffs.push({ mesh, from, to, elapsed: 0 });
+  }
+  // Screen position of a world point, whether it is behind the camera (the Coach Cam can face away), and how far
+  // it sits to the right (1) or left (-1) of the camera's back.
+  screenPoint(x, y, z) {
+    const v = new THREE.Vector3(x, y, z),
+      local = v.clone().applyMatrix4(this.camera.matrixWorldInverse);
+    v.project(this.camera);
+    return {
+      x: (v.x * 0.5 + 0.5) * this.container.clientWidth,
+      y: (-v.y * 0.5 + 0.5) * this.container.clientHeight,
+      behind: local.z > 0,
+      lean: local.x / (Math.hypot(local.x, local.z) || 1),
+    };
   }
   project(x, y, z) {
     const v = new THREE.Vector3(x, y, z).project(this.camera);

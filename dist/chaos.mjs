@@ -341,6 +341,10 @@ export class ChaosController extends RescueController {
     if (!this.canInteract()) return;
     for (const system of this.systems) system.interactions?.(this, options);
   }
+  collectAlerts(alerts) {
+    super.collectAlerts(alerts);
+    for (const system of this.systems) system.alert?.(this, alerts);
+  }
   returnItem() {
     for (const system of this.systems) {
       const handled = system.returnItem?.(this);
