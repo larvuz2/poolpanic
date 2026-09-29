@@ -3,6 +3,7 @@
 import { THREE, COLORS } from "./kit.mjs";
 import { buildPool, buildDeck } from "./pool.mjs";
 import { plasterTexture, grassTexture, glowTexture, mosaicTexture } from "./textures.mjs";
+import { SCENERY } from "./sky.mjs";
 import {
   bench,
   station,
@@ -59,6 +60,15 @@ export function buildResort(w, venue, lighting = "day") {
     seg.castShadow = true;
     ball.add(seg);
   }
+  commonStations(w, venue);
+  lawn(w, venue);
+  stringLights(w, venue, lighting === "night" || lighting === "sunset");
+}
+
+// The gear every resort-plan venue shares: fin rack, water and eye care, the cleanup corner, rescue and blackout kit,
+// the trampoline, the snack jar for the loose dog, and the lane 5 warning painted on the deck. `tower` recolours the
+// trampoline tower.
+export function commonStations(w, venue, { tower } = {}) {
   finRack(w, venue.stations.fins);
   station(w, "chlorine", venue.stations.chlorine, COLORS.yellow, "WATER CARE", -Math.PI / 2);
   station(w, "relief", venue.stations.relief, 0xddf3d7, "EYE CARE", -Math.PI / 2);
@@ -68,7 +78,7 @@ export function buildResort(w, venue, lighting = "day") {
   flashlightHolder(w, venue.fixtures.flashlight);
   fuseBox(w, venue.fixtures.fuseBox);
   medkitCabinet(w, venue.fixtures.medkit);
-  trampolineTower(w, venue.trampoline);
+  trampolineTower(w, venue.trampoline, tower);
   kioskTreats(w, venue.fixtures.treats);
   w.textPlane(
     "NO DIVING · SPLASH ZONE LANE 5",
@@ -82,12 +92,10 @@ export function buildResort(w, venue, lighting = "day") {
     w.scene,
     46,
   ).rotation.set(-Math.PI / 2, 0, -Math.PI / 2);
-  lawn(w, venue);
-  stringLights(w, venue, lighting === "night" || lighting === "sunset");
 }
 
 // A band of blue-and-white mosaic frames the basin between the gutter and the walkway.
-function poolSurround(w, venue) {
+export function poolSurround(w, venue, { base = "#3f8fb5", grout = "#e9f2ec", seed = 41 } = {}) {
   const P = venue.pool,
     inner = 0.72,
     outer = 1.42;
@@ -109,7 +117,7 @@ function poolSurround(w, venue) {
   const pos = geo.attributes.position,
     uv = geo.attributes.uv;
   for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / 2, pos.getZ(i) / 2);
-  const tex = mosaicTexture({ seed: 41, base: "#3f8fb5", grout: "#e9f2ec", tiles: 6 });
+  const tex = mosaicTexture({ seed, base, grout, tiles: 6 });
   w.textures.push(tex);
   const band = new THREE.Mesh(geo, w.mat(0xffffff, { map: tex, roughness: 0.45 }));
   band.position.y = -0.008;
@@ -145,8 +153,8 @@ function facade(w, venue) {
     }
   }
   w.box(6.6, 1.05, 0.2, 0xfff6ea, 0, 3.85, z0 + 0.34, 0.12);
-  w.textPlane("RIVIERA SPLASH", 6.2, 0.62, "#fff6ea", "#2f9aa0", 0, 3.95, z0 + 0.45, w.scene, 84);
-  w.textPlane("RESORT · SEASON 2", 4.6, 0.24, "#fff6ea", "#e0513f", 0, 3.5, z0 + 0.46, w.scene, 32);
+  w.textPlane("SPLASH PARK", 6.2, 0.62, "#fff6ea", "#2f9aa0", 0, 3.95, z0 + 0.45, w.scene, 84);
+  w.textPlane("SUN · SEA · SPLASH", 4.6, 0.24, "#fff6ea", "#e0513f", 0, 3.5, z0 + 0.46, w.scene, 32);
   // Bougainvillea planters along the facade.
   for (const x of [-15.2, -5.6, 5.6, 15.4]) {
     w.box(1.4, 0.55, 0.6, 0xd9906a, x, 0.28, z0 + 0.6, 0.1);
@@ -189,7 +197,7 @@ function balustrades(w, venue) {
   }
 }
 
-function kioskTreats(w, p) {
+export function kioskTreats(w, p) {
   const jar = treatsObject(w);
   jar.position.set(p.x + 0.55, 1.45, p.z);
   jar.rotation.y = -Math.PI / 2;
@@ -206,14 +214,17 @@ function kioskTreats(w, p) {
 
 function lawn(w, venue) {
   const grass = grassTexture();
-  grass.repeat.set(40, 40);
+  // The ground runs out to the horizon; on a coast it stops at the beach, where the Sky's sand and sea begin.
+  const shore = SCENERY[venue.scenery]?.sea ? SCENERY[venue.scenery].shoreX + 3.4 : -300,
+    width = 300 - shore;
+  grass.repeat.set(width / 4, 150);
   w.textures.push(grass);
   const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(160, 160),
+    new THREE.PlaneGeometry(width, 600),
     new THREE.MeshStandardMaterial({ map: grass, color: 0xb9d98f, roughness: 1 }),
   );
   floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -1.95;
+  floor.position.set((shore + 300) / 2, -1.95, 0);
   floor.receiveShadow = true;
   w.scene.add(floor);
   // Distant palms frame the tabletop.
@@ -231,7 +242,7 @@ function lawn(w, venue) {
   }
 }
 
-function stringLights(w, venue, on) {
+export function stringLights(w, venue, on) {
   const d = venue.deck;
   const bulbs = new THREE.Group();
   bulbs.name = "string-lights";

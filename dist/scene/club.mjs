@@ -2,6 +2,7 @@
 // upper-right corner. Layout matches the original prototype; materials and light are richer.
 import { THREE, COLORS } from "./kit.mjs";
 import { buildPool, buildDeck } from "./pool.mjs";
+import { Hall } from "./hall.mjs";
 import { subwayTexture, plasterTexture, beamTexture, gradientTexture } from "./textures.mjs";
 import {
   bench,
@@ -58,7 +59,86 @@ export function buildClub(w, venue) {
   flashlightHolder(w, venue.fixtures.flashlight);
   fuseBox(w, venue.fixtures.fuseBox);
   surroundings(w);
+  new Hall(w, CLUB_HALL);
 }
+
+// The hall above the club: a gabled timber roof 17 m high, arched windows, a spectators' gallery, and flags at the top.
+const CLUB_HALL = {
+  minX: -14.7,
+  maxX: 14.7,
+  minZ: -16.15,
+  maxZ: 13.95,
+  floor: -1.95,
+  low: 1.17,
+  rearBase: 5.6,
+  eave: 9.4,
+  ridge: 16.8,
+  profile: "gable",
+  trusses: "timber",
+  stations: [-13.6, -7.6, -1.6, 4.4, 10.4],
+  colors: {
+    wall: 0x82a79b,
+    trim: 0xf3e6c4,
+    accent: 0x268994,
+    dark: 0x274d5a,
+    metal: 0x9aabb0,
+    boards: 0xfff8ea,
+    tile: "#4fa3a1",
+    lamp: 0xffe1a0,
+  },
+  sky: { top: "#8fd0ee", bottom: "#fff7e0" },
+  seed: 3,
+  windowCount: 6,
+  windowY: 5.3,
+  windowHeight: 3.2,
+  oculus: 2.3,
+  skylights: true,
+  shaftSegments: [0],
+  shaftOpacity: 0.2,
+  bunting: [0xee8864, 0xf4c849, 0x118c94, 0xfff6e4, 0xe0513f],
+  gallery: { y: 4.2, depth: 3.1, height: 2.7 },
+  crest: {
+    text: "POOL PANIC",
+    sub: "SWIM CLUB · EST. 1986",
+    bg: "#118c94",
+    fg: "#fff6e4",
+    width: 6.6,
+    height: 3.4,
+    y: 9.15,
+  },
+  signs: [
+    {
+      timing: { title: "SWIM MEET", lanes: 3 },
+      width: 4.6,
+      height: 1.5,
+      at: [14.66, 3.9, -3.77],
+      ry: -Math.PI / 2,
+    },
+    {
+      text: "SHOWER FIRST",
+      sub: "NO RUNNING · NO DIVING · NO FISH",
+      bg: "#f4c849",
+      fg: "#274d5a",
+      w: 736,
+      h: 224,
+      font: 96,
+      width: 4.6,
+      height: 1.4,
+      at: [-14.66, 3.9, -3.77],
+      ry: Math.PI / 2,
+    },
+    {
+      text: "EXIT",
+      bg: "#0f7d4b",
+      width: 1.5,
+      height: 0.56,
+      at: [-7.4, 3.72, 13.86],
+      ry: Math.PI,
+      font: 120,
+    },
+    { text: "EXIT", bg: "#0f7d4b", width: 1.5, height: 0.56, at: [7.4, 3.72, 13.86], ry: Math.PI, font: 120 },
+  ],
+};
 
 function rearWall(w) {
   const z0 = -16.35;

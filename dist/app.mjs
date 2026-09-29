@@ -22,7 +22,7 @@ import { DRILLS } from "./drills.mjs";
 import { offerBookings, BOOKINGS } from "./bookings.mjs";
 import { LevelMap } from "./map.mjs";
 import { guidanceState, cuePulse } from "./guidance.mjs";
-import { PoolSimulation, TYPES, SHIFTS, loopPosition } from "./sim.mjs";
+import { PoolSimulation, TYPES, SHIFTS, loopPosition, swimmerLook } from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
@@ -487,7 +487,7 @@ function updatePanel() {
     num.textContent = two(level);
     $("selected-shift-name").textContent = shift.name;
     $("selected-shift-meta").textContent = `${formatTime(shift.duration)} · ${shift.total} SWIMMERS`;
-    icons.textContent = notes.map((n) => n.icon).join(" ");
+    icons.textContent = notes.map((n) => n.icon).join("");
     icons.setAttribute("aria-label", notes.map((n) => n.label).join(", "));
     icons.title = notes.map((n) => n.label).join(" · ");
     $("panel-zone").textContent = zone.kind === "finale" ? `ACT ${zone.act} FINALE` : zone.name.toUpperCase();
@@ -659,7 +659,7 @@ function finish() {
       notes = [];
     if (starsBefore === 0 && r.stars === 0 && !after.complete) notes.push("EARN A ★ TO CLEAR IT");
     else if (after.complete) {
-      if (opens) notes.push(opens + " OPENS");
+      notes.push(opens ? opens + " OPENS" : "SEASON COMPLETE 🏆"); // the last finale has nothing after it
     } else if (after.built === after.total && opens)
       notes.push(`${after.total - after.cleared} MORE TO OPEN ${opens}`);
     if (drillNote)
@@ -682,6 +682,7 @@ function finish() {
   }
   const st = sim.stats,
     extra = [
+      ["VIPS 👑", st.vips],
       ["FLIPS 🤸", st.flips],
       ["CRASHES 💥", st.crashes],
       ["PATCHED UP 🩹", st.healed],
@@ -770,12 +771,12 @@ function problemIcon(p) {
                 : p.h < 60
                   ? "😐"
                   : p.status === "queue"
-                    ? TYPES[p.type].icon
+                    ? swimmerLook(p).icon
                     : "🙂";
 }
 function cardStatus(p) {
   if (p.status === "queue")
-    return p.type === "daredevil" ? "Daredevil · wants the trampoline" : TYPES[p.type].label;
+    return p.type === "daredevil" ? "Daredevil · wants the trampoline" : swimmerLook(p).label;
   if (p.status === "injured") return p.healing ? "Being bandaged…" : "Hurt · needs the med kit";
   const where = p.lane == null ? "In the pool" : "Lane " + (p.lane + 1);
   return (
@@ -819,7 +820,7 @@ function updateQueue() {
       ? list
           .map(
             (p) =>
-              `<button class="swimmer-card ${p.id === sim.selected ? "selected" : ""} ${p.id === guide.swimmerId ? "guided" : ""}" data-swimmer="${p.id}" aria-label="Select ${p.name}, ${TYPES[p.type].label}${p.problem ? ", needs help" : ""}"><span class="portrait ${p.queasy ? "queasy" : ""}" style="background:${TYPES[p.type].color}">${TYPES[p.type].icon}</span><span class="card-info"><strong>${p.name}</strong><small>${cardStatus(p)}</small><span class="patience-track"><i data-hp="${p.id}"></i></span></span><span class="need-icon" data-need="${p.id}"></span></button>`,
+              `<button class="swimmer-card ${p.id === sim.selected ? "selected" : ""} ${p.id === guide.swimmerId ? "guided" : ""}" data-swimmer="${p.id}" aria-label="Select ${p.name}, ${swimmerLook(p).label}${p.problem ? ", needs help" : ""}"><span class="portrait ${p.queasy ? "queasy" : ""}" style="background:${swimmerLook(p).color}">${swimmerLook(p).icon}</span><span class="card-info"><strong>${p.name}</strong><small>${cardStatus(p)}</small><span class="patience-track"><i data-hp="${p.id}"></i></span></span><span class="need-icon" data-need="${p.id}"></span></button>`,
           )
           .join("")
       : '<div class="empty-queue"><span>✓</span> All in the swim.</div>';
@@ -852,7 +853,7 @@ function updateQueue() {
     p.problem === "injured" ||
     !!(sim.rescue && p.status === "swim");
   if (p) {
-    const profile = TYPES[p.type];
+    const profile = swimmerLook(p);
     $("selected-detail").innerHTML =
       "<b>" +
       p.name +
@@ -973,7 +974,7 @@ function updateUI() {
           : count + " swimmer" + (count === 1 ? "" : "s");
     b.querySelector(".lane-caps").innerHTML = people
       .slice(0, 8)
-      .map((p) => '<i style="background:' + TYPES[p.type].color + '"></i>')
+      .map((p) => '<i style="background:' + swimmerLook(p).color + '"></i>')
       .join("");
     b.disabled = mode !== "playing" || !!sim.rescue;
   }
@@ -1227,7 +1228,7 @@ function updateBubbles() {
       !screen.visible ||
       (world.viewMode === "coach" && Math.hypot(p.x - sim.coach.x, p.z - sim.coach.z) > 16);
     b.disabled = mode !== "playing" || !["queue", "swim", "injured"].includes(p.status);
-    b.setAttribute("aria-label", "Select " + p.name + ", " + TYPES[p.type].label);
+    b.setAttribute("aria-label", "Select " + p.name + ", " + swimmerLook(p).label);
     b.setAttribute("aria-pressed", String(p.id === sim.selected));
     const rescuing =
       (sim.rescue?.victims || []).includes(p.id) && !p.rescueRecover && ["swim", "switch"].includes(p.status);
@@ -1246,11 +1247,11 @@ function updateBubbles() {
     stomach.querySelector("b").textContent = Math.ceil(left) + "s";
     b.classList.toggle("selected", p.id === sim.selected);
     b.classList.toggle("guided", p.id === guidanceState(sim).swimmerId);
-    b.querySelector(".type-icon").textContent = TYPES[p.type].icon;
-    b.querySelector(".type-label").textContent = TYPES[p.type].label;
+    b.querySelector(".type-icon").textContent = swimmerLook(p).icon;
+    b.querySelector(".type-label").textContent = swimmerLook(p).label;
     const statusIcon = problemIcon(p);
     b.querySelector(".mood-icon").textContent =
-      statusIcon !== TYPES[p.type].icon && statusIcon !== "🙂" ? statusIcon : "";
+      statusIcon !== swimmerLook(p).icon && statusIcon !== "🙂" ? statusIcon : "";
     b.querySelector(".hp i").style.width = Math.max(0, p.h) + "%";
     b.querySelector(".hp i").style.background = moodColor(p.h);
     const name = b.querySelector(".label-name");

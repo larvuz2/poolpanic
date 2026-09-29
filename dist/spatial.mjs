@@ -185,6 +185,7 @@ function makeVenue(spec) {
 export const CLUB = makeVenue({
   id: "club",
   name: "Community Swim Club",
+  indoor: true,
   lanes: [-3.2, 0, 3.2],
   deck: { minX: -14.1, maxX: 14.1, minZ: -15.2, maxZ: 12.65 },
   room: { minX: -14.7, maxX: 14.7, minZ: -16.7, maxZ: 13.5 },
@@ -234,10 +235,10 @@ export const CLUB = makeVenue({
   ],
 });
 
-// Outdoor resort: a wider five-lane pool with a trampoline tower whose splash zone lands in lane 5.
-export const RESORT = makeVenue({
-  id: "resort",
-  name: "Splash Park",
+// Open-air resort: a wider five-lane pool with a trampoline tower whose splash zone lands in lane 5. Splash Park, the
+// Sunset Lagoon and the Grand Gala Arena share this floor plan exactly (so a shift plays the same anywhere) and only
+// dress it differently.
+const RESORT_SPEC = {
   lanes: [-6.4, -3.2, 0, 3.2, 6.4],
   deck: { minX: -15.6, maxX: 16.4, minZ: -15.2, maxZ: 12.65 },
   room: { minX: -16.2, maxX: 17, minZ: -16.7, maxZ: 13.5 },
@@ -302,9 +303,33 @@ export const RESORT = makeVenue({
       { kind: "locker-bench", x, z: -15.17, hx: 1.55, hz: 0.36 },
     ]),
   ],
+};
+export const RESORT = makeVenue({
+  ...RESORT_SPEC,
+  id: "resort",
+  name: "Splash Park",
+  scenery: "park",
+  sunAzimuth: 2.65,
+});
+// Open-air beach club on a lagoon: the sun sinks into the sea behind the start line, from golden hour into dusk.
+export const LAGOON = makeVenue({
+  ...RESORT_SPEC,
+  id: "lagoon",
+  name: "Sunset Lagoon",
+  scenery: "lagoon",
+  sunAzimuth: 2.45,
+  lighting: "golden",
+});
+// A domed indoor arena for the season finale: grandstands, spotlights and a very tall roof.
+export const ARENA = makeVenue({
+  ...RESORT_SPEC,
+  id: "arena",
+  name: "Grand Gala Arena",
+  indoor: true,
+  lighting: "gala",
 });
 
-export const VENUES = { club: CLUB, resort: RESORT };
+export const VENUES = { club: CLUB, resort: RESORT, lagoon: LAGOON, arena: ARENA };
 
 export function createCoach(venue = CLUB) {
   return {

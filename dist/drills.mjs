@@ -82,6 +82,24 @@ export const DRILLS = {
       ],
     },
   },
+  storm: {
+    id: "storm",
+    chunk: 6,
+    icon: "⛈️",
+    name: "Storm drill",
+    tier: 18,
+    config: {
+      name: "Storm drill",
+      venue: "lagoon",
+      lighting: "dusk",
+      daylight: [0.8, 0.9],
+      duration: 80,
+      total: 11,
+      thresholds: [2100, 3500, 4700],
+      vipAt: [0.3, 0.7],
+      twist: [{ kind: "storm", at: 0.12 }],
+    },
+  },
 };
 export const DRILL_LIST = Object.values(DRILLS);
 export const drillForChunk = (chunk) => DRILL_LIST.find((d) => d.chunk === chunk) || null;

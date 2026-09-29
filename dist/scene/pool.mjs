@@ -1,7 +1,14 @@
 // Shared basin builder: mosaic basin with animated caustics, coping, lane ropes, starting blocks, pennants,
 // ladders, the water surface and lane pick volumes. Every dimension derives from the venue's lane count.
 import { THREE, COLORS } from "./kit.mjs";
-import { mosaicTexture, tileTextures, paverTextures, plasterTexture } from "./textures.mjs";
+import {
+  mosaicTexture,
+  tileTextures,
+  paverTextures,
+  plasterTexture,
+  plankTextures,
+  checkerTextures,
+} from "./textures.mjs";
 
 const CAUSTIC_GLSL = `
 float causticLayer(vec2 p, float t) {
@@ -350,7 +357,16 @@ export function buildPool(
 export function buildDeck(
   w,
   venue,
-  { base, grout, pavers = false, slab = 0x398d94, rim = 0xb28363, side = COLORS.tile },
+  {
+    base,
+    grout,
+    pavers = false,
+    planks = false,
+    checker = null,
+    slab = 0x398d94,
+    rim = 0xb28363,
+    side = COLORS.tile,
+  },
 ) {
   const room = venue.room,
     P = venue.pool,
@@ -369,7 +385,13 @@ export function buildDeck(
   w.box(halfX * 2 + 0.1, 0.45, room.maxZ - halfZ, side, 0, -0.25, (room.maxZ + halfZ) / 2, 0.09);
   w.box(halfX * 2 + 0.1, 0.45, -halfZ - room.minZ, side, 0, -0.25, (room.minZ - halfZ) / 2, 0.09);
   // Textured top: a shape with the basin as a hole, UVs in world units.
-  const tex = pavers ? paverTextures({ base, grout }) : tileTextures({ base, grout, seed: 7 });
+  const tex = planks
+    ? plankTextures({ base, grout })
+    : checker
+      ? checkerTextures(checker)
+      : pavers
+        ? paverTextures({ base, grout })
+        : tileTextures({ base, grout, seed: 7 });
   const scale = 1 / 4;
   for (const t of [tex.map, tex.bump]) {
     t.repeat.set(scale, scale);

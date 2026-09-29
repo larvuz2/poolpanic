@@ -136,7 +136,8 @@ export class IncidentView {
       k = hash(beat) < 0.3 + (1 - o.t / 7) * 0.4 ? 0.28 + hash(beat + 7) * 0.3 : 1;
     } else if (o?.stage === "dark") k = 0.1;
     else if (o?.stage === "restored") k = Math.min(1, 0.1 + (1.2 - o.t) * 1.5);
-    if (this.flash > 0) k = Math.max(k, 1.6 * this.flash);
+    const flash = Math.max(this.flash, this.w.sky?.flash || 0);
+    if (flash > 0) k = Math.max(k, 1.6 * flash);
     this.light = k;
     return { water: Math.max(0.18, Math.min(1, k)), caustic: Math.max(0.12, Math.min(1, k)) };
   }
@@ -465,10 +466,15 @@ export class IncidentView {
     const stormy = o && o.stage !== "restored";
     for (const glass of w.windowGlass || [])
       glass.material.color.setScalar(stormy ? Math.min(1, 0.22 + this.flash) : 1);
+    // Lamps follow the hour (dark glass by day, glowing after dusk) and die with the power.
+    const hour = w.ambience?.glow ?? 0;
+    for (const dim of w.dimmers || []) dim(k, dark);
     if (w.poolLamps)
-      w.poolLamps.material.color.copy(w.poolLamps.base).multiplyScalar(Math.max(0.06, Math.min(1, k)));
+      w.poolLamps.material.color
+        .copy(w.poolLamps.base)
+        .multiplyScalar(Math.max(0.06, Math.min(1, k)) * (w.ambience?.lamp ?? 1));
     if (w.stringLights)
-      w.stringLights.visible = w.lightingName !== "day" && !(dark || (o?.stage === "flicker" && k < 0.9));
+      w.stringLights.visible = hour > 0.05 && !(dark || (o?.stage === "flicker" && k < 0.9));
     const c = sim.coach,
       on = c.carry === "flashlight" && k < 0.95;
     this.flashlight.intensity = on ? 70 : 0;

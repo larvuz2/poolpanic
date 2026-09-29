@@ -191,8 +191,8 @@ export function bucket(w, x, y, z, parent, color = COLORS.yellow) {
 export function lockerBay(w, venue, x, name, color, style = "club") {
   const side = Math.sign(x),
     g = w.group(x, 0, -14);
-  const wall = style === "resort" ? 0xf1e4c8 : 0x82a79b,
-    inner = style === "resort" ? 0xe7d3b0 : 0x71978d;
+  const wall = style === "arena" ? 0x2b3f66 : style === "resort" ? 0xf1e4c8 : 0x82a79b,
+    inner = style === "arena" ? 0x22345a : style === "resort" ? 0xe7d3b0 : 0x71978d;
   w.box(5.3, 3.2, 0.23, wall, 0, 1.6, -2.3, 0.09, g);
   for (const xx of [-2.65, 2.65]) {
     if (Math.sign(xx) === side) w.box(0.2, 3.2, 2.7, inner, xx, 1.6, -1.06, 0.08, g);
@@ -202,7 +202,7 @@ export function lockerBay(w, venue, x, name, color, style = "club") {
     }
   }
   w.box(5.5, 0.36, 0.6, color, 0, 3.25, 0.03, 0.07, g);
-  if (style === "resort") {
+  if (style !== "club") {
     // Striped cabana awning.
     for (let i = 0; i < 9; i++)
       w.box(0.62, 0.08, 1.2, i % 2 ? 0xfff4dc : color, -2.48 + i * 0.62, 3.5, 0.45, 0.02, g).rotation.x =
@@ -689,11 +689,11 @@ export function kiosk(w, x, z) {
 }
 
 // Trampoline tower: platform with rails, stairs down the back, and a launch bed overhanging the far deck.
-export function trampolineTower(w, t) {
+export function trampolineTower(w, t, theme = {}) {
   const g = w.group(t.x, 0, t.z);
   const H = t.bedY - 0.22;
-  const white = 0xf4f1e2,
-    blue = 0x2f86b8;
+  const white = theme.white ?? 0xf4f1e2,
+    blue = theme.blue ?? 0x2f86b8;
   for (const xx of [-0.85, 0.85])
     for (const zz of [-0.95, 0.95]) w.cyl(0.09, 0.11, H, white, xx, H / 2, zz, g, 8);
   w.box(1.9, 0.18, 2.1, blue, 0, H, 0, 0.06, g);
@@ -708,7 +708,7 @@ export function trampolineTower(w, t) {
     run = t.stairBottomX - (t.x + 0.95);
   for (let i = 0; i < steps; i++) {
     const f = (i + 0.5) / steps;
-    w.box(run / steps + 0.06, 0.1, 1.0, 0xe7d3b0, 0.95 + run * (1 - f), H * f, 0, 0.02, g);
+    w.box(run / steps + 0.06, 0.1, 1.0, theme.steps ?? 0xe7d3b0, 0.95 + run * (1 - f), H * f, 0, 0.02, g);
   }
   for (const zz of [-0.55, 0.55]) {
     w.rod([0.95, H + 0.9, zz], [0.95 + run, 0.9, zz], 0.035, white, g);
@@ -718,7 +718,7 @@ export function trampolineTower(w, t) {
   const armX = t.bedX - t.x;
   w.box(Math.abs(armX) + 0.2, 0.14, 0.5, blue, armX / 2 - 0.1, H + 0.06, 0, 0.04, g);
   const bed = w.group(armX, t.bedY - 0.1, 0, g);
-  w.torus(0.82, 0.07, 0x2f86b8, bed, Math.PI * 2, 8, 28).rotation.x = Math.PI / 2;
+  w.torus(0.82, 0.07, blue, bed, Math.PI * 2, 8, 28).rotation.x = Math.PI / 2;
   const mat = new THREE.Mesh(new THREE.CircleGeometry(0.72, 28), w.mat(0x243a44, { roughness: 0.9 }));
   mat.rotation.x = -Math.PI / 2;
   mat.name = "bed-mat";

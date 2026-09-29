@@ -1,5 +1,6 @@
-// Season playthrough: a coach bot plays every chaos shift (levels 4–15, with their mid-shift twists), every chunk
-// drill and every Splash Park booking end to end with real movement input.
+// Season playthrough: a coach bot plays every chaos shift (levels 4–20 across the club, Splash Park, the Sunset Lagoon
+// and the Grand Gala Arena, with their mid-shift twists, VIP guests and the storm), every chunk drill and every
+// booking end to end with real movement input.
 // Lane management happens every frame (it is a remote action in the game); everything physical, from
 // stopping the fish kid to swimming rings out after a trampoline crash, is walked, swum and pressed.
 // It proves every shift finishes with each incident resolved and every fin pair accounted for, that good
@@ -61,7 +62,7 @@ for (const level of levels) {
       mean(pro) > mean(lazy),
       `Level ${level}: preventing incidents pays off (${mean(pro)} vs ${mean(lazy)})`,
     );
-  if (config.venue === "resort")
+  if (["resort", "lagoon", "arena"].includes(config.venue))
     assert.ok(flips > 0, `Level ${level}: a clear splash lane lets daredevils flip`);
 }
 // Drills: every one finishes with its incidents resolved, and a competent coach lands between one and three stars.
@@ -107,7 +108,7 @@ for (const drill of DRILL_LIST) {
   );
 }
 // Bookings: every booking on offer finishes cleanly at the levels that offer them.
-for (const level of [11, 12, 13, 14, 15])
+for (const level of [11, 12, 13, 14, 15, 16, 17, 18, 19, 20])
   for (const booking of Object.values(BOOKINGS)) {
     const s = new CoachBot(level, 101, { booking }).run().s;
     assert.equal(s.status, "ended", `Level ${level} with the ${booking.id} booking finishes`);
@@ -141,5 +142,5 @@ for (const level of [11, 12]) {
 }
 assert.ok(crashes > 0, "Without clearing the splash lane, daredevils crash into swimmers");
 console.log(
-  `Season checks passed: ${levels.length} chaos shifts × ${seeds.length} seeds (mid-shift twists included) played end to end by a coach bot (incidents prevented or cleaned up, splash lane kept clear, fins conserved); competent play averages one star or better but not three, prevention beats a reactive coach; all ${DRILL_LIST.length} chunk drills and every Splash Park booking finish cleanly; and ${crashes} mid-shift trampoline crashes were fully rescued and patched up.`,
+  `Season checks passed: ${levels.length} chaos shifts × ${seeds.length} seeds (mid-shift twists, VIP guests and the storm included) played end to end by a coach bot (incidents prevented or cleaned up, splash lane kept clear, fins conserved); competent play averages one star or better but not three, prevention beats a reactive coach; all ${DRILL_LIST.length} chunk drills and every booking (levels 11–20) finish cleanly; and ${crashes} mid-shift trampoline crashes were fully rescued and patched up.`,
 );

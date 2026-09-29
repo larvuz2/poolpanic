@@ -11,6 +11,11 @@ export const TYPES = {
   aqua: { label: "Aqua aerobics", color: "#b782db", speed: 0, icon: "💦" },
   daredevil: { label: "Daredevil", color: "#f39a2b", speed: 0, icon: "🤸" },
 };
+// How a swimmer shows in the queue and over their head: their type, or a golden VIP crown.
+export function swimmerLook(p) {
+  const t = TYPES[p.type];
+  return p.vip ? { ...t, icon: "👑", label: "VIP · " + t.label, color: "#e9a92b" } : t;
+}
 // A season is a list of shifts. `chaos` entries pick one incident from `kinds` at a seeded time inside
 // `window` (seconds of play); `maxChaos` caps how many incidents may run at once. `twist` entries change the rules
 // partway through: { kind: "rush" | "closure" | "team" | "class", at: fraction of the shift } (incidents/twist.mjs).
@@ -167,9 +172,9 @@ export const SHIFTS = [
     twist: [{ kind: "closure", at: 0.5 }],
   },
   {
-    name: "Park legend",
+    name: "Lantern night",
     venue: "resort",
-    lighting: "sunset",
+    lighting: "night",
     duration: 165,
     total: 30,
     thresholds: [3500, 5300, 7200],
@@ -186,6 +191,122 @@ export const SHIFTS = [
     twist: [
       { kind: "team", at: 0.4 },
       { kind: "closure", at: 0.7 },
+    ],
+  },
+  // Season two, part two. The Moonlight chunk ends with a midnight rush; then the Sunset Lagoon, where the sun sinks
+  // through three shifts (`daylight` slides along the day scale) and VIP guests tip big but will not wait; then the
+  // finale, a gala in the arena.
+  {
+    name: "Midnight rush",
+    venue: "resort",
+    lighting: "night",
+    duration: 165,
+    total: 34,
+    thresholds: [3800, 5700, 7700],
+    mix: [0.24, 0.5, 0.8],
+    finChance: 0.42,
+    daredevilAt: [0.1, 0.28, 0.46, 0.64, 0.84],
+    jumpPatience: 11,
+    maxChaos: 2,
+    chaos: [
+      { kinds: ["fish", "carl"], window: [22, 40] },
+      { kinds: ["outage", "dog"], window: [60, 84] },
+      { kinds: ["dog", "carl", "fish", "outage"], window: [104, 130] },
+    ],
+    twist: [
+      { kind: "rush", at: 0.3, count: 6 },
+      { kind: "team", at: 0.6 },
+    ],
+  },
+  {
+    name: "Golden hour",
+    venue: "lagoon",
+    lighting: "golden",
+    daylight: [0.4, 0.56],
+    duration: 135,
+    total: 26,
+    thresholds: [4600, 6900, 9200],
+    mix: [0.22, 0.5, 0.82],
+    finChance: 0.42,
+    daredevilAt: [0.15, 0.4, 0.66, 0.9],
+    jumpPatience: 12,
+    vipAt: [0.22, 0.64],
+    intro: "vip",
+    chaos: [
+      { kinds: ["fish", "dog"], window: [30, 52] },
+      { kinds: ["carl"], window: [84, 104] },
+    ],
+  },
+  {
+    name: "Sunset splash",
+    venue: "lagoon",
+    lighting: "golden",
+    daylight: [0.56, 0.74],
+    duration: 150,
+    total: 30,
+    thresholds: [3800, 5700, 7700],
+    mix: [0.24, 0.5, 0.8],
+    finChance: 0.44,
+    daredevilAt: [0.12, 0.34, 0.56, 0.8],
+    jumpPatience: 11,
+    vipAt: [0.16, 0.42, 0.78],
+    chaos: [
+      { kinds: ["carl", "fish"], window: [30, 50] },
+      { kinds: ["dog", "outage"], window: [86, 112] },
+    ],
+    twist: [
+      { kind: "team", at: 0.3 },
+      { kind: "rush", at: 0.66 },
+    ],
+  },
+  {
+    name: "Storm front",
+    venue: "lagoon",
+    lighting: "dusk",
+    daylight: [0.74, 0.9],
+    duration: 165,
+    total: 34,
+    thresholds: [5300, 8000, 10800],
+    mix: [0.24, 0.5, 0.8],
+    finChance: 0.44,
+    daredevilAt: [0.1, 0.3, 0.5, 0.7, 0.9],
+    jumpPatience: 11,
+    vipAt: [0.1, 0.34, 0.6, 0.86],
+    maxChaos: 2,
+    chaos: [
+      { kinds: ["carl", "fish"], window: [24, 42] },
+      { kinds: ["outage"], window: [78, 100] },
+      { kinds: ["dog", "carl"], window: [112, 136] },
+    ],
+    twist: [
+      { kind: "rush", at: 0.3, count: 5 },
+      { kind: "storm", at: 0.45 },
+      { kind: "team", at: 0.74 },
+    ],
+  },
+  {
+    name: "Grand gala",
+    venue: "arena",
+    lighting: "gala",
+    duration: 180,
+    total: 40,
+    thresholds: [5000, 7500, 10000],
+    mix: [0.24, 0.5, 0.8],
+    finChance: 0.46,
+    daredevilAt: [0.1, 0.28, 0.46, 0.64, 0.82],
+    jumpPatience: 10,
+    vipAt: [0.12, 0.3, 0.5, 0.7, 0.88],
+    maxChaos: 2,
+    chaos: [
+      { kinds: ["fish", "dog"], window: [20, 38] },
+      { kinds: ["carl", "outage"], window: [56, 80] },
+      { kinds: ["dog", "carl", "fish", "outage"], window: [92, 116] },
+      { kinds: ["fish", "carl", "outage"], window: [128, 150] },
+    ],
+    twist: [
+      { kind: "team", at: 0.22 },
+      { kind: "closure", at: 0.48 },
+      { kind: "rush", at: 0.72, count: 6 },
     ],
   },
 ];
@@ -273,6 +394,7 @@ export class PoolSimulation extends ChaosController {
       catastrophes: 0,
       totalWait: 0,
       totalHappiness: 0,
+      vips: 0,
     };
     this.schedule = this.director();
     this.planChaos();
@@ -294,29 +416,49 @@ export class PoolSimulation extends ChaosController {
         sick: false,
       }));
     const n = this.config.total,
-      span = this.config.duration - 30;
-    return Array.from({ length: n }, (_, i) => ({
-      at:
-        this.venue.arrival.firstDelay +
-        (i === 0 ? 0 : Math.max(2, (i * span) / (n - 1) + (this.random() - 0.5) * 3)),
-      type:
-        i === 0
-          ? "beginner"
-          : i === 1
-            ? "intermediate"
-            : i === 2
-              ? "advanced"
-              : i === Math.floor(n * 0.45)
-                ? "aqua"
-                : null,
-      sick: this.level >= 3 && i >= 2 && i < n - 2 && this.random() < 0.2,
-    }))
-      .map((entry, i) =>
-        (this.config.daredevilAt || []).some((f) => Math.round(f * (n - 1)) === i)
-          ? { ...entry, type: "daredevil", sick: false }
-          : entry,
-      )
-      .sort((a, b) => a.at - b.at);
+      span = this.config.duration - 30,
+      slot = (f) => Math.round(f * (n - 1)),
+      daredevils = new Set((this.config.daredevilAt || []).map(slot)),
+      vips = new Set();
+    // A VIP whose slot a daredevil holds takes the next arrival, so `vipAt` always yields that many guests.
+    for (const f of this.config.vipAt || []) {
+      let i = slot(f);
+      while (i < n && (daredevils.has(i) || vips.has(i))) i++;
+      if (i < n) vips.add(i);
+    }
+    return (
+      Array.from({ length: n }, (_, i) => ({
+        at:
+          this.venue.arrival.firstDelay +
+          (i === 0 ? 0 : Math.max(2, (i * span) / (n - 1) + (this.random() - 0.5) * 3)),
+        type:
+          i === 0
+            ? "beginner"
+            : i === 1
+              ? "intermediate"
+              : i === 2
+                ? "advanced"
+                : i === Math.floor(n * 0.45)
+                  ? "aqua"
+                  : null,
+        sick: this.level >= 3 && i >= 2 && i < n - 2 && this.random() < 0.2,
+      }))
+        .map((entry, i) => (daredevils.has(i) ? { ...entry, type: "daredevil", sick: false } : entry))
+        // VIP guests: a lap swimmer (never aqua or a daredevil) who tips well and will not wait.
+        .map((entry, i) =>
+          vips.has(i)
+            ? {
+                ...entry,
+                vip: true,
+                sick: false,
+                type: ["beginner", "intermediate", "advanced"].includes(entry.type)
+                  ? entry.type
+                  : ["intermediate", "advanced"][i % 2],
+              }
+            : entry,
+        )
+        .sort((a, b) => a.at - b.at)
+    );
   }
   start({ countdown = false } = {}) {
     this.countdown = countdown ? 3 : 0;
@@ -397,6 +539,10 @@ export class PoolSimulation extends ChaosController {
         : Infinity;
     if (type === "daredevil")
       Object.assign(p, { needsFins: false, midFins: false, sick: false, crampAt: Infinity });
+    if (spec.vip) {
+      Object.assign(p, { vip: true, sick: false, needsFins: false, midFins: false, crampAt: Infinity });
+      p.waitLimit *= 0.75;
+    }
     if (spec.entrance) {
       const door = this.venue.arrival;
       p.status = "arriving";
@@ -410,6 +556,13 @@ export class PoolSimulation extends ChaosController {
     }
     this.people.push(p);
     this.emit("spawn", { id: p.id });
+    if (p.vip) {
+      this.emit("vip", { id: p.id, name: p.name });
+      if (!this.vipIntro) {
+        this.vipIntro = true;
+        this.emit("toast", { text: "A VIP has arrived! 👑 Big tips, but they lose patience fast." });
+      }
+    }
     if (type === "aqua" && !this.aquaIntro) {
       this.aquaIntro = true;
       this.emit("toast", { text: "Aqua aerobics stays in place. Give the class some space." });
@@ -617,6 +770,10 @@ export class PoolSimulation extends ChaosController {
       if (p.slowTime < 3) points += 25;
       const others = this.lanePeople(p.lane).filter((a) => a !== p);
       if (others.every((a) => a.type === p.type)) points += 25;
+      if (p.vip) {
+        points += 150;
+        this.stats.vips++;
+      }
       points = Math.round(points * this.scoreMultiplier());
       this.score += points;
       this.emit("points", { x: p.x, z: p.z, value: points });
@@ -688,10 +845,15 @@ export class PoolSimulation extends ChaosController {
     return true;
   }
   lose(p) {
-    this.score -= 100;
+    this.score -= p.vip ? 300 : 100;
     this.stats.lost++;
     this.streak = 0;
-    this.emit("toast", { text: p.name + " lost patience. Customer lost −100", warning: true });
+    this.emit("toast", {
+      text: p.vip
+        ? p.name + ", the VIP, stormed out. VIP lost −300"
+        : p.name + " lost patience. Customer lost −100",
+      warning: true,
+    });
     if (p.status === "swim") {
       this.depart(p, false);
       return;
@@ -960,7 +1122,7 @@ export class PoolSimulation extends ChaosController {
         if (deficit > 0.35 && !p.problem) {
           p.blocked += dt;
           p.slowTime += dt;
-          p.h -= dt * deficit * (0.58 + this.difficulty * 0.06);
+          p.h -= dt * deficit * (0.58 + this.difficulty * 0.06) * (p.vip ? 1.4 : 1);
           if (p.blocked > 2.5 && !p.complained) {
             p.complained = true;
             this.emit("blocked", { id: p.id, lane: i });
@@ -1024,7 +1186,10 @@ export class PoolSimulation extends ChaosController {
         }
       } else p.irritation = Math.max(0, p.irritation - dt * 0.8);
       const crowd = Math.max(0, n - (p.type === "beginner" ? 3 : 4));
-      p.h -= dt * (crowd * 0.5 + Math.max(0, this.contamination - 35) * 0.025 + (p.problem ? 1.6 : 0));
+      p.h -=
+        dt *
+        (crowd * 0.5 + Math.max(0, this.contamination - 35) * 0.025 + (p.problem ? 1.6 : 0)) *
+        (p.vip ? 1.4 : 1);
       if (p.type === "beginner" && swimmers.some((s) => s.type === "advanced")) p.h -= dt * 0.25;
       p.h = clamp(p.h, 0, 100);
       if (p.h <= 0) {

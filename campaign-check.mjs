@@ -1,13 +1,14 @@
 // The campaign: acts of ten levels, chunks of three, a finale, and the pieces that keep them interesting. Checks the
 // structure (every level lands in exactly one zone, level numbers never move), the progress and unlock rules that
-// drive the map (with the playtest switch off), drills, bookings and the four mid-shift twists through the real
-// simulation, and that Splash Park has its new name.
+// drive the map (with the playtest switch off), drills, bookings and the five mid-shift twists through the real
+// simulation, VIP guests, the storm, that Splash Park has its new name and that Act 2 visits all three of its venues.
 import assert from "node:assert/strict";
-import { PoolSimulation, SHIFTS } from "./dist/sim.mjs";
+import { PoolSimulation, SHIFTS, swimmerLook } from "./dist/sim.mjs";
 import { VENUES } from "./dist/spatial.mjs";
 import {
   CAMPAIGN,
   ZONES,
+  buildCampaign,
   ACT_LENGTH,
   DRILL_STARS,
   zoneOfLevel,
@@ -67,8 +68,12 @@ const real = { unlockAll: false }; // the star-gated map as a real player sees i
   assert.equal(zoneOfLevel(4).name, "Mischief");
   assert.equal(zoneOfLevel(10).kind, "finale");
   assert.equal(zoneOfLevel(11).act, 2);
-  // What the season has not built yet is still on the map, as "soon".
-  const soon = ZONES.flatMap((z) => z.nodes).filter((n) => !n.built);
+  // The whole season is built: no slot is left as "soon".
+  assert.equal(SHIFTS.length, ACT_LENGTH * 2);
+  assert.ok(ZONES.flatMap((z) => z.nodes).every((n) => n.built && n.name && n.venue));
+  // A season that is only partly built still shows the rest of the shape as "soon" (levels 16-20 were once).
+  const partial = buildCampaign(15),
+    soon = partial.flatMap((a) => a.zones.flatMap((z) => z.nodes)).filter((n) => !n.built);
   assert.deepEqual(
     soon.map((n) => n.level),
     [16, 17, 18, 19, 20],
@@ -79,17 +84,21 @@ const real = { unlockAll: false }; // the star-gated map as a real player sees i
     ZONES.map((_, i) => i),
     "Zones are in play order",
   );
-  // Venues follow the acts: the club for Act 1, Splash Park for Act 2.
+  // Venues: the club for Act 1; Act 2 starts at Splash Park, moves to the Sunset Lagoon and ends in the Grand Gala Arena.
   for (const n of CAMPAIGN[0].zones.flatMap((z) => z.nodes)) assert.equal(n.venue, "club");
-  for (const n of CAMPAIGN[1].zones.flatMap((z) => z.nodes).filter((n) => n.built))
-    assert.equal(n.venue, "resort");
+  const venueOf = (level) => zoneOfLevel(level).nodes.find((n) => n.level === level).venue;
+  for (let level = 11; level <= 16; level++) assert.equal(venueOf(level), "resort", "Level " + level);
+  for (let level = 17; level <= 19; level++) assert.equal(venueOf(level), "lagoon", "Level " + level);
+  assert.equal(venueOf(20), "arena");
+  assert.equal(zoneOfLevel(17).name, "Sunset");
+  assert.equal(zoneOfLevel(20).name, "Grand gala");
 }
 
 // 2) Splash Park has its new name, and no player-facing text still says Riviera.
 {
   assert.equal(VENUES.resort.name, "Splash Park");
   assert.ok(!SHIFTS.some((s) => /riviera/i.test(s.name)), "No shift is still called Riviera");
-  assert.equal(SHIFTS[14].name, "Park legend");
+  assert.equal(SHIFTS[14].name, "Lantern night");
   assert.equal(CAMPAIGN[1].name, "Splash Park");
 }
 
@@ -121,7 +130,13 @@ const real = { unlockAll: false }; // the star-gated map as a real player sees i
   assert.equal(currentLevel(r), 1);
   assert.equal(state(1), "current");
   assert.equal(state(2), "locked");
-  assert.equal(state(16), "soon");
+  assert.equal(state(16), "locked");
+  const partialNode = buildCampaign(15)[1].zones[1].nodes[2];
+  assert.equal(
+    levelState(r, partialNode, real),
+    "soon",
+    "A level the season has not built is on the map as soon",
+  );
   const first = ZONES[0];
   assert.deepEqual(
     { ...zoneStatus(r, first, real), stars: undefined },
@@ -157,10 +172,21 @@ const real = { unlockAll: false }; // the star-gated map as a real player sees i
   const all = normalizeRecords();
   for (let n = 1; n <= SHIFTS.length; n++) recordResult(all, n, SHIFTS[n - 1].thresholds[0]);
   assert.equal(currentLevel(all), SHIFTS.length);
-  // A chunk with unbuilt slots can never complete: Moonlight has levels 14 and 15, and level 16 is soon.
+  // Moonlight is levels 14 to 16: every one built, so clearing them completes the chunk.
   const moon = ZONES[5];
   assert.equal(moon.name, "Moonlight");
   assert.deepEqual(zoneStatus(all, moon, real), {
+    total: 3,
+    built: 3,
+    cleared: 3,
+    stars: 3,
+    complete: true,
+    open: true,
+    reached: true,
+  });
+  // A chunk with unbuilt slots can never complete (level 16 used to be "soon").
+  const partialMoon = buildCampaign(15)[1].zones[1];
+  assert.deepEqual(zoneStatus(all, partialMoon, real), {
     total: 3,
     built: 2,
     cleared: 2,
@@ -169,9 +195,14 @@ const real = { unlockAll: false }; // the star-gated map as a real player sees i
     open: true,
     reached: true,
   });
+  // The finale opens only after Sunset is cleared.
+  const finale = ZONES.at(-1);
+  assert.equal(finale.kind, "finale");
+  assert.equal(zoneStatus(normalizeRecords(), finale, real).reached, false);
+  assert.equal(zoneStatus(all, finale, real).reached, true);
   // With the playtest switch on, every built level is open but progress still shows.
-  assert.equal(isUnlocked(normalizeRecords(), 15, true), true);
-  assert.equal(isUnlocked(normalizeRecords(), 15, false), false);
+  assert.equal(isUnlocked(normalizeRecords(), 20, true), true);
+  assert.equal(isUnlocked(normalizeRecords(), 20, false), false);
   assert.equal(levelState(normalizeRecords(), zoneOfLevel(9).nodes[2], { unlockAll: true }), "open");
   assert.equal(totalStars(r) >= 3, true);
 }
@@ -180,7 +211,7 @@ const real = { unlockAll: false }; // the star-gated map as a real player sees i
 {
   assert.deepEqual(
     DRILL_LIST.map((d) => d.chunk),
-    [1, 2, 3, 4, 5],
+    [1, 2, 3, 4, 5, 6],
   );
   for (const d of DRILL_LIST) {
     assert.equal(drillForChunk(d.chunk), d);
@@ -195,7 +226,11 @@ const real = { unlockAll: false }; // the star-gated map as a real player sees i
     assert.equal(s.config, c, "A drill plays its own config");
     assert.equal(s.drill, d.id);
     assert.equal(s.venue, VENUES[c.venue || "club"]);
-    assert.equal(s.chaosPlan.length, (c.chaos || []).length);
+    assert.equal(
+      s.chaosPlan.length,
+      (c.chaos || []).length + [].concat(c.twist || []).length,
+      "The plan holds the drill's incidents and its twists",
+    );
   }
   const r = normalizeRecords();
   const zone = ZONES[0];
@@ -224,6 +259,13 @@ const real = { unlockAll: false }; // the star-gated map as a real player sees i
   assert.equal(r.drills.fish, 1500);
   assert.equal(drillStatus(r, ZONES[1], { unlockAll: true }).best, 1500);
   assert.equal(drillStatus(r, ZONES[3], real), null, "A finale has no drill");
+  // The last chunk's drill is the storm drill on the lagoon at dusk.
+  const storm = drillForChunk(6);
+  assert.equal(storm.id, "storm");
+  assert.equal(ZONES[6].drill, storm);
+  assert.equal(storm.config.venue, "lagoon");
+  assert.ok(storm.config.twist.some((t) => t.kind === "storm"));
+  assert.equal(drillStatus(r, ZONES[7], real), null, "The grand gala has no drill");
 }
 
 // 6) Bookings: a risk dial from Act 2 on. Regular is always on offer; a bigger payout always means more trouble.
@@ -244,8 +286,14 @@ const real = { unlockAll: false }; // the star-gated map as a real player sees i
     else
       assert.ok(b.payout > 1 && (b.chaos?.length || b.twist?.length), b.id + " pays more and brings trouble");
   }
-  // Bookings never duplicate what the level already has (level 14 is already at night).
-  assert.ok(!offer(14).some((b) => b.id === "night"));
+  // Bookings never duplicate what the level already has: night levels, a sun that is setting by itself (the lagoon's
+  // three levels) and the indoor arena never offer a night booking.
+  for (const level of [14, 15, 16, 17, 18, 19, 20])
+    assert.ok(!offer(level).some((b) => b.id === "night"), "No night booking at level " + level);
+  assert.ok(
+    [0, 1, 2, 3, 4, 5].some((seed) => offerBookings(12, seed, SHIFTS[11]).some((b) => b.id === "night")),
+    "The night booking is still offered where it changes something",
+  );
   // applyBooking folds into a copy and scales windows to the shift length.
   const base = SHIFTS[11],
     before = JSON.stringify(base),
@@ -257,6 +305,8 @@ const real = { unlockAll: false }; // the star-gated map as a real player sees i
   assert.ok(extra.window[0] >= 0.18 * base.duration - 0.1 && extra.window[1] <= 0.4 * base.duration + 0.1);
   assert.equal(stag.payout, 1.35);
   assert.equal(applyBooking(base, BOOKINGS.night).lighting, "night");
+  // A shift whose light follows the sun keeps its own sky whatever is booked.
+  assert.equal(applyBooking(SHIFTS[17], BOOKINGS.night).lighting, SHIFTS[17].lighting);
   assert.equal(applyBooking(base, BOOKINGS.tour).twist.at(-1).kind, "rush");
   assert.equal(applyBooking(base, BOOKINGS.regular).payout, undefined);
   // In the simulation: the booking's trouble is planned, and the payout scales only what served swimmers earn.
@@ -293,12 +343,18 @@ const real = { unlockAll: false }; // the star-gated map as a real player sees i
   for (const [i, shift] of SHIFTS.entries())
     for (const t of [].concat(shift.twist || [])) {
       assert.ok(TWISTS[t.kind], `Level ${i + 1}: known twist ${t.kind}`);
-      assert.ok(t.at >= 0.3 && t.at <= 0.75, `Level ${i + 1}: a twist comes mid-shift (${t.at})`);
+      assert.ok(t.at >= 0.2 && t.at <= 0.75, `Level ${i + 1}: a twist comes mid-shift (${t.at})`);
       assert.ok(STINGS[t.kind], `The ${t.kind} twist has a sting`);
     }
-  // A twist per chunk's middle level (plus the finale) from chunk 2 on, and level 2 in the first chunk.
+  // A twist per chunk's middle level (plus the finale) from chunk 2 on, level 2 in the first chunk, and the last two
+  // acts' late levels (16, 18, 19) and the grand gala, which has three.
   const withTwist = SHIFTS.map((s, i) => (s.twist ? i + 1 : 0)).filter(Boolean);
-  assert.deepEqual(withTwist, [2, 5, 8, 10, 12, 14, 15]);
+  assert.deepEqual(withTwist, [2, 5, 8, 10, 12, 14, 15, 16, 18, 19, 20]);
+  assert.equal([].concat(SHIFTS[19].twist).length, 3, "The gala changes the rules three times");
+  assert.ok(
+    [].concat(SHIFTS[18].twist).some((t) => t.kind === "storm"),
+    "Storm front has its storm",
+  );
 }
 const bare = (level, twist, extra = {}) => {
   const s = new PoolSimulation(level, 11, { config: { ...SHIFTS[level - 1], chaos: [], twist, ...extra } });
@@ -429,6 +485,121 @@ const emitted = (s, type, kind) => s.events.filter((e) => e.type === type && e.k
   tick(plain, 60 * 45);
   assert.equal(plain.schedule.length, SHIFTS[1].total, "No plan, no twist");
 }
+{
+  // Storm front: the sky takes a few seconds to turn, then rain leaves puddles on the deck (never under the coach).
+  const s = bare(19, [{ kind: "storm", at: 0.4 }]);
+  assert.equal(s.stormLevel(), 0, "Clear skies until the twist");
+  const start = s.config.duration * 0.4;
+  tick(s, Math.round((start - 1) * 60));
+  assert.equal(s.stormLevel(), 0);
+  tick(s, 60 * 2);
+  const sting = emitted(s, "incident", "storm")[0];
+  assert.ok(sting && Number.isFinite(sting.x), "The storm is announced");
+  assert.ok(s.stormLevel() > 0 && s.stormLevel() < 1, "The sky is still turning");
+  assert.equal(s.hazards.filter((h) => h.rain).length, 0, "No puddles before the rain arrives");
+  tick(s, 60 * (TWIST_TUNING.stormRamp + 1));
+  assert.equal(s.stormLevel(), 1, "The storm is at full strength after its ramp");
+  tick(s, 60 * 30);
+  const rain = s.hazards.filter((h) => h.rain);
+  assert.ok(rain.length >= 1 && rain.length <= 6, `Rain puddles gather, capped at six (${rain.length})`);
+  assert.ok(
+    rain.every((h) => Math.hypot(h.x - s.coach.x, h.z - s.coach.z) >= 2 || h.life < 14),
+    "Puddles never form on top of the coach",
+  );
+  assert.ok(
+    rain.every((h) => h.x >= s.venue.deck.minX && h.x <= s.venue.deck.maxX),
+    "Puddles stay on the deck",
+  );
+  // Fresh simulations start with clear skies, and a shift without the twist never rains.
+  assert.equal(new PoolSimulation(19, 2).stormLevel(), 0);
+  const dry = bare(19, []);
+  tick(dry, 60 * 90);
+  assert.equal(dry.hazards.filter((h) => h.rain).length, 0);
+}
+{
+  // VIP guests: flagged arrivals who tip +150 (before the multiplier), lose patience sooner and cost −300 if they leave.
+  const s = new PoolSimulation(17, 3);
+  const guests = s.schedule.filter((e) => e.vip);
+  assert.equal(guests.length, SHIFTS[16].vipAt.length, "Every planned VIP is on the schedule");
+  assert.ok(guests.every((e) => ["beginner", "intermediate", "advanced"].includes(e.type) && !e.sick));
+  assert.ok(
+    new PoolSimulation(1, 3).schedule.every((e) => !e.vip),
+    "The club never has VIPs",
+  );
+  const fresh = (vip) => {
+    const t = new PoolSimulation(17, 5);
+    t.schedule = [];
+    t.chaosPlan = [];
+    t.start();
+    const p = t.spawn({ type: "intermediate", sick: false, vip });
+    return { t, p };
+  };
+  const { t, p } = fresh(true),
+    plain = fresh(false);
+  assert.equal(p.vip, true);
+  assert.equal(t.events.filter((e) => e.type === "vip").length, 1, "A VIP arrival is announced");
+  assert.ok(
+    t.events.some((e) => e.type === "toast" && /VIP/.test(e.text)),
+    "…with a toast the first time",
+  );
+  assert.ok(Math.abs(p.waitLimit - plain.p.waitLimit * 0.75) < 1e-6, "VIPs will not wait as long");
+  // swimmerLook: a golden crown over whatever they swim like.
+  assert.equal(swimmerLook(p).icon, "👑");
+  assert.match(swimmerLook(p).label, /VIP · Intermediate/);
+  assert.equal(swimmerLook(plain.p).icon, "🏊", "Everyone else keeps their own look");
+  // Serving one pays 150 more; the same swimmer, a plain guest, does not.
+  const serve = (guest) => {
+    const { t, p } = guest;
+    Object.assign(p, { status: "swim", lane: 1, workTime: 20, traveled: 40, wait: 4, h: 100 });
+    Object.assign(p, { hadCollision: false, slowTime: 0 });
+    t.depart(p, true);
+    return t.score;
+  };
+  const vipScore = serve({ t, p }),
+    plainScore = serve(plain);
+  assert.ok(
+    Math.abs(vipScore - plainScore - 150 * t.scoreMultiplier()) < 2,
+    `A served VIP is worth 150 extra (${vipScore} vs ${plainScore})`,
+  );
+  assert.equal(t.stats.vips, 1);
+  // Losing one costs 300, others 100.
+  const lost = fresh(true),
+    lostPlain = fresh(false);
+  lost.t.lose(lost.p);
+  lostPlain.t.lose(lostPlain.p);
+  assert.equal(lost.t.score, -300);
+  assert.equal(lostPlain.t.score, -100);
+}
+{
+  // Four venues: Splash Park, the Sunset Lagoon and the Grand Gala Arena share one floor plan, so every check that
+  // reads positions, lanes or the deck works in all of them; the arena is indoors, the club too.
+  const plan = (v) => JSON.stringify([v.pool, v.deck, v.lanes, v.arrival]);
+  assert.deepEqual(Object.keys(VENUES).sort(), ["arena", "club", "lagoon", "resort"]);
+  assert.equal(plan(VENUES.lagoon), plan(VENUES.resort));
+  assert.equal(plan(VENUES.arena), plan(VENUES.resort));
+  assert.equal(VENUES.lagoon.name, "Sunset Lagoon");
+  assert.equal(VENUES.arena.name, "Grand Gala Arena");
+  assert.deepEqual(
+    Object.values(VENUES).map((v) => !!v.indoor),
+    [true, false, false, true],
+    "Club and arena are indoors",
+  );
+  for (const [i, shift] of SHIFTS.entries())
+    assert.ok(VENUES[shift.venue || "club"], `Level ${i + 1} plays in a venue that exists`);
+  // A sliding sky: `daylight` runs between two points on the day scale, forward in time, inside 0..1.
+  for (const [i, shift] of SHIFTS.entries())
+    if (shift.daylight) {
+      const [from, to] = shift.daylight;
+      assert.ok(from >= 0 && to <= 1 && from < to, `Level ${i + 1}: the sun moves forward`);
+    }
+  for (let level = 17; level < 20; level++)
+    assert.ok(SHIFTS[level - 1].daylight, `Level ${level} at the lagoon has its own sun`);
+  assert.ok(SHIFTS[16].daylight[1] <= SHIFTS[17].daylight[0] + 1e-9, "Golden hour ends where sunset starts");
+  assert.ok(
+    SHIFTS[17].daylight[1] <= SHIFTS[18].daylight[0] + 1e-9,
+    "…and sunset ends where the storm starts",
+  );
+}
 console.log(
-  "Campaign checks passed: two ten-level acts of three-level chunks and a finale, level numbers stable, Splash Park renamed, star-gated progress and chunk completion, drills that open at five stars, bookings that trade payout for trouble, and the rush, lane-closure, swim-team and aqua-class twists.",
+  "Campaign checks passed: two ten-level acts of three-level chunks and a finale, level numbers stable, Splash Park renamed, star-gated progress and chunk completion, drills that open at five stars, bookings that trade payout for trouble, the rush, lane-closure, swim-team, aqua-class and storm twists, VIP guests, and the resort, lagoon and arena sharing one floor plan.",
 );
