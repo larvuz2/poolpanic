@@ -178,7 +178,8 @@ for (let level = 1; level <= 3; level++)
       assert.equal(inventory, 3);
     }
     assert.equal(s.status, "ended");
-    assert.equal(s.nextArrival, s.config.total);
+    assert.equal(s.nextArrival, s.schedule.length, "Every scheduled swimmer, twist crowds included, arrived");
+    assert.ok(s.schedule.length >= s.config.total);
     assert.ok(s.stats.served > 0);
     runs.push({ level, seed, ...s.summary() });
   }

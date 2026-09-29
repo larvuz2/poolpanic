@@ -257,22 +257,6 @@ kbd {
   font-size: 21px;
 }
 /* Opening is a game invitation. Teaching happens on the deck. */
-.welcome {
-  position: absolute;
-  left: var(--edge);
-  top: 50%;
-  transform: translateY(-43%) rotate(-1deg);
-  width: 340px;
-  padding: 24px;
-  background: linear-gradient(150deg, #1e6872f7, #113a48fb 65%);
-  border: 2px solid #93cfc3;
-  border-top: 7px solid var(--yellow);
-  border-radius: 9px 26px 12px 24px;
-  box-shadow:
-    0 7px 0 #0b2b38,
-    0 20px 50px #123b4850;
-  z-index: 6;
-}
 .eyebrow {
   display: flex;
   align-items: center;
@@ -283,77 +267,7 @@ kbd {
   letter-spacing: 1.5px;
   color: var(--mint);
 }
-.mini-pill {
-  font-size: 8px;
-  letter-spacing: 1px;
-}
-.welcome h1 {
-  font: 900 51px/0.94 var(--display);
-  letter-spacing: -0.5px;
-  margin: 25px 0 16px;
-  text-shadow: 0 3px 0 #082d3a;
-}
-.welcome h1 em {
-  font-style: normal;
-  color: var(--yellow);
-}
-.menu-swimmers {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 15px;
-  margin: 19px 0 23px;
-}
-.menu-swimmers span {
-  display: grid;
-  place-items: center;
-  font-size: 25px;
-  background: #0c3444;
-  border: 2px solid #62a99e;
-  border-bottom-width: 5px;
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
-  rotate: -8deg;
-}
-.menu-swimmers span:nth-child(2n) {
-  rotate: 8deg;
-  translate: 0 5px;
-}
-.shift-choices {
-  display: flex;
-  gap: 5px;
-  margin: 0 0 15px;
-}
-.shift-choices button {
-  position: relative;
-  flex: 1;
-  min-height: 54px;
-  padding: 7px 2px;
-  background: #0b2d3b;
-  border: 1px solid #458089;
-  border-bottom: 3px solid #071f2a;
-  border-radius: 6px;
-  font: 800 19px/1 var(--display);
-}
-.shift-choices button.active {
-  border-color: var(--yellow);
-  color: var(--yellow);
-  background: #205d63;
-}
-.shift-choices span {
-  font:
-    700 9px/1.3 "DM Sans",
-    sans-serif;
-  display: block;
-  margin-top: 5px;
-}
-.shift-choices i {
-  position: absolute;
-  right: 5px;
-  top: 5px;
-  font: normal 9px sans-serif;
-}
+
 .primary {
   width: 100%;
   min-height: 56px;
@@ -375,20 +289,7 @@ kbd {
 .primary span {
   font-size: 19px;
 }
-.welcome-foot {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  margin-top: 16px;
-  font-size: 8px;
-  line-height: 1.6;
-  letter-spacing: 0.6px;
-  color: var(--mint);
-}
-.welcome-foot span:last-child {
-  text-align: right;
-  max-width: 158px;
-}
+
 /* The roster is a row of swim passes, not a containing card. */
 .queue-panel {
   position: absolute;
@@ -1349,9 +1250,6 @@ body.menu .care-panel,
 body.menu .coach-prompt {
   display: none;
 }
-body.menu .scoreboard {
-  opacity: 0.88;
-}
 .danger-pulse {
   animation: danger 0.65s infinite alternate;
 }
@@ -1390,13 +1288,6 @@ body.menu .scoreboard {
   }
 }
 @media (min-width: 1600px) {
-  .welcome {
-    width: 370px;
-    padding: 28px;
-  }
-  .welcome h1 {
-    font-size: 57px;
-  }
   .queue-panel {
     width: 220px;
   }
@@ -1475,13 +1366,6 @@ body.menu .scoreboard {
   .assist-btn {
     width: 163px;
     font-size: 10px;
-  }
-  .welcome {
-    width: 310px;
-    padding: 21px;
-  }
-  .welcome h1 {
-    font-size: 47px;
   }
 }
 @media (max-width: 900px) {
@@ -1585,12 +1469,6 @@ body.menu .scoreboard {
     max-width: 300px;
     font-size: 11px;
   }
-  .welcome {
-    width: 295px;
-  }
-  .welcome h1 {
-    font-size: 44px;
-  }
 }
 @media (pointer: coarse) {
   .touch-controls:not([hidden]) {
@@ -1691,49 +1569,12 @@ body.menu .scoreboard {
     width: 44px;
     height: 44px;
   }
-  .welcome {
-    top: auto;
-    bottom: 24px;
-    left: 16px;
-    right: 16px;
-    transform: rotate(-1deg);
-    width: auto;
-    padding: 20px;
-    max-height: calc(100dvh - 155px);
-    overflow: auto;
-  }
-  .welcome h1 {
-    font-size: clamp(34px, 10vw, 53px);
-    margin: 18px 0 12px;
-  }
-  .menu-swimmers {
-    position: absolute;
-    right: 22px;
-    top: 60px;
-    flex-direction: column;
-    gap: 6px;
-    opacity: 0.9;
-  }
-  .menu-swimmers span {
-    width: 32px;
-    height: 32px;
-    font-size: 18px;
-    border-bottom-width: 3px;
-  }
-  .welcome h1 {
-    max-width: 80%;
-  }
-  .shift-choices {
-    margin: 18px 0 12px;
-  }
+
   .primary {
     min-height: 54px;
     font-size: 24px;
   }
-  .welcome-foot {
-    font-size: 7px;
-    margin-top: 13px;
-  }
+
   .queue-panel {
     top: auto;
     bottom: 253px;
@@ -2013,12 +1854,7 @@ body.menu .scoreboard {
   .lane-mode {
     font-size: 5px;
   }
-  .menu-swimmers {
-    display: none;
-  }
-  .welcome h1 {
-    max-width: none;
-  }
+
   .touch-actions {
     right: 12px;
     gap: 5px;
@@ -2032,27 +1868,6 @@ body.menu .scoreboard {
   }
 }
 @media (max-height: 660px) and (min-width: 621px) {
-  .welcome {
-    top: 104px;
-    bottom: 18px;
-    transform: rotate(-1deg);
-    max-height: calc(100dvh - 124px);
-    overflow: auto;
-    padding: 18px;
-  }
-  .welcome h1 {
-    font-size: 39px;
-    margin: 17px 0 12px;
-  }
-  .menu-swimmers {
-    gap: 11px;
-    margin: 12px 0 17px;
-  }
-  .menu-swimmers span {
-    width: 38px;
-    height: 38px;
-    font-size: 21px;
-  }
   .queue-panel {
     top: 107px;
     max-height: calc(100dvh - 227px);
@@ -2123,19 +1938,7 @@ body.menu .scoreboard {
   .touch-actions {
     bottom: 110px;
   }
-  .welcome h1 {
-    font-size: 34px;
-    margin: 12px 0;
-  }
-  .menu-swimmers {
-    display: none;
-  }
-  .shift-choices {
-    margin-top: 17px;
-  }
-  .welcome-foot {
-    font-size: 7px;
-  }
+
   .combo {
     top: 101px;
   }
@@ -2152,25 +1955,6 @@ body.menu .scoreboard {
   }
   .toast {
     top: 317px;
-  }
-  .welcome h1 {
-    font-size: 38px;
-    margin: 14px 0;
-  }
-  .menu-swimmers {
-    display: none;
-  }
-  .welcome h1 {
-    max-width: none;
-  }
-  .welcome {
-    padding: 17px;
-  }
-  .shift-choices {
-    margin-top: 14px;
-  }
-  .welcome-foot {
-    margin-top: 11px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -2325,100 +2109,7 @@ body.menu .scoreboard {
   }
 }
 
-/* Ten swim-club stops: cleared stars, one active choice, then locked levels. */
-.welcome {
-  width: 370px;
-  padding: 22px;
-}
-.welcome h1 {
-  font-size: 44px;
-  margin: 18px 0 21px;
-}
-.level-map {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 13px 9px;
-  margin: 0 0 18px;
-  position: relative;
-}
-.level-map button {
-  min-width: 0;
-  min-height: 62px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  position: relative;
-  border-radius: 50% 50% 9px 9px;
-  border-width: 2px 2px 5px;
-  padding: 7px 1px 5px;
-  z-index: 1;
-  background: #16444d;
-}
-.level-map button:disabled {
-  opacity: 1;
-  background: #12323e;
-  border-color: #416971;
-  color: #749899;
-}
-.level-map button:after {
-  content: "";
-  position: absolute;
-  width: 11px;
-  height: 3px;
-  background: #56897e;
-  right: -12px;
-  top: 25px;
-}
-.level-map button:nth-child(5n):after {
-  display: none;
-}
-.level-map .level-number {
-  font: 900 25px/1 var(--display);
-  display: block;
-  margin: 0;
-}
-.level-map .level-stars {
-  font-size: 10px;
-  letter-spacing: 1px;
-  margin-top: 5px;
-  line-height: 1;
-  color: var(--yellow);
-}
-.level-map .level-lock {
-  position: static;
-  font-size: 11px;
-  margin-top: 3px;
-  font-style: normal;
-}
-.level-map .completed {
-  border-color: #a3ce86;
-  background: #315c4f;
-}
-.level-map .active {
-  border-color: var(--yellow);
-  box-shadow: 0 0 0 3px #ffdc5238;
-  background: #42654a;
-  color: var(--yellow);
-}
-.shift-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0 0 17px;
-}
-.shift-preview strong {
-  font: 800 27px/1.1 var(--display);
-  letter-spacing: 0.5px;
-}
-.shift-preview > span {
-  font-size: 9px;
-  letter-spacing: 1px;
-  color: var(--mint);
-}
-.welcome-foot {
-  font-size: 7px;
-}
+/* Speech bubbles over swimmers. */
 .bubble .face {
   display: flex;
   align-items: center;
@@ -2488,41 +2179,6 @@ body.menu .scoreboard {
   z-index: 13;
 }
 @media (max-width: 620px) {
-  .welcome {
-    width: auto;
-    max-height: calc(100dvh - 152px);
-    padding: 19px;
-  }
-  .welcome h1 {
-    font-size: 36px;
-    max-width: none;
-    margin: 10px 0 19px;
-  }
-  .welcome h1 br {
-    display: none;
-  }
-  .level-map {
-    gap: 11px 8px;
-    margin-bottom: 17px;
-  }
-  .level-map button {
-    min-height: 57px;
-  }
-  .level-map .level-number {
-    font-size: 24px;
-  }
-  .level-map .level-stars {
-    font-size: 9px;
-  }
-  .shift-preview strong {
-    font-size: 25px;
-  }
-  .shift-preview > span {
-    font-size: 9px;
-  }
-  .shift-preview {
-    padding-bottom: 14px;
-  }
   .bubble .type-label {
     font-size: 9px;
   }
@@ -2547,59 +2203,6 @@ body.menu .scoreboard {
   }
 }
 @media (max-height: 600px) and (min-width: 621px) {
-  .welcome {
-    width: 320px;
-    padding: 16px;
-    top: 99px;
-    bottom: 14px;
-  }
-  .welcome h1 {
-    font-size: 29px;
-    margin: 4px 0 13px;
-  }
-  .welcome h1 br {
-    display: none;
-  }
-  .level-map {
-    gap: 9px 7px;
-    margin-bottom: 13px;
-  }
-  .level-map button {
-    min-height: 47px;
-    padding: 5px 1px;
-  }
-  .level-map .level-number {
-    font-size: 21px;
-  }
-  .level-map .level-stars {
-    font-size: 8px;
-    margin-top: 3px;
-  }
-  .level-map .level-lock {
-    font-size: 9px;
-  }
-  .level-map button:after {
-    top: 21px;
-  }
-  .shift-preview {
-    padding-bottom: 11px;
-    gap: 3px;
-  }
-  .shift-preview strong {
-    font-size: 23px;
-  }
-  .shift-preview > span {
-    font-size: 8px;
-  }
-  .welcome .primary {
-    min-height: 46px;
-    font-size: 22px;
-    padding: 8px 13px;
-  }
-  .welcome-foot {
-    margin-top: 11px;
-    font-size: 7px;
-  }
   .countdown > strong {
     font-size: 115px;
   }
@@ -2880,38 +2483,7 @@ button.bubble:focus-visible .face {
   color: #2a120b;
 }
 
-/* Resort season: sunset accents on the menu, daredevil countdowns and injured tags. */
-.welcome.resort-season {
-  background: linear-gradient(150deg, #8a4a3cf7, #3b2a44fb 70%);
-  border-color: #ffc98f;
-}
-.welcome.resort-season .mini-pill {
-  background: #ffb36b;
-  color: #3a1d12;
-}
-.level-map button.resort {
-  background: #5a3a34;
-  border-color: #c98e6a;
-}
-.level-map button.resort:disabled {
-  background: #3a2a2c;
-  border-color: #7a5a52;
-  color: #b4948a;
-}
-.level-map button.resort.completed {
-  background: #7a4a36;
-  border-color: #ffc27a;
-}
-.level-map button.resort.active {
-  border-color: var(--yellow);
-  background: #9a5a3a;
-}
-.level-map button.resort .level-number:before {
-  content: "🌴";
-  display: block;
-  font-size: 9px;
-  margin-bottom: 1px;
-}
+/* Splash Park: daredevil countdowns and injured tags. */
 .bubble .stomach-meter.jump-meter {
   border-color: #ffd29a;
 }
@@ -3394,5 +2966,1146 @@ body.sting-on .toast {
 @media (prefers-reduced-motion: reduce) {
   .closure-timer.low i {
     animation: none;
+  }
+}
+
+/* A lane a mid-shift twist has closed: hatched, dim and out of reach. */
+.lane-btn.lane-closed {
+  background: repeating-linear-gradient(135deg, #6d7b78 0 9px, #5c6a67 9px 18px);
+  border-color: #b7c3bd;
+  opacity: 0.82;
+}
+.lane-btn.lane-closed .lane-mode {
+  background: #f4c94a;
+  color: var(--ink);
+}
+
+/* =====================================================================================================================
+   The level map (menu). One isometric island per act with a button on every level. The picture is SVG (map-art.mjs);
+   the level buttons, zone labels and the coach are HTML laid over it (map.mjs). The sky and vignette live here so
+   they fill any screen, and the edge clouds drift past the stage. */
+:root {
+  --map-top: 66px; /* room for the top bar */
+  --panel-space: 124px; /* room for the selected-shift panel and its margin */
+}
+.map {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  --map-scale: 0.75;
+  --node: clamp(34px, calc(var(--map-scale) * 56px), 52px);
+  background:
+    radial-gradient(90% 55% at 50% 108%, #8fe0cd66, transparent 70%),
+    linear-gradient(#0d4b59, #1b7f89 55%, #5fbdb7);
+  transition: opacity 0.35s ease;
+}
+.map[data-act="2"] {
+  background:
+    radial-gradient(90% 55% at 50% 108%, #ffc98f88, transparent 70%),
+    linear-gradient(#124e63, #2a8f97 52%, #e9b98f);
+}
+.map::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 78% 72% at 50% 46%, transparent 52%, #041c2670 100%);
+}
+body:not(.menu) .map {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.3s ease,
+    visibility 0s 0.3s;
+}
+/* Nothing else from the shift is on screen while the map is. */
+body.menu .scoreboard,
+body.menu .view-controls,
+body.menu #pause {
+  display: none;
+}
+body.menu .top-actions {
+  display: flex;
+  gap: 4px;
+}
+body.menu .brand small {
+  display: none;
+}
+.map-scroll {
+  position: absolute;
+  inset: var(--map-top) 0 var(--panel-space);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Phones (and any short window): the island is drawn tall and scrolls, fading out under the bars. */
+.map.portrait .map-scroll {
+  display: block;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+}
+.map.portrait .map-scroll::-webkit-scrollbar {
+  display: none;
+}
+.map-stage {
+  position: relative;
+  flex: none;
+  margin: 0 auto;
+}
+.map-stage.enter {
+  animation: mapStageIn 0.55s ease both;
+}
+@keyframes mapStageIn {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+}
+.map-art,
+.map-sky {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.map-labels,
+.map-nodes {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+/* Stacking inside a stage, back to front: drifting sky, the glow under the coach's island, the islands, then the
+   level buttons, tags and the coach. */
+.map-sky {
+  z-index: 0;
+}
+.map-art {
+  z-index: 2;
+}
+.here-glow {
+  position: absolute;
+  z-index: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, #ffdc5261, #ffdc5226 58%, #ffdc5200);
+  pointer-events: none;
+  transition:
+    left 0.85s cubic-bezier(0.45, 0, 0.2, 1) 0.4s,
+    top 0.85s cubic-bezier(0.45, 0, 0.2, 1) 0.4s;
+}
+
+/* The route between levels: cream when ahead, yellow once the level behind it is cleared. */
+.seg path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.seg-shadow {
+  stroke: #062832;
+  stroke-opacity: 0.16;
+  stroke-width: 14;
+}
+.seg-edge {
+  stroke: var(--ink);
+  stroke-width: 16;
+}
+.seg-base {
+  stroke: #f7ecd0;
+  stroke-width: 11;
+  transition: stroke 0.5s;
+}
+.seg-dash {
+  stroke: var(--ink);
+  stroke-opacity: 0.2;
+  stroke-width: 2;
+  stroke-dasharray: 2 9;
+}
+.seg.done .seg-base {
+  stroke: var(--yellow);
+}
+.seg.done .seg-dash {
+  stroke: #fff4cf;
+  stroke-opacity: 0.7;
+}
+.seg.ahead {
+  opacity: 0.5;
+}
+
+/* Clouds: they drift at the edges, sit under every island, and cover what is still locked or not built. The drift
+   is a transform on its own layer, so it costs the browser no repainting. */
+.map-sky {
+  will-change: transform;
+  animation: cloudDrift 30s ease-in-out infinite alternate;
+}
+.map-sky.d1 {
+  animation-duration: 38s;
+  animation-delay: -11s;
+}
+.map-sky.d2 {
+  animation-duration: 46s;
+  animation-delay: -23s;
+}
+@keyframes cloudDrift {
+  from {
+    transform: translateX(-28px);
+  }
+  to {
+    transform: translateX(28px);
+  }
+}
+.fog {
+  transition:
+    opacity 1.1s ease,
+    translate 1.3s ease;
+}
+.fog.lifted {
+  opacity: 0;
+  translate: 0 -46px;
+  pointer-events: none;
+  transition-delay: 0.45s;
+}
+/* A freshly drawn map shows its state at once (no clouds lifting on page load). */
+.map.instant *,
+.map.instant *::before {
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
+/* A level. Cream when it is open, yellow with its stars once cleared, pulsing when it is where the coach is. */
+.node,
+.drill {
+  position: absolute;
+  z-index: 2;
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--ink);
+  background: #fff4cf;
+  border: 3px solid var(--ink);
+  box-shadow: 0 3px 0 #06283259;
+  transition:
+    background 0.4s,
+    opacity 0.4s,
+    filter 0.12s,
+    translate 0.12s;
+}
+.node {
+  --n: var(--node);
+  width: var(--n);
+  height: var(--n);
+  margin: calc(var(--n) / -2) 0 0 calc(var(--n) / -2);
+  font: 900 calc(var(--n) * 0.5) / 1 var(--display);
+  letter-spacing: 0.3px;
+}
+.node .num {
+  display: block;
+  pointer-events: none;
+}
+.node .glyph,
+.node .lock,
+.drill .lock {
+  display: none;
+  pointer-events: none;
+}
+/* An act's finale: bigger, gold-rimmed, with a trophy over the number. */
+.node.finale {
+  --n: calc(var(--node) * 1.32);
+  background: #fff8e0;
+  border-color: #b8801d;
+  box-shadow:
+    0 0 0 3px #ffdc52,
+    0 4px 0 3px #06283259;
+  grid-auto-flow: row;
+  gap: 0;
+  align-content: center;
+  line-height: 0.9;
+}
+.node.finale .num {
+  font-size: calc(var(--n) * 0.32);
+}
+.node.finale .glyph {
+  display: block;
+  width: 42%;
+}
+.node.finale .glyph svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  color: #d19a1d;
+}
+.node .stars {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  translate: -50% 0;
+  padding: 2px 6px 3px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--yellow);
+  font:
+    800 10px/1 "DM Sans",
+    sans-serif;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.node .stars:empty {
+  display: none;
+}
+.node.cleared {
+  background: var(--yellow);
+}
+.node.current {
+  background: #fff;
+}
+.node.current::after,
+.drill.open::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 3px solid var(--yellow);
+  pointer-events: none;
+  animation: ringPulse 1.9s ease-out infinite;
+}
+@keyframes ringPulse {
+  from {
+    transform: scale(0.95);
+    opacity: 0.95;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+.node.selected::before,
+.drill.selected::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow:
+    0 0 0 2px var(--ink),
+    inset 0 0 0 2px var(--ink);
+  pointer-events: none;
+}
+.node:focus-visible,
+.drill:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 7px;
+}
+/* Not yet open: a dim lock instead of the number. Not built yet: a dashed ghost. */
+.node:disabled,
+.drill:disabled {
+  opacity: 1;
+}
+.node.locked {
+  background: #cdb88f;
+  border-color: #103b4888;
+  color: #103b48aa;
+  box-shadow: none;
+}
+.node.locked .num,
+.node.locked .stars,
+.node.locked .glyph {
+  display: none;
+}
+.node.locked .lock,
+.drill.locked .lock {
+  display: block;
+  width: 46%;
+}
+.node .lock svg,
+.drill .lock svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.node.soon {
+  background: #fff4cf40;
+  border: 3px dashed #103b4866;
+  color: #103b4899;
+  box-shadow: none;
+}
+.node.soon .glyph {
+  display: none;
+}
+
+/* A drill: a small dashed badge beside its chunk. */
+.drill {
+  --d: calc(var(--node) * 0.74);
+  width: var(--d);
+  height: var(--d);
+  margin: calc(var(--d) / -2) 0 0 calc(var(--d) / -2);
+  border: 2.5px dashed var(--ink);
+  font-size: calc(var(--d) * 0.5);
+  line-height: 1;
+}
+.drill .icon {
+  pointer-events: none;
+}
+.drill.done {
+  background: var(--yellow);
+  border-style: solid;
+}
+.drill.locked {
+  background: #fff4cf59;
+  border-color: #103b4877;
+  color: #103b48aa;
+  box-shadow: none;
+}
+.drill.locked .icon {
+  display: none;
+}
+.drill.dim,
+.node.soon.dim {
+  opacity: 0.6;
+}
+
+/* Where each chunk is, in three dots, so the next new area is never more than three shifts away. */
+.pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pips i {
+  display: block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0.45;
+  transition:
+    background 0.35s,
+    opacity 0.35s,
+    border-color 0.35s;
+}
+.pips i.on {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  opacity: 1;
+}
+.zone-label {
+  position: absolute;
+  translate: -50% -50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 11px 4px 12px;
+  border-radius: 999px;
+  background: #fff8e6;
+  color: var(--ink);
+  font: 900 clamp(11px, calc(var(--map-scale) * 16px), 13px) / 1 var(--display);
+  letter-spacing: 1.3px;
+  white-space: nowrap;
+  box-shadow: 0 2px 0 #06283247;
+  transition:
+    background 0.5s,
+    opacity 0.5s;
+}
+.zone-label b {
+  font-weight: 900;
+}
+.zone-label .pips i.on {
+  border-color: var(--ink);
+}
+.zone-label.done {
+  background: var(--yellow);
+}
+.zone-label.done .pips i.on {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.zone-label.done::after {
+  content: "✓";
+  font-size: 12px;
+  margin-left: -2px;
+}
+.zone-label.dim {
+  opacity: 0.72;
+}
+.zone-label.soon .pips {
+  display: none;
+}
+
+/* Where the coach is: the coach stands on the level you are up to and walks on when you clear it. */
+.map-marker {
+  position: absolute;
+  z-index: 4;
+  width: calc(var(--node) * 0.68);
+  pointer-events: none;
+  translate: -50% calc(-100% - var(--node) * 0.5 + 9px);
+  transition:
+    left 0.85s cubic-bezier(0.45, 0, 0.2, 1) 0.4s,
+    top 0.85s cubic-bezier(0.45, 0, 0.2, 1) 0.4s;
+}
+.map-marker svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  will-change: transform;
+  animation: coachBob 1.5s ease-in-out infinite;
+}
+@keyframes coachBob {
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* A chunk was just cleared and the next area wakes up: it pops in, and its island hops. */
+.node.reveal,
+.drill.reveal,
+.zone-label.reveal {
+  animation: revealPop 0.7s var(--pop, 0ms) cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+.zone-art.reveal {
+  animation: revealHop 0.9s var(--pop, 0ms) ease-out both;
+}
+@keyframes revealPop {
+  0% {
+    scale: 0.4;
+    opacity: 0;
+  }
+  60% {
+    scale: 1.15;
+    opacity: 1;
+  }
+  100% {
+    scale: 1;
+  }
+}
+@keyframes revealHop {
+  0% {
+    translate: 0 0;
+  }
+  32% {
+    translate: 0 -18px;
+  }
+  62% {
+    translate: 0 3px;
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+
+/* A reminder while every level is open for playtesting (UNLOCK_ALL in progression.mjs; ?locked previews the real map). */
+.map[data-testing]::before {
+  content: "ALL LEVELS OPEN FOR TESTING";
+  position: absolute;
+  top: calc(var(--map-top) + 10px);
+  left: 50%;
+  translate: -50% 0;
+  z-index: 3;
+  padding: 3px 10px 4px;
+  border-radius: 999px;
+  background: #092b38b8;
+  color: var(--mint);
+  font:
+    800 8px/1.3 "DM Sans",
+    sans-serif;
+  letter-spacing: 1.3px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* The two acts. */
+.map-acts {
+  position: absolute;
+  top: var(--edge);
+  left: 50%;
+  translate: -50% 0;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  z-index: 3;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 13px;
+  background: #092b38b8;
+  box-shadow: 0 3px 0 #041c2659;
+}
+.map-acts button {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  min-width: 118px;
+  min-height: 44px;
+  padding: 6px 15px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--mint);
+  text-align: left;
+}
+.map-acts b {
+  white-space: nowrap;
+  font: 900 16px/1 var(--display);
+  letter-spacing: 1.3px;
+}
+.map-acts small {
+  font:
+    800 8px/1 "DM Sans",
+    sans-serif;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.map-acts button i {
+  position: absolute;
+  left: 15px;
+  right: 15px;
+  bottom: 5px;
+  height: 3px;
+  border-radius: 2px;
+  background: #ffffff2e;
+  overflow: hidden;
+}
+.map-acts button i::after {
+  content: "";
+  display: block;
+  height: 100%;
+  width: calc(var(--p, 0) * 100%);
+  background: var(--yellow);
+  border-radius: inherit;
+  transition: width 0.6s ease;
+}
+.map-acts button[aria-current="true"] {
+  background: #fff4cf;
+  color: var(--ink);
+}
+.map-acts button[aria-current="true"] i {
+  background: #103b482e;
+}
+.map-acts button[aria-current="true"] i::after {
+  background: #e8a91d;
+}
+
+/* The selected shift, at the bottom of the map. */
+.map-panel {
+  position: absolute;
+  left: 50%;
+  bottom: var(--edge);
+  translate: -50% 0;
+  z-index: 6;
+  width: min(900px, calc(100% - var(--edge) * 2));
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px 22px;
+  padding: 13px 20px 15px;
+  background: linear-gradient(180deg, #1c5360, #123b48);
+  border: 2px solid #9ad7cd;
+  border-top: 4px solid #d1f0d9;
+  border-radius: 8px 8px 20px 20px;
+  box-shadow:
+    0 5px 0 #092a36,
+    0 14px 30px #0b353542;
+}
+.panel-main {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 0;
+}
+.panel-num {
+  min-width: 2ch;
+  text-align: center;
+  font: 900 46px/1 var(--display);
+  letter-spacing: 1px;
+  color: var(--yellow);
+  text-shadow: 0 3px 0 #082d3a;
+}
+.panel-num.emoji {
+  font-size: 36px;
+  text-shadow: none;
+}
+.panel-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.panel-text strong {
+  font: 900 26px/1 var(--display);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.panel-meta,
+.panel-best {
+  font:
+    800 9px/1.2 "DM Sans",
+    sans-serif;
+  letter-spacing: 1.3px;
+  color: var(--mint);
+}
+.panel-icons {
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: 5px;
+  white-space: nowrap;
+}
+.panel-icons:empty {
+  display: none;
+}
+.panel-progress {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  justify-content: start;
+  align-items: center;
+  gap: 6px 12px;
+}
+.panel-zone {
+  font: 900 13px/1 var(--display);
+  letter-spacing: 1.6px;
+  color: var(--cream);
+}
+.panel-progress .pips {
+  color: var(--mint);
+}
+.panel-best {
+  grid-column: 1 / -1;
+  white-space: nowrap;
+}
+.panel-stars {
+  font-size: 21px;
+  line-height: 1;
+  letter-spacing: 3px;
+  color: var(--yellow);
+  text-shadow: 0 2px 0 #866728;
+}
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.view-toggle.compact {
+  margin: 0;
+  padding: 7px 11px;
+  gap: 9px;
+}
+.view-toggle.compact b {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.map-panel .primary {
+  width: 172px;
+  min-height: 52px;
+  font-size: 25px;
+}
+
+/* Today's booking (Splash Park): three cards, and the bigger the payout the more trouble comes with it. */
+.booking-modal {
+  max-width: 660px;
+}
+.booking-modal .eyebrow {
+  margin-bottom: 4px;
+}
+.booking-note {
+  margin: 10px 0 16px;
+}
+.booking-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.booking-card {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 7px;
+  min-height: 178px;
+  padding: 16px 10px 14px;
+  text-align: center;
+  color: var(--cream);
+  background: #0c303b;
+  border: 2px solid #4f8d90;
+  border-bottom-width: 5px;
+  border-radius: 10px 10px 16px 16px;
+}
+.booking-card.regular {
+  border-color: #93cfc3;
+  background: #164754;
+}
+.booking-card:hover:not(:disabled),
+.booking-card:focus-visible {
+  border-color: var(--yellow);
+}
+.booking-card .b-icon {
+  font-size: 34px;
+  line-height: 1;
+}
+.booking-card strong {
+  font: 900 21px/1 var(--display);
+  letter-spacing: 0.5px;
+}
+.booking-card .b-pay {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--yellow);
+  color: var(--ink);
+  font: 900 15px/1.1 var(--display);
+  letter-spacing: 0.8px;
+}
+.booking-card .b-pay small {
+  font:
+    800 7px/1 "DM Sans",
+    sans-serif;
+  letter-spacing: 1px;
+  margin-left: 3px;
+}
+.booking-card .b-note {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #c3d9ce;
+}
+.booking-card .b-trouble {
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: 3px;
+  min-height: 15px;
+}
+
+/* Results: where the chunk stands. */
+.chunk-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  font:
+    800 10px/1.3 "DM Sans",
+    sans-serif;
+  letter-spacing: 1.4px;
+  color: var(--mint);
+}
+.chunk-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.chunk-row small {
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  opacity: 0.85;
+}
+.chunk-row small:empty {
+  display: none;
+}
+.chunk-row .pips {
+  gap: 6px;
+}
+.chunk-row .pips i {
+  width: 12px;
+  height: 12px;
+}
+.chunk-row.cleared {
+  color: var(--yellow);
+}
+.chunk-row.cleared .pips i.on {
+  animation: pipPop 0.5s calc(var(--k, 0) * 130ms + 250ms) cubic-bezier(0.2, 0.9, 0.3, 1.5) both;
+}
+@keyframes pipPop {
+  from {
+    scale: 0.3;
+  }
+  60% {
+    scale: 1.4;
+  }
+}
+
+/* Tablets upright and phones: the panel is a sheet at the bottom with the buttons on a second row. */
+@media (max-width: 620px), (max-width: 860px) and (min-height: 621px) {
+  :root {
+    --panel-space: 152px;
+  }
+  .map-panel {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    translate: none;
+    width: auto;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "main progress"
+      "actions actions";
+    gap: 8px 12px;
+    padding: 11px 14px calc(12px + env(safe-area-inset-bottom));
+    border-width: 2px 0 0;
+    border-top: 4px solid #d1f0d9;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -8px 26px #062b3559;
+  }
+  .panel-main {
+    grid-area: main;
+    gap: 11px;
+  }
+  .panel-progress {
+    grid-area: progress;
+    justify-items: end;
+    gap: 5px 8px;
+  }
+  .panel-actions {
+    grid-area: actions;
+  }
+  .panel-num {
+    font-size: 38px;
+  }
+  .panel-text strong {
+    font-size: 22px;
+  }
+  .panel-stars {
+    font-size: 19px;
+  }
+  .panel-best {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+  .map-panel .primary {
+    flex: 1;
+    width: auto;
+    min-height: 50px;
+  }
+  .view-toggle.compact {
+    padding: 7px 9px;
+  }
+}
+/* Compact act tabs (no subtitles) once the top bar gets crowded. */
+@media (max-width: 900px) {
+  .map-acts small {
+    display: none;
+  }
+  .map-acts button {
+    min-width: 0;
+    min-height: 40px;
+    padding: 5px 14px 9px;
+  }
+  .map-acts button i {
+    left: 14px;
+    right: 14px;
+    bottom: 4px;
+  }
+}
+/* Phones: the act tabs sit on their own row under the top bar, and booking cards stack. */
+@media (max-width: 620px) {
+  :root {
+    --map-top: 108px;
+  }
+  .map-acts {
+    top: 62px;
+  }
+  .booking-cards {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .booking-card {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "icon name pay"
+      "icon note note"
+      "icon trouble trouble";
+    justify-items: start;
+    align-items: center;
+    min-height: 0;
+    padding: 12px 14px;
+    gap: 3px 12px;
+    text-align: left;
+  }
+  .booking-card .b-icon {
+    grid-area: icon;
+    font-size: 30px;
+  }
+  .booking-card strong {
+    grid-area: name;
+  }
+  .booking-card .b-pay {
+    grid-area: pay;
+  }
+  .booking-card .b-note {
+    grid-area: note;
+  }
+  .booking-card .b-trouble {
+    grid-area: trouble;
+    min-height: 0;
+  }
+}
+/* Short windows (a laptop with a bookmarks bar, a phone on its side): a slimmer panel and top bar. */
+@media (max-height: 620px) and (min-width: 621px) {
+  :root {
+    --map-top: 58px;
+    --panel-space: 114px;
+  }
+  .map-acts button {
+    min-height: 38px;
+    padding: 4px 13px 9px;
+  }
+  .map-panel {
+    padding: 8px 16px 11px;
+    gap: 8px 22px;
+  }
+  .panel-num {
+    font-size: 36px;
+  }
+  .panel-text strong {
+    font-size: 21px;
+  }
+  .panel-icons {
+    display: none;
+  }
+  .panel-stars {
+    font-size: 18px;
+  }
+  .map-panel .primary {
+    min-height: 44px;
+    width: 150px;
+    font-size: 22px;
+  }
+  .view-toggle.compact {
+    padding: 5px 9px;
+  }
+}
+@media (max-width: 420px) {
+  .map-panel .primary {
+    font-size: 23px;
+  }
+  .view-toggle.compact b {
+    font-size: 12px;
+  }
+}
+/* The smallest phones: the scoreboard's labels give way instead of pushing the page wider, and the panel keeps the
+   name, the stars and the chunk dots. */
+@media (max-width: 380px) {
+  .scoreboard > *,
+  .clock-metric > div {
+    min-width: 0;
+  }
+  .clock-metric small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  :root {
+    --panel-space: 134px;
+  }
+  .panel-zone,
+  .panel-best {
+    display: none;
+  }
+  .map-panel .primary {
+    padding: 10px 12px;
+    font-size: 22px;
+  }
+  .view-toggle.compact {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  .view-toggle.compact b {
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+}
+/* Results on shorter windows: the stack tightens so the buttons stay in reach without scrolling. */
+@media (max-height: 880px) {
+  .results-modal {
+    padding: 20px 26px 10px;
+  }
+  .result-stars {
+    font-size: 44px;
+    margin-top: 6px;
+  }
+  .results-modal h2 {
+    font-size: 27px;
+    margin: 6px 0 8px;
+  }
+  .result-score {
+    font-size: 54px;
+  }
+  .record {
+    margin-top: 8px;
+  }
+  .chunk-row {
+    margin-top: 10px;
+  }
+  .result-grid {
+    gap: 8px 2px;
+    padding: 10px 0;
+    margin-top: 12px;
+  }
+  .result-grid strong {
+    font-size: 24px;
+  }
+  .results-modal .primary {
+    min-height: 48px;
+  }
+  .results-modal .secondary {
+    min-height: 42px;
+    margin-top: 6px;
+  }
+  .results-modal #next-level {
+    margin-bottom: 6px;
+  }
+  .local-note {
+    display: none;
+  }
+}
+@media (max-height: 740px) {
+  .result-stars {
+    font-size: 38px;
+  }
+  .results-modal h2 {
+    font-size: 24px;
+    margin: 4px 0 6px;
+  }
+  .result-score {
+    font-size: 46px;
+  }
+  .result-grid {
+    gap: 4px 2px;
+    padding: 8px 0;
+    margin-top: 8px;
+  }
+  .result-grid strong {
+    font-size: 21px;
+  }
+}
+@media (max-height: 700px) {
+  .results-modal #result-tip {
+    display: none;
+  }
+}
+/* Reduced motion: the map shows its state at once (no drifting clouds, coach walk, reveal pops or lifting clouds). */
+@media (prefers-reduced-motion: reduce) {
+  .map-sky,
+  .map-marker svg,
+  .node::after,
+  .drill::after,
+  .node.reveal,
+  .drill.reveal,
+  .zone-label.reveal,
+  .zone-art.reveal,
+  .map-stage.enter,
+  .chunk-row.cleared .pips i.on {
+    animation: none;
+  }
+  .map-marker,
+  .here-glow,
+  .fog,
+  .fog.lifted {
+    transition: none;
   }
 }

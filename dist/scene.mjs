@@ -516,9 +516,8 @@ export class PoolWorld extends SceneKit {
       this.guideAura.userData.halo.scale.setScalar(1 + pulse * 0.22);
       this.guideAura.userData.shell.scale.set(1 + pulse * 0.12, 1.8 + pulse * 0.12, 1 + pulse * 0.12);
     }
-    const blocked = sim.laneBlocked ? sim.laneBlocked() : -1;
     this.laneHighlights.forEach((m, i) => {
-      const danger = i === blocked,
+      const danger = sim.laneLocked ? sim.laneLocked(i) : false,
         open = !!guide.lanes && i !== guide.laneExcept;
       m.material.opacity = danger
         ? 0.1 + pulse * 0.16

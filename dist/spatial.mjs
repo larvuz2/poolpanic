@@ -237,7 +237,7 @@ export const CLUB = makeVenue({
 // Outdoor resort: a wider five-lane pool with a trampoline tower whose splash zone lands in lane 5.
 export const RESORT = makeVenue({
   id: "resort",
-  name: "Riviera Splash Resort",
+  name: "Splash Park",
   lanes: [-6.4, -3.2, 0, 3.2, 6.4],
   deck: { minX: -15.6, maxX: 16.4, minZ: -15.2, maxZ: 12.65 },
   room: { minX: -16.2, maxX: 17, minZ: -16.7, maxZ: 13.5 },

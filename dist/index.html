@@ -56,25 +56,33 @@
         ><button id="zoom-in" aria-label="Zoom in">+</button
         ><button id="reset-view" aria-label="Reset camera" title="Reset camera">⌖</button>
       </div>
-      <section id="welcome" class="welcome">
-        <div class="eyebrow"><span class="mini-pill">THE COMMUNITY SWIM CLUB</span><span>01 / 15</span></div>
-        <h1>YOUR SWIM<br /><em>SEASON.</em></h1>
-        <div id="level-map" class="shift-choices level-map" aria-label="Choose a level"></div>
-        <div class="shift-preview">
-          <strong id="selected-shift-name">Morning dip</strong
-          ><span id="selected-shift-meta">30 SECONDS · 4 SWIMMERS</span>
+      <div id="map" class="map" role="group" aria-label="Season map"></div>
+      <section id="welcome" class="map-panel" aria-label="Selected shift">
+        <div class="panel-main">
+          <span id="panel-num" class="panel-num">01</span>
+          <div class="panel-text">
+            <strong id="selected-shift-name">Morning dip</strong>
+            <span id="selected-shift-meta" class="panel-meta">0:30 · 4 SWIMMERS</span>
+            <span id="selected-shift-icons" class="panel-icons" role="img"></span>
+          </div>
         </div>
-        <label class="view-toggle" for="coach-cam">
-          <input type="checkbox" id="coach-cam" />
-          <span class="switch" aria-hidden="true"></span>
-          <span class="view-toggle-text"
-            ><b>COACH CAM</b
-            ><small>First-person view · look with the mouse · V switches in a shift</small></span
+        <div class="panel-progress">
+          <span id="panel-zone" class="panel-zone">WARM-UP</span>
+          <span id="panel-pips" class="pips" aria-hidden="true"></span>
+          <span id="panel-stars" class="panel-stars"></span>
+          <span id="best-score" class="panel-best">NO SCORE YET</span>
+        </div>
+        <div class="panel-actions">
+          <label
+            class="view-toggle compact"
+            for="coach-cam"
+            title="First-person view · V switches in a shift"
           >
-        </label>
-        <button id="start" class="primary">START SHIFT <span>▶</span></button>
-        <div class="welcome-foot">
-          <span>30 SECOND SHIFT</span><span id="best-score">YOUR NEXT PERSONAL BEST AWAITS</span>
+            <input type="checkbox" id="coach-cam" />
+            <span class="switch" aria-hidden="true"></span>
+            <span class="view-toggle-text"><b>COACH CAM</b></span>
+          </label>
+          <button id="start" class="primary">START <span>▶</span></button>
         </div>
       </section>
       <aside id="queue-panel" class="queue-panel" hidden>
@@ -238,6 +246,23 @@
             on the scoreboard.
           </li>
         </ul>
+        <h3>The map</h3>
+        <ul>
+          <li>
+            <b>Three shifts, then somewhere new.</b> Levels come in chunks of three, each on its own island.
+            Clear all three (one star or more each) and the clouds lift off the next island. Three chunks and
+            a finale make an act of ten levels. The coach stands on the level you are up to; cleared levels
+            turn yellow and show their stars.
+          </li>
+          <li>
+            Tap a level to look at it, then tap it again or press <b>START</b> to play. Arrow keys walk the
+            route.
+          </li>
+          <li>
+            <b>Drills.</b> Earn 5 stars in a chunk and the dashed badge beside it opens: a short bonus shift
+            that practises the chunk’s trickiest idea, with your own best score to beat.
+          </li>
+        </ul>
         <h3>Coach Cam (optional first-person view)</h3>
         <ul>
           <li>
@@ -285,8 +310,23 @@
           </li>
           <li>Puddles trip anyone who runs across them, you included. Jump over them or walk around.</li>
         </ul>
-        <h3>Riviera Splash Resort (levels 11–15)</h3>
+        <h3>Twists (from level 2)</h3>
         <ul>
+          <li>
+            <b>Halfway through some shifts the room changes.</b> A sign says what: 🚌 a crowd arrives all at
+            once, 🚧 a lane closes for the rest of the shift (nobody can go into it, and swimmers already in
+            it finish and leave), 🏅 a swim team of Pros takes over the arrivals, or 💦 an aqua class does.
+          </li>
+          <li>A twist is not an emergency. Nothing to fix: just change your plan.</li>
+        </ul>
+        <h3>Splash Park (Act 2)</h3>
+        <ul>
+          <li>
+            <b>Bookings.</b> Before each Splash Park shift, pick one. Regular is a normal day. The others pay
+            more (up to ×1.45 on every swimmer served) and bring their own trouble: a tour group’s rush, a
+            stag party with Cannonball Carl, a kids’ party with a fish and a dog, or a night swim with a power
+            cut.
+          </li>
           <li>
             <b>Five lanes and a trampoline.</b> Daredevils 🤸 only want the tower: select one and press
             <b>T</b> (or click the tower). They wait at the stairs until the orange splash zone in lane 5 is
@@ -319,17 +359,31 @@
         <button id="resume" class="primary">BACK IN ▶</button
         ><button id="restart" class="secondary">Restart this shift</button>
       </dialog>
+      <dialog id="booking-dialog" class="modal booking-modal" aria-labelledby="booking-title">
+        <div class="eyebrow">
+          <span id="booking-title">TODAY'S BOOKING</span><span id="booking-shift"></span>
+        </div>
+        <p class="booking-note">A bigger payout always brings more trouble.</p>
+        <div id="booking-cards" class="booking-cards"></div>
+        <button id="booking-back" class="text-btn">Back to the map</button>
+      </dialog>
       <dialog id="results-dialog" class="modal results-modal">
         <div class="eyebrow" id="result-eyebrow">SHIFT COMPLETE</div>
         <div id="result-stars" class="result-stars">★ ★ ☆</div>
         <h2 id="result-title">Not a bad day at the pool.</h2>
         <div id="result-score" class="result-score">1,850<small>POINTS</small></div>
         <div id="new-best" class="record" hidden>✦ NEW PERSONAL BEST</div>
+        <div id="result-chunk" class="chunk-row" hidden>
+          <span class="chunk-main"
+            ><span id="result-pips" class="pips" aria-hidden="true"></span
+            ><span id="result-chunk-text"></span></span
+          ><small id="result-chunk-note"></small>
+        </div>
         <div class="result-grid" id="result-stats"></div>
         <p id="result-tip"></p>
         <button id="next-level" class="primary" hidden>Next shift →</button
         ><button id="play-again" class="secondary">Replay this level ↻</button
-        ><button id="back-menu" class="text-btn">Back to clubhouse</button
+        ><button id="back-menu" class="text-btn">Back to the map</button
         ><small class="local-note">Personal bests and unlocks saved on this device.</small>
       </dialog>
     </main>
