@@ -2,9 +2,10 @@
 # to the production branch deploys automatically, with a deploy preview for each pull request. All build
 # settings live here, so the site settings in the Netlify UI can stay on their defaults.
 [build]
-  # The game is static and ships as-is from dist/ (no bundling). The build step only runs the regression
-  # checks, so a change that breaks them fails its deploy instead of going live.
-  command = "npm test"
+  # The game is static and ships as-is from dist/ (no bundling). The build step stamps the commit into
+  # dist/version.mjs (so crash reports name it) and runs the regression checks, so a change that breaks them fails
+  # its deploy instead of going live.
+  command = "node stamp-version.mjs && npm test"
   publish = "dist"
 
 [build.environment]

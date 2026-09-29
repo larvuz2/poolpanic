@@ -499,6 +499,12 @@ export class PoolWorld extends SceneKit {
     this.scene.remove(g);
     this.people.delete(id);
   }
+  // A new shift starts with an empty deck: swimmers and visitors of the last one (their ids start again from 1) must
+  // not be picked up by the next.
+  resetActors() {
+    for (const id of [...this.people.keys()]) this.removePerson(id);
+    this.incidentView.clearVisitors();
+  }
   slipPose(u, remaining, duration) {
     if (!(remaining > 0)) return;
     const elapsed = 1 - Math.min(1, remaining / duration),
@@ -1216,7 +1222,7 @@ export class PoolWorld extends SceneKit {
   // An incident sting: for a moment the overview makes room for the incident as well as the coach. The Coach
   // Cam never turns the player's head, and reduced motion keeps the camera still.
   focusMoment(x, z, seconds) {
-    if (this.viewMode === "coach" || this.reducedMotion.matches || !Number.isFinite(x)) return;
+    if (this.viewMode === "coach" || this.reducedMotion.matches || !Number.isFinite(x + z)) return;
     this.moment = { x, z, left: seconds };
   }
   // Save payoff: a fountain of confetti from the spot.
