@@ -307,6 +307,16 @@ export class PoolAudio {
         },
         crash: () =>
           [440, 415, 392, 311].forEach((f, i) => this.tone(f, at + i * 0.12, 0.2, 0.12, "sawtooth")),
+        rush: () => {
+          this.tone(233, at, 0.16, 0.14, "square");
+          this.tone(311, at + 0.2, 0.3, 0.14, "square");
+        },
+        closure: () => [0, 1, 2].forEach((i) => this.tone(880, at + i * 0.16, 0.08, 0.1, "square")),
+        team: () => this.tone(1500, at, 0.4, 0.09, "sine", 2300),
+        class: () =>
+          [0, 1, 2, 3, 4].forEach((i) =>
+            this.tone(500 + i * 90, at + i * 0.06, 0.1, 0.07, "sine", 900 + i * 60),
+          ),
       }[kind];
     motif?.();
     if (first)

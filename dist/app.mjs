@@ -1,5 +1,26 @@
 import { screenMovement } from "./spatial.mjs";
-import { normalizeRecords, starsFor, recordResult, isUnlocked, UNLOCK_ALL } from "./progression.mjs";
+import {
+  normalizeRecords,
+  starsFor,
+  starsForDrill,
+  recordResult,
+  recordDrill,
+  isUnlocked,
+  progressFlags,
+} from "./progression.mjs";
+import {
+  CAMPAIGN,
+  ZONES,
+  zoneOfLevel,
+  zoneStatus,
+  drillStatus,
+  levelState,
+  currentLevel,
+  shiftHighlights,
+} from "./campaign.mjs";
+import { DRILLS } from "./drills.mjs";
+import { offerBookings, BOOKINGS } from "./bookings.mjs";
+import { LevelMap } from "./map.mjs";
 import { guidanceState, cuePulse } from "./guidance.mjs";
 import { PoolSimulation, TYPES, SHIFTS, loopPosition } from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
@@ -26,6 +47,28 @@ let records = normalizeRecords();
 try {
   records = normalizeRecords(JSON.parse(localStorage.getItem("pool-panic.records.v1")));
 } catch {}
+// `?locked` previews the real, star-gated map while every level is open for playtesting (see progression.mjs).
+if (new URLSearchParams(location.search).has("locked")) progressFlags.unlockAll = false;
+// The menu is a map. `selected` is what its panel shows: a level, or a chunk's drill. A new player starts on level
+// 1; a returning one on the level the coach is up to.
+level = currentLevel(records);
+let selected = { kind: "level", level },
+  mapView = null,
+  activeBooking = null, // the booking of the shift being played (or last played), so Replay and Restart keep it
+  afterResults = null, // the level the map should select when we return to it (the one just unlocked)
+  nextMode = "level"; // what the results dialog's main button does: "level" (next shift) or "map" (a new area)
+// Chunks cleared since the player last saw the map: each owes the next area its reveal. Kept on the device so it
+// survives a reload between clearing a chunk and getting back to the map.
+let mapMemory = { reveal: [] };
+try {
+  const saved = JSON.parse(localStorage.getItem("pool-panic.map.v1") || "{}");
+  if (Array.isArray(saved.reveal)) mapMemory.reveal = saved.reveal.filter((n) => Number.isInteger(n));
+} catch {}
+function saveMapMemory() {
+  try {
+    localStorage.setItem("pool-panic.map.v1", JSON.stringify(mapMemory));
+  } catch {}
+}
 // Per-device preferences. Coach Cam (the first-person view) is off by default.
 let settings = { coachCam: false };
 try {
@@ -324,7 +367,8 @@ function renderLaneControls(venue) {
       : "");
   $("lane-controls").classList.toggle("five-lanes", venue.lanes.length > 3);
 }
-function start() {
+// Begin the shift the map has selected: a level (with a booking from Splash Park on) or a chunk's drill.
+function start(bookingId = null) {
   audio.panic = false;
   clearTimeout(toastTimer);
   $("toast").hidden = true;
@@ -332,7 +376,11 @@ function start() {
   accumulator = 0;
   document.activeElement?.blur();
   document.querySelectorAll("dialog[open]").forEach((d) => d.close());
-  sim = new PoolSimulation(level);
+  const drill = selected.kind === "drill" ? DRILLS[selected.id] : null;
+  activeBooking = drill ? null : bookingId;
+  sim = drill
+    ? new PoolSimulation(drill.tier, Date.now(), { config: drill.config, drill: drill.id })
+    : new PoolSimulation(level, Date.now(), { booking: activeBooking });
   syncVenue(sim);
   sim.start({ countdown: true });
   mode = "countdown";
@@ -364,6 +412,14 @@ function returnMenu() {
   applyViewMode();
   $("countdown").hidden = true;
   audio.playing = true;
+  // Back on the map with the level that was just unlocked selected; an area that just opened plays its reveal.
+  if (afterResults) {
+    level = afterResults;
+    selected = { kind: "level", level };
+    afterResults = null;
+  }
+  const reveal = mapMemory.reveal.splice(0);
+  if (reveal.length) saveMapMemory();
   sim = makeDemo();
   $("welcome").hidden = false;
   $("queue-panel").hidden = true;
@@ -372,50 +428,99 @@ function returnMenu() {
   $("toast").hidden = true;
   document.body.classList.add("menu");
   clearBubbles();
-  updateChoices();
+  updateMenu(reveal);
   updateUI();
+  $("start").focus({ preventScroll: true });
 }
-function updateChoices() {
-  document.querySelectorAll("[data-level]").forEach((b) => {
-    const n = Number(b.dataset.level),
-      locked = !isUnlocked(records, n),
-      stars = starsFor(n, records.bests[n - 1]);
-    b.classList.toggle("active", n === level);
-    b.classList.toggle("completed", stars > 0);
-    b.disabled = locked;
-    b.setAttribute("aria-pressed", String(n === level));
-    b.setAttribute(
-      "aria-label",
-      "Level " +
-        n +
-        " · " +
-        SHIFTS[n - 1].name +
-        (locked ? " · Locked" : stars ? " · " + stars + " stars" : ""),
-    );
-    b.querySelector(".level-lock").hidden = !locked;
-    b.querySelector(".level-stars").textContent = locked
-      ? ""
-      : Array.from({ length: 3 }, (_, i) => (i < stars ? "★" : "☆")).join("");
-  });
-  const shift = SHIFTS[level - 1];
-  $("welcome").querySelector(".eyebrow>span:last-child").textContent =
-    String(level).padStart(2, "0") + " / " + SHIFTS.length;
-  $("welcome").querySelector(".eyebrow .mini-pill").textContent =
-    shift.venue === "resort" ? "RIVIERA SPLASH RESORT" : "THE COMMUNITY SWIM CLUB";
-  $("welcome").classList.toggle("resort-season", shift.venue === "resort");
-  $("selected-shift-name").textContent = shift.name;
-  $("selected-shift-meta").textContent =
-    shift.duration +
-    " SECONDS · " +
-    shift.total +
-    " SWIMMERS" +
-    (shift.venue === "resort" ? " · 5 LANES + TRAMPOLINE" : "");
-  document.querySelector(".welcome-foot>span").textContent = UNLOCK_ALL
-    ? "ALL LEVELS OPEN FOR TESTING"
-    : "★ UNLOCKS THE NEXT SHIFT";
-  $("best-score").textContent = records.bests[level - 1]
-    ? "BEST · " + records.bests[level - 1].toLocaleString()
-    : "MAKE YOUR FIRST SPLASH";
+const two = (n) => String(n).padStart(2, "0");
+const starText = (n) => Array.from({ length: 3 }, (_, i) => (i < n ? "★" : "☆")).join("");
+const pipsHtml = (on, total) =>
+  Array.from({ length: total }, (_, i) => `<i class="${i < on ? "on" : ""}" style="--k:${i}"></i>`).join("");
+function selectLevel(n) {
+  level = n;
+  selected = { kind: "level", level: n };
+  updateMenu();
+}
+function selectDrill(id) {
+  selected = { kind: "drill", id };
+  updateMenu();
+}
+// Tapping an act's tab selects the level you would play next in it, so the panel always shows what is on screen.
+function selectAct(actId) {
+  const nodes = CAMPAIGN.find((a) => a.id === actId)
+      .zones.flatMap((z) => z.nodes)
+      .filter((n) => n.built),
+    playable = nodes.filter((n) => levelState(records, n, progressFlags) !== "locked"),
+    target = playable.find((n) => levelState(records, n, progressFlags) !== "cleared") || playable.at(-1);
+  if (target && !(selected.kind === "level" && selected.level === target.level)) selectLevel(target.level);
+}
+function updateMenu(reveal = []) {
+  mapView?.update({ records, flags: progressFlags, selected, reveal });
+  updatePanel();
+}
+// The panel under the map: the selected level (or drill), where its chunk stands, its stars and best score.
+function updatePanel() {
+  const num = $("panel-num"),
+    icons = $("selected-shift-icons");
+  if (selected.kind === "drill") {
+    const drill = DRILLS[selected.id],
+      zone = ZONES.find((z) => z.drill?.id === drill.id),
+      c = drill.config,
+      best = records.drills[drill.id] || 0;
+    num.textContent = drill.icon;
+    $("selected-shift-name").textContent = drill.name;
+    $("selected-shift-meta").textContent = `DRILL · ${formatTime(c.duration)} · ${c.total} SWIMMERS`;
+    icons.textContent = "";
+    icons.removeAttribute("aria-label");
+    $("panel-zone").textContent = zone.name.toUpperCase();
+    $("panel-pips").innerHTML = "";
+    $("panel-stars").textContent = starText(starsForDrill(drill.id, best));
+    $("best-score").textContent = best
+      ? "BEST · " + best.toLocaleString()
+      : c.thresholds[0].toLocaleString() + " FOR ★";
+  } else {
+    const shift = SHIFTS[level - 1],
+      zone = zoneOfLevel(level),
+      status = zoneStatus(records, zone, progressFlags),
+      best = records.bests[level - 1] || 0,
+      notes = shiftHighlights(shift);
+    num.textContent = two(level);
+    $("selected-shift-name").textContent = shift.name;
+    $("selected-shift-meta").textContent = `${formatTime(shift.duration)} · ${shift.total} SWIMMERS`;
+    icons.textContent = notes.map((n) => n.icon).join(" ");
+    icons.setAttribute("aria-label", notes.map((n) => n.label).join(", "));
+    icons.title = notes.map((n) => n.label).join(" · ");
+    $("panel-zone").textContent = zone.kind === "finale" ? `ACT ${zone.act} FINALE` : zone.name.toUpperCase();
+    $("panel-pips").innerHTML = pipsHtml(status.cleared, zone.nodes.length);
+    $("panel-stars").textContent = starText(starsFor(level, best));
+    $("best-score").textContent = best ? "BEST · " + best.toLocaleString() : "NO SCORE YET";
+  }
+  num.classList.toggle("emoji", selected.kind === "drill");
+  icons.hidden = selected.kind === "drill" || !icons.textContent;
+}
+// From Splash Park on, the club offers three bookings before a shift: a bigger payout always means more trouble.
+function requestStart() {
+  const shift = selected.kind === "level" ? SHIFTS[level - 1] : null,
+    offer = shift ? offerBookings(level, 0, shift) : [];
+  if (!offer.length) return start();
+  $("booking-shift").textContent = shift.name.toUpperCase();
+  $("booking-cards").innerHTML = offer
+    .map(
+      (b) =>
+        `<button class="booking-card${b.id === "regular" ? " regular" : ""}" data-booking="${b.id}" aria-label="${b.name}, payout ×${b.payout}. ${b.note}"><span class="b-icon" aria-hidden="true">${b.icon}</span><strong>${b.name}</strong><span class="b-pay">×${b.payout}<small>PAYOUT</small></span><span class="b-note">${b.note}</span><span class="b-trouble" aria-hidden="true">${b.trouble.join(" ")}</span></button>`,
+    )
+    .join("");
+  $("booking-dialog").showModal();
+  $("booking-cards").firstElementChild.focus();
+}
+// HUD line: which chunk of three you are in ("WARM-UP · 2 OF 3"), or that this is a drill.
+function shiftTag() {
+  if (sim.drill) return "DRILL";
+  const zone = zoneOfLevel(sim.level);
+  if (!zone) return "";
+  return zone.kind === "finale"
+    ? `ACT ${zone.act} · FINALE`
+    : `${zone.name.toUpperCase()} · ${zone.nodes.findIndex((n) => n.level === sim.level) + 1} OF ${zone.nodes.length}`;
 }
 
 function pause() {
@@ -504,10 +609,33 @@ function finish() {
   mode = "results";
   audio.playing = false;
   const r = sim.summary(),
-    newBest = recordResult(records, level, r.score);
+    drill = sim.drill ? DRILLS[sim.drill] : null,
+    played = sim.level,
+    zone = drill ? null : zoneOfLevel(played),
+    before = zone && zoneStatus(records, zone, progressFlags),
+    starsBefore = drill ? 0 : starsFor(played, records.bests[played - 1] || 0),
+    newBest = drill ? recordDrill(records, drill.id, r.score) : recordResult(records, played, r.score),
+    after = zone && zoneStatus(records, zone, progressFlags);
   saveRecords();
-  $("result-eyebrow").textContent =
-    "LEVEL " + level + " / " + SHIFTS.length + " · " + sim.config.name.toUpperCase() + " · SHIFT COMPLETE";
+  // A chunk just cleared wakes the next area: the map plays its reveal, and this dialog's main button goes there.
+  const chunkDone = !!zone && !before.complete && after.complete,
+    next = chunkDone ? ZONES[zone.order + 1] : null,
+    opensArea = !!next && next.nodes.some((n) => n.built);
+  if (opensArea) {
+    if (!mapMemory.reveal.includes(next.order)) mapMemory.reveal.push(next.order);
+    saveMapMemory();
+  }
+  afterResults = !drill && starsBefore === 0 && r.stars > 0 && played < SHIFTS.length ? played + 1 : null;
+  nextMode = opensArea ? "map" : "level";
+  const booked = sim.booking && sim.booking !== "regular" ? BOOKINGS[sim.booking] : null;
+  $("result-eyebrow").textContent = drill
+    ? "DRILL · " + drill.name.toUpperCase() + " · COMPLETE"
+    : "LEVEL " +
+      played +
+      " · " +
+      sim.config.name.toUpperCase() +
+      (booked ? " · " + booked.name.toUpperCase() : "") +
+      " · SHIFT COMPLETE";
   $("result-stars").textContent = Array.from({ length: 3 }, (_, i) => (i < r.stars ? "★" : "☆")).join(" ");
   $("result-title").textContent =
     r.stars === 3
@@ -519,6 +647,39 @@ function finish() {
           : "Okay. Deep breath. Again.";
   $("result-score").innerHTML = r.score.toLocaleString() + "<small>POINTS</small>";
   $("new-best").hidden = !newBest;
+  // Where the chunk stands: three dots, so the next new place is never more than three shifts away.
+  $("result-chunk").hidden = !zone;
+  if (zone) {
+    const name = zone.kind === "finale" ? `ACT ${zone.act}` : zone.name.toUpperCase(),
+      following = ZONES[zone.order + 1],
+      opens = following?.nodes.some((n) => n.built)
+        ? (following.act === zone.act ? following.name : CAMPAIGN[following.act - 1].name).toUpperCase()
+        : "",
+      drillNote = chunkDone && zone.drill ? drillStatus(records, zone, progressFlags) : null,
+      notes = [];
+    if (starsBefore === 0 && r.stars === 0 && !after.complete) notes.push("EARN A ★ TO CLEAR IT");
+    else if (after.complete) {
+      if (opens) notes.push(opens + " OPENS");
+    } else if (after.built === after.total && opens)
+      notes.push(`${after.total - after.cleared} MORE TO OPEN ${opens}`);
+    if (drillNote)
+      notes.push(
+        drillNote.unlocked
+          ? `${zone.drill.icon} DRILL OPEN`
+          : `${drillNote.have}/${drillNote.need} ★ FOR THE ${zone.drill.icon} DRILL`,
+      );
+    $("result-chunk").classList.toggle("cleared", after.complete);
+    $("result-pips").innerHTML = pipsHtml(after.cleared, zone.nodes.length);
+    $("result-chunk-text").textContent =
+      zone.kind === "finale"
+        ? after.complete
+          ? `${name} COMPLETE`
+          : `${name} FINALE`
+        : after.complete
+          ? `${name} CLEARED`
+          : `${name} · ${after.cleared} OF ${after.total}`;
+    $("result-chunk-note").textContent = notes.join(" · ");
+  }
   const st = sim.stats,
     extra = [
       ["FLIPS 🤸", st.flips],
@@ -552,15 +713,21 @@ function finish() {
             : r.lost > 3
               ? "The deck queue needs some love. Assign waiting swimmers quickly, even if a lane is not perfect."
               : r.stars === 3
-                ? "Three stars! Try the next shift, or beat this run with an even longer happy streak."
+                ? drill
+                  ? "Three stars! Try the next chunk, or beat this run with an even longer happy streak."
+                  : "Three stars! Try the next shift, or beat this run with an even longer happy streak."
                 : "A new arrival mix awaits. Can you keep the happy streak going just a little longer?";
-  $("next-level").hidden = level >= SHIFTS.length || !isUnlocked(records, level + 1);
-  $("next-level").textContent = "Next shift · Level " + (level + 1) + " →";
-  $("play-again").textContent = "Replay level " + level + " ↻";
+  $("next-level").hidden = drill
+    ? true
+    : nextMode === "level" && (played >= SHIFTS.length || !isUnlocked(records, played + 1));
+  $("next-level").textContent =
+    nextMode === "map" ? "Next area ↗" : "Next shift · Level " + (played + 1) + " →";
+  $("play-again").textContent = drill ? "Replay drill ↻" : "Replay level " + played + " ↻";
   $("play-again").className = $("next-level").hidden ? "primary" : "secondary";
   $("results-dialog").showModal();
   ($("next-level").hidden ? $("play-again") : $("next-level")).focus();
   if (r.stars > 0) world.confetti();
+  if (chunkDone) audio.cheer(2); // a chunk cleared is worth a crowd cheer of its own
 }
 const CARRY_NAMES = {
   lifering: "life ring",
@@ -714,7 +881,7 @@ function updateUI() {
   $("timer").textContent = formatTime(remaining);
   $("timer").classList.toggle("danger-pulse", remaining < 20 && mode === "playing");
   $("shift-label").textContent = sim.config.name.toUpperCase();
-  $("level-progress").textContent = "LEVEL " + String(level).padStart(2, "0") + " / " + SHIFTS.length;
+  $("level-progress").textContent = shiftTag();
   const n = sim.config.thresholds.filter((t) => sim.score >= t).length;
   $("stars").textContent = Array.from({ length: 3 }, (_, i) => (i < n ? "★" : "☆")).join(" ");
   $("score-fill").style.width =
@@ -768,35 +935,42 @@ function updateUI() {
     const b = document.querySelector('[data-lane="' + i + '"]');
     if (!b) continue;
     const splash = i === blocked,
-      moveHere = !!moving && moving.lane !== i && !splash;
+      closed = i === sim.laneClosed(),
+      moveHere = !!moving && moving.lane !== i && !splash && !closed;
     b.classList.toggle(
       "assignable",
       mode === "playing" &&
         !sim.closed &&
         !sim.rescue &&
         !splash &&
+        !closed &&
         ((p?.status === "queue" && p.type !== "daredevil") || sim.coach.carry === "chlorine" || moveHere),
     );
     b.classList.toggle("splash-zone", splash);
+    b.classList.toggle("lane-closed", closed);
     b.classList.toggle("danger", average < 50 || people.some((p) => p.blocked > 3));
-    b.querySelector(".lane-mode").textContent = splash
-      ? "SPLASH!"
-      : moveHere
-        ? "MOVE HERE"
+    b.querySelector(".lane-mode").textContent = closed
+      ? "CLOSED"
+      : splash
+        ? "SPLASH!"
+        : moveHere
+          ? "MOVE HERE"
+          : count === 0
+            ? "OPEN"
+            : count === 1
+              ? "SOLO"
+              : count === 2
+                ? "SPLIT"
+                : "CIRCLE";
+    b.querySelector(".lane-count").textContent = closed
+      ? "Wet floor"
+      : splash
+        ? count
+          ? "Clear this lane!"
+          : "Flip incoming"
         : count === 0
-          ? "OPEN"
-          : count === 1
-            ? "SOLO"
-            : count === 2
-              ? "SPLIT"
-              : "CIRCLE";
-    b.querySelector(".lane-count").textContent = splash
-      ? count
-        ? "Clear this lane!"
-        : "Flip incoming"
-      : count === 0
-        ? "Jump on in"
-        : count + " swimmer" + (count === 1 ? "" : "s");
+          ? "Jump on in"
+          : count + " swimmer" + (count === 1 ? "" : "s");
     b.querySelector(".lane-caps").innerHTML = people
       .slice(0, 8)
       .map((p) => '<i style="background:' + TYPES[p.type].color + '"></i>')
@@ -833,15 +1007,17 @@ function updateUI() {
                           ? "There’s a dog on the deck!"
                           : sim.get(sim.jumper)?.jumpStage === "waiting"
                             ? "A daredevil is waiting on the tower."
-                            : chaos > 3
-                              ? "Keep calm. Mostly calm."
-                              : chaos > 0
-                                ? "Someone needs a little love."
-                                : sim.streak >= 3
-                                  ? "Now we’re in the swim of it."
-                                  : count > 3
-                                    ? "The deck is getting crowded."
-                                    : "Looking good, coach.";
+                            : sim.laneClosed() >= 0
+                              ? "Lane " + (sim.laneClosed() + 1) + " is closed · wet floor."
+                              : chaos > 3
+                                ? "Keep calm. Mostly calm."
+                                : chaos > 0
+                                  ? "Someone needs a little love."
+                                  : sim.streak >= 3
+                                    ? "Now we’re in the swim of it."
+                                    : count > 3
+                                      ? "The deck is getting crowded."
+                                      : "Looking good, coach.";
   $("hint").textContent =
     sim.incidentHint() ||
     (sim.coach.carry === "skimmer"
@@ -1226,8 +1402,13 @@ function events() {
     audio.effect(e.type);
   }
 }
+// The map covers the pool in the menu, so once the first frames have warmed the 3D scene up nothing of it is
+// updated or drawn until a shift starts (moving speech bubbles under a full-screen map cost real frame time).
+let warmFrames = 3;
 function animate(t) {
-  document.documentElement.style.setProperty("--cue", cuePulse(t / 1000, reducedMotion.matches).toFixed(3));
+  const covered = mode === "menu" && warmFrames-- <= 0;
+  if (!covered)
+    document.documentElement.style.setProperty("--cue", cuePulse(t / 1000, reducedMotion.matches).toFixed(3));
   const dt = Math.min((t - previous) / 1000 || 0.016, 0.06),
     // Incident stings slow the game down and saves freeze it for a beat; menus always run at full speed.
     speed = mode === "playing" ? moments.timeScale(seconds()) : 1;
@@ -1264,16 +1445,20 @@ function animate(t) {
         }
       }
     }
-    world.sync(sim, viewClock, dt * speed, dt);
-    if (world.incidentView.consumeLightning()) audio.effect("thunder");
-    world.render();
-    updateBubbles();
+    if (!covered) {
+      world.sync(sim, viewClock, dt * speed, dt);
+      if (world.incidentView.consumeLightning()) audio.effect("thunder");
+      world.render();
+      updateBubbles();
+    }
     updateContext();
     updateAlert();
-    uiClock += dt;
-    if (uiClock > 0.12) {
-      uiClock = 0;
-      updateUI();
+    if (!covered) {
+      uiClock += dt;
+      if (uiClock > 0.12) {
+        uiClock = 0;
+        updateUI();
+      }
     }
   } catch (e) {
     console.error("Pool Panic frame error", e);
@@ -1288,10 +1473,12 @@ function animate(t) {
   requestAnimationFrame(animate);
 }
 function bind() {
-  $("level-map").innerHTML = SHIFTS.map(
-    (s, i) =>
-      `<button data-level="${i + 1}" class="${s.venue === "resort" ? "resort" : ""}" aria-label="Level ${i + 1}"><span class="level-number">${String(i + 1).padStart(2, "0")}</span><i class="level-lock" aria-hidden="true">🔒</i><span class="level-stars" aria-hidden="true"></span></button>`,
-  ).join("");
+  mapView = new LevelMap($("map"), {
+    onLevel: selectLevel,
+    onDrill: selectDrill,
+    onStart: requestStart,
+    onAct: selectAct,
+  });
   $("scoop-target").onclick = () => sim.scoop();
   $("coach-cam").checked = settings.coachCam;
   $("coach-cam").onchange = () => {
@@ -1299,17 +1486,14 @@ function bind() {
     saveSettings();
   };
   world.canLook = () => ["playing", "countdown"].includes(mode);
-  $("start").onclick = start;
-  document.querySelectorAll("[data-level]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        level = Number(b.dataset.level);
-        sim = makeDemo();
-        clearBubbles();
-        updateChoices();
-        updateUI();
-      }),
-  );
+  $("start").onclick = requestStart;
+  $("booking-cards").onclick = (e) => {
+    const b = e.target.closest("[data-booking]");
+    if (!b) return;
+    $("booking-dialog").close();
+    start(b.dataset.booking);
+  };
+  $("booking-back").onclick = () => $("booking-dialog").close();
   $("lane-controls").onclick = (e) => {
     const b = e.target.closest("[data-lane]");
     if (!b) return;
@@ -1340,7 +1524,7 @@ function bind() {
   };
   $("pause").onclick = pause;
   $("resume").onclick = resume;
-  $("restart").onclick = start;
+  $("restart").onclick = () => start(activeBooking);
   $("help").onclick = showHelp;
   document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = closeHelp));
   $("help-dialog").addEventListener("cancel", (e) => {
@@ -1355,11 +1539,13 @@ function bind() {
     e.preventDefault();
     returnMenu();
   });
-  $("play-again").onclick = start;
+  $("play-again").onclick = () => start(activeBooking);
   $("back-menu").onclick = returnMenu;
   $("next-level").onclick = () => {
+    if (nextMode === "map") return returnMenu();
     level = Math.min(SHIFTS.length, level + 1);
-    start();
+    selected = { kind: "level", level };
+    requestStart();
   };
   $("zoom-in").onclick = () => world.zoomBy(1.1);
   $("zoom-out").onclick = () => world.zoomBy(1 / 1.1);
@@ -1387,6 +1573,15 @@ function bind() {
     },
     onShortcut: (e) => {
       const key = e.key.toLowerCase();
+      if (
+        mode === "menu" &&
+        key === "enter" &&
+        !document.querySelector("dialog[open]") &&
+        !e.target.closest?.("button, a, label, input")
+      ) {
+        requestStart();
+        return;
+      }
       if (key === "m") {
         $("sound").click();
         return;
@@ -1468,7 +1663,7 @@ try {
   bind();
   audio.init();
   audio.playing = true;
-  updateChoices();
+  updateMenu();
   updateUI();
   syncVenue(sim);
   $("loading").hidden = true;
@@ -1488,9 +1683,10 @@ try {
       get moments() {
         return moments;
       },
-      play(n = level) {
+      play(n = level, booking = null) {
         level = n;
-        start();
+        selected = { kind: "level", level: n };
+        start(booking);
       },
       step(seconds = 1, drive = null) {
         for (let t = 0; t < seconds; t += 1 / 60) {
@@ -1507,7 +1703,45 @@ try {
       },
       unlockAll() {
         records.unlocked = SHIFTS.length;
-        updateChoices();
+        updateMenu();
+      },
+      // See the map as a real player does: levels locked until the one before has a star.
+      lockAll(on = true) {
+        progressFlags.unlockAll = !on;
+        updateMenu();
+      },
+      get records() {
+        return records;
+      },
+      get selected() {
+        return selected;
+      },
+      get map() {
+        return mapView;
+      },
+      menu() {
+        returnMenu();
+      },
+      select(n) {
+        selectLevel(n);
+      },
+      selectDrill(id) {
+        selectDrill(id);
+      },
+      // Save what a player would have after clearing levels 1..n with one star each.
+      progress(n, stars = 1) {
+        records = normalizeRecords();
+        for (let i = 1; i <= n; i++) recordResult(records, i, SHIFTS[i - 1].thresholds[stars - 1]);
+        level = currentLevel(records);
+        selected = { kind: "level", level };
+        updateMenu();
+      },
+      // Finish the shift being played with a given score (as if the clock ran out), for the results screens.
+      end(score = null) {
+        if (score !== null) sim.score = score;
+        sim.status = "ended";
+        sim.emit("ended");
+        events();
       },
     };
 } catch (e) {

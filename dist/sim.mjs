@@ -2,6 +2,7 @@ import { prepareDeck, resolveDeck, deckHeading } from "./deck-physics.mjs";
 import { waitingInWater } from "./rescue.mjs";
 import { ChaosController } from "./chaos.mjs";
 import { ENTRY, VENUES, createCoach } from "./spatial.mjs";
+import { BOOKINGS, applyBooking } from "./bookings.mjs";
 export { LANES, STATIONS } from "./spatial.mjs";
 export const TYPES = {
   beginner: { label: "Beginner", color: "#71ba54", speed: 0.55, icon: "🐢" },
@@ -11,7 +12,8 @@ export const TYPES = {
   daredevil: { label: "Daredevil", color: "#f39a2b", speed: 0, icon: "🤸" },
 };
 // A season is a list of shifts. `chaos` entries pick one incident from `kinds` at a seeded time inside
-// `window` (seconds of play); `maxChaos` caps how many incidents may run at once.
+// `window` (seconds of play); `maxChaos` caps how many incidents may run at once. `twist` entries change the rules
+// partway through: { kind: "rush" | "closure" | "team" | "class", at: fraction of the shift } (incidents/twist.mjs).
 export const SHIFTS = [
   {
     name: "Morning dip",
@@ -22,7 +24,13 @@ export const SHIFTS = [
     workoutSeconds: 8,
     closingPenalty: 0,
   },
-  { name: "Lunch rush", duration: 60, total: 8, thresholds: [600, 1000, 1400] },
+  {
+    name: "Lunch rush",
+    duration: 60,
+    total: 8,
+    thresholds: [600, 1000, 1400],
+    twist: [{ kind: "rush", at: 0.5, count: 3 }],
+  },
   { name: "Peak panic", duration: 90, total: 14, thresholds: [1100, 1800, 2500] },
   {
     name: "Fin club",
@@ -41,6 +49,7 @@ export const SHIFTS = [
     mix: [0.18, 0.43, 0.6],
     intro: "fish",
     chaos: [{ kinds: ["fish"], window: [35, 60] }],
+    twist: [{ kind: "class", at: 0.5 }],
   },
   {
     name: "Fast company",
@@ -70,6 +79,7 @@ export const SHIFTS = [
       { kinds: ["dog", "fish"], window: [28, 50] },
       { kinds: ["carl", "outage"], window: [72, 96] },
     ],
+    twist: [{ kind: "closure", at: 0.5 }],
   },
   {
     name: "Championship day",
@@ -97,8 +107,12 @@ export const SHIFTS = [
       { kinds: ["outage", "dog"], window: [44, 66] },
       { kinds: ["dog", "carl", "fish", "outage"], window: [84, 110] },
     ],
+    twist: [
+      { kind: "team", at: 0.4 },
+      { kind: "closure", at: 0.68 },
+    ],
   },
-  // Season two: the Riviera Splash Resort. Five lanes and a trampoline whose splash zone is lane 5.
+  // Season two: Splash Park. Five lanes and a trampoline whose splash zone is lane 5.
   {
     name: "Splash landing",
     venue: "resort",
@@ -120,6 +134,7 @@ export const SHIFTS = [
     daredevilAt: [0.16, 0.42, 0.68, 0.9],
     jumpPatience: 14,
     chaos: [{ kinds: ["fish"], window: [40, 62] }],
+    twist: [{ kind: "rush", at: 0.5 }],
   },
   {
     name: "Beach party",
@@ -149,9 +164,10 @@ export const SHIFTS = [
       { kinds: ["outage"], window: [36, 56] },
       { kinds: ["fish", "carl"], window: [88, 110] },
     ],
+    twist: [{ kind: "closure", at: 0.5 }],
   },
   {
-    name: "Riviera legend",
+    name: "Park legend",
     venue: "resort",
     lighting: "sunset",
     duration: 165,
@@ -166,6 +182,10 @@ export const SHIFTS = [
       { kinds: ["fish", "dog"], window: [24, 42] },
       { kinds: ["outage", "carl"], window: [58, 82] },
       { kinds: ["dog", "carl", "fish", "outage"], window: [100, 128] },
+    ],
+    twist: [
+      { kind: "team", at: 0.4 },
+      { kind: "closure", at: 0.7 },
     ],
   },
 ];
@@ -208,16 +228,21 @@ export function loopPosition(p, center = 0) {
   return { x: center - 0.6 + (p - 30), z: -7.2, angle: Math.PI / 2 };
 }
 export class PoolSimulation extends ChaosController {
+  // `options.booking` (a booking or its id) folds a booking's extra trouble into the shift; `options.config` plays a
+  // custom shift (a drill) at the feature tier `level`.
   constructor(level = 1, seed = Date.now(), options = {}) {
     const lvl = Math.max(1, Math.min(SHIFTS.length, Math.floor(level) || 1));
+    const booking = typeof options.booking === "string" ? BOOKINGS[options.booking] : options.booking;
+    const base = options.config || SHIFTS[lvl - 1];
+    const config = booking ? applyBooking(base, booking) : base;
     const venue =
-      typeof options.venue === "object"
-        ? options.venue
-        : VENUES[options.venue || SHIFTS[lvl - 1].venue || "club"];
+      typeof options.venue === "object" ? options.venue : VENUES[options.venue || config.venue || "club"];
     super(venue);
     this.level = lvl;
     this.difficulty = Math.min(3, this.level);
-    this.config = SHIFTS[this.level - 1];
+    this.config = config;
+    this.booking = booking?.id ?? null;
+    this.drill = options.drill ?? null;
     this.seed = seed >>> 0;
     this.time = 0;
     this.arrivalTime = 0;
@@ -300,7 +325,7 @@ export class PoolSimulation extends ChaosController {
   }
   spawn(spec = {}) {
     const r = this.random();
-    const mix = this.config.mix || [0.29, 0.6, 0.83];
+    const mix = this.mixOverride || this.config.mix || [0.29, 0.6, 0.83];
     const type =
       spec.type || (r < mix[0] ? "beginner" : r < mix[1] ? "intermediate" : r < mix[2] ? "advanced" : "aqua");
     const index = this.people.length;
@@ -416,6 +441,10 @@ export class PoolSimulation extends ChaosController {
   multiplier() {
     return this.streak >= 8 ? 2 : this.streak >= 5 ? 1.5 : this.streak >= 3 ? 1.2 : 1;
   }
+  // What a served swimmer is worth: the streak multiplier times the booking's payout.
+  scoreMultiplier() {
+    return this.multiplier() * (this.config.payout ?? 1);
+  }
   select(id) {
     const p = this.get(id);
     if (!p || p.status === "gone" || p.status === "exit" || p.status === "arriving") return;
@@ -460,13 +489,7 @@ export class PoolSimulation extends ChaosController {
       this.emit("toast", { text: p.name + " only wants the trampoline! Press T or click the tower." });
       return false;
     }
-    if (this.laneBlocked() === lane) {
-      this.emit("toast", {
-        text: "Lane " + (lane + 1) + " is the splash zone. Wait for the flip!",
-        warning: true,
-      });
-      return false;
-    }
+    if (this.laneLocked(lane)) return this.laneRefused(lane);
     p.lane = lane;
     p.assignedAt = this.time;
     p.p = 30;
@@ -476,6 +499,16 @@ export class PoolSimulation extends ChaosController {
     this.selected = null;
     return true;
   }
+  laneRefused(lane) {
+    this.emit("toast", {
+      text:
+        lane === this.laneClosure
+          ? "Lane " + (lane + 1) + " is closed. Use another lane!"
+          : "Lane " + (lane + 1) + " is the splash zone. Wait for the flip!",
+      warning: true,
+    });
+    return false;
+  }
   // Move a swimmer mid-workout: they duck under the ropes into another lane and keep their progress.
   moveLane(p, lane) {
     if (this.status !== "playing" || p.status !== "swim" || p.lane == null) return false;
@@ -484,13 +517,7 @@ export class PoolSimulation extends ChaosController {
       this.emit("toast", { text: p.name + " is already in lane " + (lane + 1) + "." });
       return false;
     }
-    if (this.laneBlocked() === lane) {
-      this.emit("toast", {
-        text: "Lane " + (lane + 1) + " is the splash zone. Wait for the flip!",
-        warning: true,
-      });
-      return false;
-    }
+    if (this.laneLocked(lane)) return this.laneRefused(lane);
     const up = Math.cos(p.angle || 0) >= 0,
       z = clamp(p.z, -7.2, 7.2);
     p.switchTarget = { x: this.lanes[lane] + (up ? 0.6 : -0.6), z, p: up ? z + 7.2 : 15.6 + (7.2 - z) };
@@ -590,7 +617,7 @@ export class PoolSimulation extends ChaosController {
       if (p.slowTime < 3) points += 25;
       const others = this.lanePeople(p.lane).filter((a) => a !== p);
       if (others.every((a) => a.type === p.type)) points += 25;
-      points = Math.round(points * this.multiplier());
+      points = Math.round(points * this.scoreMultiplier());
       this.score += points;
       this.emit("points", { x: p.x, z: p.z, value: points });
       this.emit("served", { happy: p.h >= 70, id: p.id });

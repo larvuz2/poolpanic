@@ -339,7 +339,7 @@ function land(sim, p) {
     .slice(0, 2);
   if (!hit.length) {
     // Stuck the landing: a served, happy customer who swims out and heads home.
-    const points = Math.round((T.success + (p.wait < 8 ? 20 : 0)) * sim.multiplier());
+    const points = Math.round((T.success + (p.wait < 8 ? 20 : 0)) * sim.scoreMultiplier());
     sim.score += points;
     sim.stats.served++;
     sim.stats.happy++;

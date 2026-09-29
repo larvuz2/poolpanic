@@ -7,6 +7,7 @@ import { FishKid } from "./incidents/fish.mjs";
 import { LooseDog } from "./incidents/dog.mjs";
 import { CannonballCarl } from "./incidents/carl.mjs";
 import { PowerOutage } from "./incidents/outage.mjs";
+import { planTwists, startTwist } from "./incidents/twist.mjs";
 import {
   Trampoline,
   tickJumper,
@@ -56,6 +57,9 @@ export class ChaosController extends RescueController {
     this.hazards = [];
     this.chaosPlan = [];
     this.chaosSeed = 1;
+    // Mid-shift twists: a lane taken out of service, and an override of who arrives next (see incidents/twist.mjs).
+    this.laneClosure = -1;
+    this.mixOverride = null;
     this.systems = SYSTEMS;
     for (const system of this.systems) system.init?.(this);
   }
@@ -71,6 +75,7 @@ export class ChaosController extends RescueController {
       at: entry.window[0] + this.chaosRandom() * (entry.window[1] - entry.window[0]),
       done: false,
     }));
+    this.chaosPlan.push(...planTwists(this.config));
   }
   system(key) {
     return this.systems.find((s) => s.key === key);
@@ -95,6 +100,12 @@ export class ChaosController extends RescueController {
       if (entry.done || this.arrivalTime < entry.at) continue;
       if (this.config.duration - this.time < 14) {
         entry.done = true;
+        continue;
+      }
+      if (entry.kind === "twist") {
+        // A twist waits out a rescue, a cleanup or a closed pool, but not for the incident cap: it is no incident.
+        if (this.rescue || this.cleanup || this.closed) continue;
+        entry.done = startTwist(this, entry);
         continue;
       }
       const system = this.system(entry.kind);
@@ -294,9 +305,12 @@ export class ChaosController extends RescueController {
   }
   // Swimmers coming back rejoin their own lane, or a neighbour while a daredevil holds the splash lane.
   returnLane(p) {
-    const lane = super.returnLane(p),
-      blocked = this.laneBlocked();
-    return lane === blocked ? (lane > 0 ? lane - 1 : lane + 1) : lane;
+    const lane = super.returnLane(p);
+    if (!this.laneLocked(lane)) return lane;
+    const open = [lane - 1, lane + 1, lane - 2, lane + 2].find(
+      (l) => l >= 0 && l < this.lanes.length && !this.laneLocked(l),
+    );
+    return open ?? lane;
   }
   // Return every evacuated or fleeing swimmer to their original lane and unfinished workout. A loose fish keeps
   // the pool closed whatever else finished first; netting it reopens the pool.
@@ -396,6 +410,14 @@ export class ChaosController extends RescueController {
   // Trampoline (resort only): daredevil jumps, the splash-lane lock and crash victims on deck.
   laneBlocked() {
     return this.venue.trampoline ? blockedLane(this) : -1;
+  }
+  // The lane a mid-shift twist has closed, or -1.
+  laneClosed() {
+    return this.laneClosure;
+  }
+  // Nobody new can go into a lane that is the splash zone or closed.
+  laneLocked(lane) {
+    return lane === this.laneBlocked() || lane === this.laneClosure;
   }
   assignTrampoline() {
     return assignTrampoline(this);

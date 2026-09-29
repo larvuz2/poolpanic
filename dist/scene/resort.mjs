@@ -1,4 +1,4 @@
-// Riviera Splash Resort: an open-air five-lane pool with cabanas, palms, a snack kiosk and a trampoline tower
+// Splash Park (the resort venue): an open-air five-lane pool with cabanas, palms, a snack kiosk and a trampoline tower
 // whose splash zone lands in the last lane. Same toy palette as the club, warmer and sunnier.
 import { THREE, COLORS } from "./kit.mjs";
 import { buildPool, buildDeck } from "./pool.mjs";
