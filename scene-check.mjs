@@ -490,6 +490,36 @@ console.log(
       w.setViewMode("overview", sim);
     }
   }
+  // Ids start again in every shift, and the world outlives the shift: a kid left over from the last one must not stand
+  // in for the dog that gets the same id in the next (this once stopped a shift the moment the dog came in).
+  {
+    const w = buildWorld("club"),
+      a = new PoolSimulation(5, 3);
+    a.chaosPlan = [];
+    a.start();
+    assert.ok(a.triggerChaos("fish"));
+    for (let i = 0; i < 30; i++) a.tick(1 / 60);
+    w.sync(a, 1, 1 / 60);
+    const kid = a.visitors.find((v) => v.kind === "kid");
+    assert.equal(w.incidentView.visitors.get(kid.id).userData.visitorKind, "kid");
+    const b = new PoolSimulation(4, 5); // the next shift, worst case: nothing was drawn in between
+    b.chaosPlan = [];
+    b.start();
+    b.uid = kid.id - 1;
+    assert.ok(b.triggerChaos("dog"));
+    const dog = b.visitors.find((v) => v.kind === "dog");
+    assert.equal(dog.id, kid.id, "The dog gets the kid's old id");
+    w.sync(b, 2, 1 / 60);
+    assert.equal(
+      w.incidentView.visitors.get(dog.id).userData.visitorKind,
+      "dog",
+      "A dog, not the kid's leftovers",
+    );
+    // And the app clears the deck whenever a shift starts.
+    w.resetActors();
+    assert.equal(w.incidentView.visitors.size, 0);
+    assert.equal(w.people.size, 0);
+  }
   // A blackout dims what glows in the arena: the marquee, spotlights, screens and scoreboard all register.
   {
     const w = buildWorld("arena");

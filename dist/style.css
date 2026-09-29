@@ -4111,3 +4111,68 @@ body.menu .brand small {
     transition: none;
   }
 }
+
+/* The crash dialog: what went wrong, and how to get the report to us. */
+.crash-modal {
+  max-width: 560px;
+}
+.crash-modal h2 {
+  font-size: 24px;
+  color: var(--yellow);
+  margin: 4px 0 8px;
+}
+.crash-modal p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+#crash-summary {
+  color: var(--mint);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.crash-detail {
+  max-height: 28vh;
+  max-height: 28dvh;
+  overflow: auto;
+  margin: 12px 0;
+  padding: 10px 12px;
+  background: #0b2d38;
+  border: 1px solid #2c6a73;
+  border-radius: 8px;
+  color: #cfe8df;
+  font:
+    500 10.5px/1.45 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.crash-modal .crash-note {
+  font-size: 11px;
+  color: var(--muted);
+}
+.crash-modal .primary,
+.crash-modal .secondary {
+  width: 100%;
+  margin-top: 8px;
+}
+.crash-modal .live-only {
+  display: none;
+}
+.crash-modal.live .live-only {
+  display: block;
+}
+.help-log {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 14px;
+}
+.text-btn.inline {
+  display: inline;
+  margin: 0;
+  padding: 0 2px;
+  min-height: 0;
+  text-decoration: underline;
+}

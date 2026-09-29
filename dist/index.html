@@ -367,6 +367,10 @@
           clicking gear or a visitor walks you there. Jump over dropped fins and puddles to avoid slipping.
           The coach only enters the water on a mission: a life ring for a rescue, or the net for a loose fish.
         </p>
+        <p class="help-log">
+          Something broke or froze? <button id="help-log" class="text-btn inline">Open the game log</button>
+          to copy what happened.
+        </p>
         <button class="primary" data-close>I've got this ↗</button>
       </dialog>
       <dialog id="pause-dialog" class="modal small-modal">
@@ -375,6 +379,21 @@
         <p>The pool can wait a moment.</p>
         <button id="resume" class="primary">BACK IN ▶</button
         ><button id="restart" class="secondary">Restart this shift</button>
+      </dialog>
+      <dialog id="crash-dialog" class="modal crash-modal" aria-labelledby="crash-title">
+        <div id="crash-eyebrow" class="eyebrow">CRASH REPORT</div>
+        <h2 id="crash-title">The game had a problem last time.</h2>
+        <p id="crash-summary"></p>
+        <pre id="crash-detail" class="crash-detail" tabindex="0"></pre>
+        <p class="crash-note">
+          Nothing is sent by itself. The report lists this device, the error and the last things that
+          happened; copy it, or open it as a GitHub issue, and it can be read later.
+        </p>
+        <button id="crash-copy" class="primary">Copy report</button
+        ><button id="crash-issue" class="secondary">Report on GitHub ↗</button
+        ><button id="crash-restart" class="secondary live-only">Restart this shift</button
+        ><button id="crash-map" class="secondary live-only">Back to the map</button
+        ><button id="crash-dismiss" class="text-btn">Not now</button>
       </dialog>
       <dialog id="booking-dialog" class="modal booking-modal" aria-labelledby="booking-title">
         <div class="eyebrow">
@@ -404,6 +423,28 @@
         ><small class="local-note">Personal bests and unlocks saved on this device.</small>
       </dialog>
     </main>
+    <script>
+      // Catches what goes wrong before the game module runs (a file that failed to load or parse), and says so when
+      // the game has not opened after a while. The crash log (crashlog.mjs) takes over once the game is up.
+      window.__boot = { ready: false, errors: [] };
+      window.addEventListener("error", function (e) {
+        if (window.__boot.ready || (!e.error && !e.message)) return;
+        window.__boot.errors.push({
+          name: (e.error && e.error.name) || "Error",
+          message: e.message,
+          stack: (e.error && e.error.stack) || e.filename + ":" + e.lineno,
+        });
+      });
+      setTimeout(function () {
+        var box = document.getElementById("loading");
+        if (window.__boot.ready || !box || box.hidden) return;
+        var first = window.__boot.errors[0];
+        box.innerHTML =
+          "<p>The game did not start.</p><p style='font-size:14px;font-weight:500;max-width:340px;text-align:center'>" +
+          (first ? String(first.message).replace(/</g, "&lt;") : "It is taking longer than it should.") +
+          "</p><button class='primary' style='width:200px' onclick='location.reload()'>Try again ↻</button>";
+      }, 20000);
+    </script>
     <script type="module" src="./app.mjs"></script>
   </body>
 </html>

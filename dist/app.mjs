@@ -27,9 +27,19 @@ import { PoolWorld } from "./scene.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
 import { MomentDirector, edgeArrow } from "./moments.mjs";
+import { installCrashLog, describeGpu } from "./crashlog-hooks.mjs";
+import { BUILD } from "./version.mjs";
 const $ = (id) => document.getElementById(id),
   audio = new PoolAudio();
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+// The crash log starts first, so whatever goes wrong afterwards (even while the world is being built) is kept on the
+// device. Nothing is sent anywhere: see crashlog.mjs, and the crash dialog for how a report gets to us.
+let crashStorage = null;
+try {
+  crashStorage = localStorage;
+} catch {}
+const crashlog = installCrashLog({ build: BUILD, storage: crashStorage, motion: reducedMotion.matches });
+for (const e of window.__boot?.errors || []) crashlog.error("boot", e);
 let input,
   accumulator = 0,
   sim,
@@ -88,6 +98,7 @@ function moveVector() {
 function applyViewMode() {
   const coach = settings.coachCam && mode !== "menu";
   world.setViewMode(coach ? "coach" : "overview", coach ? sim : null);
+  crashlog.crumb("view", coach ? "Coach Cam" : "overview");
   input.lookMode = coach;
   document.body.classList.toggle("coach-cam", coach);
   if (!coach) sim.coach.lookAngle = null;
@@ -304,6 +315,133 @@ function saveRecords() {
     localStorage.setItem("pool-panic.records.v1", JSON.stringify(records));
   } catch {}
 }
+
+// ---- the crash log -------------------------------------------------------------------------------------------------
+// What the game is doing, for the report: the shift, the venue, the view, what is going wrong right now.
+let runSeed = 0; // the seed of the shift being played (the deck's schedule follows from it)
+function logState() {
+  if (!sim) return;
+  crashlog.setState({
+    mode,
+    level: sim.level,
+    shift: sim.config?.name,
+    venue: sim.venue?.id,
+    lighting: world?.lightingName,
+    view: world?.viewMode,
+    time: sim.time,
+    score: sim.score,
+    active: (sim.activeSystems?.() || []).map((x) => x.key).join("+"),
+    booking: activeBooking || "",
+    seed: mode === "menu" ? 0 : runSeed,
+  });
+}
+// The player's deliberate actions go in the trail too: what they did just before something broke is often the clue.
+const act = (what) => crashlog.crumb("input", what);
+// A few numbers about how the GPU and the heap are doing, every ten seconds, so a crash report can show a trend.
+function sampleLog() {
+  const info = world?.renderer?.info,
+    memory = performance.memory?.usedJSHeapSize;
+  crashlog.perf({
+    calls: info?.render.calls,
+    tris: info && Math.round(info.render.triangles / 1000),
+    geo: info?.memory.geometries,
+    tex: info?.memory.textures,
+    prog: info?.programs?.length,
+    heapMB: memory && Math.round(memory / 1048576),
+  });
+}
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {}
+  try {
+    const box = document.createElement("textarea");
+    box.value = text;
+    box.style.cssText = "position:fixed;left:-999px;top:0";
+    document.body.appendChild(box);
+    box.select();
+    const ok = document.execCommand("copy");
+    box.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+// The crash dialog: what went wrong, and two ways to get the report to us (copy it, or open a prefilled GitHub
+// issue). `live` is a shift that just hit an error and is paused.
+let crashOn = null;
+function showCrash(session, { live = false } = {}) {
+  if (!session) return;
+  crashOn = session;
+  const dialog = $("crash-dialog"),
+    troubled = session.errors.length || session.crash;
+  dialog.classList.toggle("live", live);
+  $("crash-eyebrow").textContent = live ? "THE POOL HIT A SNAG" : troubled ? "CRASH REPORT" : "GAME LOG";
+  $("crash-title").textContent = live
+    ? "Something went wrong."
+    : troubled
+      ? "The game had a problem last time."
+      : "Nothing went wrong.";
+  $("crash-summary").textContent = crashlog.headline(session, { latest: live });
+  $("crash-detail").textContent = crashlog.preview(session, { latest: live });
+  $("crash-copy").textContent = "Copy report";
+  $("crash-issue").textContent = "Report on GitHub ↗";
+  if (!dialog.open) dialog.showModal();
+}
+async function shareCrash(how) {
+  if (!crashOn) return;
+  const copied = await copyText(crashlog.report(crashOn));
+  crashlog.mark(crashOn.id, "reported");
+  if (how === "issue") {
+    // The link carries a shortened report; the whole one is on the clipboard for the issue's text box.
+    window.open(crashlog.issue(crashOn).url, "_blank", "noopener");
+    $("crash-issue").textContent = copied ? "Opened · full report copied ✓" : "Opened ↗";
+  } else $("crash-copy").textContent = copied ? "Copied ✓" : "Copy failed: select the text below";
+}
+// After an error the shift stays paused: the report first, then the pause menu (resume, restart).
+function closeCrash() {
+  const dialog = $("crash-dialog"),
+    live = dialog.classList.contains("live");
+  if (dialog.open) dialog.close();
+  dialog.classList.remove("live");
+  if (live && mode === "paused" && !$("pause-dialog").open) $("pause-dialog").showModal();
+}
+// Frames that threw, stage by stage: cosmetic stages (drawing, tags, alerts) are logged and skipped so the shift
+// goes on; the simulation, or a stage that fails for a second and a half straight, stops the shift with the report.
+const failing = {};
+let snagged = false;
+function stage(name, fn) {
+  try {
+    fn();
+    if (failing[name]) failing[name] = 0;
+    return true;
+  } catch (e) {
+    failing[name] = (failing[name] || 0) + 1;
+    if (failing[name] === 1 || failing[name] % 300 === 0) console.error("Pool Panic frame error", name, e);
+    crashlog.error("frame:" + name, e);
+    return false;
+  }
+}
+function snag() {
+  if (snagged) return;
+  snagged = true;
+  const playing = ["playing", "countdown"].includes(mode);
+  if (playing) {
+    releaseMouse();
+    resumeState = sim.status;
+    input?.clear();
+    sim.clearInput?.();
+    accumulator = 0;
+    sim.status = "paused";
+    mode = "paused";
+    audio.playing = false;
+  }
+  logState();
+  crashlog.crumb("snag", playing ? "shift paused after an error" : "errors in the menu");
+  toast("The pool hit a snag. The report is ready.", true);
+  showCrash(crashlog.latest(), { live: playing });
+}
 function makeDemo() {
   const s = new PoolSimulation(level, 17467);
   [
@@ -338,8 +476,19 @@ function makeDemo() {
 let worldVersion = -1;
 function syncVenue(s) {
   if (!world) return;
+  const built = performance.now();
   world.setVenue(s.venue, s.config.lighting);
   if (worldVersion !== world.version) {
+    crashlog.crumb(
+      "world",
+      "built " +
+        s.venue.id +
+        " · " +
+        world.lightingName +
+        " in " +
+        Math.round(performance.now() - built) +
+        " ms",
+    );
     worldVersion = world.version;
     renderLaneControls(s.venue);
     for (const e of stationLabels) e.remove();
@@ -378,12 +527,16 @@ function start(bookingId = null) {
   document.querySelectorAll("dialog[open]").forEach((d) => d.close());
   const drill = selected.kind === "drill" ? DRILLS[selected.id] : null;
   activeBooking = drill ? null : bookingId;
+  runSeed = Date.now();
   sim = drill
-    ? new PoolSimulation(drill.tier, Date.now(), { config: drill.config, drill: drill.id })
-    : new PoolSimulation(level, Date.now(), { booking: activeBooking });
+    ? new PoolSimulation(drill.tier, runSeed, { config: drill.config, drill: drill.id })
+    : new PoolSimulation(level, runSeed, { booking: activeBooking });
   syncVenue(sim);
+  world.resetActors();
   sim.start({ countdown: true });
   mode = "countdown";
+  snagged = false;
+  for (const k of Object.keys(failing)) failing[k] = 0;
   moments.reset();
   hideMoments();
   applyViewMode();
@@ -399,9 +552,24 @@ function start(bookingId = null) {
   queueKey = "";
   clearBubbles();
   updateUI();
+  logState();
+  crashlog.crumb(
+    "shift",
+    "start L" +
+      sim.level +
+      " " +
+      (sim.config?.name || "") +
+      " · " +
+      sim.venue.id +
+      " · seed " +
+      runSeed +
+      (activeBooking ? " · booking " + activeBooking : ""),
+  );
 }
 function returnMenu() {
   releaseMouse();
+  snagged = false;
+  crashlog.crumb("menu", "back to the map");
   audio.panic = false;
   input?.clear();
   accumulator = 0;
@@ -421,6 +589,7 @@ function returnMenu() {
   const reveal = mapMemory.reveal.splice(0);
   if (reveal.length) saveMapMemory();
   sim = makeDemo();
+  logState();
   $("welcome").hidden = false;
   $("queue-panel").hidden = true;
   $("combo").hidden = true;
@@ -451,7 +620,9 @@ function selectAct(actId) {
       .zones.flatMap((z) => z.nodes)
       .filter((n) => n.built),
     playable = nodes.filter((n) => levelState(records, n, progressFlags) !== "locked"),
-    target = playable.find((n) => levelState(records, n, progressFlags) !== "cleared") || playable.at(-1);
+    target =
+      playable.find((n) => levelState(records, n, progressFlags) !== "cleared") ||
+      playable[playable.length - 1];
   if (target && !(selected.kind === "level" && selected.level === target.level)) selectLevel(target.level);
 }
 function updateMenu(reveal = []) {
@@ -534,6 +705,8 @@ function pause() {
   mode = "paused";
   audio.playing = false;
   $("pause-dialog").showModal();
+  logState();
+  crashlog.crumb("pause", "at " + Math.round(sim.time) + " s");
 }
 function resume() {
   if (mode !== "paused") return;
@@ -541,6 +714,8 @@ function resume() {
   sim.status = resumeState;
   mode = resumeState;
   audio.playing = mode === "playing";
+  logState();
+  crashlog.crumb("resume", "");
 }
 function showHelp() {
   if ($("help-dialog").open) return;
@@ -572,6 +747,12 @@ function pick(data) {
     return;
   }
   if (mode !== "playing") return;
+  act(
+    "pick " +
+      [data.kind, data.item, data.id != null && "#" + data.id, data.lane != null && "lane " + data.lane]
+        .filter(Boolean)
+        .join(" "),
+  );
   if (data.kind === "swimmer") {
     const p = sim.get(data.id),
       item = sim.coach.carry;
@@ -608,6 +789,8 @@ function finish() {
   accumulator = 0;
   mode = "results";
   audio.playing = false;
+  logState();
+  crashlog.crumb("shift", "ended · score " + Math.round(sim.score));
   const r = sim.summary(),
     drill = sim.drill ? DRILLS[sim.drill] : null,
     played = sim.level,
@@ -1317,161 +1500,207 @@ function points(e) {
   $("world-labels").appendChild(el);
   setTimeout(() => el.remove(), 1750);
 }
+// What the crash log notes about the shift as it goes: the events that change how it is going, not every footstep.
+const NOTABLE = new Set([
+  "incident",
+  "catastrophe",
+  "blackout",
+  "cannonball",
+  "fish-dumped",
+  "fish-caught",
+  "crash",
+  "healed",
+  "rescue-safe",
+  "cramp-alarm",
+  "stomach-warning",
+  "vip",
+]);
 function events() {
   const batch = sim.events.splice(0),
     // A sting says what a new incident's warning toast would; a stamp carries the points of its save.
     stung = batch.some((e) => e.type === "incident"),
     stamped = batch.filter((e) => e.type === "save" && e.value).map((e) => e.value);
   for (const e of batch) {
-    if (e.type === "countdown") {
-      $("countdown-number").textContent = e.value;
-      if (!reducedMotion.matches)
-        $("countdown-number").animate(
-          [
-            { transform: "scale(1.22)", opacity: 0.5 },
-            { transform: "scale(1)", opacity: 1 },
-          ],
-          { duration: 250 },
-        );
-    } else if (e.type === "go") {
-      mode = "playing";
-      audio.playing = true;
-      $("countdown").hidden = true;
-      updateUI();
-    } else if (e.type === "toast") {
-      if (!(stung && e.warning)) toast(e.text, e.warning);
-    } else if (e.type === "points") {
-      const i = stamped.indexOf(e.value);
-      if (i >= 0) stamped.splice(i, 1);
-      else points(e);
-    } else if (e.type === "incident") showSting(moments.incident(e, seconds()));
-    else if (e.type === "save") showPayoff(moments.save(e, seconds()));
-    else if (e.type === "splash" || e.type === "collision" || e.type === "slip")
-      world.splash(e.x, -0.12, e.z, e.type === "splash" ? 10 : 15);
-    else if (e.type === "cramp-alarm" || e.type === "rescue-safe") {
-      queueKey = "";
-      updateUI();
-    } else if (e.type === "stomach-warning") {
-      queueKey = "";
-      updateUI();
-    } else if (e.type === "catastrophe") {
-      world.splash(e.x, 0, e.z, 45);
-      world.showIncident(e.x, e.z);
-      world.kick(0.5);
-    } else if (e.type === "fish-dumped") {
-      world.bigSplash(e.x, e.z, 1);
-      world.kick(0.6);
-      queueKey = "";
-    } else if (e.type === "fish-caught") {
-      world.splash(e.x, -0.1, e.z, 18);
-    } else if (e.type === "cannonball") {
-      world.bigSplash(e.x, e.z, 1.6);
-      world.incidentView.ripple(e.x, e.z);
-      world.kick(0.75);
-    } else if (e.type === "dog-splash") {
-      world.bigSplash(e.x, e.z, 0.45);
-    } else if (e.type === "crash") {
-      world.bigSplash(e.x, e.z, 1.35);
-      world.incidentView.ripple(e.x, e.z);
-      world.kick(0.95);
-      queueKey = "";
-    } else if (e.type === "trampoline-splash") {
-      world.bigSplash(e.x, e.z, 0.85);
-      world.incidentView.ripple(e.x, e.z);
-      world.kick(0.25);
-    } else if (e.type === "healed") {
-      world.sparkle(e.to?.x ?? e.x, e.to?.z ?? e.z);
-      queueKey = "";
-    } else if (e.type === "lane-switch") {
-      queueKey = "";
-    } else if (e.type === "blackout") {
-      world.kick(0.25);
-    } else if (e.type === "handoff") {
-      world.handoff({ x: e.x, z: e.z }, e.to, e.item);
-      $("carry").animate([{ transform: "scale(1.18)" }, { transform: "scale(1)" }], { duration: 150 });
-    } else if (e.type === "pickup") {
-      $("carry").animate([{ transform: "scale(1.18)" }, { transform: "scale(1)" }], { duration: 150 });
-    } else if (e.type === "assigned") {
-      queueKey = "";
-      updateUI();
-    } else if (e.type === "select") {
-      queueKey = "";
-      updateUI();
-    } else if (e.type === "coach-slip") toast("Whoops! Jump over fins, or pick them up with E.");
-    else if (e.type === "ended") finish();
-    if (world.viewMode === "coach") world.coachCam.react(e.type, e);
-    audio.effect(e.type);
+    // One event that goes wrong must not lose the rest of the batch (a lost "ended" would leave the shift open).
+    try {
+      if (NOTABLE.has(e.type))
+        crashlog.crumb("event", e.type + (e.kind ? " " + e.kind : "") + (e.name ? " " + e.name : ""));
+      else if (e.type === "save") crashlog.crumb("save", String(e.kind));
+      if (e.type === "countdown") {
+        $("countdown-number").textContent = e.value;
+        if (!reducedMotion.matches)
+          $("countdown-number").animate(
+            [
+              { transform: "scale(1.22)", opacity: 0.5 },
+              { transform: "scale(1)", opacity: 1 },
+            ],
+            { duration: 250 },
+          );
+      } else if (e.type === "go") {
+        mode = "playing";
+        audio.playing = true;
+        $("countdown").hidden = true;
+        updateUI();
+        logState();
+      } else if (e.type === "toast") {
+        if (!(stung && e.warning)) toast(e.text, e.warning);
+      } else if (e.type === "points") {
+        const i = stamped.indexOf(e.value);
+        if (i >= 0) stamped.splice(i, 1);
+        else points(e);
+      } else if (e.type === "incident") showSting(moments.incident(e, seconds()));
+      else if (e.type === "save") showPayoff(moments.save(e, seconds()));
+      else if (e.type === "splash" || e.type === "collision" || e.type === "slip")
+        world.splash(e.x, -0.12, e.z, e.type === "splash" ? 10 : 15);
+      else if (e.type === "cramp-alarm" || e.type === "rescue-safe") {
+        queueKey = "";
+        updateUI();
+      } else if (e.type === "stomach-warning") {
+        queueKey = "";
+        updateUI();
+      } else if (e.type === "catastrophe") {
+        world.splash(e.x, 0, e.z, 45);
+        world.showIncident(e.x, e.z);
+        world.kick(0.5);
+      } else if (e.type === "fish-dumped") {
+        world.bigSplash(e.x, e.z, 1);
+        world.kick(0.6);
+        queueKey = "";
+      } else if (e.type === "fish-caught") {
+        world.splash(e.x, -0.1, e.z, 18);
+      } else if (e.type === "cannonball") {
+        world.bigSplash(e.x, e.z, 1.6);
+        world.incidentView.ripple(e.x, e.z);
+        world.kick(0.75);
+      } else if (e.type === "dog-splash") {
+        world.bigSplash(e.x, e.z, 0.45);
+      } else if (e.type === "crash") {
+        world.bigSplash(e.x, e.z, 1.35);
+        world.incidentView.ripple(e.x, e.z);
+        world.kick(0.95);
+        queueKey = "";
+      } else if (e.type === "trampoline-splash") {
+        world.bigSplash(e.x, e.z, 0.85);
+        world.incidentView.ripple(e.x, e.z);
+        world.kick(0.25);
+      } else if (e.type === "healed") {
+        world.sparkle(e.to?.x ?? e.x, e.to?.z ?? e.z);
+        queueKey = "";
+      } else if (e.type === "lane-switch") {
+        queueKey = "";
+      } else if (e.type === "blackout") {
+        world.kick(0.25);
+      } else if (e.type === "handoff") {
+        world.handoff({ x: e.x, z: e.z }, e.to, e.item);
+        $("carry").animate([{ transform: "scale(1.18)" }, { transform: "scale(1)" }], { duration: 150 });
+      } else if (e.type === "pickup") {
+        $("carry").animate([{ transform: "scale(1.18)" }, { transform: "scale(1)" }], { duration: 150 });
+      } else if (e.type === "assigned") {
+        queueKey = "";
+        updateUI();
+      } else if (e.type === "select") {
+        queueKey = "";
+        updateUI();
+      } else if (e.type === "coach-slip") toast("Whoops! Jump over fins, or pick them up with E.");
+      else if (e.type === "ended") finish();
+      if (world.viewMode === "coach") world.coachCam.react(e.type, e);
+      audio.effect(e.type);
+    } catch (err) {
+      console.error("Pool Panic event error", e.type, err);
+      crashlog.error("event:" + e.type, err);
+    }
   }
 }
 // The map covers the pool in the menu, so once the first frames have warmed the 3D scene up nothing of it is
 // updated or drawn until a shift starts (moving speech bubbles under a full-screen map cost real frame time).
 let warmFrames = 3;
 function animate(t) {
+  try {
+    frame(t);
+    if (failing.loop) failing.loop = 0;
+  } catch (e) {
+    failing.loop = (failing.loop || 0) + 1;
+    if (failing.loop === 1) console.error("Pool Panic frame error", e);
+    crashlog.error("frame:loop", e);
+  }
+  // A stage that has failed for a second and a half straight is not a passing glitch.
+  if (!snagged && Object.values(failing).some((n) => n >= 90)) snag();
+  requestAnimationFrame(animate);
+}
+let logClock = 0,
+  perfClock = 0;
+function frame(t) {
   const covered = mode === "menu" && warmFrames-- <= 0;
   if (!covered)
     document.documentElement.style.setProperty("--cue", cuePulse(t / 1000, reducedMotion.matches).toFixed(3));
+  if (previous) crashlog.frame(t - previous);
   const dt = Math.min((t - previous) / 1000 || 0.016, 0.06),
     // Incident stings slow the game down and saves freeze it for a beat; menus always run at full speed.
     speed = mode === "playing" ? moments.timeScale(seconds()) : 1;
   previous = t;
   viewClock += dt * speed;
-  try {
-    if (mode === "playing" || mode === "countdown") {
-      // Fixed substeps keep congestion stable even on lower frame rates.
+  if (mode === "playing" || mode === "countdown") {
+    // Fixed substeps keep congestion stable even on lower frame rates. The simulation is the one stage that stops
+    // the shift at once when it throws: what it holds may no longer be sound.
+    const ok = stage("sim", () => {
       if (world.viewMode === "coach") {
         world.coachCam.turn(input.turn(), dt);
         sim.coach.lookAngle = world.coachCam.yaw;
       }
       const movement = moveVector();
       sim.setMovement(movement.x, movement.z);
-      showSting(moments.next(seconds()));
       accumulator = Math.min(0.12, accumulator + dt * speed);
       while (accumulator >= 1 / 60) {
         sim.tick(1 / 60);
         accumulator -= 1 / 60;
       }
-      events();
-    } else if (mode === "menu") {
-      sim.time += dt;
-      for (const p of sim.people) {
-        if (p.status === "swim" && p.type !== "aqua") {
-          p.p = (p.p + p.actualSpeed * dt) % 31.2;
-          const pos = loopPosition(p.p, sim.lanes[p.lane]);
-          p.x = pos.x;
-          p.z = pos.z;
-          p.angle = pos.angle;
-        } else if (p.type === "aqua") {
-          p.x = sim.lanes[p.lane];
-          p.z = -1;
-        }
+    });
+    if (!ok) return snag();
+    stage("sting", () => showSting(moments.next(seconds())));
+    stage("events", events);
+  } else if (mode === "menu") {
+    sim.time += dt;
+    for (const p of sim.people) {
+      if (p.status === "swim" && p.type !== "aqua") {
+        p.p = (p.p + p.actualSpeed * dt) % 31.2;
+        const pos = loopPosition(p.p, sim.lanes[p.lane]);
+        p.x = pos.x;
+        p.z = pos.z;
+        p.angle = pos.angle;
+      } else if (p.type === "aqua") {
+        p.x = sim.lanes[p.lane];
+        p.z = -1;
       }
-    }
-    if (!covered) {
-      world.sync(sim, viewClock, dt * speed, dt);
-      if (world.incidentView.consumeLightning()) audio.effect("thunder");
-      world.render();
-      updateBubbles();
-    }
-    updateContext();
-    updateAlert();
-    if (!covered) {
-      uiClock += dt;
-      if (uiClock > 0.12) {
-        uiClock = 0;
-        updateUI();
-      }
-    }
-  } catch (e) {
-    console.error("Pool Panic frame error", e);
-    if (mode === "playing") {
-      sim.status = "paused";
-      mode = "paused";
-      audio.playing = false;
-      toast("The pool hit a snag. Restart the shift to try again.", true);
-      $("pause-dialog").showModal();
     }
   }
-  requestAnimationFrame(animate);
+  if (!covered) {
+    stage("scene", () => {
+      world.sync(sim, viewClock, dt * speed, dt);
+      if (world.incidentView.consumeLightning()) audio.effect("thunder");
+    });
+    stage("render", () => world.render());
+    stage("tags", updateBubbles);
+  }
+  stage("context", updateContext);
+  stage("alert", updateAlert);
+  if (!covered) {
+    uiClock += dt;
+    if (uiClock > 0.12) {
+      uiClock = 0;
+      stage("ui", updateUI);
+    }
+  }
+  // The log's own housekeeping: what the shift looks like now (every 2 s) and how the GPU and heap are doing (10 s).
+  logClock += dt;
+  perfClock += dt;
+  if (logClock > 2) {
+    logClock = 0;
+    logState();
+  }
+  if (perfClock > 10) {
+    perfClock = 0;
+    sampleLog();
+  }
 }
 function bind() {
   mapView = new LevelMap($("map"), {
@@ -1516,7 +1745,10 @@ function bind() {
   ["chlorine", "fins", "relief"].forEach((item) => ($(item).onclick = () => sim.fetch(item)));
   $("return-item").onclick = () => sim.returnItem();
   $("clean").onclick = () => sim.tidy();
-  $("assist").onclick = () => sim.interact();
+  $("assist").onclick = () => {
+    act("interact (button) · " + (sim.coach.carry || "empty-handed"));
+    sim.interact();
+  };
   $("sound").onclick = () => {
     audio.init();
     const on = audio.toggle();
@@ -1526,6 +1758,27 @@ function bind() {
   $("pause").onclick = pause;
   $("resume").onclick = resume;
   $("restart").onclick = () => start(activeBooking);
+  $("crash-copy").onclick = () => shareCrash("copy");
+  $("crash-issue").onclick = () => shareCrash("issue");
+  $("crash-dismiss").onclick = () => {
+    if (crashOn && !$("crash-dialog").classList.contains("live")) crashlog.mark(crashOn.id, "dismissed");
+    closeCrash();
+  };
+  $("crash-restart").onclick = () => {
+    $("crash-dialog").classList.remove("live");
+    closeCrash();
+    start(activeBooking);
+  };
+  $("crash-map").onclick = () => {
+    $("crash-dialog").classList.remove("live");
+    closeCrash();
+    returnMenu();
+  };
+  $("crash-dialog").addEventListener("cancel", (e) => {
+    e.preventDefault();
+    closeCrash();
+  });
+  $("help-log").onclick = () => showCrash(crashlog.troubled()[0] || crashlog.latest());
   $("help").onclick = showHelp;
   document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = closeHelp));
   $("help-dialog").addEventListener("cancel", (e) => {
@@ -1567,7 +1820,10 @@ function bind() {
       sim.setMovement(m.x, m.z);
       sim.dash();
     },
-    onInteract: () => sim.interact(),
+    onInteract: () => {
+      act("interact · " + (sim.coach.carry || "empty-handed"));
+      sim.interact();
+    },
     onPause: () => {
       if (mode === "playing" || mode === "countdown") pause();
       else if (mode === "paused") resume();
@@ -1640,7 +1896,9 @@ function bind() {
     if (mode === "playing") sim.jump();
   };
   $("touch-interact").onclick = () => {
-    if (mode === "playing") sim.interact();
+    if (mode !== "playing") return;
+    act("interact (touch) · " + (sim.coach.carry || "empty-handed"));
+    sim.interact();
   };
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
@@ -1668,6 +1926,9 @@ try {
   updateUI();
   syncVenue(sim);
   $("loading").hidden = true;
+  if (window.__boot) window.__boot.ready = true;
+  crashlog.setEnv({ gpu: describeGpu(world.renderer?.getContext?.()) });
+  crashlog.crumb("boot", "ready in " + Math.round(performance.now()) + " ms");
   requestAnimationFrame(animate);
   // QA hook (?debug): drive the fixed-step simulation faster than real time for screenshots and repros.
   if (new URLSearchParams(location.search).has("debug"))
@@ -1683,6 +1944,9 @@ try {
       },
       get moments() {
         return moments;
+      },
+      get crashlog() {
+        return crashlog;
       },
       play(n = level, booking = null) {
         level = n;
@@ -1745,8 +2009,32 @@ try {
         events();
       },
     };
+  // A launch after a crash offers the report (`?log` opens the log any time, crash or not).
+  const wantsLog = new URLSearchParams(location.search).has("log");
+  setTimeout(() => {
+    if (mode !== "menu" || document.querySelector("dialog[open]")) return;
+    if (wantsLog) showCrash(crashlog.troubled()[0] || crashlog.latest());
+    else if (crashlog.pending().length) showCrash(crashlog.pending().slice(-1)[0]);
+  }, 1800);
+  // The browser took the GPU back (memory pressure, a driver reset): pause, and build the world again when it returns.
+  crashlog.onContextLost = () => {
+    if (["playing", "countdown"].includes(mode)) pause();
+    toast("Graphics were interrupted. Recovering…", true);
+  };
+  crashlog.onContextRestored = () => {
+    stage("recover", () => {
+      world.build(world.venue, world.lightingName);
+      world.resize();
+      syncVenue(sim);
+    });
+    toast("Graphics are back.");
+  };
 } catch (e) {
   console.error(e);
+  crashlog.error("boot", e);
   $("loading").innerHTML =
-    '<p>We couldn’t open the 3D pool.</p><p style="font-size:14px;font-weight:500;max-width:320px;text-align:center">Enable hardware acceleration in your browser and reload. Pool Panic needs WebGL to play.</p><button class="primary" style="width:200px" onclick="location.reload()">Try again ↻</button>';
+    '<p>We couldn’t open the 3D pool.</p><p style="font-size:14px;font-weight:500;max-width:320px;text-align:center">Enable hardware acceleration in your browser and reload. Pool Panic needs WebGL to play.</p><button class="primary" style="width:200px" onclick="location.reload()">Try again ↻</button><button id="boot-report" class="secondary" style="width:200px;margin-top:10px">Copy crash report</button>';
+  $("boot-report").onclick = async () => {
+    $("boot-report").textContent = (await copyText(crashlog.report())) ? "Copied ✓" : "Copy failed";
+  };
 }

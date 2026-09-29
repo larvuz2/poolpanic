@@ -404,7 +404,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 
 | File | Responsibility |
 | --- | --- |
-| `dist/index.html` | Game shell, HUD, menus, controls, dialogs |
+| `dist/index.html` | Game shell, HUD, menus, controls, dialogs (the crash dialog included), and a small script that reports a game that never started |
 | `dist/style.css` | Arcade interface and responsive styling |
 | `dist/app.mjs` | Runtime orchestration, UI, the map's selection panel and booking picker, results, pause, input routing, persistence, fixed-step loop, `?debug` QA hook |
 | `dist/sim.mjs` | Seeded simulation, swimmer types, the twenty shifts (with their twists and VIP guests), lane traffic and lane moves, happiness, scoring, bookings and drills as options |
@@ -430,6 +430,8 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/map-art.mjs` | The map's layout and isometric SVG art, as strings. No DOM |
 | `dist/map.mjs` | The map's DOM layer: buttons, tags, coach, clouds and reveal, driven by the campaign state |
 | `dist/audio.mjs` | Procedural music and effects |
+| `dist/crashlog.mjs`, `crashlog-hooks.mjs` | The crash log: breadcrumbs, errors, reports and GitHub issue links (pure), and its browser wiring (window errors, console, visibility, WebGL loss, Web Locks) |
+| `dist/version.mjs`, `stamp-version.mjs` | The build's identity (`dev` locally, the commit on Netlify) and the script that stamps it |
 | `dist/assets/` | Bundled Three.js, rounded-box helper and license |
 | `*-check.mjs`, `check-bot.mjs`, `check-helpers.mjs` | Deterministic regression and CPU scene checks; the coach bot and helpers they share |
 | `artifacts/game-progress.md` | Historical sprint notes; some pending statements are historical, not current status |
@@ -449,6 +451,17 @@ python3 -m http.server 8000 --directory dist
 ```
 
 Open `http://localhost:8000` (or run `npm start`). Do not open `index.html` through `file://`, which can block ES-module loading. No dependency installation or build is needed to play. Adding `?debug` to the URL exposes `window.__pool` for fast-forwarded repros and screenshots: `play(level)`, `step(seconds, drive)`, `end(score)` (finish the shift with a score), `coachCam(on)`, `unlockAll()`, `lockAll(on)` (see the star-gated map), `progress(n, stars)` (records as if levels 1..n were cleared), `menu()`, `select(level)`, `selectDrill(id)`, and read-only `sim`, `world`, `moments`, `records`, `selected` and `map`. Adding `?locked` previews the real star-gated map while `UNLOCK_ALL` is on.
+
+### Crash log
+
+The game keeps a black box of its own (`dist/crashlog.mjs`, wired to the browser in `dist/crashlog-hooks.mjs`), so that when it breaks on someone's device the report says what broke, where, on what, and what the game was doing, without anyone having to describe it. It exists because a shift once stopped when an incident kicked in and there was nothing to read afterwards.
+
+- **What it records.** Uncaught errors and rejected promises; every error in a stage of the frame loop or in a single event; a lost WebGL context; three.js's own errors (a shader that did not compile) and every other console error or warning as a breadcrumb; a page that vanished in the middle of a shift (a tab crash, running out of memory, a freeze that ended in a forced close). The next launch can tell because that page's Web Lock is gone; a page in the background, one that closed, or one still running in another tab is not a crash. Also: how the frames are going and the GPU and heap counts every 10 seconds, the shift's state every 2 seconds (level, venue, lighting, view, clock, score, active incidents, the shift's seed) and a trail of breadcrumbs (shift starts, incidents, saves, pauses, view switches, world builds and how long they took, the player's clicks and presses of E, and any frame that took over 0.7 seconds).
+- **Where it lives.** Only on the device, in `localStorage`: `pool-panic.crashlog.v1` is the list of launches and `pool-panic.crashlog.v1.<id>` holds one launch each (so two tabs never overwrite each other). The last eight launches are kept (the ones that went wrong outlive the clean ones), each within 40 KB and 100 breadcrumbs. Nothing is sent anywhere by the game.
+- **Getting a report to us.** After a crash the next launch opens a dialog with the report: **Copy report** (paste it into the chat) or **Report on GitHub** (opens a prefilled issue in `larvuz2/poolpanic`, with the whole report on the clipboard because the link carries a shortened one). The Help dialog has "Open the game log" any time, and `?log` opens it on load. An error that stops a shift opens the same dialog on the spot, with Restart and Back to the map.
+- **Errors no longer stop the game by themselves.** Each stage of the frame loop is guarded (`stage()` in `dist/app.mjs`): drawing, tags, alerts and the HUD log their error and are skipped, and each event in a batch is handled on its own. Only the simulation throwing, or a stage that fails for 1.5 seconds straight, pauses the shift and shows the report.
+- **Which build.** `dist/version.mjs` says `dev` from a checkout. Netlify runs `node stamp-version.mjs` before the checks (see `netlify.toml`), which writes the commit, deploy context and branch into it, so a report names the exact build.
+- **Reading one.** A report is Markdown: the build, device (user agent, viewport, pixel ratio, GPU, cores, memory), the game's state, each error with its stack and the game state at the time, and the newest breadcrumbs. `?debug` exposes `window.__pool.crashlog` for QA; `crashlog-check.mjs` drives the whole thing with a fake browser.
 
 ### Deploy on Netlify
 
@@ -494,6 +507,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node map-check.mjs` | The map's layout and art: ten levels on four islands per act, no two buttons overlapping at any scale in the wide or the tall drawing, well-formed SVG with per-act ids, night moon, and each shift's preview icons |
 | `node interplay-check.mjs` | Incidents colliding: goggles vs the fish net, early fish return, kid during a rescue, cramps mid-flip, second crash ring, healed victims rejoining, breaker race |
 | `node moments-check.mjs` | Incident moments: every incident and save reported through real game flows, loud-alert targets and ranking, first sightings, sting queueing, slow motion and hit-stop timing, banner fuses, edge arrows (and behind-you), the camera nudge |
+| `node crashlog-check.mjs` | The crash log: breadcrumbs and errors kept and capped, repeats counted, one storage key per launch, a page that vanished mid-shift told from the background, a closed page and another tab, reports and issue links that fit, a full or broken storage, and the browser wiring against a fake browser |
 | `node coachcam-check.mjs` | Coach Cam: facing follows the look, E prefers what is in view, view-relative movement, eye and water-level height with the body hidden, hand lag and settle, head bob (off with reduced motion), landing dip, items in hand, field of view, crosshair target |
 
 Read the selected test's imports before running it in a new environment. CPU scene checks use the runtime's canvas dependency and are not GPU rendering tests. Historical checks passed during implementation, but that is not a claim that this documentation update reran every suite.

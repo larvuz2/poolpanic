@@ -229,8 +229,14 @@ export class IncidentView {
     for (const v of sim.visitors || []) {
       alive.add(v.id);
       let g = this.visitors.get(v.id);
+      // Ids start again in every shift: a leftover from the last one (a kid where a dog now stands) is not reused.
+      if (g && g.userData.visitorKind !== v.kind) {
+        this.dropVisitor(v.id, g);
+        g = null;
+      }
       if (!g) {
         g = v.kind === "dog" ? dogObject(this.w) : character(this.w, v);
+        g.userData.visitorKind = v.kind;
         // Clicking a visitor walks the coach over (or acts, when already in reach).
         g.userData.hit.userData = { kind: "visitor", id: v.id };
         if (!this.w.clickables.includes(g.userData.hit)) this.w.clickables.push(g.userData.hit);
@@ -241,12 +247,16 @@ export class IncidentView {
       else if (v.kind === "dog") this.poseDog(sim, v, g, time);
       else if (v.kind === "carl") this.poseCarl(sim, v, g, time);
     }
-    for (const [id, g] of this.visitors)
-      if (!alive.has(id)) {
-        this.w.clickables = this.w.clickables.filter((x) => x !== g.userData.hit);
-        g.removeFromParent();
-        this.visitors.delete(id);
-      }
+    for (const [id, g] of this.visitors) if (!alive.has(id)) this.dropVisitor(id, g);
+  }
+  dropVisitor(id, g) {
+    this.w.clickables = this.w.clickables.filter((x) => x !== g.userData.hit);
+    g.removeFromParent();
+    this.visitors.delete(id);
+  }
+  // A new shift starts with an empty deck.
+  clearVisitors() {
+    for (const [id, g] of [...this.visitors]) this.dropVisitor(id, g);
   }
   poseKid(sim, v, g, time) {
     const u = g.userData,
