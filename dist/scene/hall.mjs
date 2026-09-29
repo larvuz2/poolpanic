@@ -261,7 +261,8 @@ function timberTruss(c, z) {
 // Steel lattice: two chords following the roof line with zig-zag webs between them.
 function latticeTruss(c, z) {
   const { w, g, S, mats, segs } = c,
-    chord = (a, b, t = 0.34) => beam(c, mats.metal, [a.x, a.y, z], [b.x, b.y, z], t, t, 0.03);
+    // Plain boxes: hundreds of members, none close enough for a rounded edge to show.
+    chord = (a, b, t = 0.34) => beam(c, mats.metal, [a.x, a.y, z], [b.x, b.y, z], t, t, 0);
   segs.forEach((s, i) => {
     const up = onRoof(c, i, 0, 0.55),
       up2 = onRoof(c, i, 1, 0.55),

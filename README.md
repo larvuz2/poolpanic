@@ -531,7 +531,7 @@ The levels 16–20 update (the Lagoon, the Arena, VIPs, the storm and the Coach 
 - levels 16–20 played from the map through the booking picker (three cards, never a night booking) to the results screen, with the Coach Cam on and off, checking that only the outdoor venues get a sky and only the halls get a roof after every venue change, with no page errors;
 - the map with all twenty levels at desktop size, and the level panel with the nine icons of the finale.
 
-Software rendering issues roughly 300–400 draw calls a frame in the Coach Cam at every venue. Real GPU and device performance, how long a venue takes to build on a phone, and the new sounds (the storm sting, the VIP arrival) have not been checked.
+A frame issues roughly 320–520 draw calls in every venue and view (the Lagoon is the busiest), and 300,000–665,000 triangles with the shadow pass counted; the arena's Coach Cam is the heaviest (its crowd is about 300 triangles a person, its trusses plain boxes). Real GPU and device performance, how long a venue takes to build on a phone (about five seconds in software rendering, the same as before), and the new sounds (the storm sting, the VIP arrival) have not been checked.
 
 ## Direction already established by the creator
 

@@ -14,9 +14,10 @@ export class Crowd {
     this.waveAxis = waveAxis;
     const rand = rngOf(seed),
       n = seats.length;
-    const bodyGeo = new THREE.SphereGeometry(0.34, 10, 8),
-      headGeo = new THREE.SphereGeometry(0.235, 10, 8),
-      armGeo = new THREE.CapsuleGeometry(0.075, 0.42, 3, 6).translate(0, -0.28, 0);
+    // Hundreds of them: about 300 triangles a person, which still reads as round from the deck.
+    const bodyGeo = new THREE.SphereGeometry(0.34, 8, 6),
+      headGeo = new THREE.SphereGeometry(0.235, 9, 7),
+      armGeo = new THREE.CapsuleGeometry(0.075, 0.42, 1, 6).translate(0, -0.28, 0);
     const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7 });
     const skin = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
     this.bodies = new THREE.InstancedMesh(bodyGeo, mat, n);
