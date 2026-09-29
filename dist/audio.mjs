@@ -252,6 +252,9 @@ export class PoolAudio {
       this.noise(t, 0.075, 0.13, 500);
     } else if (type === "catastrophe") {
       [392, 370, 330, 261].forEach((f, i) => this.tone(f, t + i * 0.15, 0.25, 0.18, "sawtooth"));
+    } else if (type === "vip") {
+      [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, t + i * 0.07, 0.3, 0.09, "triangle"));
+      this.tone(196, t, 0.25, 0.1, "sine");
     } else if (type === "ended") {
       [523, 659, 784, 1047].forEach((f, i) => this.tone(f, t + i * 0.13, 0.35, 0.13, "triangle"));
     } else if (type === "select") {
@@ -313,6 +316,11 @@ export class PoolAudio {
         },
         closure: () => [0, 1, 2].forEach((i) => this.tone(880, at + i * 0.16, 0.08, 0.1, "square")),
         team: () => this.tone(1500, at, 0.4, 0.09, "sine", 2300),
+        storm: () => {
+          this.noise(at, 0.7, 0.16, 320);
+          this.tone(92, at, 0.8, 0.16, "sawtooth", 46);
+          [0.34, 0.5].forEach((d) => this.noise(at + d, 0.05, 0.08, 2400));
+        },
         class: () =>
           [0, 1, 2, 3, 4].forEach((i) =>
             this.tone(500 + i * 90, at + i * 0.06, 0.1, 0.07, "sine", 900 + i * 60),

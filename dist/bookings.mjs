@@ -58,11 +58,13 @@ export const BOOKINGS = {
 };
 
 // The three bookings on offer for a shift: Regular first, then two others drawn from a seeded shuffle so the same
-// shift offers the same choices. A night booking is not offered for a shift that is already at night.
+// shift offers the same choices. A night booking is not offered for a shift that is already at night, one whose sun is
+// setting on its own (`daylight`), or one held indoors.
 export function offerBookings(level, seed = 0, config = {}) {
   if (level < BOOKINGS_FROM_LEVEL) return [];
+  const fixedLight = config.daylight || config.venue === "arena";
   const pool = Object.values(BOOKINGS).filter(
-    (b) => b.id !== "regular" && !(b.lighting && b.lighting === config.lighting),
+    (b) => b.id !== "regular" && !(b.lighting && (fixedLight || b.lighting === config.lighting)),
   );
   let state = (Math.imul((level + 1) * 2654435761, 1) ^ seed) >>> 0 || 1;
   const random = () => {
@@ -84,7 +86,7 @@ export function applyBooking(config, booking) {
     ...config,
     booking: booking.id,
     payout: booking.payout ?? 1,
-    lighting: booking.lighting ?? config.lighting,
+    lighting: config.daylight ? config.lighting : (booking.lighting ?? config.lighting),
     chaos: [
       ...(config.chaos || []),
       ...(booking.chaos || []).map((c) => ({ kinds: [...c.kinds], window: seconds(c.window) })),

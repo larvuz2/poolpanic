@@ -1,5 +1,6 @@
 // Mid-shift twists. Halfway through a shift the room changes the rules, the way an Overcooked kitchen changes its
-// layout: a crowd arrives at once, a lane closes, a swim team or an aqua class takes over the arrivals. A twist is
+// layout: a crowd arrives at once, a lane closes, a swim team or an aqua class takes over the arrivals, a storm rolls
+// in and wets the deck. A twist is
 // not an incident (nothing to fix, nothing to save): it is a new condition for the rest of the shift, announced
 // with a sting. Twists ride in the chaos plan (so a check that empties `chaosPlan` empties them too) and use only
 // the systems that already exist. They wait out a rescue, a cleanup or a closed pool, and never start in the last
@@ -12,6 +13,7 @@ export const TWIST_TUNING = {
   lane: 1, // the lane a closure takes (never the splash lane)
   teamMix: [0.05, 0.2, 0.98], // arrivals after a swim team turns up: beginner / intermediate / pro / aqua cut-offs
   classMix: [0.1, 0.2, 0.3], // ...and after an aqua class
+  stormRamp: 6, // seconds for the sky to darken and the rain to arrive
 };
 const T = TWIST_TUNING;
 
@@ -20,6 +22,7 @@ export const TWISTS = {
   closure: { icon: "🚧" },
   team: { icon: "🏅" },
   class: { icon: "💦" },
+  storm: { icon: "⛈️" },
 };
 
 // `config.twist` is one entry or a list: { kind, at (fraction of the shift), lane?, count? }.
@@ -58,6 +61,10 @@ export function startTwist(sim, entry) {
   } else if (t.kind === "class") {
     sim.mixOverride = T.classMix;
     sim.incident("class", doorSpot);
+  } else if (t.kind === "storm") {
+    // The weather itself lives in the chaos layer (stormLevel, rain puddles); the scene reads stormLevel().
+    sim.storm = { start: sim.time, ramp: T.stormRamp, next: 1.5 };
+    sim.incident("storm", sim.coach);
   }
   return true;
 }

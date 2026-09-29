@@ -3656,8 +3656,10 @@ body.menu .brand small {
 .panel-icons {
   font-size: 15px;
   line-height: 1;
-  letter-spacing: 5px;
+  letter-spacing: 4px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .panel-icons:empty {
   display: none;

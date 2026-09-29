@@ -117,10 +117,19 @@ export class SceneKit {
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 4;
     this.textures?.push(texture);
-    const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(w, h),
-      new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide }),
-    );
+    const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+    // Rigid signs are printed on both faces: the Coach Cam walks round everything, so seen from behind the
+    // lettering must read the right way round instead of mirrored.
+    material.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <map_fragment>",
+        `#ifdef USE_MAP
+          vec4 sampledDiffuseColor = texture2D( map, gl_FrontFacing ? vMapUv : vec2( 1.0 - vMapUv.x, vMapUv.y ) );
+          diffuseColor *= sampledDiffuseColor;
+        #endif`,
+      );
+    };
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), material);
     m.position.set(x, y, z);
     parent.add(m);
     return m;
@@ -162,6 +171,7 @@ export class SceneKit {
 export function disposeScene(scene) {
   const seen = new Set();
   scene.traverse((o) => {
+    if (o.isInstancedMesh) o.dispose(); // its instance buffers (spectators, marquee bulbs, palms) are not the geometry's
     if (o.geometry && !seen.has(o.geometry)) {
       seen.add(o.geometry);
       o.geometry.dispose();

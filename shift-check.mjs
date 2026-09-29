@@ -80,30 +80,30 @@ const tick = (s, frames) => {
     }
 }
 {
-  assert.equal(SHIFTS.length, 15, "Two seasons: ten club shifts and five resort shifts");
+  assert.equal(SHIFTS.length, 20, "Two acts: ten club shifts and ten resort, lagoon and arena shifts");
   const fresh = normalizeRecords();
   assert.equal(fresh.unlocked, 1);
-  assert.equal(fresh.bests.length, 15);
+  assert.equal(fresh.bests.length, 20);
   const saved = normalizeRecords({ bests: [1644, 3100, 0], unlocked: 3 });
   assert.deepEqual(saved.bests.slice(0, 3), [1644, 3100, 0]);
   assert.equal(saved.unlocked, 3);
   assert.equal(starsFor(2, 3100), 3);
   recordResult(saved, 3, 50);
   assert.equal(saved.unlocked, 3, "A failed shift does not unlock the next level");
-  for (let n = 3; n <= 15; n++) {
+  for (let n = 3; n <= 20; n++) {
     assert.equal(recordResult(saved, n, SHIFTS[n - 1].thresholds[0]), true);
-    assert.equal(saved.unlocked, Math.min(n + 1, 15));
+    assert.equal(saved.unlocked, Math.min(n + 1, 20));
   }
-  assert.equal(saved.bests.length, 15);
-  assert.equal(normalizeRecords(JSON.parse(JSON.stringify(saved))).unlocked, 15);
+  assert.equal(saved.bests.length, 20);
+  assert.equal(normalizeRecords(JSON.parse(JSON.stringify(saved))).unlocked, 20);
   // The playtest switch opens every level without touching saved progress.
   assert.equal(isUnlocked(fresh, 1), true);
-  assert.equal(isUnlocked(fresh, 15), UNLOCK_ALL);
+  assert.equal(isUnlocked(fresh, 20), UNLOCK_ALL);
   assert.equal(fresh.unlocked, 1, "Unlocking for testing never rewrites saved progress");
   assert.deepEqual(
     normalizeRecords({ bests: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], unlocked: 10 }).bests.slice(10),
-    [0, 0, 0, 0, 0],
-    "Ten-level saves migrate into the fifteen-level season without reset",
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "Ten-level saves migrate into the twenty-level season without reset",
   );
   assert.deepEqual(screenMovement(1, 0), { x: -0, z: 1 });
   assert.deepEqual(screenMovement(0, -1), { x: 1, z: 0 });
@@ -111,7 +111,7 @@ const tick = (s, frames) => {
   assert.equal(TYPES.intermediate.label, "Intermediate");
   assert.equal(TYPES.beginner.label, "Beginner");
 }
-for (let level = 4; level <= 15; level++) {
+for (let level = 4; level <= 20; level++) {
   // Assignment baseline: chaos incidents are exercised by fish-check, chaos-check and season-check.
   const s = new PoolSimulation(level, 821);
   s.chaosPlan = [];
@@ -138,7 +138,7 @@ for (let level = 4; level <= 15; level++) {
   assert.ok(s.stats.served > 0, "Every level runs to a playable result");
 }
 console.log(
-  "Shift checks passed: 3–2–1 and pause/resume, no lost shift time, short entry/exit paths for both lockers and all lanes, saved progress migration, fifteen unlocks, labels, controls, and twelve complete assignment-baseline shifts across both venues.",
+  "Shift checks passed: 3–2–1 and pause/resume, no lost shift time, short entry/exit paths for both lockers and all lanes, saved progress migration, twenty unlocks, labels, controls, and seventeen complete assignment-baseline shifts across all four venues.",
 );
 
 // First shift rewards learning to assign, with generous reaction time and no errands.

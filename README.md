@@ -2,7 +2,7 @@
 
 > A playful 3D swimming-pool management game: three lanes, then five, endless little disasters, one more shift.
 
-This README is the project brief and agent onboarding guide. It combines the creator's direction with the implemented prototype as inspected on September 26, 2026, updated on September 27, 2026 for the chaos incidents, the Splash Park (then called the Riviera Splash Resort) and levels 11–15, and on September 29, 2026 for the campaign map, chunks and acts, mid-shift twists, drills and bookings. Read it before changing the game. Descriptions marked as current refer to the code; proposed possibilities are not commitments or implemented features.
+This README is the project brief and agent onboarding guide. It combines the creator's direction with the implemented prototype as inspected on September 26, 2026, updated on September 27, 2026 for the chaos incidents, the Splash Park (then called the Riviera Splash Resort) and levels 11–15, and on September 29, 2026 for the campaign map, chunks and acts, mid-shift twists, drills and bookings, and again for levels 16–20, the Sunset Lagoon and Grand Gala Arena, VIP guests, the storm twist and the Coach Cam environments. Read it before changing the game. Descriptions marked as current refer to the code; proposed possibilities are not commitments or implemented features.
 
 ## Vision and player fantasy
 
@@ -32,11 +32,11 @@ The core promise is: **easy to understand, satisfying to move through, increasin
 
 ## Core loop
 
-1. Choose an unlocked shift on the campaign map: two acts of ten levels, each act three chunks of three levels plus a finale (levels 1–10 at the Community Swim Club, 11–15 built so far at Splash Park; 16–20 show as "soon"). From level 11 the club offers a booking first.
+1. Choose an unlocked shift on the campaign map: two acts of ten levels, each act three chunks of three levels plus a finale (levels 1–10 at the Community Swim Club; Act 2 opens at Splash Park with levels 11–16, moves to the Sunset Lagoon for 17–19 and ends with the level 20 finale in the Grand Gala Arena). From level 11 the club offers a booking first.
 2. Begin with a synchronized three-second countdown.
 3. Watch a locker door open and a swimmer walk to the waiting area.
 4. Select the swimmer by their world character, clickable name/emoji tag, queue card, or nearby interaction.
-5. Assign one of three lanes (five at Splash Park), considering speed, occupancy, and stationary aqua aerobics. Swimmers already in the water can be moved to another lane mid-workout.
+5. Assign one of three lanes (five in Act 2), considering speed, occupancy, and stationary aqua aerobics. Swimmers already in the water can be moved to another lane mid-workout.
 6. Move the coach to provide equipment and treatments, recover dropped gear, maintain water, and respond to incidents, from cramps to a fish loose in the pool.
 7. Swimmers finish, swim to an end, climb out, walk around the pool, and return to their locker room.
 8. Earn score and stars; unlock the next shift and improve device-local best scores. Clear all three levels of a chunk and the next area opens on the map.
@@ -73,7 +73,7 @@ The camera eases out on its own when a big moment has to share the screen with t
 
 The coach starts midway along the near deck. The starting blocks, queue, and arrival routes are at the left/locker-room end. Both locker bays are integrated into the wall, not isolated islands in the middle of the room. The office sits in the upper-right corner. The clubhouse end was extended to make room for arrivals and traffic.
 
-The club uses warm sand/terracotta tiles, muted teal walls, glowing high windows with light shafts, and a continuous tiled environment behind the HUD. Splash Park is open-air: sandstone pavers, a blue-and-white mosaic band around the basin, a plastered facade with terracotta roof tiles, cabanas, palms, loungers, a snack kiosk and the trampoline tower. Lighting presets (`indoor`, `day`, `sunset`, `night`) set the sky, sun, fill, fog, image-based environment and water tint; underwater lamps light the pool after dark. Textures are generated procedurally from seeded canvases, and the basin floor and walls carry animated caustics. The UI uses dark teal arcade scoreboard surfaces, yellow primary actions, swimmer passes, inventory slots, lane plaques, and emojis. Preserve the toy-like low-poly identity and readable game presentation.
+The club uses warm sand/terracotta tiles, muted teal walls, glowing high windows with light shafts, and a continuous tiled environment behind the HUD. Splash Park is open-air: sandstone pavers, a blue-and-white mosaic band around the basin, a plastered facade with terracotta roof tiles, cabanas, palms, loungers, a snack kiosk and the trampoline tower. Lighting presets (`indoor`, `day`, `golden`, `sunset`, `dusk`, `night` and the arena's `gala`) set the sky, sun, fill, fog, image-based environment and water tint; underwater lamps light the pool after dark. The open-air moods sit on one shared time-of-day scale (see [Environments](#environments-skies-weather-and-halls)). Textures are generated procedurally from seeded canvases, and the basin floor and walls carry animated caustics. The UI uses dark teal arcade scoreboard surfaces, yellow primary actions, swimmer passes, inventory slots, lane plaques, and emojis. Preserve the toy-like low-poly identity and readable game presentation.
 
 Geometry, interaction hit volumes, collision proxies, camera framing, and routes must agree. The fin and chlorine fixtures were rotated 90 degrees for the horizontal presentation. Swimmers finishing at either end swim to the nearer end wall, climb out, and walk around the outside. Their water, climbing, and deck poses are distinct.
 
@@ -96,6 +96,23 @@ A switch on the welcome panel turns shifts into a physical first-person view, an
 - **HUD.** The E prompt sits just above the hands. It only shows when something is in reach, or when the coach is busy, swimming or slipping. Swimmer tags further than 16 m away are hidden.
 - **Simulation contract.** The app mirrors the view's heading into `sim.coach.lookAngle`. While it is set, the coach faces where the player looks (walking and swimming) and `nearestInteraction` ranks options off to the side lower. With the Coach Cam off it is `null` and the simulation behaves exactly as before. `dist/scene/coach-cam.mjs` is pure view code: it reads the simulation and never changes it.
 
+## Environments: skies, weather and halls
+
+The overview shows the pool and its deck; the Coach Cam shows the world around them. Every venue is either open-air or a hall (`scenery` / `indoor` on the venue in `spatial.mjs`), and both are built to be looked at from eye height. All of it is presentation: the simulation never reads it, and every builder is headless-safe (the CPU checks build the world with a stub canvas).
+
+**Open air: Splash Park and the Sunset Lagoon** (`dist/scene/sky.mjs`, colours from `dist/scene/daylight.mjs`). A sky dome, clouds, hills, the sea and a horizon surround the deck. They are drawn only in the Coach Cam, so the overview stays the clean tabletop it always was.
+
+- **One time-of-day scale.** 0 noon, 0.3 afternoon, 0.52 golden hour, 0.68 sunset, 0.83 dusk, 1 night. The classic `day`, `sunset` and `night` moods sit on it, and a shift can slide along it (`daylight: [from, to]` in `SHIFTS`), so the sun sets *during* the three Lagoon shifts: the dome, sun disc, clouds, fog, light, water and lamps all follow one clock.
+- **What is up there.** A three-band gradient dome with a sun disc and halo, and a moon and stars after dark; flat-shaded cartoon clouds that drift and take the colour of the hour; three rings of hills; a sea with a glitter road and foam; a lighthouse whose beam sweeps at night; sailboats, gulls with flapping wings and hot-air balloons; paper lanterns and fireflies once the light goes.
+- **Storm.** The storm twist darkens the dome, brings in heavy clouds and GPU-drawn rain; lightning flashes light the whole scene and are followed by thunder.
+- **Sunset Lagoon** (`dist/scene/lagoon.mjs`): a plank boardwalk around the pool with a beach house (thatch canopy, neon sign, portholes, surfboards, paper lanterns), a tiki bar with an animated bartender, palapa umbrellas, swaying palms (wind runs on the GPU), torches, a bonfire with embers, a flag mast with bunting, a volleyball net, a rowboat, a sandcastle, a surf shack and crabs.
+
+**Halls: the Community Swim Club and the Grand Gala Arena** (`dist/scene/hall.mjs`, `hall-dressing.mjs`, `hall-kit.mjs`, `hall-art.mjs`). The whole building, built from one small spec each (`CLUB_HALL`, `ARENA_HALL`): a roof profile (the club's timber gable rises to 16.8 m, the arena's steel barrel to 28 m), trusses (timber or lattice), arched clerestory windows, skylights with light shafts, ridge flags (a 12-design flag atlas), bunting, banners, pendant lamps with pools of light, ceiling fans, ducts, signs and a gallery. In the overview the upper shell is cut away like a dollhouse so it never hides the pool; in the Coach Cam it is all there, up to the flags at the very top.
+
+- **Grand Gala Arena** (`dist/scene/arena.mjs`, `crowd.mjs`): a stage with an LED screen and a chasing-light marquee, a rotating trophy, three grandstands of instanced spectators who cheer on every save, scrolling LED ribbons, a hanging scoreboard cube that shows the live score, time and stars, two sweeping spotlight rigs with floor decals, balloons and confetti cannons.
+- **Lights.** A blackout dims everything that glows (`world.dimmers`), from pendant lamps to the marquee and spotlights, and lightning flashes reach into the halls too.
+- **Reduced motion.** The scenery's clock stops (`updateEnvironment` in `dist/scene.mjs`): flags, palms, fans, waves, clouds, spotlights and the marquee hold one pose, the gulls stay away, lightning flashes are dropped and the crowd stays seated. What follows the game still updates: the scoreboard, the hour and the weather.
+
 ## Swimmers, lanes, and happiness
 
 | Internal type | Player label | Cue | Behavior |
@@ -104,7 +121,8 @@ A switch on the welcome panel turns shifts into a physical first-person view, an
 | `intermediate` | Intermediate | 🏊 / blue | Medium lap speed |
 | `advanced` | Pro | ⚡ / coral | Fast; loses satisfaction when blocked by slower traffic |
 | `aqua` | Aqua aerobics | 💦 / purple | Exercises in place and obstructs lap traffic |
-| `daredevil` | Daredevil | 🤸 / orange | Splash Park only. Refuses lanes; only uses the trampoline |
+| `daredevil` | Daredevil | 🤸 / orange | Act 2 only. Refuses lanes; only uses the trampoline |
+| any lap type, `vip` | VIP · Pro / Intermediate / Beginner | 👑 / gold | Levels 17–20. Tips big, waits little (see below) |
 
 The internal `advanced` identifier still maps to the visible label **Pro**. Keep the skill words beside the emojis so icons are not the only explanation.
 
@@ -204,9 +222,9 @@ Each shift from level 4 schedules incidents from a seeded plan (`chaos` entries 
 
 Puddles are deck hazards like dropped fins: anyone running across one slips, the coach included, until it dries. Visitors walk through the locker doors like everyone else. The music switches to the panic arrangement while an incident is at its worst.
 
-## Splash Park — Act 2, levels 11 to 15
+## Act 2: Splash Park, the Sunset Lagoon and the Grand Gala Arena (levels 11 to 20)
 
-A second venue (`resort` in the code; called the Riviera Splash Resort until September 29, 2026) with a five-lane pool and a trampoline tower on the far deck whose landing zone is in lane 5. `spatial.mjs` defines both venues from one pool-geometry function, so routes, collision boxes, service points and the camera adapt to the wider basin.
+Act 2 opens at Splash Park, a second venue (`resort` in the code; called the Riviera Splash Resort until September 29, 2026) with a five-lane pool and a trampoline tower on the far deck whose landing zone is in lane 5. `spatial.mjs` defines both venues from one pool-geometry function, so routes, collision boxes, service points and the camera adapt to the wider basin.
 
 - **Daredevils** queue like everyone else but only want the tower. Select one and press **T** (or click the tower or the TRAMP button). They walk to the stairs and wait.
 - **The splash lane.** While a daredevil waits, lane 5 is closed to new swimmers and glows orange. The moment it is empty, the daredevil climbs, bounces three times and lands a one-and-a-half front flip (+250, a served, happy customer).
@@ -214,6 +232,21 @@ A second venue (`resort` in the code; called the Riviera Splash Resort until Sep
 - **Crash.** A daredevil's patience runs out after 11–16 seconds (per shift). If anyone is still in lane 5 when they land, up to two swimmers are hit, along with the daredevil (−300). Every swimmer freezes and the shift clock holds.
 - **A ring for every victim.** Carry a life ring to the edge, dive, and swim it to one victim; they swim out on their own. Climb out and fetch another ring for the next. The pool reopens when every victim is out of the water.
 - **First aid.** Victims limp clear of the edge, lie down and slowly lose happiness. Fetch the medical kit, kneel beside each one (E or click them) to bandage them (+50 each). Healed lap swimmers return to their lane; the daredevil goes home happy anyway. Put the kit back.
+
+### Sunset Lagoon and Grand Gala Arena
+
+Both reuse Splash Park's floor plan exactly (`RESORT_SPEC` in `spatial.mjs`): the same five lanes, tower, stations, routes and collision, so every system works unchanged, dressed differently (see [Environments](#environments-skies-weather-and-halls)).
+
+- **Sunset Lagoon** (`lagoon`, levels 17–19): an open-air boardwalk resort by the sea. The three shifts are one long evening: *Golden hour* (`daylight` 0.40–0.56), *Sunset splash* (0.56–0.74) and *Storm front* (0.74–0.90) slide the sun down the shared time-of-day scale, each ending where the next begins. Because the sky moves on its own, the night booking is not offered.
+- **Grand Gala Arena** (`arena`, level 20, the Act 2 finale): an indoor showpiece with warm spotlights over a dark hall, a stage, grandstands and a scoreboard. 40 swimmers in 180 seconds, four incident windows (two at once) and three twists: a swim team at 22%, a lane closure at 48% and a rush of six at 72%.
+
+### VIP guests — levels 17 to 20
+
+A VIP is an ordinary lap swimmer in a gold suit with a crown and a crimson sash (`vipAt` in `SHIFTS` lists where in the arrivals they come; a VIP never takes a daredevil's slot). They tip big: **+150** on top of a served swimmer's points, before the streak multiplier. But they wait less (75% of the normal patience) and in the water being blocked, crowded or in dirty water costs their happiness 1.4× faster. A VIP who storms out costs **−300** instead of −100. They never come with sickness, cramps or a fin request. The queue card and swimmer tag show 👑 and "VIP · Pro" (`swimmerLook` in `dist/sim.mjs`), and the first one of a shift gets a toast. Golden hour introduces them; the results screen counts them (`stats.vips`).
+
+### Storm — level 19 and the Storm drill
+
+The storm twist (see below) is weather the whole scene shares: `stormLevel()` in `dist/chaos.mjs` ramps 0→1 over six seconds and the sky, light, fog, water and lamps follow it, with rain from about 30% and lightning from 50%, each strike followed by thunder (reduced motion keeps the storm but drops the flashes). From 70% on, a rain puddle forms on the deck every 2.6–4.4 seconds, half of them where people walk to the water, never within 2.2 m of the coach, at most six at once. They are ordinary puddles: anyone who walks across one slips (a swimmer loses a little happiness), and jumping over them works. Each dries in about 14 seconds.
 
 ## Incident moments: stings, the loud alert, and payoffs
 
@@ -265,7 +298,7 @@ Slow motion and hit-stops slow the whole simulation, the shift clock included, s
 
 Changing tabs pauses active play/countdown. Pause must freeze doors and incident progression and clear held movement. Restart/menu transitions must clean up selection, effects, timers, and carrying state through a fresh simulation.
 
-## Fifteen-shift season and scoring
+## Twenty-shift season and scoring
 
 | Level | Shift | Venue · light | Seconds | Swimmers | Chaos | 1 / 2 / 3-star score |
 | --- | --- | --- | ---: | ---: | --- | --- |
@@ -283,9 +316,14 @@ Changing tabs pauses active play/countdown. Pause must freeze doors and incident
 | 12 | Flip Friday | Park · day | 135 | 22 (4) | Fish | 2600 / 4000 / 5400 |
 | 13 | Beach party | Park · sunset | 135 | 24 (3) | Carl, then dog | 3000 / 4600 / 6300 |
 | 14 | Moonlight swim | Park · night | 150 | 26 (4) | Outage, then fish or Carl | 3300 / 5000 / 6800 |
-| 15 | Park legend | Park · sunset | 165 | 30 (5) | Three, two at once | 3500 / 5300 / 7200 |
+| 15 | Lantern night | Park · night | 165 | 30 (5) | Three, two at once | 3500 / 5300 / 7200 |
+| 16 | Midnight rush | Park · night | 165 | 34 (5) | Three, two at once | 3800 / 5700 / 7700 |
+| 17 | Golden hour | Lagoon · golden hour | 135 | 26 (4) · 2 VIPs | Fish or dog, then Carl | 4600 / 6900 / 9200 |
+| 18 | Sunset splash | Lagoon · sunset | 150 | 30 (4) · 3 VIPs | Carl or fish, then dog or outage | 3800 / 5700 / 7700 |
+| 19 | Storm front | Lagoon · dusk, then storm | 165 | 34 (5) · 4 VIPs | Three, two at once | 5300 / 8000 / 10800 |
+| 20 | Grand gala | Arena · gala | 180 | 40 (5) · 5 VIPs | Four, two at once | 5000 / 7500 / 10000 |
 
-Star targets for levels 4–15 are checked against `season-check.mjs`: a bot that manages lanes instantly and handles every incident, but never delivers fins, eye relief or goggles, averages at least one star and fewer than three on every level. Three stars need service play on top. Splash Park targets were raised after these playthroughs showed that five lanes plus flips made the original numbers too generous.
+Star targets for levels 4–20 are checked against `season-check.mjs`: a bot that manages lanes instantly and handles every incident, but never delivers fins, eye relief or goggles, averages at least one star and fewer than three on every level. Three stars need service play on top. Splash Park targets were raised after these playthroughs showed that five lanes plus flips made the original numbers too generous; the Lagoon and Arena levels were tuned the same way, with the VIPs' tips counted in.
 
 Level 1 is a warm-up: only Beginners and Intermediates, eight-second workouts, no equipment requests or sickness, and no closing score penalty for unfinished visits. Two happy completions can earn three stars. Preserve its easy, quick success rather than balancing it like later shifts.
 
@@ -302,11 +340,11 @@ The menu is a map, not a list. Levels come in **chunks of three**; three chunks 
 | Act | Chunks (levels) | Finale |
 | --- | --- | --- |
 | 1 · Community Pools | Warm-up (1–3), Mischief (4–6), Showtime (7–9) | Pool legend (10) |
-| 2 · Splash Park | Trampoline (11–13), Moonlight (14–16), Sunset (17–19) | Level 20 |
+| 2 · Splash Park | Trampoline (11–13), Moonlight (14–16), Sunset (17–19) | Grand gala (20) |
 
-Levels 1–15 are built. 16–20 are drawn as dashed "soon" ghosts under clouds, so the shape of the campaign is visible; building them is future work.
+All twenty levels are built. A slot the season has not built yet (`buildCampaign(n)` takes the number that exist) would still be drawn as a dashed "soon" ghost under clouds, so the shape of the campaign stays visible while it grows. Act 2 travels: Splash Park (11–16), the Sunset Lagoon (17–19) and the Grand Gala Arena (20).
 
-- **Level numbers never move.** Saved records are keyed by level number. Acts and chunks are only a view over `SHIFTS` (`dist/campaign.mjs`), so adding a shift fills the next ghost, and the layout, art and checks already cover twenty levels.
+- **Level numbers never move.** Saved records are keyed by level number. Acts and chunks are only a view over `SHIFTS` (`dist/campaign.mjs`), so a new shift fills the next ghost, and the layout, art and checks cover twenty levels.
 - **The picture.** One floating isometric island per zone, in the game's own colours (sand, terracotta, teal, cream clouds). `dist/map-art.mjs` draws it as pure SVG strings and `dist/map.mjs` lays the buttons, tags and coach over it. Sky and vignette are CSS; three edge-cloud layers drift on the compositor, so the map costs no repainting.
 - **The levels.** Each is a round button: cream when open, yellow with its stars when cleared, a pulsing ring where the coach stands (the first level you have not cleared), a lock or a dashed ghost otherwise. The route turns yellow behind cleared levels. Under each island a small tag names the chunk with three dots ("WARM-UP ●●○"); the selection panel and the results screen show the same dots ("WARM-UP · 2 OF 3").
 - **Clearing a chunk.** One star or more on all three levels clears it, and the results button becomes **Next area ↗**. Back on the map the clouds lift off the next island, its pieces pop in and the coach walks on to it. The reveal is remembered until the map has been seen. Clearing a finale opens the next act and the map switches to it.
@@ -315,18 +353,19 @@ Levels 1–15 are built. 16–20 are drawn as dashed "soon" ghosts under clouds,
 
 ### Mid-shift twists
 
-Halfway through some shifts the room changes the rules, the way an Overcooked kitchen changes its layout. A twist is not an incident: there is nothing to fix or save, only a new condition for the rest of the shift, announced with a sting. `twist` entries in `SHIFTS` ride in the same plan as chaos (a check that empties `chaosPlan` empties them too), wait out a rescue, a cleanup or a closed pool, ignore `maxChaos`, and are skipped in the last 14 seconds (`dist/incidents/twist.mjs`).
+Some way into a shift (from 22% to 74% of it) the room changes the rules, the way an Overcooked kitchen changes its layout. A twist is not an incident: there is nothing to fix or save, only a new condition for the rest of the shift, announced with a sting. `twist` entries in `SHIFTS` ride in the same plan as chaos (a check that empties `chaosPlan` empties them too), wait out a rescue, a cleanup or a closed pool, ignore `maxChaos`, and are skipped in the last 14 seconds (`dist/incidents/twist.mjs`). A shift may have up to three: Storm front (a rush, the storm, a swim team) and the Grand gala do.
 
 | Twist | Effect | Levels |
 | --- | --- | --- |
-| 🚌 Rush | A crowd arrives together, woven into the arrivals still to come | 2, 12 (and the Tour group booking) |
-| 🚧 Lane closure | Lane 2 goes out of service for the rest of the shift: nobody can be sent or moved into it, swimmers already in it finish. Never the splash lane | 8, 10, 14, 15 |
-| 🏅 Swim team | Most later arrivals are Pros | 10, 15 |
+| 🚌 Rush | A crowd arrives together, woven into the arrivals still to come | 2, 12, 16, 18, 19, 20 (and the Tour group booking) |
+| 🚧 Lane closure | Lane 2 goes out of service for the rest of the shift: nobody can be sent or moved into it, swimmers already in it finish. Never the splash lane | 8, 10, 14, 15, 20 |
+| 🏅 Swim team | Most later arrivals are Pros | 10, 15, 16, 18, 19, 20 |
 | 💦 Aqua class | Most later arrivals are aqua aerobics | 5 |
+| ⛈️ Storm | The sky darkens and the rain arrives; rain puddles keep forming on the deck (see above) | 19 (and the Storm drill) |
 
 ### Drills
 
-Every chunk with a built venue has a **drill**: a short (75-second) bonus shift that repeats the chunk's trickiest idea with nothing else going on, with its own stars and best score. The dashed badge beside the chunk opens once the chunk is cleared with 5 stars in total (or while everything is open for testing). Drill scores live in `records.drills` and never affect level progress (`dist/drills.mjs`).
+Every chunk has a **drill**: a short (75–80 second) bonus shift that repeats the chunk's trickiest idea with nothing else going on, with its own stars and best score. The dashed badge beside the chunk opens once the chunk is cleared with 5 stars in total (or while everything is open for testing). Drill scores live in `records.drills` and never affect level progress (`dist/drills.mjs`).
 
 | Chunk | Drill |
 | --- | --- |
@@ -335,17 +374,18 @@ Every chunk with a built venue has a **drill**: a short (75-second) bonus shift 
 | Showtime | ⚡ Blackout drill |
 | Trampoline | 🤸 Daredevil hour |
 | Moonlight | 💣 Cannonball club |
+| Sunset | ⛈️ Storm drill (the lagoon at dusk: a storm at 12%, two VIPs) |
 
 ### Bookings
 
-From level 11 the club offers **three bookings** before the shift: Regular plus two others from a seeded shuffle (the same shift always offers the same). A booking is pure data folded into a copy of the shift (`applyBooking` in `dist/bookings.mjs`): a payout multiplier on what served swimmers and clean landings earn (the streak multiplier is separate) and the extra trouble it brings. A bigger payout always means more trouble.
+From level 11 the club offers **three bookings** before every Act 2 shift: Regular plus two others from a seeded shuffle (the same shift always offers the same). A booking is pure data folded into a copy of the shift (`applyBooking` in `dist/bookings.mjs`): a payout multiplier on what served swimmers and clean landings earn (the streak multiplier is separate) and the extra trouble it brings. A bigger payout always means more trouble.
 
 | Booking | Payout | Trouble |
 | --- | --- | --- |
 | 🏊 Regular | ×1 | None |
 | 🚌 Tour group | ×1.25 | A rush a quarter of the way in |
 | 🎉 Stag party | ×1.35 | Cannonball Carl, 18–40% into the shift |
-| 🌙 Night swim | ×1.4 | Night lighting and a power outage, 30–50% in (not offered on a night shift) |
+| 🌙 Night swim | ×1.4 | Night lighting and a power outage, 30–50% in (not offered on a night shift, on a shift whose sun sets by itself, or in the arena) |
 | 🎈 Kids' party | ×1.45 | A fish kid (12–30%) and a loose dog (55–75%) |
 
 Replay keeps the booking; Next shift asks again. Booked runs count toward the level's best score and stars like any other.
@@ -367,24 +407,26 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/index.html` | Game shell, HUD, menus, controls, dialogs |
 | `dist/style.css` | Arcade interface and responsive styling |
 | `dist/app.mjs` | Runtime orchestration, UI, the map's selection panel and booking picker, results, pause, input routing, persistence, fixed-step loop, `?debug` QA hook |
-| `dist/sim.mjs` | Seeded simulation, swimmer types, the fifteen shifts (with their twists), lane traffic and lane moves, happiness, scoring, bookings and drills as options |
+| `dist/sim.mjs` | Seeded simulation, swimmer types, the twenty shifts (with their twists and VIP guests), lane traffic and lane moves, happiness, scoring, bookings and drills as options |
 | `dist/coach.mjs` | Arcade coach movement, timed busy actions, ranked physical interactions |
 | `dist/sanitation.mjs` | Stomach warning, evacuation, skimmer workflow, chemistry recovery |
 | `dist/rescue.mjs` | Cramp and crash rescues, rings, water missions, recovery bench and return |
-| `dist/chaos.mjs` | Incident scheduling, visitors, puddles, fleeing swimmers, shared hooks, pointer shortcuts |
-| `dist/incidents/*.mjs` | One module per incident: `fish`, `dog`, `carl`, `outage`, `trampoline`; plus `twist` (the four mid-shift twists) |
+| `dist/chaos.mjs` | Incident scheduling, visitors, puddles, the storm's weather and rain puddles, fleeing swimmers, shared hooks, pointer shortcuts |
+| `dist/incidents/*.mjs` | One module per incident: `fish`, `dog`, `carl`, `outage`, `trampoline`; plus `twist` (the five mid-shift twists: rush, closure, swim team, aqua class, storm) |
 | `dist/deck-physics.mjs` | Deck contacts, separation, passing and route cooperation |
-| `dist/spatial.mjs` | Both venues from one pool-geometry function: stations, fixtures, rings, furniture, deck tests, routing, movement tuning |
+| `dist/spatial.mjs` | The four venues from two pool-geometry functions (the club's, and Splash Park's shared by the Lagoon and the Arena): stations, fixtures, rings, furniture, deck tests, routing, movement tuning |
 | `dist/scene.mjs` | Three.js world: lighting presets, environment, batching, sync of characters, camera and picking |
-| `dist/scene/*.mjs` | Scene kit, procedural textures, basin and water shader, props, characters, the club and resort builders, incident visuals |
+| `dist/scene/*.mjs` | Scene kit, procedural textures, basin and water shader, props, characters, the club, resort, lagoon and arena builders, incident visuals |
+| `dist/scene/sky.mjs`, `daylight.mjs` | The Coach Cam's open-air world: sky dome, clouds, hills, sea, lighthouse, wildlife, rain and lightning, and the shared time-of-day scale that colours it all |
+| `dist/scene/hall*.mjs`, `crowd.mjs`, `geom.mjs` | The indoor halls (roof profiles, trusses, windows, skylights, flags, bunting, pendants), instanced spectators, and shared geometry helpers (GPU-flutter flags and garlands) |
 | `dist/scene/coach-cam.mjs` | Coach Cam: first-person camera, look and field-of-view limits, spring-driven hands, held items, crosshair picking |
 | `dist/input.mjs` | Keyboard/touch intents and held input |
 | `dist/guidance.mjs` | Shared world/HUD guidance state and pulse |
 | `dist/moments.mjs` | Incident moments: sting and stamp text, first sightings, queueing, slow motion and hit-stop timing, edge-arrow geometry |
 | `dist/progression.mjs` | Record normalization (levels and drills), stars, unlocks and the `UNLOCK_ALL` playtest switch |
 | `dist/campaign.mjs` | Acts, chunks and the finale as a view over `SHIFTS`: zone progress, "you are here", level and drill states, panel icons. No DOM |
-| `dist/drills.mjs` | The five chunk drills (pure data) |
-| `dist/bookings.mjs` | Splash Park bookings and `applyBooking` (pure data) |
+| `dist/drills.mjs` | The six chunk drills (pure data) |
+| `dist/bookings.mjs` | Act 2 bookings and `applyBooking` (pure data) |
 | `dist/map-art.mjs` | The map's layout and isometric SVG art, as strings. No DOM |
 | `dist/map.mjs` | The map's DOM layer: buttons, tags, coach, clouds and reveal, driven by the campaign state |
 | `dist/audio.mjs` | Procedural music and effects |
@@ -443,12 +485,12 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node deck-collision-check.mjs` | Deck contacts, crowded routes and destinations |
 | `node exit-check.mjs` | Both-end exits, climbing, locker routes and fins |
 | `node service-check.mjs` | Handoff rules and equipment behavior |
-| `node scene-check.mjs` | CPU scene construction, poses, picking and camera math |
+| `node scene-check.mjs` | CPU scene construction, poses, picking and camera math; every venue building headless with its sky or hall only in the Coach Cam, rebuilding for another venue without leftovers, blackout dimming, the Lagoon's sliding sun, storms and reduced motion |
 | `node fish-check.mjs` | Fish Kid prevention, dump and panic, net/dive/chase/reopen/return, catchability over 40 seeds |
 | `node chaos-check.mjs` | Loose Dog, Cannonball Carl and Power Outage prevention and recovery |
 | `node trampoline-check.mjs` | Splash Park lanes, flips, splash-lane lock, lane moves, crash rings and first aid |
-| `node season-check.mjs` | Coach bot plays levels 4–15 (twists included), every chunk drill and every Splash Park booking end to end; star-target sanity, prevention beating a reactive coach, and crash recovery (`--table` for scores) |
-| `node campaign-check.mjs` | Acts, chunks and the finale (every level in one zone, numbers stable), star-gated progress and chunk completion, the Splash Park name, drills that open at five stars, bookings that trade payout for trouble, and the rush, closure, swim-team and aqua-class twists through the real simulation |
+| `node season-check.mjs` | Coach bot plays levels 4–20 (twists, VIP guests and the storm included), every chunk drill and every booking (levels 11–20) end to end; star-target sanity, prevention beating a reactive coach, and crash recovery (`--table` for scores) |
+| `node campaign-check.mjs` | Acts, chunks and the finale (every level in one zone, numbers stable, "soon" slots for a partly built season), star-gated progress and chunk completion, the Splash Park name, Act 2's three venues, drills that open at five stars, bookings that trade payout for trouble, the rush, closure, swim-team, aqua-class and storm twists through the real simulation, VIP scoring and the shared floor plan |
 | `node map-check.mjs` | The map's layout and art: ten levels on four islands per act, no two buttons overlapping at any scale in the wide or the tall drawing, well-formed SVG with per-act ids, night moon, and each shift's preview icons |
 | `node interplay-check.mjs` | Incidents colliding: goggles vs the fish net, early fish return, kid during a rescue, cramps mid-flip, second crash ring, healed victims rejoining, breaker race |
 | `node moments-check.mjs` | Incident moments: every incident and save reported through real game flows, loud-alert targets and ranking, first sightings, sting queueing, slow motion and hit-stop timing, banner fuses, edge arrows (and behind-you), the camera nudge |
@@ -485,6 +527,13 @@ The September 29 update (the campaign map, twists, drills and bookings) is cover
 
 With software rendering the menu holds 60 frames a second. Real GPU and device performance, the reveal's timing on real hardware, and the new sounds have not been checked.
 
+The levels 16–20 update (the Lagoon, the Arena, VIPs, the storm and the Coach Cam environments) is covered by the extended `campaign-check.mjs`, `season-check.mjs`, `shift-check.mjs` and `scene-check.mjs`. It was also driven through headless Chromium with software WebGL, again in ad-hoc scripts that are not in the repository:
+- Coach Cam and overview screenshots of every venue: the Lagoon from noon to night and in a full storm, the club and the arena from the floor and looking straight up at the flags, an arena blackout;
+- levels 16–20 played from the map through the booking picker (three cards, never a night booking) to the results screen, with the Coach Cam on and off, checking that only the outdoor venues get a sky and only the halls get a roof after every venue change, with no page errors;
+- the map with all twenty levels at desktop size, and the level panel with the nine icons of the finale.
+
+A frame issues roughly 320–520 draw calls in every venue and view (the Lagoon is the busiest), and 300,000–665,000 triangles with the shadow pass counted; the arena's Coach Cam is the heaviest (its crowd is about 300 triangles a person, its trusses plain boxes). Real GPU and device performance, how long a venue takes to build on a phone (about five seconds in software rendering, the same as before), and the new sounds (the storm sting, the VIP arrival) have not been checked.
+
 ## Direction already established by the creator
 
 These decisions reflect iterative feedback and should survive future work:
@@ -504,13 +553,13 @@ These decisions reflect iterative feedback and should survive future work:
 - Keep music available from the menu and make emergencies audibly different.
 - Offer the first-person Coach Cam as an opt-in switch in the menu, off by default; it never replaces the overview.
 
-Earlier notes sometimes describe superseded behavior: three levels instead of the current fifteen, a single life ring instead of three, narrower handoff reach, automatic cleanup, starting-end-only exits, or an at-wall cramp assist. The current systems above take precedence. Historical intent is useful context, not a reason to restore old implementations.
+Earlier notes sometimes describe superseded behavior: three levels instead of the current twenty, a single life ring instead of three, narrower handoff reach, automatic cleanup, starting-end-only exits, or an at-wall cramp assist. The current systems above take precedence. Historical intent is useful context, not a reason to restore old implementations.
 
 ## Scope and future work
 
-The implemented prototype is single-player, with fifteen finite shifts across two venues (drawn on a two-act campaign map with five "soon" slots), five swimmer types, three or five lanes, local progression, equipment errands, chemistry, deck/lane collisions, cramps, lost goggles, stomach emergencies, four chaos incidents and the resort trampoline.
+The implemented prototype is single-player, with twenty finite shifts across four venues (drawn on a two-act campaign map), five swimmer types plus VIP guests, three or five lanes, local progression, equipment errands, chemistry, deck/lane collisions, cramps, lost goggles, stomach emergencies, four chaos incidents, five mid-shift twists (one of them a storm) and the resort trampoline.
 
-Levels 16–20 and every further venue, families, multiplayer, accounts, network leaderboards and other expansions are **outside the current prototype**, not promised features; the map only leaves room for the five missing Splash Park levels. No monetization model, release platform beyond the browser, or expanded production roadmap has been established in this brief.
+Levels beyond twenty, further venues, families, multiplayer, accounts, network leaderboards and other expansions are **outside the current prototype**, not promised features; the map has no slot for a third act. No monetization model, release platform beyond the browser, or expanded production roadmap has been established in this brief.
 
 Future design should deepen readable interactions and the one-more-shift feeling. Add an incident only when its warning, response, recovery, timing, and interaction with existing incidents are understandable. Do not introduce an incident-frequency formula or expand scope based on guesses about past conversations.
 

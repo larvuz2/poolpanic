@@ -137,6 +137,7 @@ const TWIST_LABELS = {
   closure: "A lane closes",
   team: "A swim team arrives",
   class: "An aqua class arrives",
+  storm: "A storm rolls in",
 };
 export function shiftHighlights(config) {
   const seen = new Set(),
@@ -152,5 +153,6 @@ export function shiftHighlights(config) {
   for (const t of [].concat(config.twist || []))
     if (TWISTS[t.kind]) add("twist-" + t.kind, TWISTS[t.kind].icon, TWIST_LABELS[t.kind] || t.kind);
   if (config.daredevilAt?.length) add("daredevil", "🤸", "Daredevils");
+  if (config.vipAt?.length) add("vip", "👑", "VIP guests");
   return list;
 }

@@ -307,3 +307,166 @@ export function grassTexture({ base = "#7fb45f", seed = 13 } = {}) {
   c.globalAlpha = 1;
   return toTexture(cv);
 }
+
+// Boardwalk planks running along one axis with staggered joints. One texture covers 4 × 4 world units.
+export function plankTextures({ base = "#c98f5a", grout = "#6f4526", seed = 33 } = {}) {
+  const size = 512,
+    plank = size / 16,
+    random = rng(seed);
+  const color = canvas(size, size),
+    bump = canvas(size, size);
+  const c = color.getContext("2d"),
+    b = bump.getContext("2d");
+  c.fillStyle = grout;
+  c.fillRect(0, 0, size, size);
+  b.fillStyle = "#202020";
+  b.fillRect(0, 0, size, size);
+  for (let col = 0; col < 16; col++) {
+    const offset = Math.floor(random() * 4) * (size / 4);
+    for (let seg = -1; seg < 3; seg++) {
+      const y = seg * (size / 2) + offset,
+        x = col * plank + 1.5,
+        w = plank - 3,
+        h = size / 2 - 3;
+      c.fillStyle = hueShift(base, (random() - 0.5) * 0.02, (random() - 0.5) * 0.06, (random() - 0.5) * 0.09);
+      c.fillRect(x, y, w, h);
+      // Grain.
+      for (let k = 0; k < 5; k++) {
+        c.strokeStyle = `rgba(90,50,20,${0.06 + random() * 0.1})`;
+        c.lineWidth = 1;
+        c.beginPath();
+        const gx = x + 3 + random() * (w - 6);
+        c.moveTo(gx, y);
+        for (let t = 0; t <= h; t += 32) c.lineTo(gx + Math.sin(t * 0.04 + k) * 1.4, y + t);
+        c.stroke();
+      }
+      const g = c.createLinearGradient(x, 0, x + w, 0);
+      g.addColorStop(0, "rgba(255,240,210,0.16)");
+      g.addColorStop(0.5, "rgba(255,240,210,0)");
+      g.addColorStop(1, "rgba(60,30,10,0.14)");
+      c.fillStyle = g;
+      c.fillRect(x, y, w, h);
+      b.fillStyle = "#e6e6e6";
+      b.fillRect(x, y, w, h);
+    }
+  }
+  return { map: toTexture(color), bump: toTexture(bump, { srgb: false }) };
+}
+
+// Alternating cream and gold tiles with a thin gold grout and a soft bevel (the gala arena's floor).
+export function checkerTextures({
+  a = "#f3e9d0",
+  b = "#dcc79a",
+  grout = "#b8964e",
+  tiles = 4,
+  seed = 51,
+} = {}) {
+  const px = 128,
+    size = tiles * px,
+    random = rng(seed);
+  const color = canvas(size, size),
+    bump = canvas(size, size);
+  const c = color.getContext("2d"),
+    bm = bump.getContext("2d");
+  c.fillStyle = grout;
+  c.fillRect(0, 0, size, size);
+  bm.fillStyle = "#1a1a1a";
+  bm.fillRect(0, 0, size, size);
+  for (let i = 0; i < tiles; i++)
+    for (let j = 0; j < tiles; j++) {
+      const x = i * px + 3,
+        y = j * px + 3,
+        w = px - 6;
+      c.fillStyle = hueShift((i + j) % 2 ? b : a, 0, 0, (random() - 0.5) * 0.03);
+      c.fillRect(x, y, w, w);
+      const g = c.createLinearGradient(x, y, x + w, y + w);
+      g.addColorStop(0, "rgba(255,255,255,0.32)");
+      g.addColorStop(0.5, "rgba(255,255,255,0)");
+      g.addColorStop(1, "rgba(90,60,20,0.14)");
+      c.fillStyle = g;
+      c.fillRect(x, y, w, w);
+      // A hairline of veining.
+      c.strokeStyle = "rgba(140,110,60,0.14)";
+      c.lineWidth = 1.2;
+      c.beginPath();
+      c.moveTo(x + random() * w, y);
+      c.bezierCurveTo(x + random() * w, y + w * 0.3, x + random() * w, y + w * 0.6, x + random() * w, y + w);
+      c.stroke();
+      bm.fillStyle = "#dcdcdc";
+      bm.fillRect(x, y, w, w);
+    }
+  return { map: toTexture(color), bump: toTexture(bump, { srgb: false }) };
+}
+
+// Warm beach sand: fine speckle and faint wind ripples.
+export function sandTexture({ base = "#ecd2a0", seed = 17 } = {}) {
+  const size = 256,
+    random = rng(seed);
+  const cv = canvas(size, size),
+    c = cv.getContext("2d");
+  c.fillStyle = base;
+  c.fillRect(0, 0, size, size);
+  for (let i = 0; i < 2600; i++) {
+    c.globalAlpha = 0.1 + random() * 0.16;
+    c.fillStyle = random() < 0.5 ? shade(base, 0.07) : shade(base, -0.09);
+    c.fillRect(random() * size, random() * size, 1.6, 1.6);
+  }
+  c.globalAlpha = 1;
+  for (let k = 0; k < 7; k++) {
+    c.strokeStyle = `rgba(150,110,60,${0.06 + random() * 0.05})`;
+    c.lineWidth = 1.6;
+    c.beginPath();
+    const y0 = random() * size;
+    for (let x = 0; x <= size; x += 8) c.lineTo(x, y0 + Math.sin(x * 0.045 + k * 2) * 6);
+    c.stroke();
+  }
+  return toTexture(cv);
+}
+
+// Straw thatch: dense vertical stalks in three tones with a couple of binding bands.
+export function thatchTexture({ base = "#cf9f55", seed = 27 } = {}) {
+  const w = 128,
+    h = 256,
+    random = rng(seed);
+  const cv = canvas(w, h),
+    c = cv.getContext("2d");
+  c.fillStyle = shade(base, -0.14);
+  c.fillRect(0, 0, w, h);
+  for (let i = 0; i < 380; i++) {
+    c.strokeStyle = [shade(base, 0.1), base, shade(base, -0.06), shade(base, 0.2)][Math.floor(random() * 4)];
+    c.globalAlpha = 0.55 + random() * 0.4;
+    c.lineWidth = 1.6 + random() * 1.8;
+    const x = random() * w,
+      y = random() * h;
+    c.beginPath();
+    c.moveTo(x, y);
+    c.lineTo(x + (random() - 0.5) * 6, y + 26 + random() * 46);
+    c.stroke();
+  }
+  c.globalAlpha = 1;
+  c.fillStyle = "rgba(90,52,20,0.55)";
+  for (const y of [70, 190]) c.fillRect(0, y, w, 6);
+  return toTexture(cv);
+}
+
+// A teardrop flame: white-hot core, yellow, orange, fading to nothing. Tinted by the material colour.
+export function flameTexture() {
+  const w = 64,
+    h = 128,
+    cv = canvas(w, h),
+    c = cv.getContext("2d");
+  const g = c.createRadialGradient(w / 2, h * 0.68, 2, w / 2, h * 0.62, h * 0.5);
+  g.addColorStop(0, "rgba(255,255,235,1)");
+  g.addColorStop(0.28, "rgba(255,214,110,0.95)");
+  g.addColorStop(0.62, "rgba(255,132,40,0.6)");
+  g.addColorStop(1, "rgba(255,80,20,0)");
+  c.fillStyle = g;
+  c.beginPath();
+  c.moveTo(w / 2, 4);
+  c.bezierCurveTo(w * 0.95, h * 0.42, w * 0.92, h * 0.98, w / 2, h * 0.98);
+  c.bezierCurveTo(w * 0.08, h * 0.98, w * 0.05, h * 0.42, w / 2, 4);
+  c.fill();
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}

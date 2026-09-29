@@ -4,6 +4,11 @@ import { THREE, SceneKit, COLORS, disposeScene } from "./scene/kit.mjs";
 import { glowTexture, gradientTexture } from "./scene/textures.mjs";
 import { buildClub } from "./scene/club.mjs";
 import { buildResort } from "./scene/resort.mjs";
+import { buildLagoon } from "./scene/lagoon.mjs";
+import { buildArena } from "./scene/arena.mjs";
+import { Sky, SCENERY } from "./scene/sky.mjs";
+import { windUniforms } from "./scene/geom.mjs";
+import { dayLook, moodLook, DAY_TIMES } from "./scene/daylight.mjs";
 import { character } from "./scene/actors.mjs";
 import { finsObject, lifeRingObject, skimmerObject, pooObject, bucket } from "./scene/props.mjs";
 import { IncidentView } from "./scene/incident-view.mjs";
@@ -98,7 +103,44 @@ export const LIGHTING = {
   },
 };
 
+// Open-air moods that ride the shared time-of-day scale (scene/daylight.mjs). A shift may also slide along that scale
+// (`config.daylight`) and meet a storm, so the sky, light, fog, water and lamps all move together.
+for (const name of ["golden", "dusk"]) LIGHTING[name] = dayLook(DAY_TIMES[name]);
+// The Grand Gala arena: warm spotlights over a dark hall, pink fill from the crowd, glowing pool lamps.
+LIGHTING.gala = {
+  background: 0x2a2038,
+  exposure: 1,
+  hemi: [0xfff0dc, 0x3a2b3c, 1.05],
+  sun: [0xfff0d8, 2.3, [-14, 30, 8]],
+  fill: [0xff9ec0, 0.6, [14, 14, -16]],
+  env: 0.6,
+  envColors: ["#f6e6d0", "#d8b898", "#4a3a44"],
+  fog: [0x2a2038, 70, 170],
+  water: {
+    shallow: [0.24, 0.82, 0.88],
+    deep: [0.06, 0.6, 0.78],
+    sky: [0.9, 0.75, 0.6],
+    glint: [1, 0.9, 0.75],
+    glow: 0.7,
+  },
+  glow: 0.6,
+};
+
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+const BUILDERS = { club: buildClub, resort: buildResort, lagoon: buildLagoon, arena: buildArena };
+const defaultLighting = (venue) => venue.lighting || (venue.indoor ? "indoor" : "day");
+// A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
+// dome's horizon takes the preset's own fog colour so the far ground melts into the sky without a seam.
+function withDome(name, venue) {
+  const base = LIGHTING[name];
+  if (base.dome) return base;
+  const time = DAY_TIMES[name];
+  if (time === undefined) return base;
+  const dome = moodLook(name, { azimuth: venue.sunAzimuth ?? 2.65 }).dome;
+  dome.fog = new THREE.Color(base.fog[0]);
+  return { ...base, dome };
+}
 
 export class PoolWorld extends SceneKit {
   constructor(container, onPick, { headless = false, venue = CLUB, lighting } = {}) {
@@ -140,7 +182,7 @@ export class PoolWorld extends SceneKit {
 
   // (Re)build every scene object for a venue and lighting mood. Old GPU resources are released.
   build(venue, lighting) {
-    lighting ||= venue.id === "club" ? "indoor" : "day";
+    lighting ||= defaultLighting(venue);
     if (this.scene) {
       disposeScene(this.scene);
       if (this.coachCam) disposeScene(this.coachCam.scene);
@@ -149,7 +191,24 @@ export class PoolWorld extends SceneKit {
     }
     this.venue = venue;
     this.lightingName = lighting;
-    this.look = LIGHTING[lighting];
+    this.staticLook = withDome(lighting, venue);
+    this.look = this.staticLook;
+    this.dynamicLook = false;
+    this.ambience = { glow: this.look.glow ?? 0, lamp: 1, storm: 0 };
+    this.wind = windUniforms();
+    this.dimmers = [];
+    this.liveProps = [];
+    this.updaters = [];
+    this.cheer = 0;
+    // What only some venues have: never carry the last venue's hall, glass or lamps into this one.
+    this.hall = null;
+    this.windowGlass = null;
+    this.lightShafts = null;
+    this.stringLights = null;
+    this.poolLamps = null;
+    this.incidentLight = 1;
+    this.lookKey = null;
+    this.staticBackground = null;
     this.resetKit();
     this.scene = new THREE.Scene();
     this.clickables = [];
@@ -167,8 +226,10 @@ export class PoolWorld extends SceneKit {
     this.glowMap = glowTexture();
     this.textures.push(this.glowMap);
     this.buildLights();
-    if (venue.id === "resort") buildResort(this, venue, lighting);
-    else buildClub(this, venue);
+    (BUILDERS[venue.id] || buildClub)(this, venue, lighting);
+    this.sky = venue.scenery ? new Sky(this, SCENERY[venue.scenery]) : null;
+    this.sky?.setVisible(this.viewMode === "coach");
+    this.hall?.setCoach(this.viewMode === "coach");
     this.batchStatic();
     this.coach = character(this, { type: "coach", skin: 1, shape: 0.5 });
     this.scene.add(this.coach);
@@ -202,7 +263,7 @@ export class PoolWorld extends SceneKit {
     this.version++;
   }
   setVenue(venue, lighting) {
-    lighting ||= venue.id === "club" ? "indoor" : "day";
+    lighting ||= defaultLighting(venue);
     if (venue === this.venue && lighting === this.lightingName) return false;
     this.build(venue, lighting);
     this.resize();
@@ -294,11 +355,16 @@ export class PoolWorld extends SceneKit {
       ].filter(Boolean),
     );
     const batches = new Map();
+    // A group flagged `batchOwner` (the hall's upper structure) keeps its own batches, so hiding the group hides them.
+    const ownerOf = (m) => {
+      for (let p = m.parent; p; p = p.parent) if (p.userData?.batchOwner) return p;
+      return this.scene;
+    };
     this.scene.traverse((m) => {
       if (!m.isMesh || m.isInstancedMesh || !m.material.isMeshStandardMaterial) return;
       if (m.material.onBeforeCompile && m.material.customProgramCacheKey?.().startsWith("caustics")) return;
       for (let p = m; p; p = p.parent) if (live.has(p)) return;
-      const key = m.material.uuid + ":" + m.castShadow + ":" + m.receiveShadow;
+      const key = ownerOf(m).uuid + ":" + m.material.uuid + ":" + m.castShadow + ":" + m.receiveShadow;
       if (!batches.has(key)) batches.set(key, []);
       batches.get(key).push(m);
     });
@@ -344,7 +410,7 @@ export class PoolWorld extends SceneKit {
       const merged = new THREE.Mesh(geo, meshes[0].material);
       merged.castShadow = meshes[0].castShadow;
       merged.receiveShadow = meshes[0].receiveShadow;
-      this.scene.add(merged);
+      ownerOf(meshes[0]).add(merged);
       for (const m of meshes) m.removeFromParent();
     }
   }
@@ -531,6 +597,7 @@ export class PoolWorld extends SceneKit {
       this.laneRims[i].material.opacity = 0.5 + pulse * 0.5;
     });
     this.syncClutter(sim);
+    this.updateEnvironment(sim, time, dt);
     this.incidentView.sync(sim, time, dt);
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
@@ -547,6 +614,88 @@ export class PoolWorld extends SceneKit {
         this.particles.splice(i, 1);
       }
     }
+  }
+
+  // Time of day, weather and the world beyond the deck. Indoor venues keep their fixed light. A shift with
+  // `config.daylight = [from, to]` slides along the day scale as it plays; a storm (sim.stormLevel) darkens whatever
+  // hour it is. Everything derives from one look, so the sky, fog, light, water and lamps never disagree.
+  updateEnvironment(sim, time, dt) {
+    // Reduced motion stills the scenery: flags, palms, fans, spotlights, waves and clouds hold one pose, and the
+    // crowd stays seated. Content that follows the game (the scoreboard, the hour, the weather) still updates.
+    const calm = this.reducedMotion.matches;
+    time = calm ? 4.2 : time;
+    this.wind.uWindTime.value = time;
+    this.cheer = calm ? 0 : Math.max(0, this.cheer - dt * 0.22);
+    this.hall?.update(time, dt, this, sim);
+    for (const update of this.updaters) update(time, dt, this, sim);
+    if (!this.sky) return;
+    const cfg = sim.config || {},
+      storm = sim.stormLevel?.() ?? 0,
+      span = cfg.daylight;
+    if (span || storm > 0.001) {
+      const progress = clamp((sim.time || 0) / (cfg.duration || 1), 0, 1),
+        t = span ? span[0] + (span[1] - span[0]) * progress : (DAY_TIMES[this.lightingName] ?? 0),
+        key = Math.round(t * 2000) + ":" + Math.round(storm * 100);
+      // The look only changes as fast as the sun moves: derive it again when that has made a difference.
+      if (key !== this.lookKey || !this.dynamicLook) {
+        this.lookKey = key;
+        this.applyLook(dayLook(t, { azimuth: this.venue.sunAzimuth ?? 2.65, storm }), true);
+      }
+    } else if (this.dynamicLook) {
+      this.lookKey = null;
+      this.applyLook(this.staticLook, false);
+    }
+    this.ambience.storm = storm;
+    this.sky.update(time, dt, this.look, {
+      camera: this.camera,
+      coach: this.viewMode === "coach",
+      storm,
+      reduced: this.reducedMotion.matches,
+    });
+    // A bolt in the storm: the app hears it as thunder, like a strike during a blackout.
+    if (this.sky.consumeStrike()) this.incidentView.struck = true;
+  }
+  // Put a look on the lights, fog, water and lamps. `dynamic` looks come from the day scale each frame; the static
+  // look is restored once when the shift no longer slides along it.
+  applyLook(look, dynamic) {
+    this.look = look;
+    this.dynamicLook = dynamic;
+    this.hemi.color.set(look.hemi[0]);
+    this.hemi.groundColor.set(look.hemi[1]);
+    this.sun.color.set(look.sun[0]);
+    this.sun.position.set(...look.sun[2]);
+    this.fill.color.set(look.fill[0]);
+    this.fill.position.set(...look.fill[2]);
+    this.baseLight.hemi = look.hemi[2];
+    this.baseLight.sun = look.sun[1];
+    this.baseLight.fill = look.fill[1];
+    this.baseLight.env = look.env;
+    this.scene.fog.color.set(look.fog[0]);
+    this.scene.fog.near = look.fog[1];
+    this.scene.fog.far = look.fog[2];
+    if (this.renderer) this.renderer.toneMappingExposure = look.exposure;
+    if (dynamic) {
+      this.bgColor ||= new THREE.Color();
+      this.staticBackground ||= this.scene.background;
+      this.scene.background = this.bgColor.set(look.background);
+    } else if (this.staticBackground) {
+      this.scene.background = this.staticBackground;
+      this.staticBackground = null;
+    }
+    const u = this.water.material.uniforms,
+      water = look.water;
+    u.uShallow.value.set(...water.shallow);
+    u.uDeep.value.set(...water.deep);
+    u.uSky.value.set(...water.sky);
+    u.uGlint.value.set(...water.glint);
+    u.uGlow.value = water.glow || 0;
+    if (dynamic && look.dome) {
+      const d = look.dome;
+      u.uSun.value.copy(d.sunDir.y > 0.05 ? d.sunDir : d.moonDir);
+    } else u.uSun.value.set(-0.35, 0.9, 0.3);
+    this.ambience.glow = look.glow ?? 0;
+    // Pool lamps: as built for the classic moods, following the hour on a sliding day.
+    this.ambience.lamp = dynamic ? 0.3 + 0.7 * Math.min(1, (look.glow ?? 0) * 1.6) : 1;
   }
 
   syncSwimmer(sim, p, g, time) {
@@ -1008,6 +1157,10 @@ export class PoolWorld extends SceneKit {
     const next = mode === "coach" ? "coach" : "overview";
     if (next === this.viewMode && !sim) return;
     this.viewMode = next;
+    // The sky, the horizon and the hall's upper structure are only for the Coach Cam: the overview looks down on
+    // the room like a dollhouse and would find them in its way.
+    this.sky?.setVisible(next === "coach");
+    this.hall?.setCoach(next === "coach");
     if (next === "coach" && sim) this.coachCam.reset(sim);
     if (next !== "coach" && typeof document !== "undefined" && document.pointerLockElement)
       document.exitPointerLock?.();
@@ -1068,6 +1221,7 @@ export class PoolWorld extends SceneKit {
   }
   // Save payoff: a fountain of confetti from the spot.
   burst(x, z, big = true) {
+    this.cheer = Math.min(1, this.cheer + (big ? 0.7 : 0.3));
     const colors = [COLORS.coral, COLORS.yellow, COLORS.teal, 0xffffff];
     for (let i = 0; i < (big ? 44 : 22); i++) {
       if (this.particles.length > 300) break;

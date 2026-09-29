@@ -18,7 +18,8 @@ export function character(w, p) {
   const isCoach = p.type === "coach",
     isKid = p.type === "kid",
     isCarl = p.type === "carl" || !!p.carl,
-    isDaredevil = p.type === "daredevil";
+    isDaredevil = p.type === "daredevil",
+    isVip = !!p.vip;
   const info = TYPES[p.type] || VISITOR_LOOKS[p.type] || { color: "#f5c652" };
   const skin = p.queasy ? 0xc0c996 : SKINS[(p.skin || 0) % 5];
   const suit = isCoach
@@ -27,7 +28,9 @@ export function character(w, p) {
       ? 0x7cc46a
       : isCarl && !TYPES[p.type]
         ? 0xd9534a
-        : new THREE.Color(info.color);
+        : isVip
+          ? 0xf2b632
+          : new THREE.Color(info.color);
   const suitMat = w.mat(suit, { roughness: 0.55 });
   const bodyScale = isCarl ? [1.42, 1.22, 1.3] : [1.08, 1.24, 0.8];
   const body = w.ball(0.38, suitMat, 0, 0.76, 0, root, bodyScale);
@@ -67,6 +70,18 @@ export function character(w, p) {
   else if (!isCarl) {
     w.box(0.64, 0.12, 0.16, 0x194c61, 0, 1.47, 0.26, 0.05, root);
     for (const x of [-0.15, 0.15]) w.box(0.2, 0.092, 0.04, 0xbfe8db, x, 1.47, 0.355, 0.03, root);
+  }
+  if (isVip) {
+    // A golden crown and a crimson sash: you cannot miss a VIP.
+    const gold = w.mat(0xf6c445, { roughness: 0.3, metalness: 0.5 });
+    w.cyl(0.24, 0.26, 0.1, gold, 0, head.position.y + 0.33, 0, root, 12);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      w.cyl(0, 0.06, 0.17, gold, Math.cos(a) * 0.19, head.position.y + 0.46, Math.sin(a) * 0.19, root, 6);
+    }
+    w.ball(0.05, 0xe0513f, 0, head.position.y + 0.42, 0.26, root);
+    const sash = w.box(0.13, 0.98, 0.07, 0xc23a4a, 0.05, 0.82, 0.31, 0.02, root);
+    sash.rotation.z = -0.62;
   }
   if (isDaredevil) {
     const star = w.ball(0.09, COLORS.yellow, 0, 1.72, 0.12, root, [1, 1, 0.4]);

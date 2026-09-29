@@ -60,6 +60,7 @@ export class ChaosController extends RescueController {
     // Mid-shift twists: a lane taken out of service, and an override of who arrives next (see incidents/twist.mjs).
     this.laneClosure = -1;
     this.mixOverride = null;
+    this.storm = null;
     this.systems = SYSTEMS;
     for (const system of this.systems) system.init?.(this);
   }
@@ -116,6 +117,7 @@ export class ChaosController extends RescueController {
       entry.done = system.start(this) !== false;
     }
     for (const system of this.systems) system.update?.(this, dt);
+    this.updateStorm(dt);
     this.updateHazards(dt);
   }
   finCount() {
@@ -185,6 +187,38 @@ export class ChaosController extends RescueController {
   pickEdgeSpot(avoid = null) {
     const spots = this.venue.edgeSpots().filter((s) => !avoid || distance(s, avoid) > 5);
     return spots[Math.floor(this.chaosRandom() * spots.length)] || this.venue.edgeSpots()[0];
+  }
+
+  // ------------------------------------------------------------------------------------------------------
+  // Weather (the storm twist): how far the storm has come, 0..1, and the rain puddles it leaves on the deck. The
+  // scene reads stormLevel() to darken the sky and start the rain.
+  stormLevel() {
+    return this.storm ? clamp((this.time - this.storm.start) / this.storm.ramp, 0, 1) : 0;
+  }
+  updateStorm(dt) {
+    const st = this.storm;
+    if (!st || this.stormLevel() < 0.7) return;
+    st.next -= dt;
+    if (st.next > 0) return;
+    st.next = 2.6 + this.chaosRandom() * 1.8;
+    if (this.hazards.filter((h) => h.rain).length >= 6) return;
+    const d = this.venue.deck;
+    // Half the puddles form where people walk to the water, the rest anywhere on the deck; never on top of the coach.
+    for (let tries = 0; tries < 16; tries++) {
+      const spot =
+        this.chaosRandom() < 0.5
+          ? this.pickEdgeSpot(this.coach)
+          : {
+              x: d.minX + this.chaosRandom() * (d.maxX - d.minX),
+              z: d.minZ + this.chaosRandom() * (d.maxZ - d.minZ),
+            };
+      if (distance(spot, this.coach) < 2.2) continue;
+      const puddle = this.addPuddle(spot.x, spot.z, 0.85, 14);
+      if (puddle) {
+        puddle.rain = true;
+        return;
+      }
+    }
   }
 
   // ------------------------------------------------------------------------------------------------------

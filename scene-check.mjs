@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import * as THREE from "./dist/assets/three.module.js";
 import { PoolWorld } from "./dist/scene.mjs";
 import { PoolSimulation, LANES } from "./dist/sim.mjs";
-import { STATIONS, SANITATION, isDeckPosition, createCoach, queuePosition } from "./dist/spatial.mjs";
+import { STATIONS, SANITATION, isDeckPosition, createCoach, queuePosition, VENUES } from "./dist/spatial.mjs";
 // Canvas textures need @napi-rs/canvas: `npm install` provides it locally, or point
 // CODEX_PRIMARY_RUNTIME_NODE_MODULES at another node_modules folder that contains it.
 const runtime = process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES;
@@ -421,4 +421,171 @@ console.log(
 }
 console.log(
   "Incident animation checks passed: back landing, smooth recovery, stronger victim bob/arms, gentle group bob, unchanged positions, and reduced motion.",
+);
+
+// Environments: every venue builds, and answers to the view (sky and hall only in the Coach Cam), the hour and the storm.
+{
+  const buildWorld = (id, lighting) =>
+    new PoolWorld({ clientWidth: 1440, clientHeight: 900 }, () => {}, {
+      headless: true,
+      venue: VENUES[id],
+      lighting,
+    });
+  const frames = (w, sim, n = 24) => {
+    for (let i = 0; i < n; i++) {
+      sim.tick(1 / 60);
+      w.sync(sim, i / 30, 1 / 60);
+    }
+  };
+  // Open air gets the sky dome and hills; the club and the arena get their halls; nobody gets both.
+  const expected = {
+    club: [false, true],
+    resort: [true, false],
+    lagoon: [true, false],
+    arena: [false, true],
+  };
+  for (const [id, [sky, hall]] of Object.entries(expected)) {
+    const w = buildWorld(id),
+      sim = new PoolSimulation(id === "arena" ? 20 : id === "lagoon" ? 17 : id === "resort" ? 11 : 4, 3);
+    sim.chaosPlan = [];
+    sim.start();
+    assert.equal(!!w.sky, sky, `${id}: sky dome`);
+    assert.equal(!!w.hall, hall, `${id}: hall`);
+    // The overview looks down on the room like a dollhouse: no sky, no upper structure.
+    frames(w, sim);
+    assert.equal(w.viewMode, "overview");
+    if (w.sky) assert.equal(w.sky.group.visible, false, `${id}: no sky in the overview`);
+    if (w.hall) assert.equal(w.hall.upper.visible, false, `${id}: no roof in the overview`);
+    w.setViewMode("coach", sim);
+    frames(w, sim);
+    if (w.sky) assert.equal(w.sky.group.visible, true, `${id}: sky in the Coach Cam`);
+    if (w.hall) assert.equal(w.hall.upper.visible, true, `${id}: roof in the Coach Cam`);
+    w.setViewMode("overview", sim);
+    if (w.sky) assert.equal(w.sky.group.visible, false);
+    if (w.hall) assert.equal(w.hall.upper.visible, false);
+  }
+  // The app rebuilds the same world for every venue: nothing of the last one (hall, glass, sky) may be left behind.
+  {
+    const w = buildWorld("club"),
+      root = (o) => {
+        while (o.parent) o = o.parent;
+        return o;
+      };
+    for (const id of ["resort", "lagoon", "arena", "club", "arena", "resort", "lagoon", "club"]) {
+      const before = w.hall;
+      assert.equal(w.setVenue(VENUES[id]), true);
+      assert.equal(!!w.sky, expected[id][0], `${id} after a rebuild: sky`);
+      assert.equal(!!w.hall, expected[id][1], `${id} after a rebuild: hall`);
+      if (before && w.hall) assert.notEqual(w.hall, before, "A new hall for the new build");
+      if (w.hall) assert.equal(root(w.hall.upper), w.scene, `${id}: the hall is in this scene`);
+      assert.ok(
+        (w.windowGlass || []).every((g) => root(g) === w.scene),
+        `${id}: only this scene's window glass`,
+      );
+      assert.equal(w.incidentLight, 1);
+      const sim = new PoolSimulation(id === "arena" ? 20 : 4, 3);
+      sim.start();
+      w.setViewMode("coach", sim);
+      w.sync(sim, 0, 1 / 60);
+      w.setViewMode("overview", sim);
+    }
+  }
+  // A blackout dims what glows in the arena: the marquee, spotlights, screens and scoreboard all register.
+  {
+    const w = buildWorld("arena");
+    assert.ok(w.dimmers.length >= 4, "The arena's lights answer to a blackout");
+    assert.ok(w.updaters.length >= 1);
+    for (const dim of w.dimmers) dim(0.05, true);
+    assert.ok(w.incidentLight <= 0.06, "The marquee goes dark with the power");
+    for (const dim of w.dimmers) dim(1, false);
+    assert.equal(w.incidentLight, 1);
+  }
+  // The Lagoon's sun moves through a shift: golden hour early, the light and fog change by the end.
+  {
+    const w = buildWorld("lagoon", undefined),
+      sim = new PoolSimulation(17, 3);
+    sim.chaosPlan = [];
+    sim.start();
+    w.setViewMode("coach", sim);
+    w.sync(sim, 0, 1 / 60);
+    assert.equal(w.dynamicLook, true, "A shift with its own sun drives the look from the day scale");
+    const start = { sun: w.look.sun[1], fog: w.look.fog[0], horizon: w.look.dome.horizon.getHex() };
+    sim.time = sim.config.duration;
+    w.sync(sim, 1, 1 / 60);
+    assert.notEqual(
+      w.look.dome.horizon.getHex(),
+      start.horizon,
+      "The horizon changes colour as the sun sets",
+    );
+    assert.notEqual(w.look.fog[0], start.fog, "…and so does the fog");
+    assert.equal(w.ambience.storm, 0);
+    // Storm front: the twist takes the sky dark and starts the rain. Fog closes in, the sun dims and the rain falls.
+    const storm = new PoolSimulation(19, 3);
+    storm.chaosPlan = [];
+    storm.config = { ...storm.config, twist: [{ kind: "storm", at: 0.05 }] };
+    storm.chaosPlan = [{ kind: "twist", twist: { kind: "storm", at: 0.05 }, at: 5, done: false }];
+    storm.start();
+    w.sync(storm, 2, 1 / 60);
+    const clear = { far: w.look.fog[2], sun: w.look.sun[1] };
+    for (let i = 0; i < 60 * 13; i++) storm.tick(1 / 60);
+    assert.equal(storm.stormLevel(), 1);
+    w.sync(storm, 20, 1 / 60);
+    assert.equal(w.ambience.storm, 1, "The world knows the storm is on");
+    assert.ok(w.look.fog[2] < clear.far, "Fog closes in during the storm");
+    assert.ok(w.look.sun[1] < clear.sun, "The sun is dimmed by the clouds");
+    assert.equal(w.sky.rainUniforms.uAmount.value, 1, "Full rain at full storm");
+    assert.equal(w.sky.rain.visible, true);
+    // Reduced motion keeps the weather but drops the lightning flashes.
+    w.reducedMotion.matches = true;
+    for (let i = 0; i < 200; i++) w.sync(storm, 21 + i / 60, 1 / 60);
+    assert.equal(w.sky.flash, 0, "No flashes with reduced motion");
+    w.reducedMotion.matches = false;
+  }
+  // Reduced motion stills the scenery and keeps the crowd seated; without it the clock and the cheer run.
+  {
+    const w = buildWorld("arena"),
+      sim = new PoolSimulation(20, 3);
+    sim.start();
+    w.setViewMode("coach", sim);
+    w.reducedMotion.matches = true;
+    w.cheer = 1;
+    w.sync(sim, 10, 1 / 60);
+    const held = w.wind.uWindTime.value;
+    w.sync(sim, 20, 1 / 60);
+    assert.equal(w.wind.uWindTime.value, held, "Reduced motion holds the scenery's clock");
+    assert.equal(w.cheer, 0, "…and the crowd stays seated");
+    w.reducedMotion.matches = false;
+    w.cheer = 1;
+    w.sync(sim, 30, 1 / 60);
+    assert.notEqual(w.wind.uWindTime.value, held);
+    assert.ok(w.cheer > 0.9, "Without it the crowd cheers");
+    const lagoon = buildWorld("lagoon"),
+      day = new PoolSimulation(17, 3);
+    day.start();
+    lagoon.setViewMode("coach", day);
+    lagoon.reducedMotion.matches = true;
+    lagoon.sync(day, 5, 1 / 60);
+    assert.ok(
+      lagoon.sky.birds.length > 0 && lagoon.sky.birds.every((g) => !g.visible),
+      "No gulls with reduced motion",
+    );
+    lagoon.reducedMotion.matches = false;
+    lagoon.sync(day, 6, 1 / 60);
+    assert.ok(
+      lagoon.sky.birds.some((g) => g.visible),
+      "…and they fly otherwise",
+    );
+  }
+  // A fresh world for a clear-sky shift goes back to its static look once no sun slides or storm blows.
+  {
+    const w = buildWorld("resort"),
+      sim = new PoolSimulation(11, 3);
+    sim.chaosPlan = [];
+    sim.start();
+    w.sync(sim, 0, 1 / 60);
+    assert.equal(w.dynamicLook, false, "Classic moods stay as they were built");
+  }
+}
+console.log(
+  "Environment checks passed: sky dome only outdoors and hall only indoors, both hidden in the overview, arena lights answer to blackouts, the Lagoon's sun slides through a shift, storms close in fog, dim the sun and bring rain, and reduced motion drops the flashes, the gulls and the cheering and holds the scenery still.",
 );

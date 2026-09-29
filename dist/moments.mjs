@@ -111,6 +111,13 @@ export const STINGS = {
     how: "From now on most arrivals do aqua aerobics: they stay put and slow everyone behind them.",
     tone: "warning",
   },
+  storm: {
+    icon: "⛈️",
+    title: "STORM FRONT!",
+    verb: "Rain makes puddles · jump them (Space)",
+    how: "The deck is getting wet. Walk around puddles or jump over them: anyone who steps in one slips, and swimmers who slip lose happiness.",
+    tone: "warning",
+  },
   crash: {
     icon: "💥",
     title: "CRASH!",
