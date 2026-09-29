@@ -111,6 +111,7 @@ The overview shows the pool and its deck; the Coach Cam shows the world around t
 
 - **Grand Gala Arena** (`dist/scene/arena.mjs`, `crowd.mjs`): a stage with an LED screen and a chasing-light marquee, a rotating trophy, three grandstands of instanced spectators who cheer on every save, scrolling LED ribbons, a hanging scoreboard cube that shows the live score, time and stars, two sweeping spotlight rigs with floor decals, balloons and confetti cannons.
 - **Lights.** A blackout dims everything that glows (`world.dimmers`), from pendant lamps to the marquee and spotlights, and lightning flashes reach into the halls too.
+- **Reduced motion.** The scenery's clock stops (`updateEnvironment` in `dist/scene.mjs`): flags, palms, fans, waves, clouds, spotlights and the marquee hold one pose, the gulls stay away, lightning flashes are dropped and the crowd stays seated. What follows the game still updates: the scoreboard, the hour and the weather.
 
 ## Swimmers, lanes, and happiness
 

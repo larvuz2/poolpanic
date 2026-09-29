@@ -865,6 +865,7 @@ export class Sky {
   update(time, dt, look, { camera, coach = true, storm = 0, focus, reduced = false } = {}) {
     this.time = time;
     this.storm = storm;
+    this.reduced = reduced;
     const d = look.dome,
       u = this.uniforms;
     this.flash = Math.max(0, this.flash - dt * 3.2);
@@ -947,7 +948,7 @@ export class Sky {
     const dark = look.dome.sunGlow > 0.6 || look.glow > 0.3,
       night = this.night;
     this.birdMaterial.color.set(dark ? 0x3a3f5c : 0xffffff);
-    const show = storm < 0.5 && night < 0.85;
+    const show = storm < 0.5 && night < 0.85 && !this.reduced;
     for (const b of this.birds) {
       b.visible = show;
       if (!show) continue;

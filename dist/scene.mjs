@@ -620,8 +620,12 @@ export class PoolWorld extends SceneKit {
   // `config.daylight = [from, to]` slides along the day scale as it plays; a storm (sim.stormLevel) darkens whatever
   // hour it is. Everything derives from one look, so the sky, fog, light, water and lamps never disagree.
   updateEnvironment(sim, time, dt) {
+    // Reduced motion stills the scenery: flags, palms, fans, spotlights, waves and clouds hold one pose, and the
+    // crowd stays seated. Content that follows the game (the scoreboard, the hour, the weather) still updates.
+    const calm = this.reducedMotion.matches;
+    time = calm ? 4.2 : time;
     this.wind.uWindTime.value = time;
-    this.cheer = Math.max(0, this.cheer - dt * 0.22);
+    this.cheer = calm ? 0 : Math.max(0, this.cheer - dt * 0.22);
     this.hall?.update(time, dt, this, sim);
     for (const update of this.updaters) update(time, dt, this, sim);
     if (!this.sky) return;

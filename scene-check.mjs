@@ -541,6 +541,41 @@ console.log(
     assert.equal(w.sky.flash, 0, "No flashes with reduced motion");
     w.reducedMotion.matches = false;
   }
+  // Reduced motion stills the scenery and keeps the crowd seated; without it the clock and the cheer run.
+  {
+    const w = buildWorld("arena"),
+      sim = new PoolSimulation(20, 3);
+    sim.start();
+    w.setViewMode("coach", sim);
+    w.reducedMotion.matches = true;
+    w.cheer = 1;
+    w.sync(sim, 10, 1 / 60);
+    const held = w.wind.uWindTime.value;
+    w.sync(sim, 20, 1 / 60);
+    assert.equal(w.wind.uWindTime.value, held, "Reduced motion holds the scenery's clock");
+    assert.equal(w.cheer, 0, "…and the crowd stays seated");
+    w.reducedMotion.matches = false;
+    w.cheer = 1;
+    w.sync(sim, 30, 1 / 60);
+    assert.notEqual(w.wind.uWindTime.value, held);
+    assert.ok(w.cheer > 0.9, "Without it the crowd cheers");
+    const lagoon = buildWorld("lagoon"),
+      day = new PoolSimulation(17, 3);
+    day.start();
+    lagoon.setViewMode("coach", day);
+    lagoon.reducedMotion.matches = true;
+    lagoon.sync(day, 5, 1 / 60);
+    assert.ok(
+      lagoon.sky.birds.length > 0 && lagoon.sky.birds.every((g) => !g.visible),
+      "No gulls with reduced motion",
+    );
+    lagoon.reducedMotion.matches = false;
+    lagoon.sync(day, 6, 1 / 60);
+    assert.ok(
+      lagoon.sky.birds.some((g) => g.visible),
+      "…and they fly otherwise",
+    );
+  }
   // A fresh world for a clear-sky shift goes back to its static look once no sun slides or storm blows.
   {
     const w = buildWorld("resort"),
@@ -552,5 +587,5 @@ console.log(
   }
 }
 console.log(
-  "Environment checks passed: sky dome only outdoors and hall only indoors, both hidden in the overview, arena lights answer to blackouts, the Lagoon's sun slides through a shift, storms close in fog, dim the sun and bring rain, and reduced motion drops the flashes.",
+  "Environment checks passed: sky dome only outdoors and hall only indoors, both hidden in the overview, arena lights answer to blackouts, the Lagoon's sun slides through a shift, storms close in fog, dim the sun and bring rain, and reduced motion drops the flashes, the gulls and the cheering and holds the scenery still.",
 );
