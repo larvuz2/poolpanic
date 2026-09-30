@@ -14,6 +14,7 @@ preview they can check on any device and exports the glTF.
    - `inspect_model.py -- model.glb`: what is in a model.
    - `humanoid_rig.py -- in.glb out.glb --walk`: armature fitted to the mesh, auto weights, looping walk clip, GLB out.
    - `turntable.py -- model.glb out_dir --animation Walk`: `still.png` and `turntable.mp4`.
+   - `game_export.py -- in.glb out.glb --tex 1024 --clip Walk`: shrink textures, name the clip, print triangles and size.
 3. **Check before handing over.** Inspect the rigged file (one weight group per bone, the clip present) and look at the
    turntable still and a frame of the walk; send the user the PNG/MP4 from the scratchpad or an artifact.
 4. **Limits.** CPU only: rigging, weights, keyframes, previews and glTF export are fine; heavy Cycles renders and

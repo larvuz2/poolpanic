@@ -13,6 +13,7 @@ tools/blender/run.sh SCRIPT.py -- ARGS...
 | --- | --- |
 | `inspect_model.py -- model.glb` | Size, meshes (verts, triangles, materials), armatures (bones) and animations (frame ranges) |
 | `turntable.py -- model.glb out_dir [--frames 48] [--size 480] [--engine eevee\|workbench\|cycles] [--animation NAME] [--still-frame N] [--no-mp4]` | `still.png` and `turntable.mp4` (the camera circles the model; `--animation` plays a clip meanwhile) |
+| `game_export.py -- in.glb out.glb [--tex 1024] [--quality 85] [--clip Walk]` | Game-ready GLB: textures shrunk to JPEG, first clip renamed, skins kept; prints the triangle count and size |
 | `humanoid_rig.py -- in.glb out.glb [--walk] [--frames 24] [--height M]` | Fits a 19-bone humanoid armature to the mesh, automatic weights, optional looping walk cycle named `Walk`, exports GLB with skin and animation |
 | `make_test_humanoid.py -- out.glb` | A blocky stand-in character (T-pose, 1.8 m) for trying the pipeline without a real mesh |
 
