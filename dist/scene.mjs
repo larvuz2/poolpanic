@@ -159,14 +159,18 @@ export class PoolWorld extends SceneKit {
     this.clock = 0;
     this.version = 0;
     this.reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    // Switches for isolating a crash on someone's device (see the README): ?dpr=1 caps the pixel ratio, ?noshadow
+    // turns shadows off, ?noparticles skips splashes, sparkles and confetti.
+    const tuning = new URLSearchParams(globalThis.location?.search || "");
+    this.noParticles = tuning.has("noparticles");
     if (!headless) {
       this.renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: false,
         powerPreference: "high-performance",
       });
-      this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7));
-      this.renderer.shadowMap.enabled = true;
+      this.renderer.setPixelRatio(Math.min(devicePixelRatio, Math.max(0.5, +tuning.get("dpr") || 1.7)));
+      this.renderer.shadowMap.enabled = !tuning.has("noshadow");
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1077,6 +1081,7 @@ export class PoolWorld extends SceneKit {
   }
 
   splash(x, y, z, n = 9, quiet = false, color = 0xc4f7e8) {
+    if (this.noParticles) return;
     for (let i = 0; i < n; i++) {
       if (this.particles.length > 220) break;
       const p = this.ball(quiet ? 0.055 : 0.09, this.mat(color, { roughness: 0.2 }), x, y, z);
@@ -1094,6 +1099,7 @@ export class PoolWorld extends SceneKit {
   }
   // Big radial splash for cannonballs, fish drops and trampoline landings.
   bigSplash(x, z, size = 1) {
+    if (this.noParticles) return;
     for (let i = 0; i < 38 * size; i++) {
       if (this.particles.length > 260) break;
       const a = Math.random() * Math.PI * 2,
@@ -1111,6 +1117,7 @@ export class PoolWorld extends SceneKit {
   }
   // Rising sparkles for first aid.
   sparkle(x, z, n = 16) {
+    if (this.noParticles) return;
     for (let i = 0; i < n; i++) {
       if (this.particles.length > 260) break;
       const p = this.ball(
@@ -1135,6 +1142,7 @@ export class PoolWorld extends SceneKit {
     }
   }
   confetti() {
+    if (this.noParticles) return;
     for (let i = 0; i < 70; i++) {
       const m = this.box(
         0.12,
@@ -1227,6 +1235,7 @@ export class PoolWorld extends SceneKit {
   }
   // Save payoff: a fountain of confetti from the spot.
   burst(x, z, big = true) {
+    if (this.noParticles) return;
     this.cheer = Math.min(1, this.cheer + (big ? 0.7 : 0.3));
     const colors = [COLORS.coral, COLORS.yellow, COLORS.teal, 0xffffff];
     for (let i = 0; i < (big ? 44 : 22); i++) {

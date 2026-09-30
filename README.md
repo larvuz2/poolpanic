@@ -464,6 +464,8 @@ The game keeps a black box of its own (`dist/crashlog.mjs`, wired to the browser
 - **Which build.** `dist/version.mjs` says `dev` from a checkout. Netlify runs `node stamp-version.mjs` before the checks (see `netlify.toml`), which writes the commit, deploy context and branch into it, so a report names the exact build.
 - **Reading one.** A report is Markdown: the build, device (user agent, viewport, pixel ratio, GPU, cores, memory), the game's state, each error with its stack and the game state at the time, and the newest breadcrumbs. `?debug` exposes `window.__pool.crashlog` for QA; `crashlog-check.mjs` drives the whole thing with a fake browser.
 
+**Isolating a crash on a device.** A report says where the game stopped; these URL switches say why, by taking one suspect out at a time (add them to the address, e.g. `?nosound&dpr=1`): `?nosound` (the audio never starts), `?dpr=1` (render at one pixel per point instead of up to 1.7), `?noshadow` (no shadow maps), `?noparticles` (no splashes, sparkles, bursts or confetti). The switches show up in a report's `Page:` line. A crash that goes away with one of them points at that suspect.
+
 ### The story and the Ocean Fund
 
 Coach Panic wants to take Marina to the ocean and has to earn the trip. The very first launch opens with a short, skippable cinematic (four scenes, about 15 seconds, click / Enter / Space for the next scene, **Skip** or Esc to leave) before anything can be played. It is not shown again, but the 🌊 pill in the top bar (menu), Help → "Watch the story again", or `?story` replay it.
