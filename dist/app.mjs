@@ -30,6 +30,8 @@ import { MomentDirector, edgeArrow } from "./moments.mjs";
 import { installCrashLog, describeGpu } from "./crashlog-hooks.mjs";
 import { BUILD } from "./version.mjs";
 import { playCinematic } from "./cinematic.mjs";
+import { readTuning } from "./tuning.mjs";
+import * as hunt from "./bisect.mjs";
 import {
   STORY,
   INTRO,
@@ -50,8 +52,19 @@ let crashStorage = null;
 try {
   crashStorage = localStorage;
 } catch {}
-// ?nosound keeps the audio from starting at all (one of the switches for isolating a crash, see the README).
-if (new URLSearchParams(location.search).has("nosound")) {
+// The switches for isolating a crash (tuning.mjs) and the crash hunt that runs them one at a time (bisect.mjs). The
+// hunt's state is read first: a test left running by the last page means that page died in it.
+const params = new URLSearchParams(location.search);
+let huntState = null;
+if (params.has("bisect")) {
+  if (params.get("bisect") === "reset") hunt.clear(crashStorage);
+  huntState = hunt.resume(hunt.load(crashStorage));
+  hunt.save(crashStorage, huntState);
+}
+const huntStep = huntState && !hunt.finished(huntState) ? hunt.current(huntState) : null;
+const tuning = readTuning(location.search, huntStep ? huntStep.flags : []);
+globalThis.__poolTuning = tuning;
+if (tuning.has("nosound")) {
   audio.enabled = false;
   audio.init = () => {};
 }
@@ -113,7 +126,7 @@ function moveVector() {
 }
 // Apply the chosen camera: the Coach Cam during shifts when enabled, the overview otherwise.
 function applyViewMode() {
-  const coach = settings.coachCam && mode !== "menu";
+  const coach = settings.coachCam && mode !== "menu" && !tuning.has("overview");
   world.setViewMode(coach ? "coach" : "overview", coach ? sim : null);
   crashlog.crumb("view", coach ? "Coach Cam" : "overview");
   input.lookMode = coach;
@@ -398,6 +411,93 @@ function showFundResult(pay, booked) {
         : "Every shift gets the ocean closer."
       : `Shift pay ${money(pay.paid)}. Beat your best on this shift to add more.`;
   $("watch-ending").hidden = !story.ending; // once earned, the ending can be watched from any results
+}
+
+// ---- the crash hunt ------------------------------------------------------------------------------------------------
+// ?trial plays one scripted shift (level 10 in the Coach Cam: Carl's cannonball, then the fish kid) with whatever
+// switches the address carries; ?bisect runs the whole plan, one switch per test, reloading between tests and
+// counting a test that never finished as a crash. Both leave the player idle: the incidents are the point.
+const TRIAL_CAP = +params.get("trialsecs") || 80; // seconds of real time before a trial gives up waiting
+let trial = null;
+function huntOverlay(html, { buttons = "" } = {}) {
+  const box = $("hunt");
+  box.hidden = false;
+  box.innerHTML = html + buttons;
+}
+function huntLabel() {
+  return huntStep
+    ? `Crash hunt · test ${huntState.step + 1} of ${hunt.PLAN.length} · ${huntStep.label}`
+    : "Trial · " + (tuning.list().join(" + ") || "everything on");
+}
+function showHuntResults() {
+  const { lines, verdict } = hunt.summary(huntState),
+    device = crashlog.session?.env?.ua || "";
+  huntOverlay(
+    `<strong>Crash hunt: ${hunt.finished(huntState) ? "done" : "results so far"}</strong><ul>` +
+      lines.map((l) => `<li class="${l.outcome}"><span>${l.label}</span><b>${l.outcome}</b></li>`).join("") +
+      `</ul><p>${verdict}</p>`,
+    {
+      buttons: `<button id="hunt-copy" class="primary">Copy results</button><button id="hunt-stop" class="secondary">Done</button>`,
+    },
+  );
+  $("hunt-copy").onclick = async () => {
+    $("hunt-copy").textContent = (await copyText(hunt.report(huntState, device)))
+      ? "Copied ✓"
+      : "Copy failed";
+  };
+  $("hunt-stop").onclick = () => {
+    hunt.clear(crashStorage);
+    location.href = location.pathname;
+  };
+}
+function startTrial() {
+  settings.coachCam = !tuning.has("overview"); // the trial's own choice, never saved
+  $("coach-cam").checked = settings.coachCam;
+  level = 10;
+  selected = { kind: "level", level };
+  start(null);
+  trial = { phase: "carl", at: 0, began: performance.now() };
+  huntOverlay(
+    `<strong>${huntLabel()}</strong><p>Leave this tab open and do nothing. If the page closes or reloads, open the link again.</p>`,
+  );
+  crashlog.crumb("hunt", huntLabel());
+  if (huntStep) {
+    hunt.begin(huntState);
+    hunt.save(crashStorage, huntState);
+  }
+  trial.timer = setInterval(trialTick, 250);
+}
+function trialTick() {
+  if (!trial) return;
+  if (mode === "results" || sim.status === "ended" || performance.now() - trial.began > TRIAL_CAP * 1000)
+    return endTrial();
+  if (mode !== "playing") return;
+  const quiet = sim.time - trial.at > 6 && !sim.activeSystems().length;
+  if (trial.phase === "carl" && sim.time >= 2 && sim.triggerChaos("carl")) {
+    trial.phase = "carl-run";
+    trial.at = sim.time;
+    crashlog.crumb("hunt", "Carl");
+  } else if (trial.phase === "carl-run" && quiet && sim.triggerChaos("fish")) {
+    trial.phase = "fish-run";
+    trial.at = sim.time;
+    crashlog.crumb("hunt", "fish kid");
+  } else if (trial.phase === "fish-run" && quiet) endTrial();
+}
+function endTrial() {
+  clearInterval(trial.timer);
+  trial = null;
+  crashlog.crumb("hunt", "survived");
+  if (huntStep) {
+    hunt.pass(huntState);
+    hunt.save(crashStorage, huntState);
+    huntOverlay(`<strong>${huntLabel()}</strong><p>Survived. Next test…</p>`);
+    setTimeout(() => location.reload(), 900);
+  } else {
+    huntOverlay(`<strong>${huntLabel()}</strong><p>Survived: no crash in this trial.</p>`, {
+      buttons: `<button id="hunt-stop" class="secondary">Close</button>`,
+    });
+    $("hunt-stop").onclick = () => ($("hunt").hidden = true);
+  }
 }
 
 // ---- the crash log -------------------------------------------------------------------------------------------------
@@ -2037,6 +2137,8 @@ try {
   $("loading").hidden = true;
   if (window.__boot) window.__boot.ready = true;
   renderFund();
+  if (huntState && hunt.finished(huntState)) showHuntResults();
+  else if (huntStep || params.has("trial")) setTimeout(startTrial, 1500);
   crashlog.setEnv({ gpu: describeGpu(world.renderer?.getContext?.()) });
   crashlog.crumb("boot", "ready in " + Math.round(performance.now()) + " ms");
   requestAnimationFrame(animate);
@@ -2125,8 +2227,8 @@ try {
     };
   // The very first launch opens with the story, before anything can be played (`?story` shows it again; `?debug`
   // sessions for tests and repros skip it).
-  const params = new URLSearchParams(location.search);
-  if (params.has("story") || (!story.seen && !params.has("debug")))
+  const testing = params.has("bisect") || params.has("trial");
+  if (params.has("story") || (!story.seen && !params.has("debug") && !testing))
     playStory("intro", () => {
       story.seen = true;
       saveStory();
@@ -2134,7 +2236,7 @@ try {
   // A launch after a crash offers the report (`?log` opens the log any time, crash or not).
   const wantsLog = new URLSearchParams(location.search).has("log");
   setTimeout(() => {
-    if (mode !== "menu" || document.querySelector("dialog[open]")) return;
+    if (mode !== "menu" || document.querySelector("dialog[open]") || testing) return;
     if (wantsLog) showCrash(crashlog.troubled()[0] || crashlog.latest());
     else if (crashlog.pending().length) showCrash(crashlog.pending().slice(-1)[0]);
   }, 1800);

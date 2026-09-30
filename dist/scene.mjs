@@ -12,6 +12,7 @@ import { dayLook, moodLook, DAY_TIMES } from "./scene/daylight.mjs";
 import { character } from "./scene/actors.mjs";
 import { finsObject, lifeRingObject, skimmerObject, pooObject, bucket } from "./scene/props.mjs";
 import { IncidentView } from "./scene/incident-view.mjs";
+import { readTuning } from "./tuning.mjs";
 import { CoachCam, COACH_CAM } from "./scene/coach-cam.mjs";
 import { waitingInWater } from "./rescue.mjs";
 import { bumpLean } from "./deck-physics.mjs";
@@ -159,9 +160,9 @@ export class PoolWorld extends SceneKit {
     this.clock = 0;
     this.version = 0;
     this.reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    // Switches for isolating a crash on someone's device (see the README): ?dpr=1 caps the pixel ratio, ?noshadow
-    // turns shadows off, ?noparticles skips splashes, sparkles and confetti.
-    const tuning = new URLSearchParams(globalThis.location?.search || "");
+    // Switches for isolating a crash on someone's device (tuning.mjs, README): the app hands over its own, and a
+    // headless world reads none.
+    const tuning = (this.tune = globalThis.__poolTuning || readTuning(globalThis.location?.search || ""));
     this.noParticles = tuning.has("noparticles");
     if (!headless) {
       this.renderer = new THREE.WebGLRenderer({
@@ -169,7 +170,7 @@ export class PoolWorld extends SceneKit {
         alpha: false,
         powerPreference: "high-performance",
       });
-      this.renderer.setPixelRatio(Math.min(devicePixelRatio, Math.max(0.5, +tuning.get("dpr") || 1.7)));
+      this.renderer.setPixelRatio(Math.min(devicePixelRatio, Math.max(0.5, tuning.number("dpr", 1.7))));
       this.renderer.shadowMap.enabled = !tuning.has("noshadow");
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -264,6 +265,7 @@ export class PoolWorld extends SceneKit {
     };
     this.coachCam = new CoachCam(this);
     if (look) Object.assign(this.coachCam, look);
+    if (this.tune.has("nolights")) this.stripLocalLights();
     this.version++;
   }
   setVenue(venue, lighting) {
@@ -1210,6 +1212,15 @@ export class PoolWorld extends SceneKit {
     this.cameraDistance = distance * (this.venue.cameraScale || 1);
     this.placeCamera();
   }
+  // ?nolights: only the sun, the fill and the two sky lights stay (every lamp, the fuse box and the flashlight go).
+  stripLocalLights() {
+    const gone = [];
+    for (const root of [this.scene, this.coachCam?.scene])
+      root?.traverse((o) => {
+        if (o.isPointLight || o.isSpotLight) gone.push(o);
+      });
+    for (const light of gone) light.removeFromParent();
+  }
   placeCamera() {
     this.camera.position
       .copy(this.target)
@@ -1484,6 +1495,6 @@ export class PoolWorld extends SceneKit {
   }
   render() {
     this.renderer.render(this.scene, this.camera);
-    if (this.viewMode === "coach") this.coachCam.render(this.renderer);
+    if (this.viewMode === "coach" && !this.tune.has("nohands")) this.coachCam.render(this.renderer);
   }
 }
