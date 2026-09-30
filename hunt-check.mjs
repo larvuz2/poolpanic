@@ -27,6 +27,12 @@ const memory = () => {
   for (const k of SAFE) assert.ok(safe.has(k), k);
   assert.ok(!safe.has("overview"), "safe keeps the camera");
   assert.deepEqual(readTuning("").list(), []);
+  assert.deepEqual(
+    readTuning("?trial&noparticles&trialsecs=45&dpr=1").list().sort(),
+    ["dpr", "noparticles"],
+    "Only switches are listed",
+  );
+  assert.ok(safe.has("nopoints") && safe.has("noaa"));
 }
 
 // 2) The plan: a control first, one switch per test, every switch is one tuning.mjs knows.

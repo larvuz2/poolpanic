@@ -57,7 +57,13 @@ try {
 const params = new URLSearchParams(location.search);
 let huntState = null;
 if (params.has("bisect")) {
-  if (params.get("bisect") === "reset") hunt.clear(crashStorage);
+  if (params.get("bisect") === "reset") {
+    // Start over, once: the address the page reloads into no longer says reset.
+    hunt.clear(crashStorage);
+    const again = new URLSearchParams(location.search);
+    again.set("bisect", "");
+    history.replaceState(null, "", location.pathname + "?" + again.toString());
+  }
   huntState = hunt.resume(hunt.load(crashStorage));
   hunt.save(crashStorage, huntState);
 }

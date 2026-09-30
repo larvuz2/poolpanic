@@ -430,6 +430,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/map-art.mjs` | The map's layout and isometric SVG art, as strings. No DOM |
 | `dist/map.mjs` | The map's DOM layer: buttons, tags, coach, clouds and reveal, driven by the campaign state |
 | `dist/audio.mjs` | Procedural music and effects |
+| `dist/tuning.mjs`, `dist/bisect.mjs` | The URL switches for isolating a crash, and the crash hunt's plan and state (pure); the scripted runs themselves are in `dist/app.mjs` |
 | `dist/story.mjs`, `dist/cinematic.mjs` | The Ocean Fund's rules and the intro and ending scenes as data (pure), and the small full-screen cinematic player |
 | `dist/crashlog.mjs`, `crashlog-hooks.mjs` | The crash log: breadcrumbs, errors, reports and GitHub issue links (pure), and its browser wiring (window errors, console, visibility, WebGL loss, Web Locks) |
 | `dist/version.mjs`, `stamp-version.mjs` | The build's identity (`dev` locally, the commit on Netlify) and the script that stamps it |
@@ -464,7 +465,12 @@ The game keeps a black box of its own (`dist/crashlog.mjs`, wired to the browser
 - **Which build.** `dist/version.mjs` says `dev` from a checkout. Netlify runs `node stamp-version.mjs` before the checks (see `netlify.toml`), which writes the commit, deploy context and branch into it, so a report names the exact build.
 - **Reading one.** A report is Markdown: the build, device (user agent, viewport, pixel ratio, GPU, cores, memory), the game's state, each error with its stack and the game state at the time, and the newest breadcrumbs. `?debug` exposes `window.__pool.crashlog` for QA; `crashlog-check.mjs` drives the whole thing with a fake browser.
 
-**Isolating a crash on a device.** A report says where the game stopped; these URL switches say why, by taking one suspect out at a time (add them to the address, e.g. `?nosound&dpr=1`): `?nosound` (the audio never starts), `?dpr=1` (render at one pixel per point instead of up to 1.7), `?noshadow` (no shadow maps), `?noparticles` (no splashes, sparkles, bursts or confetti). The switches show up in a report's `Page:` line. A crash that goes away with one of them points at that suspect.
+**Isolating a crash on a device.** A report says where the game stopped; these URL switches say why, by taking one suspect out at a time (add them to the address, e.g. `?nosound&dpr=1`; `dist/tuning.mjs` lists them): `nosound` (the audio never starts), `dpr=N` (cap the pixel ratio at N instead of 1.7), `noshadow` (no shadow maps), `noparticles` (no splashes, sparkles, bursts or confetti), `nohands` (no first-person hands layer), `nohall` (the indoor hall and roof stay hidden), `nolights` (no point or spot lights), `nopoints` (no glow points), `noaa` (no antialiasing), `overview` (the overview camera whatever the setting), and `safe` (all of them but `dpr` and `overview`). The switches show up in a report's `Page:` line.
+
+Two scripted runs make a crash easy to hunt on the device itself. Both play level 10 in the Coach Cam with the player idle (Carl's cannonball, then the fish kid) and show a banner on top:
+
+- `?trial` plays it once with whatever switches the address carries (`?trial&noshadow`) and says whether the page survived.
+- `?bisect` runs the whole plan in `dist/bisect.mjs`, one switch per test (everything on, then each suspect off, then all off), reloading between tests. The state lives in storage, so a test whose page dies is counted as a crash by the next page; open the same address again after a crash and it carries on. At the end it lists the results with a verdict ("the crash went away with: …") and a **Copy results** button. `?bisect=reset` starts over.
 
 ### The story and the Ocean Fund
 
@@ -519,6 +525,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node map-check.mjs` | The map's layout and art: ten levels on four islands per act, no two buttons overlapping at any scale in the wide or the tall drawing, well-formed SVG with per-act ids, night moon, and each shift's preview icons |
 | `node interplay-check.mjs` | Incidents colliding: goggles vs the fish net, early fish return, kid during a rescue, cramps mid-flip, second crash ring, healed victims rejoining, breaker race |
 | `node moments-check.mjs` | Incident moments: every incident and save reported through real game flows, loud-alert targets and ranking, first sightings, sting queueing, slow motion and hit-stop timing, banner fuses, edge arrows (and behind-you), the camera nudge |
+| `node hunt-check.mjs` | The crash hunt: the URL switches, the plan, surviving the crashes it hunts (a test left running counts as a crash), verdicts, damaged saves |
 | `node story-check.mjs` | The story: pay and payouts, sanitised saves, a fund that cannot be farmed, Marina's texts, well-formed scenes, the cinematic player against a fake dialog |
 | `node crashlog-check.mjs` | The crash log: breadcrumbs and errors kept and capped, repeats counted, one storage key per launch, a page that vanished mid-shift told from the background, a closed page and another tab, reports and issue links that fit, a full or broken storage, and the browser wiring against a fake browser |
 | `node coachcam-check.mjs` | Coach Cam: facing follows the look, E prefers what is in view, view-relative movement, eye and water-level height with the body hidden, hand lag and settle, head bob (off with reduced motion), landing dip, items in hand, field of view, crosshair target |

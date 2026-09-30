@@ -166,7 +166,7 @@ export class PoolWorld extends SceneKit {
     this.noParticles = tuning.has("noparticles");
     if (!headless) {
       this.renderer = new THREE.WebGLRenderer({
-        antialias: true,
+        antialias: !tuning.has("noaa"),
         alpha: false,
         powerPreference: "high-performance",
       });
@@ -266,6 +266,11 @@ export class PoolWorld extends SceneKit {
     this.coachCam = new CoachCam(this);
     if (look) Object.assign(this.coachCam, look);
     if (this.tune.has("nolights")) this.stripLocalLights();
+    if (this.tune.has("nopoints"))
+      for (const root of [this.scene, this.coachCam.scene])
+        root.traverse((o) => {
+          if (o.isPoints) o.visible = false;
+        });
     this.version++;
   }
   setVenue(venue, lighting) {

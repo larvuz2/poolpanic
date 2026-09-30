@@ -11,6 +11,8 @@ export const PLAN = [
   { id: "nohands", label: "Hands layer off", flags: ["nohands"] },
   { id: "nohall", label: "Hall and roof hidden", flags: ["nohall"] },
   { id: "nolights", label: "Extra lights off", flags: ["nolights"] },
+  { id: "nopoints", label: "Glow points off", flags: ["nopoints"] },
+  { id: "noaa", label: "Antialiasing off", flags: ["noaa"] },
   { id: "overview", label: "Overview camera", flags: ["overview"] },
   { id: "safe", label: "All of them off", flags: ["safe"] },
 ];
