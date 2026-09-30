@@ -430,6 +430,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/map-art.mjs` | The map's layout and isometric SVG art, as strings. No DOM |
 | `dist/map.mjs` | The map's DOM layer: buttons, tags, coach, clouds and reveal, driven by the campaign state |
 | `dist/audio.mjs` | Procedural music and effects |
+| `dist/story.mjs`, `dist/cinematic.mjs` | The Ocean Fund's rules and the intro and ending scenes as data (pure), and the small full-screen cinematic player |
 | `dist/crashlog.mjs`, `crashlog-hooks.mjs` | The crash log: breadcrumbs, errors, reports and GitHub issue links (pure), and its browser wiring (window errors, console, visibility, WebGL loss, Web Locks) |
 | `dist/version.mjs`, `stamp-version.mjs` | The build's identity (`dev` locally, the commit on Netlify) and the script that stamps it |
 | `dist/assets/` | Bundled Three.js, rounded-box helper and license |
@@ -462,6 +463,15 @@ The game keeps a black box of its own (`dist/crashlog.mjs`, wired to the browser
 - **Errors no longer stop the game by themselves.** Each stage of the frame loop is guarded (`stage()` in `dist/app.mjs`): drawing, tags, alerts and the HUD log their error and are skipped, and each event in a batch is handled on its own. Only the simulation throwing, or a stage that fails for 1.5 seconds straight, pauses the shift and shows the report.
 - **Which build.** `dist/version.mjs` says `dev` from a checkout. Netlify runs `node stamp-version.mjs` before the checks (see `netlify.toml`), which writes the commit, deploy context and branch into it, so a report names the exact build.
 - **Reading one.** A report is Markdown: the build, device (user agent, viewport, pixel ratio, GPU, cores, memory), the game's state, each error with its stack and the game state at the time, and the newest breadcrumbs. `?debug` exposes `window.__pool.crashlog` for QA; `crashlog-check.mjs` drives the whole thing with a fake browser.
+
+### The story and the Ocean Fund
+
+Coach Panic wants to take Marina to the ocean and has to earn the trip. The very first launch opens with a short, skippable cinematic (four scenes, about 15 seconds, click / Enter / Space for the next scene, **Skip** or Esc to leave) before anything can be played. It is not shown again, but the 🌊 pill in the top bar (menu), Help → "Watch the story again", or `?story` replay it.
+
+- **The fund.** Every finished shift (and drill) pays: $10 for finishing plus $30 per star, times the booking's payout (bookings are the "gigs": a riskier one pays more). Only pay beyond a shift's best counts, so replays cannot farm it and the fund never goes down. The trip costs $1,500; a full season at three stars covers it. The results show what the shift paid and the fund's bar, plus a text from Marina at 25, 50, 75 and 100%.
+- **The ending.** Filling the fund earns a short beach cinematic; "Watch what happens" then appears on every results screen.
+- **Placeholders.** `dist/story.mjs` holds the rules and every scene as plain data (a backdrop plus emoji layers and speech bubbles), and `dist/cinematic.mjs` plays them, so real art and character models can replace them later without touching the rules. What was seen and earned is kept in `localStorage` (`pool-panic.story.v1`). `?debug` sessions skip the intro.
+- **Checked by** `story-check.mjs`: pay, sanitised saves, the no-farming rule, Marina's texts once each, well-formed scenes, and the player's next, skip, keys and auto-advance.
 
 ### Deploy on Netlify
 
@@ -507,6 +517,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node map-check.mjs` | The map's layout and art: ten levels on four islands per act, no two buttons overlapping at any scale in the wide or the tall drawing, well-formed SVG with per-act ids, night moon, and each shift's preview icons |
 | `node interplay-check.mjs` | Incidents colliding: goggles vs the fish net, early fish return, kid during a rescue, cramps mid-flip, second crash ring, healed victims rejoining, breaker race |
 | `node moments-check.mjs` | Incident moments: every incident and save reported through real game flows, loud-alert targets and ranking, first sightings, sting queueing, slow motion and hit-stop timing, banner fuses, edge arrows (and behind-you), the camera nudge |
+| `node story-check.mjs` | The story: pay and payouts, sanitised saves, a fund that cannot be farmed, Marina's texts, well-formed scenes, the cinematic player against a fake dialog |
 | `node crashlog-check.mjs` | The crash log: breadcrumbs and errors kept and capped, repeats counted, one storage key per launch, a page that vanished mid-shift told from the background, a closed page and another tab, reports and issue links that fit, a full or broken storage, and the browser wiring against a fake browser |
 | `node coachcam-check.mjs` | Coach Cam: facing follows the look, E prefers what is in view, view-relative movement, eye and water-level height with the body hidden, hand lag and settle, head bob (off with reduced motion), landing dip, items in hand, field of view, crosshair target |
 

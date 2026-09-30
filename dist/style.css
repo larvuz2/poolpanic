@@ -4176,3 +4176,265 @@ body.menu .brand small {
   min-height: 0;
   text-decoration: underline;
 }
+
+/* The Ocean Fund: a pill in the top bar and a row on the results. */
+.fund-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 36px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 2px solid #2c6a73;
+  background: #0b2d38;
+  color: var(--mint);
+  font: inherit;
+  font-weight: 900;
+  font-size: 13px;
+  cursor: pointer;
+}
+.fund-pill b {
+  color: var(--yellow);
+}
+.fund-pill small {
+  font-size: 10px;
+  opacity: 0.7;
+  font-weight: 700;
+}
+.fund-pill.bump {
+  animation: fund-bump 0.6s ease-out;
+}
+@keyframes fund-bump {
+  40% {
+    transform: scale(1.18);
+  }
+}
+@media (max-width: 620px) {
+  .fund-pill small {
+    display: none;
+  }
+  .fund-pill {
+    padding: 0 8px;
+  }
+}
+.fund-row {
+  margin-top: 14px;
+  text-align: left;
+}
+.fund-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  font-weight: 900;
+  color: var(--mint);
+}
+.fund-line b {
+  color: var(--yellow);
+}
+.fund-bar {
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: #0b2d38;
+  border: 1px solid #2c6a73;
+  overflow: hidden;
+}
+.fund-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3fd0e0, var(--yellow));
+  transition: width 0.9s ease-out;
+}
+.fund-text {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.fund-row .primary {
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* The cinematic: a full-screen dialog with a painted stage, emoji placeholders and a caption. */
+.cinematic {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #06202a;
+  color: #fff;
+  overflow: hidden;
+}
+.cinematic[open] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.cine-stage {
+  container-type: inline-size;
+  width: min(94vw, calc(56vh * 16 / 9));
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 3px solid #2c6a73;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+.cine-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  animation: cine-in 0.5s ease-out;
+}
+@keyframes cine-in {
+  from {
+    opacity: 0;
+  }
+}
+.bg-pool {
+  background: linear-gradient(#8fdcf0 0 46%, #e9d7ae 46% 52%, #22b5c9 52%);
+}
+.bg-dream {
+  background: radial-gradient(circle at 62% 34%, #ffe9a8, #f7a5b8 55%, #6a4c93);
+}
+.bg-jar {
+  background: linear-gradient(#123f52, #0b2d38);
+}
+.bg-sea {
+  background: linear-gradient(#ffd98a 0 30%, #ff9f7a 30% 46%, #2aa3c8 46% 70%, #e9d7ae 70%);
+}
+.cine-layer {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: calc(var(--s) * 1cqw);
+  line-height: 1;
+  text-shadow: 0 0.6cqw 0.8cqw rgba(0, 0, 0, 0.25);
+}
+.cine-bubble {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  max-width: 46%;
+  padding: 0.9cqw 1.6cqw;
+  border-radius: 2cqw;
+  background: #fff;
+  color: #10303a;
+  font-weight: 800;
+  font-size: 2.6cqw;
+  line-height: 1.25;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.a-bob {
+  animation: cine-bob 1.6s ease-in-out infinite;
+}
+.a-bob2 {
+  animation: cine-bob 2.1s ease-in-out infinite reverse;
+}
+.a-sway {
+  animation: cine-sway 2.4s ease-in-out infinite;
+}
+.a-pulse {
+  animation: cine-pulse 1.2s ease-in-out infinite;
+}
+.a-float {
+  animation: cine-float 3.2s ease-in-out infinite;
+}
+.a-float2 {
+  animation: cine-float 3.9s ease-in-out infinite reverse;
+}
+.a-drive {
+  animation: cine-drive 3.6s ease-in-out both;
+}
+@keyframes cine-bob {
+  50% {
+    translate: 0 -8%;
+  }
+}
+@keyframes cine-sway {
+  50% {
+    rotate: 5deg;
+  }
+}
+@keyframes cine-pulse {
+  50% {
+    scale: 1.14;
+  }
+}
+@keyframes cine-float {
+  50% {
+    translate: 4% -6%;
+  }
+}
+@keyframes cine-drive {
+  from {
+    translate: -60% 0;
+  }
+}
+.cine-text {
+  max-width: min(94vw, 720px);
+  margin: 0;
+  padding: 0 12px;
+  text-align: center;
+  font-size: clamp(17px, 2.6vw, 26px);
+  font-weight: 800;
+  line-height: 1.35;
+}
+.cine-text.in {
+  animation: cine-in 0.6s ease-out;
+}
+.cine-dots {
+  display: flex;
+  gap: 8px;
+}
+.cine-dots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #2c6a73;
+}
+.cine-dots i.on {
+  background: var(--yellow);
+}
+.cine-buttons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cine-buttons .primary {
+  min-width: 170px;
+}
+.cine-buttons .cine-skip {
+  white-space: nowrap;
+  font-size: 14px;
+  padding: 10px 14px;
+  color: var(--mint);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cinematic *,
+  .cinematic *::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+@media (max-height: 460px) {
+  .cine-stage {
+    width: min(94vw, calc(48vh * 16 / 9));
+  }
+  .cine-text {
+    font-size: 15px;
+  }
+}
+/* The shift's HUD is crowded enough: the fund shows on the map and on the results. */
+body:not(.menu) .fund-pill {
+  display: none;
+}
