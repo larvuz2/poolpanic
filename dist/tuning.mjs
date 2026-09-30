@@ -7,6 +7,10 @@
 //   nolights     no point or spot lights           nopoints     no glow points (lamp halos, dust, fireflies)
 //   noaa         no antialiasing                   overview     the overview camera, whatever the setting
 //   safe         all of the above off at once (except dpr and overview)
+//
+// The hands layer crashed an iPad's Safari (see the README), so Safari's engine leaves it off unless `hands` is
+// given. The rest look inside it: handsnodepth (no depth clear before it), handsnoenv (no shared reflections),
+// handsnotorch (no lights of its own), handsbasic (unlit colours), handsinline (drawn in the room's own pass).
 
 export const SAFE = [
   "nosound",
@@ -18,7 +22,15 @@ export const SAFE = [
   "nopoints",
   "noaa",
 ];
-const KNOWN = new Set([...SAFE, "safe", "overview", "dpr"]);
+const HANDS = ["hands", "handsnodepth", "handsnoenv", "handsnotorch", "handsbasic", "handsinline"];
+const KNOWN = new Set([...SAFE, ...HANDS, "safe", "overview", "dpr"]);
+
+// Safari and every other browser that draws with Apple's WebKit (all browsers on an iPhone or iPad), which is
+// where the hands layer crashed.
+export function isWebKit(userAgent = "") {
+  const ua = String(userAgent);
+  return /AppleWebKit/.test(ua) && (!/Chrome|Chromium|Edg|Android/.test(ua) || /CriOS|FxiOS|EdgiOS/.test(ua));
+}
 
 export function readTuning(search = "", extra = []) {
   const query = new URLSearchParams(search),

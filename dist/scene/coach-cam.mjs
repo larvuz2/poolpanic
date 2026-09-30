@@ -135,6 +135,67 @@ export class CoachCam {
     this.lastSlip = 0;
     this.itemKind = undefined;
     this.shake = new THREE.Vector3();
+    // Ways of drawing the hands that the crash hunt compares (tuning.mjs): how they crashed an iPad's Safari is
+    // still being narrowed down.
+    this.tune = w.tune;
+    this.inline = null;
+    this.order = 0;
+    if (this.tune?.has("handsnotorch")) this.torch.removeFromParent();
+    if (this.tune?.has("handsbasic")) this.plain(this.scene);
+    if (this.tune?.has("handsnodepth")) this.unsorted(this.scene);
+    if (this.tune?.has("handsinline")) this.attachInline();
+  }
+  // ?handsbasic: flat unlit colours instead of lit materials.
+  plain(root) {
+    root.traverse((o) => {
+      if (!o.isMesh || o.material.isMeshBasicMaterial) return;
+      o.material = new THREE.MeshBasicMaterial({
+        color: o.material.color?.clone() ?? 0xffffff,
+        wireframe: !!o.material.wireframe,
+        transparent: !!o.material.transparent,
+        opacity: o.material.opacity ?? 1,
+      });
+    });
+  }
+  // ?handsnodepth: no depth clear before the hands, so they cannot depth-test against the room (a different
+  // projection). They get materials of their own that ignore depth, drawn in a fixed order instead.
+  unsorted(root) {
+    root.traverse((o) => {
+      if (!o.isMesh || o.userData.unsorted) return;
+      o.userData.unsorted = true;
+      o.material = o.material.clone();
+      o.material.depthTest = false;
+      o.material.depthWrite = false;
+      o.renderOrder = 1000 + this.order++;
+    });
+  }
+  // ?handsinline: the hands become children of the room's own camera and are drawn in the room's own pass: the
+  // same picture as the second pass (see fitInline), but no second render, no depth clear and no lights of their own.
+  attachInline() {
+    const w = this.w;
+    this.inline = new THREE.Group();
+    this.inline.name = "hands-inline";
+    for (const child of [...this.scene.children]) if (!child.isLight) this.inline.add(child);
+    this.inline.traverse((o) => {
+      if (o.isMesh) {
+        o.castShadow = false;
+        o.receiveShadow = false;
+        o.frustumCulled = false;
+      }
+    });
+    for (const old of [...w.camera.children]) if (old.name === "hands-inline") w.camera.remove(old);
+    w.camera.add(this.inline);
+    if (w.camera.parent !== w.scene) w.scene.add(w.camera);
+  }
+  // The room's camera has its own field of view and the hands a narrower one of their own. Scaling the hands by s
+  // about the camera keeps the picture and pulls them 1/s nearer, so nothing in the room can poke through them; the
+  // extra factor on x and y turns the room camera's field of view into the hands' own.
+  fitInline() {
+    const main = Math.tan((this.w.camera.fov * DEG) / 2),
+      own = Math.tan((this.camera.fov * DEG) / 2),
+      s = 0.4,
+      k = main / own;
+    this.inline.scale.set(s * k, s * k, s);
   }
 
   // ------------------------------------------------------------------------------------------------------
@@ -460,6 +521,12 @@ export class CoachCam {
             m.frustumCulled = false;
           }
         });
+        if (this.tune?.has("handsbasic")) this.plain(model);
+        if (this.tune?.has("handsnodepth")) this.unsorted(model);
+        if (this.inline)
+          model.traverse((m) => {
+            if (m.isMesh) m.receiveShadow = false;
+          });
         this.item.add(model);
       }
     }
@@ -523,8 +590,12 @@ export class CoachCam {
     this.hemi.intensity = 0.45 + look.hemi[2] * 0.55 * k;
     this.key.color.set(look.sun[0]);
     this.key.intensity = look.sun[1] * 0.75 * k;
-    this.scene.environment = w.scene.environment;
-    this.scene.environmentIntensity = look.env * 0.6 * k;
+    if (this.tune?.has("handsnoenv")) this.scene.environment = null;
+    else {
+      this.scene.environment = w.scene.environment;
+      this.scene.environmentIntensity = look.env * 0.6 * k;
+    }
+    if (this.inline) this.fitInline();
     const torch = sim.coach.carry === "flashlight";
     this.torch.intensity = torch ? 2.2 : 0;
     if (torch) this.torch.position.copy(this.hands[1].p).add(new THREE.Vector3(0, 0.08, -0.12));
@@ -535,9 +606,10 @@ export class CoachCam {
     this.camera.updateProjectionMatrix();
   }
   render(renderer) {
+    if (this.inline) return; // drawn with the room
     const auto = renderer.autoClear;
     renderer.autoClear = false;
-    renderer.clearDepth();
+    if (!this.tune?.has("handsnodepth")) renderer.clearDepth();
     renderer.render(this.scene, this.camera);
     renderer.autoClear = auto;
   }

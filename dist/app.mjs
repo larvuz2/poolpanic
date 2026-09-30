@@ -30,8 +30,8 @@ import { MomentDirector, edgeArrow } from "./moments.mjs";
 import { installCrashLog, describeGpu } from "./crashlog-hooks.mjs";
 import { BUILD } from "./version.mjs";
 import { playCinematic } from "./cinematic.mjs";
-import { readTuning } from "./tuning.mjs";
-import * as hunt from "./bisect.mjs";
+import { readTuning, isWebKit } from "./tuning.mjs";
+import * as hunts from "./bisect.mjs";
 import {
   STORY,
   INTRO,
@@ -55,20 +55,30 @@ try {
 // The switches for isolating a crash (tuning.mjs) and the crash hunt that runs them one at a time (bisect.mjs). The
 // hunt's state is read first: a test left running by the last page means that page died in it.
 const params = new URLSearchParams(location.search);
+const hunt = params.get("bisect") === "hands" ? hunts.hands : hunts.main; // ?bisect=hands looks inside the hands layer
 let huntState = null;
 if (params.has("bisect")) {
-  if (params.get("bisect") === "reset") {
+  if (params.get("bisect") === "reset" || params.has("reset")) {
     // Start over, once: the address the page reloads into no longer says reset.
     hunt.clear(crashStorage);
     const again = new URLSearchParams(location.search);
-    again.set("bisect", "");
+    again.delete("reset");
+    if (again.get("bisect") === "reset") again.set("bisect", "");
     history.replaceState(null, "", location.pathname + "?" + again.toString());
   }
   huntState = hunt.resume(hunt.load(crashStorage));
   hunt.save(crashStorage, huntState);
 }
 const huntStep = huntState && !hunt.finished(huntState) ? hunt.current(huntState) : null;
-const tuning = readTuning(location.search, huntStep ? huntStep.flags : []);
+// The first-person hands layer crashed an iPad's Safari about 45 s into every Coach Cam shift (the crash hunt found
+// it), so Safari's engine plays without it until that is understood. `?hands` turns it back on; a hunt or a trial
+// sets its own switches and gets no default.
+const testing = params.has("bisect") || params.has("trial");
+const handsOff = isWebKit(navigator.userAgent) && !params.has("hands") && !testing;
+const tuning = readTuning(location.search, [
+  ...(huntStep ? huntStep.flags : []),
+  ...(handsOff ? ["nohands"] : []),
+]);
 globalThis.__poolTuning = tuning;
 if (tuning.has("nosound")) {
   audio.enabled = false;
@@ -131,10 +141,15 @@ function moveVector() {
   return world.viewMode === "coach" ? world.coachCam.movement(v.x, v.z) : screenMovement(v.x, v.z);
 }
 // Apply the chosen camera: the Coach Cam during shifts when enabled, the overview otherwise.
+let handsToast = false;
 function applyViewMode() {
   const coach = settings.coachCam && mode !== "menu" && !tuning.has("overview");
   world.setViewMode(coach ? "coach" : "overview", coach ? sim : null);
   crashlog.crumb("view", coach ? "Coach Cam" : "overview");
+  if (coach && handsOff && !handsToast) {
+    handsToast = true;
+    toast("Coach Cam hands are off on this browser for now: they crashed Safari.");
+  }
   input.lookMode = coach;
   document.body.classList.toggle("coach-cam", coach);
   if (!coach) sim.coach.lookAngle = null;
@@ -423,7 +438,10 @@ function showFundResult(pay, booked) {
 // ?trial plays one scripted shift (level 10 in the Coach Cam: Carl's cannonball, then the fish kid) with whatever
 // switches the address carries; ?bisect runs the whole plan, one switch per test, reloading between tests and
 // counting a test that never finished as a crash. Both leave the player idle: the incidents are the point.
-const TRIAL_CAP = +params.get("trialsecs") || 80; // seconds of real time before a trial gives up waiting
+const TRIAL_CAP = +params.get("trialsecs") || 100; // seconds of real time before a trial gives up waiting
+// The hands crash came about 45 s into a Coach Cam shift, whatever was happening, so a hunt's test plays on until it is
+// well past that (with the cap always the last word).
+const TRIAL_MIN = huntStep ? Math.min(70, TRIAL_CAP - 5) : 0;
 let trial = null;
 function huntOverlay(html, { buttons = "" } = {}) {
   const box = $("hunt");
@@ -487,7 +505,8 @@ function trialTick() {
     trial.phase = "fish-run";
     trial.at = sim.time;
     crashlog.crumb("hunt", "fish kid");
-  } else if (trial.phase === "fish-run" && quiet) endTrial();
+  } else if (trial.phase === "fish-run" && quiet && performance.now() - trial.began > TRIAL_MIN * 1000)
+    endTrial();
 }
 function endTrial() {
   clearInterval(trial.timer);
@@ -2233,7 +2252,6 @@ try {
     };
   // The very first launch opens with the story, before anything can be played (`?story` shows it again; `?debug`
   // sessions for tests and repros skip it).
-  const testing = params.has("bisect") || params.has("trial");
   if (params.has("story") || (!story.seen && !params.has("debug") && !testing))
     playStory("intro", () => {
       story.seen = true;

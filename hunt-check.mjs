@@ -1,7 +1,7 @@
 // The crash hunt: the URL switches, and the plan that runs them one test at a time and survives the crashes it
 // hunts (a test left running when the next page loads counts as a crash).
 import assert from "node:assert/strict";
-import { readTuning, SAFE } from "./dist/tuning.mjs";
+import { readTuning, SAFE, isWebKit } from "./dist/tuning.mjs";
 import * as hunt from "./dist/bisect.mjs";
 
 const memory = () => {
@@ -42,6 +42,83 @@ const memory = () => {
   const known = new Set([...SAFE, "safe", "overview", "dpr"]);
   for (const p of hunt.PLAN) for (const f of p.flags) assert.ok(known.has(f), f);
   assert.equal(new Set(hunt.PLAN.map((p) => p.id)).size, hunt.PLAN.length, "Unique ids");
+}
+
+// 2b) Which browsers leave the hands layer off by default: Safari's engine, wherever it runs.
+{
+  const safariMac =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6.1 Safari/605.1.15";
+  assert.ok(isWebKit(safariMac), "Safari on a Mac, and on an iPad that claims to be one");
+  assert.ok(
+    isWebKit(
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+    ),
+  );
+  assert.ok(
+    isWebKit(
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/126.0 Mobile/15E148 Safari/604.1",
+    ),
+    "Chrome on iOS is WebKit",
+  );
+  assert.ok(
+    isWebKit(
+      "Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/127.0 Mobile/15E148 Safari/605.1.15",
+    ),
+    "Firefox on iOS is WebKit",
+  );
+  assert.ok(
+    !isWebKit(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    ),
+    "Chrome",
+  );
+  assert.ok(
+    !isWebKit(
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36",
+    ),
+    "Chrome on Android",
+  );
+  assert.ok(
+    !isWebKit(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0",
+    ),
+    "Edge",
+  );
+  assert.ok(
+    !isWebKit("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0"),
+    "Firefox",
+  );
+  assert.ok(!isWebKit(""));
+  assert.ok(!isWebKit(undefined));
+}
+
+// 2c) The hands plan: the hands are on in every test but the last, and every switch is one the game knows.
+{
+  const known = new Set([
+    ...SAFE,
+    "hands",
+    "handsnodepth",
+    "handsnoenv",
+    "handsnotorch",
+    "handsbasic",
+    "handsinline",
+  ]);
+  const plan = hunt.hands.PLAN;
+  assert.equal(plan[0].id, "control");
+  for (const p of plan) for (const f of p.flags) assert.ok(known.has(f), f);
+  for (const p of plan.slice(0, -1)) assert.ok(p.flags.includes("hands"), p.id + " keeps the hands on");
+  assert.deepEqual(plan.at(-1).flags, ["nohands"]);
+  assert.notEqual(hunt.hands.KEY, hunt.KEY, "The two plans keep separate results");
+  const state = hunt.hands.fresh();
+  for (const p of plan) {
+    hunt.hands.begin(state);
+    if (p.id === "handsinline" || p.id === "nohands") hunt.hands.pass(state);
+    else Object.assign(state, hunt.hands.resume(state)); // the page dies, the next one finds it
+  }
+  assert.match(
+    hunt.hands.summary(state).verdict,
+    /went away with: Hands drawn in the room's own pass, No hands/,
+  );
 }
 
 // 3) A full run where every test survives.
