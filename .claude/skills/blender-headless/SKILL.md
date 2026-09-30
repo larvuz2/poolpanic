@@ -13,7 +13,10 @@ preview they can check on any device and exports the glTF.
 2. **Run a script.** `tools/blender/run.sh tools/blender/SCRIPT.py -- args`.
    - `inspect_model.py -- model.glb`: what is in a model.
    - `humanoid_rig.py -- in.glb out.glb --walk`: armature fitted to the mesh, auto weights, looping walk clip, GLB out.
-   - `turntable.py -- model.glb out_dir --animation Walk`: `still.png` and `turntable.mp4`.
+   - `turntable.py -- model.glb out_dir --animation Walk`: `still.png` and `turntable.mp4`. With `--static --angle 35`
+     the camera stays still and the clip loops (what a person wants when judging an animation).
+   - `polish_walk.py -- in.glb out.glb`: a Mixamo-style walk (Meshy, Tripo) gets a seamless loop and arms that hang close
+     to the body and swing opposite the legs. Run it before `game_export.py`.
    - `game_export.py -- in.glb out.glb --tex 1024 --clip Walk`: shrink textures, name the clip, print triangles and size.
 3. **Check before handing over.** Inspect the rigged file (one weight group per bone, the clip present) and look at the
    turntable still and a frame of the walk; send the user the PNG/MP4 from the scratchpad or an artifact.
