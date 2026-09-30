@@ -1,0 +1,10 @@
+{
+  "characters": [
+    {
+      "id": "coach-panic",
+      "name": "Coach Panic",
+      "file": "models/coach-panic.glb",
+      "note": "Meshy 7 mesh, 24-bone Meshy rig. Walk from polish_walk.py, idles from idle_clips.py."
+    }
+  ]
+}

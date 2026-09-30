@@ -20,8 +20,11 @@ preview they can check on any device and exports the glTF.
    - `idle_clips.py -- in.glb out.glb`: adds `IdleScan` (head turns left/right, alert) and `IdleScratch` (the same, then a
      head scratch) to the file, next to the walk. Every bone is keyed so clip switches in the game never leave a bone behind.
    - `game_export.py -- in.glb out.glb --tex 1024`: shrink textures, keep every clip, print triangles, clips and size.
-3. **Check before handing over.** Inspect the rigged file (one weight group per bone, the clip present) and look at the
-   turntable still and a frame of the walk; send the user the PNG/MP4 from the scratchpad or an artifact.
+3. **Check before handing over.** Inspect the rigged file (one weight group per bone, the clip present), then preview it
+   on the web instead of recording a video: copy the GLB into `tools/viewer/models/`, list it in
+   `tools/viewer/characters.json`, run `tools/viewer/build.sh` and update the Anim Bench artifact (`tools/viewer/README.md`
+   has the exact publish call and the URL). It shows every clip with scrub, speed, loop and pop checks and ground speed.
+   A still from `turntable.py` is fine for a quick look; send the GLB itself when the user wants the file.
 4. **Limits.** CPU only: rigging, weights, keyframes, previews and glTF export are fine; heavy Cycles renders and
    sculpting are not. Mixamo clips and AI auto-rig APIs (Tripo, Meshy on fal) are the shortcut for a plain rigged
    character; use this for custom bones, fixes and own animation.

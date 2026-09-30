@@ -32,6 +32,8 @@ tools/blender/run.sh tools/blender/game_export.py -- clips.glb coach-panic.glb -
 tools/blender/run.sh tools/blender/turntable.py -- coach-panic.glb out --animation IdleScratch --static --angle -35
 ```
 
+To look at a model with all its clips, use the web viewer instead of videos: `tools/viewer/README.md`.
+
 Every clip loops: its last frame is its first again, so a game plays frames 0 to N (three.js does this by itself) and a
 preview shows 0 to N-1. `turntable.py --static` does that, and `--angle` is where the camera stands (0 the front, 90 the
 character's left side, -35 a three-quarter view of his right).
