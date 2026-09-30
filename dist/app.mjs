@@ -29,6 +29,18 @@ import { CoachInput } from "./input.mjs";
 import { MomentDirector, edgeArrow } from "./moments.mjs";
 import { installCrashLog, describeGpu } from "./crashlog-hooks.mjs";
 import { BUILD } from "./version.mjs";
+import { playCinematic } from "./cinematic.mjs";
+import {
+  STORY,
+  INTRO,
+  ENDING,
+  money,
+  shiftPay,
+  normalizeStory,
+  recordPay,
+  fundOf,
+  fundShare,
+} from "./story.mjs";
 const $ = (id) => document.getElementById(id),
   audio = new PoolAudio();
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -314,6 +326,73 @@ function saveRecords() {
   try {
     localStorage.setItem("pool-panic.records.v1", JSON.stringify(records));
   } catch {}
+}
+
+// ---- the story: the Ocean Fund and the cinematics ------------------------------------------------------------------
+// Coach Panic is saving up to take Marina to the ocean (story.mjs). What was seen and earned lives on the device.
+let story = normalizeStory();
+try {
+  story = normalizeStory(JSON.parse(localStorage.getItem(STORY.storageKey)));
+} catch {}
+function saveStory() {
+  try {
+    localStorage.setItem(STORY.storageKey, JSON.stringify(story));
+  } catch {}
+}
+function renderFund(bump = false) {
+  $("fund-now").textContent = money(Math.min(fundOf(story), STORY.goal));
+  $("fund-goal").textContent = "/ " + money(STORY.goal);
+  const pill = $("fund-pill");
+  pill.setAttribute(
+    "aria-label",
+    `Ocean Fund: ${$("fund-now").textContent} of ${money(STORY.goal)}. Watch the story.`,
+  );
+  if (bump && !reducedMotion.matches) {
+    pill.classList.remove("bump");
+    void pill.offsetWidth;
+    pill.classList.add("bump");
+  }
+}
+// Play the intro or the ending. The intro's last scene shows the fund as it stands.
+function playStory(kind, then = () => {}) {
+  const dialog = $("cinematic");
+  if (dialog.open) return;
+  releaseMouse();
+  const fund = money(fundOf(story)),
+    scenes = (kind === "ending" ? ENDING : INTRO).map((p) => ({
+      ...p,
+      layers: p.layers.map((l) => (l.b ? { ...l, b: l.b.replace("{fund}", fund) } : l)),
+    }));
+  crashlog.crumb("story", kind);
+  playCinematic(dialog, scenes, {
+    labels: { last: kind === "ending" ? "Back to the pool ▶" : "Let's go! ▶" },
+    done: (skipped) => {
+      crashlog.crumb("story", kind + (skipped ? " skipped" : " finished"));
+      then(skipped);
+    },
+  });
+}
+// The results' fund row: what this shift paid, the fund now, and Marina's text when a milestone was passed.
+function showFundResult(pay, booked) {
+  $("result-fund").hidden = false;
+  $("result-fund-gain").textContent = pay.gained ? "+" + money(pay.gained) : "";
+  $("result-fund-total").textContent = `${money(Math.min(pay.after, STORY.goal))} / ${money(STORY.goal)}`;
+  const share = (n) => Math.min(100, (n / STORY.goal) * 100);
+  const fill = $("result-fund-fill");
+  fill.style.transition = "none";
+  fill.style.width = share(pay.before) + "%";
+  void fill.offsetWidth;
+  fill.style.transition = "";
+  fill.style.width = share(pay.after) + "%";
+  const text = pay.texts[pay.texts.length - 1];
+  $("result-fund-text").textContent = text
+    ? `${STORY.love}: “${text.text}”`
+    : pay.gained
+      ? booked
+        ? `${booked.name} pays ×${booked.payout}. Every shift gets the ocean closer.`
+        : "Every shift gets the ocean closer."
+      : `Shift pay ${money(pay.paid)}. Beat your best on this shift to add more.`;
+  $("watch-ending").hidden = !story.ending; // once earned, the ending can be watched from any results
 }
 
 // ---- the crash log -------------------------------------------------------------------------------------------------
@@ -830,6 +909,15 @@ function finish() {
           : "Okay. Deep breath. Again.";
   $("result-score").innerHTML = r.score.toLocaleString() + "<small>POINTS</small>";
   $("new-best").hidden = !newBest;
+  const pay = recordPay(
+    story,
+    drill ? "drill:" + drill.id : String(played),
+    shiftPay(r.stars, booked ? booked.payout : 1),
+  );
+  if (pay.reached) story.ending = true;
+  if (pay.gained || pay.reached) saveStory();
+  showFundResult(pay, booked);
+  renderFund(pay.gained > 0);
   // Where the chunk stands: three dots, so the next new place is never more than three shifts away.
   $("result-chunk").hidden = !zone;
   if (zone) {
@@ -1778,6 +1866,20 @@ function bind() {
     e.preventDefault();
     closeCrash();
   });
+  $("fund-pill").onclick = () => {
+    if (mode === "menu") playStory("intro");
+    else
+      toast(
+        `Ocean Fund ${money(Math.min(fundOf(story), STORY.goal))} of ${money(STORY.goal)}. Every shift pays in.`,
+      );
+  };
+  $("help-story").onclick = () => {
+    closeHelp();
+    playStory("intro", () => {
+      if (story.ending) playStory("ending");
+    });
+  };
+  $("watch-ending").onclick = () => playStory("ending");
   $("help-log").onclick = () => showCrash(crashlog.troubled()[0] || crashlog.latest());
   $("help").onclick = showHelp;
   document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = closeHelp));
@@ -1874,7 +1976,9 @@ function bind() {
       if (key === "escape") pause();
     },
   });
-  document.addEventListener("keydown", (e) => input.keyDown(e));
+  document.addEventListener("keydown", (e) => {
+    if (!$("cinematic").open) input.keyDown(e);
+  });
   document.addEventListener("keyup", (e) => input.keyUp(e));
   window.addEventListener("blur", () => {
     input.clear();
@@ -1927,6 +2031,7 @@ try {
   syncVenue(sim);
   $("loading").hidden = true;
   if (window.__boot) window.__boot.ready = true;
+  renderFund();
   crashlog.setEnv({ gpu: describeGpu(world.renderer?.getContext?.()) });
   crashlog.crumb("boot", "ready in " + Math.round(performance.now()) + " ms");
   requestAnimationFrame(animate);
@@ -1948,6 +2053,10 @@ try {
       get crashlog() {
         return crashlog;
       },
+      get story() {
+        return story;
+      },
+      playStory,
       play(n = level, booking = null) {
         level = n;
         selected = { kind: "level", level: n };
@@ -2009,6 +2118,14 @@ try {
         events();
       },
     };
+  // The very first launch opens with the story, before anything can be played (`?story` shows it again; `?debug`
+  // sessions for tests and repros skip it).
+  const params = new URLSearchParams(location.search);
+  if (params.has("story") || (!story.seen && !params.has("debug")))
+    playStory("intro", () => {
+      story.seen = true;
+      saveStory();
+    });
   // A launch after a crash offers the report (`?log` opens the log any time, crash or not).
   const wantsLog = new URLSearchParams(location.search).has("log");
   setTimeout(() => {

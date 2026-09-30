@@ -45,7 +45,11 @@
           </div>
         </div>
         <nav class="top-actions" aria-label="Game settings">
-          <button id="fullscreen" class="icon-btn" aria-label="Toggle fullscreen" title="Fullscreen">⛶</button
+          <button id="fund-pill" class="fund-pill" title="Ocean Fund · click to watch the story">
+            <span aria-hidden="true">🌊</span><b id="fund-now">$0</b
+            ><small id="fund-goal">/ $1,500</small></button
+          ><button id="fullscreen" class="icon-btn" aria-label="Toggle fullscreen" title="Fullscreen">
+            ⛶</button
           ><button id="sound" class="icon-btn" aria-label="Toggle sound" title="Sound · M">♫</button
           ><button id="help" class="icon-btn" aria-label="How to play" title="How to play · H">?</button
           ><button id="pause" class="icon-btn" aria-label="Pause game" title="Pause · P">Ⅱ</button>
@@ -368,8 +372,9 @@
           The coach only enters the water on a mission: a life ring for a rescue, or the net for a loose fish.
         </p>
         <p class="help-log">
-          Something broke or froze? <button id="help-log" class="text-btn inline">Open the game log</button>
-          to copy what happened.
+          Something broke or froze?
+          <button id="help-log" class="text-btn inline">Open the game log</button> to copy what happened.
+          <button id="help-story" class="text-btn inline">Watch the story again</button>
         </p>
         <button class="primary" data-close>I've got this ↗</button>
       </dialog>
@@ -395,11 +400,18 @@
         ><button id="crash-map" class="secondary live-only">Back to the map</button
         ><button id="crash-dismiss" class="text-btn">Not now</button>
       </dialog>
-      <dialog id="booking-dialog" class="modal booking-modal" aria-labelledby="booking-title">
-        <div class="eyebrow">
-          <span id="booking-title">TODAY'S BOOKING</span><span id="booking-shift"></span>
+      <dialog id="cinematic" class="cinematic" aria-label="Story">
+        <div class="cine-stage"></div>
+        <p class="cine-text" aria-live="polite"></p>
+        <div class="cine-dots" aria-hidden="true"></div>
+        <div class="cine-buttons">
+          <button class="cine-next primary">Next ▶</button
+          ><button class="cine-skip text-btn" aria-label="Skip the story">Skip ⏭</button>
         </div>
-        <p class="booking-note">A bigger payout always brings more trouble.</p>
+      </dialog>
+      <dialog id="booking-dialog" class="modal booking-modal" aria-labelledby="booking-title">
+        <div class="eyebrow"><span id="booking-title">TODAY'S GIG</span><span id="booking-shift"></span></div>
+        <p class="booking-note">A bigger payout brings more trouble, and fills the Ocean Fund faster.</p>
         <div id="booking-cards" class="booking-cards"></div>
         <button id="booking-back" class="text-btn">Back to the map</button>
       </dialog>
@@ -409,6 +421,15 @@
         <h2 id="result-title">Not a bad day at the pool.</h2>
         <div id="result-score" class="result-score">1,850<small>POINTS</small></div>
         <div id="new-best" class="record" hidden>✦ NEW PERSONAL BEST</div>
+        <div id="result-fund" class="fund-row" hidden>
+          <div class="fund-line">
+            <span>🌊 OCEAN FUND <b id="result-fund-gain"></b></span
+            ><span id="result-fund-total" class="fund-total"></span>
+          </div>
+          <div class="fund-bar"><i id="result-fund-fill"></i></div>
+          <p id="result-fund-text" class="fund-text"></p>
+          <button id="watch-ending" class="primary" hidden>Watch what happens ▶</button>
+        </div>
         <div id="result-chunk" class="chunk-row" hidden>
           <span class="chunk-main"
             ><span id="result-pips" class="pips" aria-hidden="true"></span
