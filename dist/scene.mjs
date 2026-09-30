@@ -265,6 +265,7 @@ export class PoolWorld extends SceneKit {
     };
     this.coachCam = new CoachCam(this);
     if (look) Object.assign(this.coachCam, look);
+    if (this.coachCam.inline) this.coachCam.inline.visible = this.viewMode === "coach";
     if (this.tune.has("nolights")) this.stripLocalLights();
     if (this.tune.has("nopoints"))
       for (const root of [this.scene, this.coachCam.scene])
@@ -1182,6 +1183,7 @@ export class PoolWorld extends SceneKit {
     // the room like a dollhouse and would find them in its way.
     this.sky?.setVisible(next === "coach");
     this.hall?.setCoach(next === "coach");
+    if (this.coachCam?.inline) this.coachCam.inline.visible = next === "coach"; // ?handsinline: not in the overview
     if (next === "coach" && sim) this.coachCam.reset(sim);
     if (next !== "coach" && typeof document !== "undefined" && document.pointerLockElement)
       document.exitPointerLock?.();
