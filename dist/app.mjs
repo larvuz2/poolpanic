@@ -24,6 +24,7 @@ import { LevelMap } from "./map.mjs";
 import { guidanceState, cuePulse } from "./guidance.mjs";
 import { PoolSimulation, TYPES, SHIFTS, loopPosition, swimmerLook } from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
+import { activeChoice, chooseCoach, loadCoachModel, coachModelReady } from "./scene/coach-model.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
 import { MomentDirector, edgeArrow } from "./moments.mjs";
@@ -2011,6 +2012,30 @@ function bind() {
   };
   $("watch-ending").onclick = () => playStory("ending");
   $("help-log").onclick = () => showCrash(crashlog.troubled()[0] || crashlog.latest());
+  // Coach Panic or the classic coach (kept for going back). The choice is remembered on this device.
+  const coachButton = () => {
+    $("help-coach").textContent =
+      activeChoice() === "classic" ? "Switch to Coach Panic" : "Switch to the classic coach";
+  };
+  coachButton();
+  $("help-coach").onclick = async () => {
+    const next = activeChoice() === "classic" ? "panic" : "classic";
+    chooseCoach(next);
+    if (next === "panic") await loadCoachModel();
+    world.swapCoach(next);
+    crashlog.crumb(
+      "coach",
+      "switched to " + next + (next === "panic" && !coachModelReady() ? " (model missing)" : ""),
+    );
+    coachButton();
+    toast(
+      next === "panic" && !coachModelReady()
+        ? "Coach Panic could not load."
+        : next === "panic"
+          ? "Coach Panic is back."
+          : "The classic coach is back.",
+    );
+  };
   $("help").onclick = showHelp;
   document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = closeHelp));
   $("help-dialog").addEventListener("cancel", (e) => {
@@ -2151,6 +2176,17 @@ function bind() {
   document.addEventListener("keydown", unlockMusic, { capture: true });
 }
 try {
+  // Coach Panic's model is fetched first (a few seconds at most; without it the classic coach plays).
+  if (activeChoice() === "panic") {
+    const began = performance.now();
+    await Promise.race([loadCoachModel(), new Promise((resolve) => setTimeout(resolve, 6000))]);
+    crashlog.crumb(
+      "coach",
+      (coachModelReady() ? "Coach Panic loaded in " : "Coach Panic not ready after ") +
+        Math.round(performance.now() - began) +
+        " ms",
+    );
+  }
   world = new PoolWorld($("world"), pick);
   sim = makeDemo();
   bind();

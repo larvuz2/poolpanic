@@ -10,6 +10,7 @@ import { Sky, SCENERY } from "./scene/sky.mjs";
 import { windUniforms } from "./scene/geom.mjs";
 import { dayLook, moodLook, DAY_TIMES } from "./scene/daylight.mjs";
 import { character } from "./scene/actors.mjs";
+import { attachCoachModel, dropCoachModel, planIntro, introAt, activeChoice } from "./scene/coach-model.mjs";
 import { finsObject, lifeRingObject, skimmerObject, pooObject, bucket } from "./scene/props.mjs";
 import { IncidentView } from "./scene/incident-view.mjs";
 import { readTuning } from "./tuning.mjs";
@@ -236,7 +237,7 @@ export class PoolWorld extends SceneKit {
     this.sky?.setVisible(this.viewMode === "coach");
     this.hall?.setCoach(this.viewMode === "coach");
     this.batchStatic();
-    this.coach = character(this, { type: "coach", skin: 1, shape: 0.5 });
+    this.coach = this.makeCoach();
     this.scene.add(this.coach);
     this.coachHalo = this.ring(0.57, 0xffd54d);
     this.scene.add(this.coachHalo);
@@ -516,6 +517,19 @@ export class PoolWorld extends SceneKit {
   resetActors() {
     for (const id of [...this.people.keys()]) this.removePerson(id);
     this.incidentView.clearVisitors();
+    this.introPlan = null; // the coach walks in again
+  }
+  // The coach: Coach Panic when the model is loaded and wanted, else the classic one (coach-model.mjs).
+  makeCoach(choice = activeChoice()) {
+    const group = character(this, { type: "coach", skin: 1, shape: 0.5 });
+    attachCoachModel(group, choice);
+    return group;
+  }
+  // Change the coach's look now (How to play), keeping the classic one for going back.
+  swapCoach(choice) {
+    this.scene.remove(this.coach);
+    this.coach = this.makeCoach(choice);
+    this.scene.add(this.coach);
   }
   slipPose(u, remaining, duration) {
     if (!(remaining > 0)) return;
@@ -886,15 +900,23 @@ export class PoolWorld extends SceneKit {
     if (firstPerson) this.coachCam.update(sim, time, dt);
     else if (this.viewDirection && sim.status !== "ready")
       this.followCoach(c, this.realDt ?? dt, this.attention(sim));
+    const rig = cu.rig;
+    // Coach Panic walks in while the countdown runs, and is at the spawn point when it reaches zero.
+    let intro = null;
+    if (rig && sim.status === "countdown") {
+      this.introPlan ||= planIntro(sim);
+      if (this.introPlan.length > 0)
+        intro = { ...introAt(this.introPlan, sim.countdown), rate: this.introPlan.rate };
+    }
     cg.visible = !firstPerson;
-    cg.position.set(c.x, c.y || 0, c.z);
-    const angle = c.angle || 0;
+    cg.position.set(intro ? intro.x : c.x, c.y || 0, intro ? intro.z : c.z);
+    const angle = intro ? intro.angle : c.angle || 0;
     cg.rotation.y += Math.atan2(Math.sin(angle - cg.rotation.y), Math.cos(angle - cg.rotation.y)) * 0.3;
     const walking = Math.hypot(c.vx || 0, c.vz || 0) > 0.2,
       air = (c.y || 0) > 0.03;
     cu.root.position.set(0, 0, 0);
     cu.root.rotation.set(0, 0, 0);
-    cu.carry.position.set(0.58, 0.9, 0.25);
+    cu.carry.position.set(...(cu.carryHome || [0.58, 0.9, 0.25]));
     cu.carry.rotation.set(0, 0, 0);
     cu.arms.forEach((a) => (a.rotation.z = 0));
     cu.arms.forEach(
@@ -905,7 +927,7 @@ export class PoolWorld extends SceneKit {
     cu.legs.forEach(
       (l, i) => (l.rotation.x = air ? -0.3 : walking ? Math.sin(time * 12 + i * Math.PI) * 0.65 : 0),
     );
-    cu.root.position.y = walking && !air ? Math.abs(Math.sin(time * 12)) * 0.045 : 0;
+    cu.root.position.y = walking && !air && !rig ? Math.abs(Math.sin(time * 12)) * 0.045 : 0; // the model bobs in its clips
     cu.root.rotation.x = c.dashTime > 0 && !this.reducedMotion.matches ? 0.25 : 0;
     this.dashTrail.visible =
       !firstPerson && c.dashTime > 0 && sim.status === "playing" && !this.reducedMotion.matches;
@@ -972,6 +994,20 @@ export class PoolWorld extends SceneKit {
       const waste = cu.carry.getObjectByName("caught-waste");
       if (waste) waste.visible = !!c.skimmerLoaded;
       cu.carry.visible = !(c.scoopTimer > 0);
+    }
+    if (rig) {
+      try {
+        rig.update(dt, {
+          speed: Math.hypot(c.vx || 0, c.vz || 0),
+          intro,
+          prone: !!(c.swimming || c.waterTransition),
+          busy: !!c.busy,
+        });
+      } catch (error) {
+        // A failing model must not stop the shift: show the classic coach from here on.
+        console.error(error);
+        dropCoachModel(cg);
+      }
     }
   }
 

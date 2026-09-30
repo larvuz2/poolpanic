@@ -96,6 +96,17 @@ A switch on the welcome panel turns shifts into a physical first-person view, an
 - **HUD.** The E prompt sits just above the hands. It only shows when something is in reach, or when the coach is busy, swimming or slipping. Swimmer tags further than 16 m away are hidden.
 - **Simulation contract.** The app mirrors the view's heading into `sim.coach.lookAngle`. While it is set, the coach faces where the player looks (walking and swimming) and `nearestInteraction` ranks options off to the side lower. With the Coach Cam off it is `null` and the simulation behaves exactly as before. `dist/scene/coach-cam.mjs` is pure view code: it reads the simulation and never changes it.
 
+## Coach Panic — the coach's model
+
+The coach is Coach Panic, a Meshy-generated character (about 10k triangles, 24 bones, one 1024 px texture) with four clips made in Blender (`tools/blender/README.md`): **Run**, **Walk**, **IdleScan** (head scanning left and right) and **IdleScratch** (the same, then a head scratch). They can be previewed in the Anim Bench artifact (`tools/viewer/README.md`).
+
+- **Run is every movement** (walking, dashing, swimming on his front). It plays faster or slower with his speed so the feet keep up with the floor.
+- **Walk is only the start of a shift.** While the 3-second countdown runs he walks in from a few steps away (3.6 units, at the walk clip's own speed) and is exactly on the spawn point when the countdown reaches zero. He comes from straight behind the spawn point when that ground is clear, else from the nearest clear diagonal or side (`planIntro`). Nothing in the simulation changes: only what is drawn.
+- **Standing** plays IdleScan, with an IdleScratch after a few seconds of standing still (never while a job is in hand).
+- **The classic coach stays.** It is still built and posed, hidden behind the model, and `?coach=classic` (remembered on the device) or *Switch to the classic coach* in How to play brings it back; `?coach=panic` or the same button goes back to Coach Panic. If the model fails to load, or a clip throws, the classic coach plays.
+- **Not animated by hand yet.** The arm poses the classic coach strikes (carrying, bandaging, the life ring) are not applied to the model: carried items sit in front of his chest and he keeps his run or idle arms. A swim is the run clip on his front.
+- `dist/scene/coach-model.mjs` is pure view code and `coach-model-check.mjs` covers it. The GLB comes from `tools/blender` (`smooth_joints.py` then `game_export.py`); replacing `dist/assets/coach-panic.glb` replaces him in both the game and the viewer.
+
 ## Environments: skies, weather and halls
 
 The overview shows the pool and its deck; the Coach Cam shows the world around them. Every venue is either open-air or a hall (`scenery` / `indoor` on the venue in `spatial.mjs`), and both are built to be looked at from eye height. All of it is presentation: the simulation never reads it, and every builder is headless-safe (the CPU checks build the world with a stub canvas).
@@ -420,6 +431,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/scene/sky.mjs`, `daylight.mjs` | The Coach Cam's open-air world: sky dome, clouds, hills, sea, lighthouse, wildlife, rain and lightning, and the shared time-of-day scale that colours it all |
 | `dist/scene/hall*.mjs`, `crowd.mjs`, `geom.mjs` | The indoor halls (roof profiles, trusses, windows, skylights, flags, bunting, pendants), instanced spectators, and shared geometry helpers (GPU-flutter flags and garlands) |
 | `dist/scene/coach-cam.mjs` | Coach Cam: first-person camera, look and field-of-view limits, spring-driven hands, held items, crosshair picking |
+| `dist/scene/coach-model.mjs` | Coach Panic: loads the Meshy character (`dist/assets/coach-panic.glb`), picks his clip from what the coach is doing (Run for every movement, IdleScan and an occasional IdleScratch standing, Walk for the walk in), plans the walk in, and swaps him in for the classic coach |
 | `dist/input.mjs` | Keyboard/touch intents and held input |
 | `dist/guidance.mjs` | Shared world/HUD guidance state and pulse |
 | `dist/moments.mjs` | Incident moments: sting and stamp text, first sightings, queueing, slow motion and hit-stop timing, edge-arrow geometry |
@@ -434,7 +446,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/story.mjs`, `dist/cinematic.mjs` | The Ocean Fund's rules and the intro and ending scenes as data (pure), and the small full-screen cinematic player |
 | `dist/crashlog.mjs`, `crashlog-hooks.mjs` | The crash log: breadcrumbs, errors, reports and GitHub issue links (pure), and its browser wiring (window errors, console, visibility, WebGL loss, Web Locks) |
 | `dist/version.mjs`, `stamp-version.mjs` | The build's identity (`dev` locally, the commit on Netlify) and the script that stamps it |
-| `dist/assets/` | Bundled Three.js, rounded-box helper and license |
+| `dist/assets/` | Bundled Three.js, rounded-box helper and license; the GLTF loader, its helpers and `coach-panic.glb` for Coach Panic |
 | `*-check.mjs`, `check-bot.mjs`, `check-helpers.mjs` | Deterministic regression and CPU scene checks; the coach bot and helpers they share |
 | `artifacts/game-progress.md` | Historical sprint notes; some pending statements are historical, not current status |
 | `artifacts/final-evidence.md` | Latest gameplay sprint verification record |
@@ -452,7 +464,7 @@ From the full source checkout, serve the static directory over HTTP:
 python3 -m http.server 8000 --directory dist
 ```
 
-Open `http://localhost:8000` (or run `npm start`). Do not open `index.html` through `file://`, which can block ES-module loading. No dependency installation or build is needed to play. Adding `?debug` to the URL exposes `window.__pool` for fast-forwarded repros and screenshots: `play(level)`, `step(seconds, drive)`, `end(score)` (finish the shift with a score), `coachCam(on)`, `unlockAll()`, `lockAll(on)` (see the star-gated map), `progress(n, stars)` (records as if levels 1..n were cleared), `menu()`, `select(level)`, `selectDrill(id)`, and read-only `sim`, `world`, `moments`, `records`, `selected` and `map`. Adding `?locked` previews the real star-gated map while `UNLOCK_ALL` is on.
+Open `http://localhost:8000` (or run `npm start`). Do not open `index.html` through `file://`, which can block ES-module loading. No dependency installation or build is needed to play. Adding `?coach=classic` brings back the coach built from balls and boxes (see Coach Panic). Adding `?debug` to the URL exposes `window.__pool` for fast-forwarded repros and screenshots: `play(level)`, `step(seconds, drive)`, `end(score)` (finish the shift with a score), `coachCam(on)`, `unlockAll()`, `lockAll(on)` (see the star-gated map), `progress(n, stars)` (records as if levels 1..n were cleared), `menu()`, `select(level)`, `selectDrill(id)`, and read-only `sim`, `world`, `moments`, `records`, `selected` and `map`. Adding `?locked` previews the real star-gated map while `UNLOCK_ALL` is on.
 
 ### Crash log
 
