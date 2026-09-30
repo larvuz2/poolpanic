@@ -365,7 +365,13 @@ function activate(character) {
   const remembered = store.get("clip:" + character.entry.id, null);
   const first = character.clips.find((c) => c.name === remembered) || character.clips[0];
   if (first) selectClip(first, { fade: 0 });
-  else note("This file has no animation clips.", "info");
+  else {
+    $("#hud-name").textContent = "";
+    $("#hud-rest").textContent = "";
+    $("#match").hidden = true;
+    $("#match-note").textContent = "";
+    note("This file has no animation clips.", "info");
+  }
   $("#char").value = character.entry.id;
 }
 

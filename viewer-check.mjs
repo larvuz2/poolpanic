@@ -77,7 +77,7 @@ for (const character of manifest.characters) {
     assert.ok(existsSync(path), `${path} is missing`);
     assert.ok(statSync(path).size < MAX_GLB_BYTES, `${path} is over the artifact host's 15 MB file limit`);
     const glb = readGlb(path);
-    if (file === character.file) assert.ok(glb.json.skins?.length, `${file} has no skin`);
+    if (file === character.file && !character.static) assert.ok(glb.json.skins?.length, `${file} has no skin`);
     const names = new Set();
     for (const animation of glb.json.animations || []) {
       const name = animation.name;

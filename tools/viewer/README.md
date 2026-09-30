@@ -22,7 +22,7 @@ Anything can be previewed without publishing: drop a `.glb` on the page, or use 
 | `build.sh` | Assembles `.build/` (the flat folder that is published); takes `three.module.js` from `dist/assets` |
 
 `npm test` runs `viewer-check.mjs`: every listed GLB has a skin, uniquely named clips that loop clean and never snap a
-bone, and the build is complete. A clip that is meant to open or pop can say so in `characters.json`:
+bone, and the build is complete. A character that is only a mesh (no rig yet) is listed with `"static": true`. A clip that is meant to open or pop can say so in `characters.json`:
 `"clips": {"Fall": {"open": true}}`.
 
 ## Adding a character or an animation

@@ -11,6 +11,41 @@
           "why": "the knee swings about 42 degrees a frame in a fast run"
         }
       }
+    },
+    {
+      "id": "marco",
+      "name": "Marco",
+      "file": "models/marco.glb",
+      "static": true,
+      "note": "Competitive swimmer. More muscular than the coach: royal-blue briefs, cap and goggles, red watch. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
+    },
+    {
+      "id": "berta",
+      "name": "Doña Berta",
+      "file": "models/berta.glb",
+      "static": true,
+      "note": "Senior swimmer. Shorter and wider: flowered cap, purple glasses, coral one-piece. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
+    },
+    {
+      "id": "nico",
+      "name": "Nico “Splash”",
+      "file": "models/nico.glb",
+      "static": true,
+      "note": "Kid. About 70% height, big head, yellow trunks, orange armbands, goggles on forehead. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
+    },
+    {
+      "id": "valentina",
+      "name": "Valentina",
+      "file": "models/valentina.glb",
+      "static": true,
+      "note": "Aqua-aerobics instructor. Ponytail, yellow headband and wristbands, headset mic, magenta one-piece. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
+    },
+    {
+      "id": "bruno",
+      "name": "Bruno",
+      "file": "models/bruno.glb",
+      "static": true,
+      "note": "Nervous beginner. Orange life vest, yellow armbands, green shorts, goggles on forehead. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
     }
   ]
 }
