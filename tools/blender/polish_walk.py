@@ -10,14 +10,16 @@ rewritten. For Mixamo-style rigs (Meshy, Tripo, Mixamo: LeftArm, LeftForeArm, Le
 humanoid_rig (upper_arm.L ...).
 
     tools/blender/run.sh tools/blender/polish_walk.py -- in.glb out.glb [--clip NAME] [--name Walk] [--hang 9] [--forearm-hang 5]
-        [--swing 20] [--swing-back 26] [--elbow-min 10] [--elbow-max 34] [--no-arms] [--keep-timing]
+        [--swing 20] [--swing-back 26] [--elbow-min 10] [--elbow-max 34] [--head 1] [--no-arms] [--keep-timing]
 
 --clip picks the clip to polish (the first one by default) and --name is what it is called afterwards.
 Degrees throughout. --hang is how far the upper arm stands off the body (0 is straight down), --forearm-hang the same
 for the forearm, --swing the most the arm swings forward, --swing-back the most it swings back, --elbow-min/-max the
 elbow's bend (back of the swing / front of the swing). The character faces the front (glTF +Z, Blender -Y) and the
 armature is not rotated, as the glTF importer leaves it. The arms' phase follows the feet: an arm is at its furthest
-forward when the opposite foot is. --keep-timing leaves the clip's times alone (no retiming, no loop closing)."""
+forward when the opposite foot is. --head keeps that fraction of the clip's own neck and head rotation (0.3 for a run
+whose head should tilt only a little; 1 leaves it alone). For a run use something like --hang 6 --swing 35
+--swing-back 30 --elbow-min 80 --elbow-max 100. --keep-timing leaves the clip's times alone (no retiming, no loop closing)."""
 import math
 import os
 import re
@@ -37,6 +39,7 @@ swing_fwd = math.radians(common.option(args, "--swing", 20.0, float))
 swing_back = math.radians(common.option(args, "--swing-back", 26.0, float))
 elbow_min = math.radians(common.option(args, "--elbow-min", 10.0, float))
 elbow_max = math.radians(common.option(args, "--elbow-max", 34.0, float))
+head_keep = common.option(args, "--head", 1.0, float)
 arms = not common.flag(args, "--no-arms")
 retime = not common.flag(args, "--keep-timing")
 name = common.option(args, "--name", "Walk")
@@ -176,6 +179,23 @@ if arms:
                 for kp in fc.keyframe_points:
                     kp.interpolation = "LINEAR"
     print("ARMS swing", math.degrees(swing_fwd), "fwd", math.degrees(swing_back), "back; hang", math.degrees(hang))
+
+if head_keep < 1:
+    # Keep only a fraction of the clip's own neck and head turn: slerp each key toward "no turn".
+    for role in ("neck", "head"):
+        bone = common.humanoid_bones(arm)[role]
+        curves = [action.fcurves.find(f'pose.bones["{bone.name}"].rotation_quaternion', index=i) for i in range(4)]
+        if not all(curves):
+            continue
+        for k in range(len(curves[0].keyframe_points)):
+            q = Quaternion([c.keyframe_points[k].co.y for c in curves])
+            q.normalize()
+            r = Quaternion((1, 0, 0, 0)).slerp(q if q.w >= 0 else -q, head_keep)
+            for c, v in zip(curves, r):
+                c.keyframe_points[k].co.y = v
+        for c in curves:
+            c.update()
+    print("HEAD kept", head_keep)
 
 scene.frame_set(lo)
 action.name = name

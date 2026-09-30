@@ -4,7 +4,13 @@
       "id": "coach-panic",
       "name": "Coach Panic",
       "file": "models/coach-panic.glb",
-      "note": "Meshy 7 mesh, 24-bone Meshy rig. Walk from polish_walk.py, idles from idle_clips.py."
+      "note": "Meshy 7 mesh, 24-bone Meshy rig. Walk and Run from Meshy's clips via polish_walk.py, idles from idle_clips.py.",
+      "clips": {
+        "Run": {
+          "pop": true,
+          "why": "the knee swings about 42 degrees a frame in a fast run"
+        }
+      }
     }
   ]
 }

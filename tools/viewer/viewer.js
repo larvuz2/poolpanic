@@ -421,7 +421,7 @@ function renderClips(character) {
     loop.textContent = c.info.closed ? "loops clean" : "open loop";
     loop.title = c.info.closed ? "The last pose equals the first, so the loop has no jump." : "The last pose differs from the first: the loop will pop.";
     badges.append(loop);
-    if (c.info.maxDeg > POP_DEG) {
+    if (c.info.maxDeg > POP_DEG && !character.entry.clips?.[c.name]?.pop) {
       const pop = document.createElement("span");
       pop.className = "badge warn";
       pop.textContent = "pop?";
