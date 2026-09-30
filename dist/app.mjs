@@ -50,6 +50,11 @@ let crashStorage = null;
 try {
   crashStorage = localStorage;
 } catch {}
+// ?nosound keeps the audio from starting at all (one of the switches for isolating a crash, see the README).
+if (new URLSearchParams(location.search).has("nosound")) {
+  audio.enabled = false;
+  audio.init = () => {};
+}
 const crashlog = installCrashLog({ build: BUILD, storage: crashStorage, motion: reducedMotion.matches });
 for (const e of window.__boot?.errors || []) crashlog.error("boot", e);
 let input,
