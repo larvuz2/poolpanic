@@ -73,7 +73,10 @@ if not static:
             kp.interpolation = "LINEAR"
 if clip and clip in bpy.data.actions:
     for arm in [o for o in scene.objects if o.type == "ARMATURE"]:
-        arm.animation_data_create().action = bpy.data.actions[clip]
+        data = arm.animation_data_create()
+        for nla in data.nla_tracks:
+            nla.mute = True  # a file with several clips keeps them in NLA tracks; only the chosen one plays
+        data.action = bpy.data.actions[clip]
 scene.render.resolution_x = scene.render.resolution_y = size
 scene.render.resolution_percentage = 100
 

@@ -1,7 +1,7 @@
-"""Make a GLB game-ready: shrink its textures (JPEG, at most --tex pixels a side), rename the animation clips, and
-export again with the skin and the clips. Reports the triangle count and file size.
-    tools/blender/run.sh tools/blender/game_export.py -- in.glb out.glb [--tex 1024] [--clip Walk] [--quality 85]
---clip names the first clip (a model with one animation, like a walk from Meshy)."""
+"""Make a GLB game-ready: shrink its textures (JPEG, at most --tex pixels a side) and export again with the skin and all
+of the clips (each under its own name). Reports the triangle count and file size.
+    tools/blender/run.sh tools/blender/game_export.py -- in.glb out.glb [--tex 1024] [--quality 85] [--clip Walk]
+--clip names the clip of a model with a single animation, like a walk straight from Meshy (polish_walk.py names its own)."""
 import os
 import sys
 
@@ -22,20 +22,18 @@ for image in bpy.data.images:
         scale = tex / max(image.size)
         image.scale(max(1, int(image.size[0] * scale)), max(1, int(image.size[1] * scale)))
     print("IMAGE", image.name, tuple(image.size))
-if clip and bpy.data.actions:
-    bpy.data.actions[0].name = clip
-for action in bpy.data.actions:
-    # A loop should not drift: hold the end values (Blender's default) and keep the clip's own range.
-    action.use_fake_user = True
+if clip:
+    if len(bpy.data.actions) == 1:
+        bpy.data.actions[0].name = clip
+    else:
+        print("WARNING: --clip only names a file's single clip; this one has", len(bpy.data.actions))
 tris = sum(len(p.vertices) - 2 for m in common.meshes() for p in m.data.polygons)
 print("TRIANGLES", tris)
-bpy.ops.export_scene.gltf(
-    filepath=dst,
-    export_format="GLB",
-    export_image_format="JPEG",
-    export_jpeg_quality=quality,
-    export_animations=True,
-    export_animation_mode="ACTIONS",
-    export_skins=True,
-)
+print("CLIPS", sorted(a.name for a in bpy.data.actions))
+armatures = [o for o in bpy.context.scene.objects if o.type == "ARMATURE"]
+options = {"export_image_format": "JPEG", "export_jpeg_quality": quality}
+if armatures:
+    common.export_clips(armatures[0], dst, **options)
+else:
+    bpy.ops.export_scene.gltf(filepath=dst, export_format="GLB", export_animations=False, **options)
 print("EXPORTED", dst, os.path.getsize(dst), "bytes")

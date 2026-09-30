@@ -1,6 +1,7 @@
 """Shared helpers for the headless Blender scripts (run them with tools/blender/run.sh)."""
 import math
 import os
+import re
 import sys
 
 import bpy
@@ -13,12 +14,16 @@ def script_args():
 
 
 def option(args, name, default=None, cast=str):
-    """`--name value` from args (removed from the list), or the default."""
+    """`--name value` or `--name=value` from args (removed from the list), or the default."""
     if name in args:
         i = args.index(name)
         value = cast(args[i + 1])
         del args[i : i + 2]
         return value
+    for i, arg in enumerate(args):
+        if arg.startswith(name + "="):
+            del args[i]
+            return cast(arg[len(name) + 1 :])
     return default
 
 
@@ -127,3 +132,76 @@ def add_camera(scene, target, distance, elevation_deg=14, parent=None):
     track.target = marker
     scene.camera = cam
     return cam, marker
+
+
+# ---- the bones of a humanoid -----------------------------------------------------------------------------------------
+
+# What each bone may be called once lower-cased with everything but letters removed ("upper_arm.L" is "upperarml").
+_SIDED = {
+    "shoulder": ("{side}shoulder", "{side}clavicle", "shoulder{c}", "clavicle{c}"),
+    "upper": ("{side}arm", "{side}upperarm", "upperarm{c}"),
+    "fore": ("{side}forearm", "forearm{c}"),
+    "hand": ("{side}hand", "hand{c}"),
+    "foot": ("{side}foot", "foot{c}"),
+}
+_SINGLE = {"hips": ("hips", "pelvis", "root"), "neck": ("neck",), "head": ("head",)}
+
+
+def _letters(name):
+    return re.sub(r"[^a-z]", "", name.split(":")[-1].lower())
+
+
+def find_bone(armature, names):
+    """The first bone whose letters-only lower-case name is one of `names`, or None."""
+    by_key = {_letters(b.name): b for b in armature.data.bones}
+    for n in names:
+        if n in by_key:
+            return by_key[n]
+    return None
+
+
+def humanoid_bones(armature):
+    """The bones a humanoid clip moves, for Mixamo-style names (Meshy, Tripo, Mixamo: LeftArm, LeftForeArm ...) and this
+    toolkit's own rig (upper_arm.L ...): {hips, neck, head, chest (the shoulders' parent), spine (hips up to the chest,
+    not counting the hips), left: {shoulder, upper, fore, hand, foot}, right: {...}}. A bone it cannot find is an error."""
+    found = {role: find_bone(armature, names) for role, names in _SINGLE.items()}
+    for side, (word, letter) in {"left": ("left", "l"), "right": ("right", "r")}.items():
+        found[side] = {
+            role: find_bone(armature, [p.format(side=word, c=letter) for p in patterns]) for role, patterns in _SIDED.items()
+        }
+    missing = [r for r in _SINGLE if found[r] is None] + [
+        f"{side} {role}" for side in ("left", "right") for role, b in found[side].items() if b is None
+    ]
+    if missing:
+        raise SystemExit(f"Cannot find the {', '.join(missing)} bone (bones: {[b.name for b in armature.data.bones]})")
+    chest = found["left"]["shoulder"].parent
+    if chest is None:
+        raise SystemExit("The shoulders have no parent bone to follow")
+    found["chest"] = chest
+    chain, bone = [], chest
+    while bone is not None and bone != found["hips"]:
+        chain.append(bone)
+        bone = bone.parent
+    found["spine"] = list(reversed(chain))
+    return found
+
+
+def export_clips(armature, dst, **options):
+    """Write a GLB with the skin and every action in the file as a clip of its own, named like the action (the glTF
+    exporter writes the actions that sit in NLA tracks, so each one gets a track). Extra `options` go to the exporter."""
+    data = armature.animation_data_create()
+    data.action = None
+    for track in list(data.nla_tracks):
+        data.nla_tracks.remove(track)
+    for action in bpy.data.actions:
+        track = data.nla_tracks.new()
+        track.name = action.name
+        track.strips.new(action.name, int(round(action.frame_range[0])), action)
+    bpy.ops.export_scene.gltf(
+        filepath=dst,
+        export_format="GLB",
+        export_animations=True,
+        export_animation_mode="NLA_TRACKS",
+        export_skins=True,
+        **options,
+    )

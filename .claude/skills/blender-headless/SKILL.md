@@ -16,8 +16,10 @@ preview they can check on any device and exports the glTF.
    - `turntable.py -- model.glb out_dir --animation Walk`: `still.png` and `turntable.mp4`. With `--static --angle 35`
      the camera stays still and the clip loops (what a person wants when judging an animation).
    - `polish_walk.py -- in.glb out.glb`: a Mixamo-style walk (Meshy, Tripo) gets a seamless loop and arms that hang close
-     to the body and swing opposite the legs. Run it before `game_export.py`.
-   - `game_export.py -- in.glb out.glb --tex 1024 --clip Walk`: shrink textures, name the clip, print triangles and size.
+     to the body and swing opposite the legs, and is named `Walk`. Run it before `game_export.py`.
+   - `idle_clips.py -- in.glb out.glb`: adds `IdleScan` (head turns left/right, alert) and `IdleScratch` (the same, then a
+     head scratch) to the file, next to the walk. Every bone is keyed so clip switches in the game never leave a bone behind.
+   - `game_export.py -- in.glb out.glb --tex 1024`: shrink textures, keep every clip, print triangles, clips and size.
 3. **Check before handing over.** Inspect the rigged file (one weight group per bone, the clip present) and look at the
    turntable still and a frame of the walk; send the user the PNG/MP4 from the scratchpad or an artifact.
 4. **Limits.** CPU only: rigging, weights, keyframes, previews and glTF export are fine; heavy Cycles renders and

@@ -9,9 +9,10 @@ forward. The legs, hips and spine keep the clip's own motion; only the shoulders
 rewritten. For Mixamo-style rigs (Meshy, Tripo, Mixamo: LeftArm, LeftForeArm, LeftHand ...) and for this toolkit's own
 humanoid_rig (upper_arm.L ...).
 
-    tools/blender/run.sh tools/blender/polish_walk.py -- in.glb out.glb [--clip NAME] [--hang 9] [--forearm-hang 5]
+    tools/blender/run.sh tools/blender/polish_walk.py -- in.glb out.glb [--clip NAME] [--name Walk] [--hang 9] [--forearm-hang 5]
         [--swing 20] [--swing-back 26] [--elbow-min 10] [--elbow-max 34] [--no-arms] [--keep-timing]
 
+--clip picks the clip to polish (the first one by default) and --name is what it is called afterwards.
 Degrees throughout. --hang is how far the upper arm stands off the body (0 is straight down), --forearm-hang the same
 for the forearm, --swing the most the arm swings forward, --swing-back the most it swings back, --elbow-min/-max the
 elbow's bend (back of the swing / front of the swing). The character faces the front (glTF +Z, Blender -Y) and the
@@ -38,37 +39,8 @@ elbow_min = math.radians(common.option(args, "--elbow-min", 10.0, float))
 elbow_max = math.radians(common.option(args, "--elbow-max", 34.0, float))
 arms = not common.flag(args, "--no-arms")
 retime = not common.flag(args, "--keep-timing")
+name = common.option(args, "--name", "Walk")
 src, dst = args[0], args[1]
-
-# What each bone may be called once lower-cased with everything but letters removed ("upper_arm.L" is "upperarml").
-ALIASES = {
-    "shoulder": ("{side}shoulder", "{side}clavicle", "shoulder{c}", "clavicle{c}"),
-    "upper": ("{side}arm", "{side}upperarm", "upperarm{c}"),
-    "fore": ("{side}forearm", "forearm{c}"),
-    "hand": ("{side}hand", "hand{c}"),
-    "foot": ("{side}foot", "foot{c}"),
-}
-HIPS = ("hips", "pelvis", "root")
-
-
-def key(name):
-    return re.sub(r"[^a-z]", "", name.split(":")[-1].lower())
-
-
-def find(armature, names):
-    by_key = {key(b.name): b for b in armature.data.bones}
-    for n in names:
-        if n in by_key:
-            return by_key[n]
-    return None
-
-
-def side_bones(armature, side):
-    words = {"left": ("left", "l"), "right": ("right", "r")}[side]
-    return {
-        role: find(armature, [p.format(side=words[0], c=words[1]) for p in patterns])
-        for role, patterns in ALIASES.items()
-    }
 
 
 def close_and_retime(action):
@@ -119,18 +91,10 @@ scene.frame_start, scene.frame_end = lo, hi
 
 if arms:
     pose = arm.pose.bones
-    hips = find(arm, HIPS)
-    sides = {s: side_bones(arm, s) for s in ("left", "right")}
-    for s, found in sides.items():
-        missing = [role for role, b in found.items() if b is None]
-        if missing:
-            raise SystemExit(f"Cannot find the {s} {', '.join(missing)} bone (bones: {[b.name for b in arm.data.bones]})")
-    if hips is None:
-        raise SystemExit("Cannot find the hips bone")
+    bones = common.humanoid_bones(arm)
+    hips, chest = bones["hips"], bones["chest"]
+    sides = {"left": bones["left"], "right": bones["right"]}
     frames = list(range(lo, hi + 1))
-    chest = sides["left"]["shoulder"].parent
-    if chest is None:
-        raise SystemExit("The shoulders have no parent bone to follow")
 
     # Which way is out for each arm: +1 where the shoulder lies on +X (the character's left).
     out = {s: 1.0 if sides[s]["upper"].head_local.x > 0 else -1.0 for s in sides}
@@ -214,6 +178,7 @@ if arms:
     print("ARMS swing", math.degrees(swing_fwd), "fwd", math.degrees(swing_back), "back; hang", math.degrees(hang))
 
 scene.frame_set(lo)
+action.name = name
 bpy.ops.export_scene.gltf(
     filepath=dst,
     export_format="GLB",
