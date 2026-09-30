@@ -72,7 +72,7 @@ export class Hall {
   }
   setCoach(on) {
     this.coach = on;
-    this.upper.visible = on;
+    this.upper.visible = on && !this.w.tune?.has("nohall");
   }
   update(time, dt, w, sim) {
     if (!this.coach) return;

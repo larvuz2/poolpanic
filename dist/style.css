@@ -4438,3 +4438,52 @@ body.menu .brand small {
 body:not(.menu) .fund-pill {
   display: none;
 }
+
+/* The crash hunt's banner and results (only shown with ?trial or ?bisect). */
+.hunt {
+  position: fixed;
+  z-index: 60;
+  left: 50%;
+  top: 8px;
+  transform: translateX(-50%);
+  width: min(92vw, 420px);
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #0b2d38ee;
+  border: 2px solid var(--yellow);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+.hunt strong {
+  color: var(--yellow);
+}
+.hunt p {
+  margin: 6px 0 0;
+}
+.hunt ul {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  text-align: left;
+}
+.hunt li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+}
+.hunt li.crashed b {
+  color: #ff7a6b;
+}
+.hunt li.ok b {
+  color: var(--mint);
+}
+.hunt li.waiting {
+  opacity: 0.55;
+}
+.hunt button {
+  width: 100%;
+  margin-top: 8px;
+}
