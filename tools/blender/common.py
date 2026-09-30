@@ -143,6 +143,8 @@ _SIDED = {
     "fore": ("{side}forearm", "forearm{c}"),
     "hand": ("{side}hand", "hand{c}"),
     "foot": ("{side}foot", "foot{c}"),
+    "thigh": ("{side}upleg", "{side}upperleg", "{side}thigh", "thigh{c}"),
+    "shin": ("{side}leg", "{side}lowerleg", "{side}shin", "shin{c}"),
 }
 _SINGLE = {"hips": ("hips", "pelvis", "root"), "neck": ("neck",), "head": ("head",)}
 
@@ -163,7 +165,7 @@ def find_bone(armature, names):
 def humanoid_bones(armature):
     """The bones a humanoid clip moves, for Mixamo-style names (Meshy, Tripo, Mixamo: LeftArm, LeftForeArm ...) and this
     toolkit's own rig (upper_arm.L ...): {hips, neck, head, chest (the shoulders' parent), spine (hips up to the chest,
-    not counting the hips), left: {shoulder, upper, fore, hand, foot}, right: {...}}. A bone it cannot find is an error."""
+    not counting the hips), left: {shoulder, upper, fore, hand, thigh, shin, foot}, right: {...}}. A bone it cannot find is an error."""
     found = {role: find_bone(armature, names) for role, names in _SINGLE.items()}
     for side, (word, letter) in {"left": ("left", "l"), "right": ("right", "r")}.items():
         found[side] = {

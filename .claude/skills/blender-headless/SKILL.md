@@ -19,6 +19,9 @@ preview they can check on any device and exports the glTF.
      to the body and swing opposite the legs, and is named `Walk`. Run it before `game_export.py`.
    - `idle_clips.py -- in.glb out.glb`: adds `IdleScan` (head turns left/right, alert) and `IdleScratch` (the same, then a
      head scratch) to the file, next to the walk. Every bone is keyed so clip switches in the game never leave a bone behind.
+   - `merge_clips.py -- base.glb out.glb more.glb`: add the clips of other GLBs (same rig) to a character.
+   - `smooth_joints.py -- in.glb out.glb`: extra rings and smooth weights at knees and elbows, so deep bends (a run) do
+     not tear the mesh. Run it before `game_export.py`.
    - `game_export.py -- in.glb out.glb --tex 1024`: shrink textures, keep every clip, print triangles, clips and size.
 3. **Check before handing over.** Inspect the rigged file (one weight group per bone, the clip present), then preview it
    on the web instead of recording a video: copy the GLB into `tools/viewer/models/`, list it in
