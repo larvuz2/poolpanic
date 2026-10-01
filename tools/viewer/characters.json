@@ -17,14 +17,14 @@
       "name": "Marco",
       "file": "models/marco.glb",
       "static": true,
-      "note": "Competitive swimmer. More muscular than the coach: royal-blue briefs, cap and goggles, red watch. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
+      "note": "Competitive swimmer (design A). Red cap and briefs, blue goggles worn on his eyes, black watch, very muscular. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
     },
     {
       "id": "berta",
       "name": "Doña Berta",
       "file": "models/berta.glb",
       "static": true,
-      "note": "Senior swimmer. Shorter and wider: flowered cap, purple glasses, coral one-piece. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
+      "note": "Senior swimmer (design B). Purple flower cap, purple glasses, rosy cheeks, printed green swimsuit. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
     },
     {
       "id": "nico",
