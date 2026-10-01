@@ -17,35 +17,35 @@
       "name": "Marco",
       "file": "models/marco.glb",
       "static": true,
-      "note": "Competitive swimmer (design A). Red cap and briefs, blue goggles worn on his eyes, black watch, very muscular. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
+      "note": "Competitive swimmer. Blue cap and briefs with a white hip stripe, goggles on his eyes, black watch, tall and muscular. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, T-pose, about 10k tris, no rig and no animation yet."
     },
     {
       "id": "berta",
       "name": "Doña Berta",
       "file": "models/berta.glb",
       "static": true,
-      "note": "Senior swimmer (design B). Purple flower cap, purple glasses, rosy cheeks, printed green swimsuit. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
+      "note": "Senior swimmer. Blue flower cap, purple-rimmed swim goggles, triangle-print swimsuit, short and wide. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, T-pose, about 10k tris, no rig and no animation yet."
     },
     {
       "id": "nico",
       "name": "Nico “Splash”",
       "file": "models/nico.glb",
       "static": true,
-      "note": "Kid. About 70% height, big head, yellow trunks, orange armbands, goggles on forehead. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
+      "note": "Kid. About 70% height, spiky hair, goggles on his eyes with a yellow strap, orange armbands, wavy blue shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, T-pose, about 10k tris, no rig and no animation yet."
     },
     {
       "id": "valentina",
       "name": "Valentina",
       "file": "models/valentina.glb",
       "static": true,
-      "note": "Aqua-aerobics instructor. Ponytail, yellow headband and wristbands, headset mic, magenta one-piece. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
+      "note": "Aqua-aerobics instructor. Pink headband, headset mic, big hair bun, pink and purple outfit with wristbands. No goggles, no mouth. Meshy 7 mesh from GPT Image 2.5 reference, T-pose, about 10k tris, no rig and no animation yet."
     },
     {
       "id": "bruno",
       "name": "Bruno",
       "file": "models/bruno.glb",
       "static": true,
-      "note": "Nervous beginner. Orange life vest, yellow armbands, green shorts, goggles on forehead. Meshy 7 mesh, T-pose, about 10k tris, no rig and no animation yet."
+      "note": "Nervous beginner. Goggles on his eyes, orange life vest over a teal tee, yellow belt and armbands, red shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, T-pose, about 10k tris, no rig and no animation yet."
     }
   ]
 }
