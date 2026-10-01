@@ -18,7 +18,8 @@ tools/blender/run.sh SCRIPT.py -- ARGS...
 | `idle_clips.py -- in.glb out.glb [--scan 42] [--hang 8] [--only IdleScan\|IdleScratch]` | Adds two looping idle clips to a T-pose humanoid (Meshy, Tripo): `IdleScan` (4 s, breathes and turns the head left and right) and `IdleScratch` (6 s, the same, then scratches the back of the head with the right hand). Every bone is keyed, so switching clips in the game leaves nothing behind |
 | `smooth_joints.py -- in.glb out.glb [--joints knee,elbow] [--half 0.4] [--cuts 2]` | Stops the mesh tearing at deep bends (a run's knees): adds rings of vertices across each knee and elbow and spreads the skin weights over them. Adds about 1.7k triangles to Coach Panic. Run it before `game_export.py` |
 | `humanoid_rig.py -- in.glb out.glb [--walk] [--frames 24] [--height M]` | Fits a 19-bone humanoid armature to the mesh, automatic weights, optional looping walk cycle named `Walk`, exports GLB with skin and animation |
-| `rig_from_template.py -- body.glb rigged.glb [--template dist/assets/coach-panic.glb] [--set y_crotch=0.70] [--debug joints.json] [--tex-quality 90]` | Rigs a T-pose humanoid with another character's skeleton (Coach Panic's 24 bones): same names, hierarchy and rest rotations, joints moved to fit the body, skin weights worked out for the new mesh. No animation is added; the template's clips retarget onto it by bone name. Uses `rigfit.py` (measures landmarks on a mesh, places joints by the template's proportions) |
+| `rig_from_template.py -- body.glb rigged.glb [--template dist/assets/coach-panic.glb] [--set y_crotch=0.70] [--debug joints.json] [--tex-quality 90]` | Rigs a T-pose humanoid with another character's skeleton (Coach Panic's 24 bones): same names, hierarchy and rest rotations, joints moved to fit the body, skin weights worked out for the new mesh. No animation is added (`retarget_clips.py` brings the template's clips over). Uses `rigfit.py` (measures landmarks on a mesh, places joints by the template's proportions) |
+| `retarget_clips.py -- rigged.glb out.glb [--template dist/assets/coach-panic.glb] [--scale K] [--only Run,Walk] [--tex-quality 90]` | Puts the template's clips (Coach Panic's Run, Walk, IdleScan, IdleScratch) on a character rigged by `rig_from_template.py`: every bone's rotation keys are copied by name, the hips' travel is multiplied by the ratio of the two hip heights (or `--scale`), each clip keeps its name and length, mesh, skin and textures stay as they were. A clip already in the file is dropped |
 | `make_test_humanoid.py -- out.glb` | A blocky stand-in character (T-pose, 1.8 m) for trying the pipeline without a real mesh |
 
 `common.py` holds what they share (import any of glTF/GLB, FBX, OBJ, blend; bounds; lights; camera; engine choice).
@@ -50,8 +51,9 @@ positions differ, because the bodies do.
 
 ```sh
 tools/blender/run.sh tools/blender/game_export.py -- meshy.glb body.glb --height 1.72    # on the floor, T-pose, game material
-tools/blender/run.sh tools/blender/rig_from_template.py -- body.glb marco.glb            # 24 bones + skin weights, no clips
-node rig-check.mjs                                                                         # same bones, bind pose and weights as the Coach
+tools/blender/run.sh tools/blender/rig_from_template.py -- body.glb rigged.glb            # 24 bones + skin weights, no clips
+tools/blender/run.sh tools/blender/retarget_clips.py -- rigged.glb marco.glb               # the Coach's Run, Walk, IdleScan, IdleScratch
+node rig-check.mjs                                                                         # same bones, bind pose, weights and clips as the Coach
 ```
 
 `rig_from_template.py` measures landmarks on the mesh (neck, crotch, ankle, the line each arm lies on, how deep the
@@ -67,12 +69,19 @@ seconds each (the same input always gives the same GLB), and the same rig is wha
 - **Check a pose before trusting a rig.** Pose the legs wide, the arms down and the elbows bent (Pose Mode, or a script),
   render, and look for tearing at the crotch, the armpits and the neck. Weights are automatic: loose clothing next to a
   limb (Berta's and Nico's inner thighs) can pull a little.
-- **Retargeting a clip** (not built yet; the rig is made first). A clip is a rotation per bone, and a rotation means the
-  same thing on two skeletons that start from the same orientation, so: copy every bone's rotation track by name;
-  multiply the Hips translation by the ratio of the two hip heights (Marco 1.15, Berta 0.63, Nico 0.50, Valentina 0.97,
-  Bruno 1.01 of the Coach's); do not copy the translation tracks of the other bones; and scale the game's walk and run
-  speeds for the stride (they are the Coach's, so the feet would slide on a child). Playing the Coach's Run, Walk and
-  IdleScratch on all five rigs in Blender this way looked right, with the Hips scaled and nothing else changed.
+- **Retargeting** (`retarget_clips.py`). A clip is a rotation per bone, and a rotation means the same thing on two
+  skeletons that start from the same orientation, so every bone's rotation keys are copied by name, unchanged. Distance
+  is what does not carry over: the hips' travel (their bob and sway) is multiplied by the ratio of the two hip heights
+  (Marco 1.15, Berta 0.63, Nico 0.50, Valentina 0.97, Bruno 1.01 of the Coach's), and the other bones keep their own
+  offsets. Names, lengths and loops stay the Coach's. List them in `characters.json` as `"retargeted": [...]` and
+  `rig-check.mjs` compares them with the Coach's frame by frame.
+  - These are baselines: each character moves like the Coach, scaled. The planted foot stops sliding at a different ground
+    speed on each body (Anim Bench's *Match*, m/s, Run / Walk): Coach 3.85 / 1.21, Marco 4.67 / 1.50, Berta 2.21 / 0.74,
+    Nico 1.72 / 0.59, Valentina 4.00 / 1.28, Bruno 3.92 / 1.26. The game's walk and run speeds (`coach-model.mjs`) are the
+    Coach's, so a character in the game needs its own.
+  - They inherit the faults of the Coach's clips. His Walk rides 4 to 6 cm below the floor (the lowest point of the mesh),
+    and the five do the same in proportion (1 to 8 cm). Lifting the hips by that much would fix all of them, the Coach
+    included. How the hips' travel is scaled hardly matters for this: they only move 1 to 9 cm.
 - Knee and elbow smoothing (`smooth_joints.py`) is not applied to these five yet. Add it when a run shows tearing there.
 
 ## Rigging notes
@@ -92,5 +101,7 @@ MP4 rendered with the clip playing (24 frames at 400 px, about two minutes on 4 
 
 Five Meshy characters rigged on Coach Panic's skeleton with `rig_from_template.py`: `rig-check.mjs` finds the Coach's 24
 bones (names, hierarchy, rest rotations within 0.04 degrees), a consistent bind pose and weights that add up to one; each
-was posed in Blender (legs wide, arms down, elbows bent) without tearing, and the Coach's Run, Walk and IdleScratch were
-played on all five with only the Hips travel scaled.
+was posed in Blender (legs wide, arms down, elbows bent) without tearing. The Coach's four clips went onto all five with
+`retarget_clips.py` (rotations within 0.04 degrees of the Coach's at every frame, the hips' travel scaled and nothing
+else, mesh and skin untouched) and were played in Anim Bench: they loop, nothing snaps beyond the Coach's own Run knee,
+and no head, hair, cap or belly tears.

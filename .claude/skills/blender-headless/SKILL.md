@@ -22,9 +22,12 @@ preview they can check on any device and exports the glTF.
    - `merge_clips.py -- base.glb out.glb more.glb`: add the clips of other GLBs (same rig) to a character.
    - `rig_from_template.py -- body.glb rigged.glb`: a T-pose biped (Meshy, Tripo) gets Coach Panic's own 24-bone skeleton,
      fitted to its body, with skin weights and no clips. Use it instead of `humanoid_rig.py` or Meshy's rigging for any
-     human-shaped character, because the Coach's animations then retarget onto it by bone name (copy the rotation
-     tracks, scale the Hips travel). Shorts can fool the crotch landmark: `--set y_crotch=0.70` (metres). `node
-     rig-check.mjs` verifies the result. Details: "More characters on the same skeleton" in `tools/blender/README.md`.
+     human-shaped character, because the Coach's animations then retarget onto it by bone name. Shorts can fool the
+     crotch landmark: `--set y_crotch=0.70` (metres). Details: "More characters on the same skeleton" in
+     `tools/blender/README.md`.
+   - `retarget_clips.py -- rigged.glb out.glb`: the Coach's clips (Run, Walk, IdleScan, IdleScratch) onto such a character:
+     rotation keys copied by bone name, the hips' travel scaled by the ratio of hip heights, nothing else changed. List
+     the clips as `"retargeted"` in `tools/viewer/characters.json`; `node rig-check.mjs` compares them with the Coach's.
    - `smooth_joints.py -- in.glb out.glb`: extra rings and smooth weights at knees and elbows, so deep bends (a run) do
      not tear the mesh. Run it before `game_export.py`.
    - `game_export.py -- in.glb out.glb --tex 1024`: shrink textures, keep every clip, print triangles, clips and size.

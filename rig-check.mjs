@@ -1,7 +1,9 @@
 // Checks the characters rigged on another character's skeleton (tools/blender/rig_from_template.py). Every character
 // in tools/viewer/characters.json that names a "skeleton" has that template's bones (same names, same parents, same
 // rest rotations, so the template's clips play on it by bone name), a bind pose that matches its bones, bones that sit
-// inside the body, and a skin whose weights add up to one with the same bones left unweighted as in the template.
+// inside the body, and a skin whose weights add up to one with the same bones left unweighted as in the template. The
+// clips such a character lists as "retargeted" (tools/blender/retarget_clips.py) really are the template's: the same
+// rotation of every bone at every frame, the hips' travel the template's times one factor, the bones' own offsets.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -11,6 +13,10 @@ const REST_DEG = 0.1; // rest rotations are copied, a clip's rotation keys only 
 const BIND_ERROR = 1e-3; // inverse bind matrix times the bone's rest matrix is the identity
 const MARGIN = 0.03; // metres a bone may stick out of the mesh's box (a fingertip, a toe)
 const HEIGHT_SHIFT = 0.25; // a bone sits within a quarter of the body height of where the template has it
+const FPS = 24;
+const CLIP_DEG = 0.15; // a retargeted clip turns every bone as the template's does, to within a rounding error
+const CLIP_CM = 0.01; // translations are in centimetres: a tenth of a millimetre
+const TRAVEL_RANGE = [0.25, 4]; // the hips travel this many times the template's (a child, a giant)
 
 function readGlb(file) {
   const data = readFileSync(file);
@@ -69,6 +75,49 @@ function compose(t = [0, 0, 0], q = [0, 0, 0, 1], s = [1, 1, 1]) {
 const degrees = (p, q) =>
   (2 * Math.acos(Math.min(1, Math.abs(p.reduce((sum, v, i) => sum + v * q[i], 0)))) * 180) / Math.PI;
 
+// Every clip as {track name: keys}, a track named "Bone.path" (rotation, translation or scale).
+function readClips(glb) {
+  const clips = {};
+  for (const animation of glb.json.animations || []) {
+    const tracks = {};
+    for (const channel of animation.channels) {
+      const sampler = animation.samplers[channel.sampler];
+      assert.notEqual(
+        sampler.interpolation,
+        "CUBICSPLINE",
+        `${animation.name}: cubic splines are not compared`,
+      );
+      const times = accessor(glb, sampler.input).values;
+      const values = accessor(glb, sampler.output).values;
+      tracks[`${glb.json.nodes[channel.target.node].name}.${channel.target.path}`] = {
+        times,
+        values,
+        width: values.length / times.length,
+        step: sampler.interpolation === "STEP",
+      };
+    }
+    clips[animation.name] = tracks;
+  }
+  return clips;
+}
+
+const clipLength = (clip) => Math.max(...Object.values(clip).map((track) => track.times.at(-1)));
+
+// The value of a track at a time: held (STEP) or blended between the two keys around it, rotations the short way round.
+function sample(track, time) {
+  const { times, values, width, step } = track;
+  let i = times.length - 1;
+  while (i > 0 && times[i] > time) i--;
+  const a = Array.from(values.subarray(i * width, (i + 1) * width));
+  if (step || i === times.length - 1) return a;
+  const b = Array.from(values.subarray((i + 1) * width, (i + 2) * width));
+  const f = (time - times[i]) / (times[i + 1] - times[i]);
+  const flip = width === 4 && a.reduce((sum, v, k) => sum + v * b[k], 0) < 0 ? -1 : 1;
+  const mix = a.map((v, k) => v * (1 - f) + flip * b[k] * f);
+  const length = width === 4 ? Math.hypot(...mix) : 1;
+  return mix.map((v) => v / length);
+}
+
 // The skin's bones by name: parent, rest rotation, rest matrix in the scene and inverse bind matrix.
 function readRig(file) {
   const glb = readGlb(file);
@@ -92,6 +141,7 @@ function readRig(file) {
       index: k,
       parent: parent.has(node) ? nodes[parent.get(node)].name : null,
       rotation: nodes[node].rotation || [0, 0, 0, 1],
+      translation: nodes[node].translation || [0, 0, 0],
       world: world(node),
       inverseBind: Array.from(inverseBind.subarray(k * 16, k * 16 + 16)),
     };
@@ -125,7 +175,7 @@ function readRig(file) {
       translation: root.translation || [0, 0, 0],
     },
     box: { min: position.min, max: position.max },
-    animations: (glb.json.animations || []).length,
+    clips: readClips(glb),
     carried,
     worstSum,
     vertices: position.count,
@@ -136,6 +186,7 @@ const manifest = JSON.parse(readFileSync(`${dir}/characters.json`, "utf8"));
 const byId = new Map(manifest.characters.map((c) => [c.id, c]));
 const templates = new Map();
 let rigged = 0;
+let retargeted = 0;
 for (const character of manifest.characters) {
   if (!character.skeleton) continue;
   const source = byId.get(character.skeleton);
@@ -207,10 +258,75 @@ for (const character of manifest.characters) {
         `${label}: ${name} barely moves the mesh (${total.toFixed(2)} of ${rig.vertices} vertices)`,
       );
   }
+
+  // The clips it got from the template: the same length, every bone's rotation the template's at every frame, the root's
+  // travel the template's times one factor, every other bone at its own rest offset (not the template's), no scaling.
+  const rootName = Object.keys(template.bones).find(
+    (name) => !(template.bones[name].parent in template.bones),
+  );
+  for (const name of character.retargeted || []) {
+    const clip = rig.clips[name];
+    const base = template.clips[name];
+    assert.ok(base, `${label}: ${source.name} has no clip ${name} to retarget`);
+    assert.ok(clip, `${label}: the clip ${name} is missing`);
+    assert.ok(Math.abs(clipLength(clip) - clipLength(base)) < 1e-3, `${label} / ${name}: a different length`);
+    const frames = Array.from({ length: Math.round(clipLength(base) * FPS) + 1 }, (_, f) => f / FPS);
+    let travel = 0; // template's root travel and the character's, summed as products and squares for a least-squares factor
+    let travelSquares = 0;
+    const pairs = [];
+    for (const [track, keys] of Object.entries(base)) {
+      const [bone, path] = [track.slice(0, track.lastIndexOf(".")), track.slice(track.lastIndexOf(".") + 1)];
+      const mine = clip[track];
+      assert.ok(mine, `${label} / ${name}: no ${path} track for ${bone}`);
+      if (path === "rotation") {
+        const worst = Math.max(...frames.map((t) => degrees(sample(keys, t), sample(mine, t))));
+        assert.ok(
+          worst < CLIP_DEG,
+          `${label} / ${name}: ${bone} turns ${worst.toFixed(2)}° differently from the template's`,
+        );
+      } else if (path === "scale") {
+        assert.ok(
+          mine.values.every((v) => Math.abs(v - 1) < 1e-3),
+          `${label} / ${name}: ${bone} is scaled`,
+        );
+      } else if (bone === rootName) {
+        const from = template.bones[bone].translation;
+        const to = rig.bones[bone].translation;
+        for (const t of frames) {
+          const a = sample(keys, t).map((v, k) => v - from[k]);
+          const b = sample(mine, t).map((v, k) => v - to[k]);
+          travel += a.reduce((sum, v, k) => sum + v * b[k], 0);
+          travelSquares += a.reduce((sum, v) => sum + v * v, 0);
+          pairs.push([a, b]);
+        }
+      } else {
+        const rest = rig.bones[bone].translation;
+        assert.ok(
+          Array.from(mine.values).every((v, k) => Math.abs(v - rest[k % 3]) < CLIP_CM),
+          `${label} / ${name}: ${bone} is not at its own rest offset`,
+        );
+      }
+    }
+    // Where the template's root moves, this one's moves the same way, scaled; where it stays, this one stays.
+    const factor = travelSquares > 1 ? travel / travelSquares : 0;
+    if (travelSquares > 1)
+      assert.ok(
+        factor > TRAVEL_RANGE[0] && factor < TRAVEL_RANGE[1],
+        `${label} / ${name}: ${rootName} travels ${factor.toFixed(2)} times as far as the template's`,
+      );
+    for (const [a, b] of pairs)
+      for (let k = 0; k < 3; k++)
+        assert.ok(
+          Math.abs(b[k] - factor * a[k]) < CLIP_CM,
+          `${label} / ${name}: ${rootName} does not move like the template's times ${factor.toFixed(2)}`,
+        );
+    retargeted++;
+  }
   rigged++;
 }
 assert.ok(rigged > 0, "characters.json lists at least one character on another character's skeleton");
+assert.ok(retargeted > 0, "characters.json lists at least one retargeted clip");
 
 console.log(
-  `Rig checks passed: ${rigged} character(s) share the template's ${templates.size ? Object.keys([...templates.values()][0].bones).length : 0} bones (names, hierarchy, rest rotations), with a consistent bind pose and skin weights that add up to one.`,
+  `Rig checks passed: ${rigged} character(s) share the template's ${templates.size ? Object.keys([...templates.values()][0].bones).length : 0} bones (names, hierarchy, rest rotations), with a consistent bind pose and skin weights that add up to one, and ${retargeted} retargeted clip(s) that move every bone as the template's do.`,
 );

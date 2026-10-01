@@ -236,13 +236,15 @@ function groundSpeed(character, entry) {
   mixer.stopAllAction();
   // In each frame the lower foot is the planted one; its backward speed is the speed the ground must move at.
   const floorY = Math.min(...path.flat().map((p) => p.y));
+  const planted = 0.04 * (character.height / 1.75); // 4 cm on the 1.75 m Coach, in proportion on a child
   const speeds = [];
   for (let i = 0; i < frames; i++) {
     const k = path[0][i].y <= path[1][i].y ? 0 : 1;
-    if (path[k][i].y > floorY + 0.04) continue; // both feet are in the air
+    if (path[k][i].y > floorY + planted) continue; // both feet are in the air
     const next = path[k][(i + 1) % frames];
     const before = path[k][(i - 1 + frames) % frames];
-    speeds.push(-(next.z - before.z) / (2 / FPS)); // forward is +Z, so a planted foot moves to -Z
+    const speed = -(next.z - before.z) / (2 / FPS); // forward is +Z, so a planted foot moves to -Z
+    if (speed > 0) speeds.push(speed); // a foot still moving forward is landing, not planted
   }
   if (speeds.length < 4) return null;
   const sorted = [...speeds].sort((x, y) => x - y);

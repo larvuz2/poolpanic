@@ -5,10 +5,11 @@ same rest orientations, joints moved to fit the new body, skin weights worked ou
 
 Why the rest orientations are copied, not worked out: an animation is a set of rotations per bone, and a rotation only
 means the same thing on two skeletons if their bones start from the same orientation. With that, every clip made for
-the template plays on the new body: copy the rotation tracks, scale how far the hips travel. Joint positions are what
-make the skeleton fit the body (tools/blender/rigfit.py: landmarks measured on the mesh, ratios taken from the
-template). The body should stand on the floor, facing +Z in glTF (-Y in Blender), arms out; game_export.py makes a
-Meshy mesh like that. Like the template, the result has its armature scaled 0.01 with bones in centimetres."""
+the template plays on the new body (retarget_clips.py copies the rotation tracks and scales how far the hips travel).
+Joint positions are what make the skeleton fit the body (tools/blender/rigfit.py: landmarks measured on the mesh,
+ratios taken from the template). The body should stand on the floor, facing +Z in glTF (-Y in Blender), arms out;
+game_export.py makes a Meshy mesh like that. Like the template, the result has its armature scaled 0.01 with bones in
+centimetres."""
 import json
 import math
 import os
