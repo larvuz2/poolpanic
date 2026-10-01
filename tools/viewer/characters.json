@@ -4,7 +4,7 @@
       "id": "coach-panic",
       "name": "Coach Panic",
       "file": "../../dist/assets/coach-panic.glb",
-      "note": "Meshy 7 mesh, 24-bone Meshy rig. Walk and Run from Meshy's clips via polish_walk.py, idles from idle_clips.py, feet put on the floor by ground_clips.py.",
+      "note": "Meshy 7 mesh, 24-bone Meshy rig. Walk and Run from Meshy's clips via polish_walk.py, idles from idle_clips.py, feet put on the floor by ground_clips.py. Panic (jumping without a pause, hands and arms up) from character_clips.py --character shared, added to the file by transplant_clips.py.",
       "clips": {
         "Run": {
           "pop": true,
@@ -16,7 +16,7 @@
       "id": "marco",
       "name": "Marco",
       "file": "models/marco.glb",
-      "note": "Competitive swimmer. Blue cap and briefs with a white hip stripe, goggles on his eyes, black watch, tall and muscular. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.15. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitWatch, impatient: a long look at his watch, a sigh, hand on hip, looking around, the foot tapping, a second quick look at the watch (10 s): plays while waiting to be assigned a lane.",
+      "note": "Competitive swimmer. Blue cap and briefs with a white hip stripe, goggles on his eyes, black watch, tall and muscular. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's clips retargeted onto it (retarget_clips.py, and Panic by transplant_clips.py): the same motion, hip travel x1.15. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitWatch, impatient: a long look at his watch, a sigh, hand on hip, looking around, the foot tapping, a second quick look at the watch (10 s): plays while waiting to be assigned a lane.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -27,6 +27,7 @@
       "retargeted": [
         "IdleScan",
         "IdleScratch",
+        "Panic",
         "Run",
         "Walk"
       ],
@@ -39,7 +40,7 @@
       "id": "berta",
       "name": "Doña Berta",
       "file": "models/berta.glb",
-      "note": "Senior swimmer. Blue flower cap, purple-rimmed swim goggles, triangle-print swimsuit, short and wide. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.63. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitChat, friendly: hands clasped over her belly, rocking gently, looking about, patting her flowered cap, a little wave (10 s): plays while waiting to be assigned a lane.",
+      "note": "Senior swimmer. Blue flower cap, purple-rimmed swim goggles, triangle-print swimsuit, short and wide. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's clips retargeted onto it (retarget_clips.py, and Panic by transplant_clips.py): the same motion, hip travel x0.63. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitChat, friendly: hands clasped over her belly, rocking gently, looking about, patting her flowered cap, a little wave (10 s): plays while waiting to be assigned a lane.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -50,6 +51,7 @@
       "retargeted": [
         "IdleScan",
         "IdleScratch",
+        "Panic",
         "Run",
         "Walk"
       ],
@@ -62,7 +64,7 @@
       "id": "nico",
       "name": "Nico “Splash”",
       "file": "models/nico.glb",
-      "note": "Kid. About 70% height, spiky hair, goggles on his eyes with a yellow strap, orange armbands, wavy blue shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.50. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitFidget, restless: bouncing on his knees, arms swinging, craning around, a hand shot up to be noticed (8 s): plays while waiting to be assigned a lane.",
+      "note": "Kid. About 70% height, spiky hair, goggles on his eyes with a yellow strap, orange armbands, wavy blue shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's clips retargeted onto it (retarget_clips.py, and Panic by transplant_clips.py): the same motion, hip travel x0.50. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitFidget, restless: bouncing on his knees, arms swinging, craning around, a hand shot up to be noticed (8 s): plays while waiting to be assigned a lane.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -73,6 +75,7 @@
       "retargeted": [
         "IdleScan",
         "IdleScratch",
+        "Panic",
         "Run",
         "Walk"
       ],
@@ -85,7 +88,7 @@
       "id": "valentina",
       "name": "Valentina",
       "file": "models/valentina.glb",
-      "note": "Aqua-aerobics instructor. Pink headband, headset mic, big hair bun, pink and purple outfit with wristbands. No goggles, no mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.97. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitWarmUp, instructor: a stretch overhead, side bends, shoulder rolls, hands on hips and a hip circle, a look round (12 s): plays while waiting to be assigned a lane.",
+      "note": "Aqua-aerobics instructor. Pink headband, headset mic, big hair bun, pink and purple outfit with wristbands. No goggles, no mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's clips retargeted onto it (retarget_clips.py, and Panic by transplant_clips.py): the same motion, hip travel x0.97. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitWarmUp, instructor: a stretch overhead, side bends, shoulder rolls, hands on hips and a hip circle, a look round (12 s): plays while waiting to be assigned a lane.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -96,6 +99,7 @@
       "retargeted": [
         "IdleScan",
         "IdleScratch",
+        "Panic",
         "Run",
         "Walk"
       ],
@@ -108,7 +112,7 @@
       "id": "bruno",
       "name": "Bruno",
       "file": "models/bruno.glb",
-      "note": "Nervous beginner. Goggles on his eyes, orange life vest over a teal tee, yellow belt and armbands, red shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.01. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitNervous, nervous: arms hugged round himself, a tug at his goggles, a check of the life vest strap, weight shifting, worried glances (10 s): plays while waiting to be assigned a lane.",
+      "note": "Nervous beginner. Goggles on his eyes, orange life vest over a teal tee, yellow belt and armbands, red shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's clips retargeted onto it (retarget_clips.py, and Panic by transplant_clips.py): the same motion, hip travel x1.01. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitNervous, nervous: arms hugged round himself, a tug at his goggles, a check of the life vest strap, weight shifting, worried glances (10 s): plays while waiting to be assigned a lane.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -119,6 +123,7 @@
       "retargeted": [
         "IdleScan",
         "IdleScratch",
+        "Panic",
         "Run",
         "Walk"
       ],
@@ -130,8 +135,8 @@
     {
       "id": "swimmer-boy",
       "name": "Swimmer: boy",
-      "file": "models/swimmer-boy.glb",
-      "note": "Generic swimmer, 1.58 m. Blue cap, goggles on his eyes, navy jammers with light-blue stripes, thin build, big head. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.89. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
+      "file": "../../dist/assets/swimmer-boy.glb",
+      "note": "Generic swimmer, 1.58 m. Blue cap, goggles on his eyes, navy jammers with light-blue stripes, thin build, big head. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's clips retargeted onto it (retarget_clips.py, and Panic by transplant_clips.py): the same motion, hip travel x0.89. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -142,6 +147,7 @@
       "retargeted": [
         "IdleScan",
         "IdleScratch",
+        "Panic",
         "Run",
         "Walk"
       ]
@@ -149,8 +155,8 @@
     {
       "id": "swimmer-tall-man",
       "name": "Swimmer: tall man",
-      "file": "models/swimmer-tall-man.glb",
-      "note": "Generic swimmer, 1.84 m. Black cap, goggles with blue lenses and strap on his eyes, black jammers, athletic build. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.05. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
+      "file": "../../dist/assets/swimmer-tall-man.glb",
+      "note": "Generic swimmer, 1.84 m. Black cap, goggles with blue lenses and strap on his eyes, black jammers, athletic build. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's clips retargeted onto it (retarget_clips.py, and Panic by transplant_clips.py): the same motion, hip travel x1.05. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -161,6 +167,7 @@
       "retargeted": [
         "IdleScan",
         "IdleScratch",
+        "Panic",
         "Run",
         "Walk"
       ]
@@ -168,8 +175,8 @@
     {
       "id": "swimmer-woman",
       "name": "Swimmer: woman",
-      "file": "models/swimmer-woman.glb",
-      "note": "Generic swimmer, 1.70 m. Hot-pink cap, goggles with purple lenses on her eyes, navy racerback swimsuit with pink and white side stripes, slim, brown hair strands under the cap. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.03. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
+      "file": "../../dist/assets/swimmer-woman.glb",
+      "note": "Generic swimmer, 1.70 m. Hot-pink cap, goggles with purple lenses on her eyes, navy racerback swimsuit with pink and white side stripes, slim, brown hair strands under the cap. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's clips retargeted onto it (retarget_clips.py, and Panic by transplant_clips.py): the same motion, hip travel x1.03. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -180,6 +187,7 @@
       "retargeted": [
         "IdleScan",
         "IdleScratch",
+        "Panic",
         "Run",
         "Walk"
       ]
@@ -187,8 +195,8 @@
     {
       "id": "swimmer-heavy-man",
       "name": "Swimmer: heavy-set man",
-      "file": "models/swimmer-heavy-man.glb",
-      "note": "Generic swimmer, 1.56 m. Green cap, goggles with green lenses on his eyes, green trunks with a white drawstring bow, round belly. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.76. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
+      "file": "../../dist/assets/swimmer-heavy-man.glb",
+      "note": "Generic swimmer, 1.56 m. Green cap, goggles with green lenses on his eyes, green trunks with a white drawstring bow, round belly. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's clips retargeted onto it (retarget_clips.py, and Panic by transplant_clips.py): the same motion, hip travel x0.76. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -199,6 +207,7 @@
       "retargeted": [
         "IdleScan",
         "IdleScratch",
+        "Panic",
         "Run",
         "Walk"
       ]
@@ -206,8 +215,8 @@
     {
       "id": "swimmer-tall-woman",
       "name": "Swimmer: tall woman",
-      "file": "models/swimmer-tall-woman.glb",
-      "note": "Generic swimmer, 1.86 m. Purple cap, goggles with purple lenses on her eyes, purple one-piece swimsuit, long brown ponytail, very tall and slender. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.14. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
+      "file": "../../dist/assets/swimmer-tall-woman.glb",
+      "note": "Generic swimmer, 1.86 m. Purple cap, goggles with purple lenses on her eyes, purple one-piece swimsuit, long brown ponytail, very tall and slender. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's clips retargeted onto it (retarget_clips.py, and Panic by transplant_clips.py): the same motion, hip travel x1.14. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -218,6 +227,7 @@
       "retargeted": [
         "IdleScan",
         "IdleScratch",
+        "Panic",
         "Run",
         "Walk"
       ]

@@ -11,6 +11,7 @@ import { windUniforms } from "./scene/geom.mjs";
 import { dayLook, moodLook, DAY_TIMES } from "./scene/daylight.mjs";
 import { character } from "./scene/actors.mjs";
 import { attachCoachModel, dropCoachModel, planIntro, introAt, activeChoice } from "./scene/coach-model.mjs";
+import { attachSwimmerModel, dropSwimmerModel, setQueasy } from "./scene/swimmer-models.mjs";
 import { finsObject, lifeRingObject, skimmerObject, pooObject, bucket } from "./scene/props.mjs";
 import { IncidentView } from "./scene/incident-view.mjs";
 import { readTuning } from "./tuning.mjs";
@@ -501,6 +502,13 @@ export class PoolWorld extends SceneKit {
 
   addPerson(p) {
     const g = character(this, p);
+    // The five swimmer models when they are loaded and wanted (swimmer-models.mjs); a swimmer who cannot have one stays classic.
+    try {
+      attachSwimmerModel(g, p);
+    } catch (error) {
+      console.error(error);
+      dropSwimmerModel(g);
+    }
     this.people.set(p.id, g);
     this.scene.add(g);
     return g;
@@ -509,6 +517,7 @@ export class PoolWorld extends SceneKit {
     const g = this.people.get(id);
     if (!g) return;
     this.clickables = this.clickables.filter((x) => x !== g.userData.hit);
+    dropSwimmerModel(g);
     this.scene.remove(g);
     this.people.delete(id);
   }
@@ -531,6 +540,10 @@ export class PoolWorld extends SceneKit {
     this.coach = this.makeCoach(choice);
     this.scene.add(this.coach);
   }
+  // Change the swimmers' look now (How to play): everyone on the deck is built again, the next sync makes them as chosen.
+  swapSwimmers() {
+    for (const id of [...this.people.keys()]) this.removePerson(id);
+  }
   slipPose(u, remaining, duration) {
     if (!(remaining > 0)) return;
     const elapsed = 1 - Math.min(1, remaining / duration),
@@ -547,9 +560,10 @@ export class PoolWorld extends SceneKit {
           : 1;
     // Characters face local +Z: negative X rotation puts their back on the deck.
     u.root.rotation.set((-Math.PI / 2) * down, 0, 0);
-    u.root.position.set(0, 0.37 * down, -0.12 * down);
+    u.root.position.set(0, (u.depth ?? 0.37) * down, -0.12 * (u.fit || 1) * down);
     u.arms.forEach((a, i) => a.rotation.set(-1.15 * down, 0, (i ? -0.35 : 0.35) * down));
     u.legs.forEach((l) => (l.rotation.x = 0.24 * down));
+    u.puppet.arms = u.puppet.legs = true;
   }
 
   // `dt` drives the world (slowed during an incident sting, stopped for a hit-stop); `realDt` drives the camera.
@@ -579,7 +593,7 @@ export class PoolWorld extends SceneKit {
       if (p.status === "gone") continue;
       active.add(p.id);
       const g = this.people.get(p.id) || this.addPerson(p);
-      this.syncSwimmer(sim, p, g, time);
+      this.syncSwimmer(sim, p, g, time, dt);
     }
     for (const id of this.people.keys()) if (!active.has(id)) this.removePerson(id);
     this.syncCoach(sim, time, dt);
@@ -730,7 +744,7 @@ export class PoolWorld extends SceneKit {
     this.ambience.lamp = dynamic ? 0.3 + 0.7 * Math.min(1, (look.glow ?? 0) * 1.6) : 1;
   }
 
-  syncSwimmer(sim, p, g, time) {
+  syncSwimmer(sim, p, g, time, dt = 0.016) {
     const u = g.userData;
     const swim =
       (p.status === "swim" && p.type !== "aqua") ||
@@ -738,6 +752,8 @@ export class PoolWorld extends SceneKit {
       (p.status === "exit" && p.exitPhase === "water") ||
       p.status === "switch" ||
       (p.status === "fleeing" && p.fleePhase === "swim");
+    const fit = u.fit || 1; // a model's height as a share of the classic swimmer's: how far back a swim or a climb sits it
+    u.puppet.arms = u.puppet.legs = false;
     const walking =
       p.status === "enter" ||
       (p.status === "exit" && !["water", "climb"].includes(p.exitPhase)) ||
@@ -750,7 +766,7 @@ export class PoolWorld extends SceneKit {
     g.rotation.set(0, p.angle || 0, 0);
     u.root.rotation.set(0, 0, 0);
     u.root.position.set(0, 0, 0);
-    u.legs.forEach((l) => (l.visible = true));
+    u.legs.forEach((l) => (l.visible = !u.rig)); // a swimmer model's own legs show instead
     u.f.visible = p.hasFins;
     u.hit.position.y = swim ? 0.25 : 0.9;
     u.shadow.visible = !swim && p.status !== "swim";
@@ -760,7 +776,7 @@ export class PoolWorld extends SceneKit {
       u.root.rotation.x = Math.PI / 2;
       u.root.position.y = 0.27;
       u.root.scale.setScalar(0.85 * base);
-      u.root.position.z = -0.65;
+      u.root.position.z = -0.65 * fit;
       const tempo =
         p.status === "evacuating" || p.status === "fleeing"
           ? 12
@@ -786,6 +802,7 @@ export class PoolWorld extends SceneKit {
           p.type === "aqua" ? Math.sin(tempo) * 0.9 * (i ? 1 : -1) : 0,
         );
       });
+      if (p.type === "aqua") u.puppet.arms = true; // the aerobics arms are in none of the clips
       u.legs.forEach((l, i) => {
         l.rotation.x = walking ? Math.sin(tempo + i * Math.PI) * 0.52 : 0;
       });
@@ -797,23 +814,33 @@ export class PoolWorld extends SceneKit {
       g.position.y = -0.39 * (1 - t);
       u.root.rotation.x = (Math.PI / 2) * (1 - t);
       u.root.position.y = 0.27 * (1 - t);
-      u.root.position.z = -0.65 * (1 - t);
+      u.root.position.z = -0.65 * (1 - t) * fit;
       u.arms.forEach((a) => a.rotation.set(-1.5 * (1 - t), 0, 0));
       u.legs.forEach((l) => (l.rotation.x = -0.5 * Math.sin(t * Math.PI)));
+      u.puppet.arms = u.puppet.legs = true;
     }
     u.soreEyes.visible = p.problem === "eyes";
     if (p.stomachWarning && !swim) {
       u.arms[0].rotation.x = -1.1;
       u.root.rotation.z = Math.sin(time * 4) * 0.08;
+      u.puppet.arms = true;
     }
+    let panicClip = false;
     if (p.status === "panic" || (sim.cleanup && p.status === "queue") || p.status === "fleeing") {
       const running = p.status === "fleeing" || p.panicStyle === "circles";
+      // A swimmer model that has the Panic clip hops on the spot with it, arms and all (with reduced motion it stands with
+      // its hands up instead, like the classic swimmer).
+      panicClip = !running && !this.reducedMotion.matches && !!u.rig?.actions.panic;
       u.arms.forEach((a, i) =>
         a.rotation.set(running ? Math.sin(time * 16 + i) * 0.4 : 0, 0, i ? -2.7 : 2.7),
       );
+      u.puppet.arms = !panicClip; // hands up
       if (!running) {
-        u.root.position.y = this.reducedMotion.matches ? 0 : Math.abs(Math.sin(time * 8 + u.phase)) * 0.42;
+        u.root.position.y =
+          panicClip || this.reducedMotion.matches ? 0 : Math.abs(Math.sin(time * 8 + u.phase)) * 0.42;
         u.legs.forEach((l) => (l.rotation.x = -0.15));
+        u.puppet.legs = !panicClip;
+        if (panicClip) u.f.visible = false; // the fins stay on the floor: the feet are in the air
       } else if (!swim) {
         u.legs.forEach((l, i) => (l.rotation.x = Math.sin(time * 16 + i * Math.PI) * 0.7));
         u.root.position.y = this.reducedMotion.matches ? 0 : Math.abs(Math.sin(time * 16 + u.phase)) * 0.12;
@@ -860,18 +887,51 @@ export class PoolWorld extends SceneKit {
         l.visible = false;
       });
       u.f.visible = false;
+      u.puppet.arms = u.puppet.legs = true;
     }
     if (p.status === "recovering" && p.recoveryStage === "resting") {
-      g.position.y = 0.22;
+      g.position.y = 0.22 + (0.45 - (u.hipsY ?? 0.45)); // the hips stay where the classic swimmer's are, on the bench
       u.root.position.set(0, 0, 0);
       u.root.rotation.set(0, 0, 0);
       u.legs.forEach((l) => (l.rotation.x = -Math.PI / 2));
       u.arms.forEach((a) => a.rotation.set(-0.3, 0, 0));
+      u.puppet.arms = u.puppet.legs = true;
     }
     this.incidentView.pose(sim, p, g, time);
     if (!swim && p.status !== "swim") this.slipPose(u, p.slipTime, 0.65);
     if (p.status === "swim" && p.actualSpeed > 0.3 && Math.random() < 0.04)
       this.splash(p.x, -0.16, p.z, 2, true);
+    this.syncModel(p, g, swim, dt, panicClip);
+  }
+  // A swimmer model's clip and poses (swimmer-models.mjs): how fast the swimmer covers the ground, whether it swims, and
+  // which limbs the poses above were set for.
+  syncModel(p, g, swim, dt, panic = false) {
+    const u = g.userData;
+    if (!u.rig) return;
+    const at = u.lastAt;
+    u.lastAt = { x: p.x, z: p.z };
+    if (at && dt > 0) u.footSpeed = Math.hypot(p.x - at.x, p.z - at.z) / dt;
+    setQueasy(g, !!p.queasy);
+    try {
+      u.rig.update(dt, {
+        speed: swim ? 0 : u.footSpeed || 0,
+        swim,
+        // The stroke follows the swimmer's pace; a swimmer in trouble barely moves, one fleeing flails.
+        stroke:
+          p.status === "evacuating" || p.status === "fleeing"
+            ? 1.4
+            : p.problem
+              ? 0.25
+              : Math.max(0.4, Math.min(1.5, Math.max(p.actualSpeed, p.status === "switch" ? 2 : 0) * 0.32)),
+        panic,
+        puppet: u.puppet,
+        classic: u,
+      });
+    } catch (error) {
+      // A failing model must not stop the shift: this swimmer is classic from here on.
+      console.error(error);
+      dropSwimmerModel(g);
+    }
   }
 
   // A fresh model of a carried item (the third-person coach and the Coach Cam hands each hold their own).

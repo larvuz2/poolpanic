@@ -21,7 +21,8 @@ tools/blender/run.sh SCRIPT.py -- ARGS...
 | `rig_from_template.py -- body.glb rigged.glb [--template dist/assets/coach-panic.glb] [--set y_crotch=0.70] [--debug joints.json] [--tex-quality 90]` | Rigs a T-pose humanoid with another character's skeleton (Coach Panic's 24 bones): same names, hierarchy and rest rotations, joints moved to fit the body, skin weights worked out for the new mesh. No animation is added (`retarget_clips.py` brings the template's clips over). Uses `rigfit.py` (measures landmarks on a mesh, places joints by the template's proportions) |
 | `retarget_clips.py -- rigged.glb out.glb [--template dist/assets/coach-panic.glb] [--scale K] [--only Run,Walk] [--tex-quality 90]` | Puts the template's clips (Coach Panic's Run, Walk, IdleScan, IdleScratch) on a character rigged by `rig_from_template.py`: every bone's rotation keys are copied by name, the hips' travel is multiplied by the ratio of the two hip heights (or `--scale`), each clip keeps its name and length, mesh, skin and textures stay as they were. A clip already in the file is dropped |
 | `ground_clips.py -- in.glb out.glb [--only Walk,Run]` | Stands a character's clips on the floor: plays each clip in Blender, finds how far the mesh sinks under the floor at its lowest point, and lifts the hips by that much in every key of that clip (one height per clip; the pose, speed and loop do not change). Only those position keys are rewritten, in the GLB itself, so the rest of the file is byte for byte what it was. A clip that already stands on the floor (an idle) is left alone, so running it twice changes nothing. Run it last |
-| `character_clips.py -- in.glb out.glb --character marco [--only WaitWatch]` | Adds a character's own clips to a character on Coach Panic's skeleton (the clips of the file stay). A clip is a list of keys per control (the wrist's target and the elbow's direction for each arm, the hips, spine and head turns, where the head looks, a foot lifting for a tap) written in the `CLIPS` table of the script, and every frame is solved: arms by two-bone IK in fractions of the arm's reach, so one pose fits a tall swimmer and a child, legs with the feet held where they stand and the knees bending to the hips. Every bone is keyed, the clip loops. Run `ground_clips.py` after it |
+| `character_clips.py -- in.glb out.glb --character marco [--only WaitWatch]` | Adds a character's own clips to a character on Coach Panic's skeleton (the clips of the file stay). A clip is a list of keys per control (the wrist's target and the elbow's direction for each arm, the hips, spine and head turns, where the head looks, a foot lifting for a tap) written in the `CLIPS` table of the script, and every frame is solved: arms by two-bone IK in fractions of the arm's reach, so one pose fits a tall swimmer and a child, legs with the feet held where they stand and the knees bending to the hips. Every bone is keyed, the clip loops. Run `ground_clips.py` after it. `--character shared` is the table of clips every character gets (Panic), made on Coach Panic and moved to the others with `transplant_clips.py` |
+| `transplant_clips.py SOURCE.glb TARGET.glb OUT.glb --only Panic [--scale K]` | Plain Python (no Blender): adds clips of one GLB to a finished character on the same skeleton and changes nothing else in the file (the mesh, skin, textures and the other clips stay byte for byte). Rotation keys are copied by name, the hips' travel is scaled by the ratio of the two hip heights (or `--scale`), and a bone's translation is carried as its offset from its own rest position, since glTF stores the whole local translation. Refuses a skeleton that differs or a clip the target already has. Run `ground_clips.py --only Panic` after it |
 | `make_test_humanoid.py -- out.glb` | A blocky stand-in character (T-pose, 1.8 m) for trying the pipeline without a real mesh |
 
 `common.py` holds what they share (import any of glTF/GLB, FBX, OBJ, blend; bounds; lights; camera; engine choice).
@@ -90,8 +91,23 @@ seconds each (the same input always gives the same GLB), and the same rig is wha
   height per clip cannot plant the foot in every frame: in the middle of a step the lowest foot hovers 1 to 4 cm (more in
   the airborne frames of a run), but never sinks. The idles already stand on the floor and are not touched. `rig-check.mjs`
   plays every clip on the skinned mesh and fails if its lowest point is more than half a centimetre above or below the floor.
+- **Adding a clip to everyone later** (`transplant_clips.py`). `retarget_clips.py` brings all of the Coach's clips to a freshly
+  rigged body, through Blender and out again; a character that is finished (grounded, with its own clip) is better left
+  alone, so a new shared clip goes in at the file level. Make the clip on the Coach (`character_clips.py -- coach-panic.glb
+  out.glb --character shared`), transplant it into his own file (K = 1) and into every other character's, then ground it on each
+  (`ground_clips.py --only Panic`, which lifts the hips by 0.1 to 1 cm), list it in `characters.json` as `retargeted` and run
+  `rig-check.mjs`, which compares it with the Coach's frame by frame (hips travel x0.50 on Nico, x1.15 on Marco). Start from the
+  files without the clip: the tool will not overwrite one.
+- **Panic** (`panic_clip()` in `character_clips.py`) is what every swimmer does when the pool closes or the queue is a mess:
+  jumping on the spot without a pause, arms and hands thrown up and flapping, head tipped back and shaking. Two mirrored hops
+  make the 24-frame loop (1 s at 24 fps, 0.5 s a hop): the hips follow a parabola 22 cm above standing on the Coach, the feet
+  rise with them and tuck 9 cm more at the top, the hips sink 8.5 cm into bent knees on landing (the knees are never locked,
+  or a knee would go from straight to 50 degrees in one frame), the arms go from a bent V at head height to straight up as the
+  body rises (the right one 3 frames behind the left), one knee comes up higher and then the other, the hips and head twist
+  to either side. The fastest bone turns 30 degrees a frame (the knees on landing). Everything is a number in the clip table, so
+  a hop can be made higher or faster by changing `height`, `contact` and the 12-frame `hop`.
 - **Their own clips** (`character_clips.py`). Each of the five has one clip of its own, for the time it spends waiting to be
-  assigned a lane (not wired into the game yet; the guests there are still the procedural swimmers): Marco `WaitWatch`
+  assigned a lane (not wired into the game yet: the guests there are the five generic swimmers below): Marco `WaitWatch`
   (impatient: a long look at his watch, a sigh, hand on hip, looking around, a foot tapping, a second quick look),
   Berta `WaitChat` (hands clasped, rocking, looking about, a pat of her cap, a little wave), Nico `WaitFidget` (bouncing,
   arms swinging, a hand shot up to be noticed), Valentina `WaitWarmUp` (stretch, side bends, shoulder rolls, hips circle),
@@ -101,12 +117,12 @@ seconds each (the same input always gives the same GLB), and the same rig is wha
   Aiming a bone by the shortest turn from its rest direction flips near the opposite direction, which is where a
   folded arm goes: the script frames each bone by its direction and the way its joint bends instead.
 - **The five generic swimmers** (`swimmer-boy`, `swimmer-tall-man`, `swimmer-woman`, `swimmer-heavy-man`,
-  `swimmer-tall-woman`, in `tools/viewer/models/`) are the unnamed guests: Meshy meshes of GPT Image 2.5 T-poses, goggles on
+  `swimmer-tall-woman`, in `dist/assets/`, where the game loads them too) are the unnamed guests: Meshy meshes of GPT Image 2.5 T-poses, goggles on
   their eyes, no mouth. Made the same way, one `game_export.py --height` each (1.58, 1.84, 1.70, 1.56, 1.86 m: the tall man's
   1.84 and the others in the proportions of the lineup the designs came from), then `rig_from_template.py` (no `--set`
   needed), `retarget_clips.py` (hip travel x0.89, 1.05, 1.03, 0.76, 1.14) and `ground_clips.py` (Walk / Run lifts in cm:
   boy +1.1 / +2.9, tall man -1.4 / -0.2, woman -1.5 / -0.6, heavy man +0.1 / +0.2, tall woman -1.7 / -0.9). They have only
-  the Coach's four clips: the named, premium characters are the ones with clips of their own. Meshy modelled a smile on the
+  the Coach's four clips, which is all the game plays (`dist/scene/swimmer-models.mjs` adds the poses on top): the named, premium characters are the ones with clips of their own. Meshy modelled a smile on the
   boy (a lip groove with a dark inside): `fix_mouth.py` took it off the raw mesh before the pipeline (its header has the
   box he needed). The mesh's front-most point is not always the face, so `rig-check.mjs` lets the `headfront` marker stand
   up to 8 cm in front of a shallow head.

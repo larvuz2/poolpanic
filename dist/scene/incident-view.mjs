@@ -544,10 +544,11 @@ export class IncidentView {
         arc = Math.sin(t * Math.PI);
       g.position.y = -0.39 * (1 - t) + arc * 1.1;
       u.root.rotation.set((Math.PI / 2) * (1 - t) - arc * 0.4, 0, 0);
-      u.root.position.set(0, 0.27 * (1 - t), -0.65 * (1 - t));
+      u.root.position.set(0, 0.27 * (1 - t), -0.65 * (1 - t) * (u.fit || 1));
       u.root.scale.setScalar(u.baseScale || 1);
       u.arms.forEach((a, i) => a.rotation.set(-2.6, 0, i ? -0.5 : 0.5));
       u.legs.forEach((l, i) => (l.rotation.x = Math.sin(t * Math.PI * 2 + i) * 0.6));
+      u.puppet.arms = u.puppet.legs = true;
       u.shadow.visible = false;
     }
   }
@@ -557,6 +558,7 @@ export class IncidentView {
       stage = p.jumpStage,
       motion = this.w.reducedMotion.matches ? 0 : 1;
     if (!tr || !stage || stage === "toStairs") return;
+    u.puppet.arms = u.puppet.legs = true; // every stunt is a pose of its own
     const y = p.y || 0,
       { arms, legs } = u;
     g.position.y = y;
@@ -604,7 +606,7 @@ export class IncidentView {
       const t = p.jumpT || 0,
         e = t * t * (3 - 2 * t),
         theta = Math.PI * 3 * e,
-        h = 0.85,
+        h = u.hipsY ?? 0.85, // the flips turn about the hips
         tuck = Math.sin(Math.min(1, Math.max(0, (t - 0.12) / 0.7)) * Math.PI);
       u.root.rotation.x = theta;
       u.root.position.set(0, h * (1 - Math.cos(theta)), -h * Math.sin(theta));
@@ -619,8 +621,9 @@ export class IncidentView {
       b = sim.coach.busy,
       sit = p.healing && b?.kind === "heal" ? Math.min(1, b.t / b.duration) : 0,
       theta = -Math.PI / 2 + sit * 1.1,
-      h = 0.45;
+      h = u.hipsY ?? 0.45;
     g.position.y = 0;
+    u.puppet.arms = u.puppet.legs = true;
     if (p.path?.length) {
       // Limping clear of the edge, one hand on the sore head.
       const k = time * 6 * motion;
@@ -631,7 +634,7 @@ export class IncidentView {
       return;
     }
     u.root.rotation.set(theta, 0, Math.sin(time * 1.7 + u.phase) * 0.05 * motion * (1 - sit));
-    u.root.position.set(0, h * (1 - Math.cos(theta)) - 0.15, -h * Math.sin(theta));
+    u.root.position.set(0, h * (1 - Math.cos(theta)) - (h - (u.depth ?? 0.3)), -h * Math.sin(theta));
     u.legs.forEach(
       (l, i) =>
         (l.rotation.x = -Math.PI / 2 - theta + (i ? Math.sin(time * 3 + u.phase) * 0.12 * motion : 0)),

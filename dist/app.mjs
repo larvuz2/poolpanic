@@ -25,6 +25,12 @@ import { guidanceState, cuePulse } from "./guidance.mjs";
 import { PoolSimulation, TYPES, SHIFTS, loopPosition, swimmerLook } from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
 import { activeChoice, chooseCoach, loadCoachModel, coachModelReady } from "./scene/coach-model.mjs";
+import {
+  activeSwimmerChoice,
+  chooseSwimmers,
+  loadSwimmerModels,
+  swimmerModelsReady,
+} from "./scene/swimmer-models.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
 import { MomentDirector, edgeArrow } from "./moments.mjs";
@@ -2036,6 +2042,33 @@ function bind() {
           : "The classic coach is back.",
     );
   };
+  // The five swimmer characters or the classic swimmers (kept for going back). Remembered on this device; everyone on the
+  // deck is built again, so the change shows at once.
+  const swimmerButton = () => {
+    $("help-swimmers").textContent =
+      activeSwimmerChoice() === "classic"
+        ? "Switch to the swimmer characters"
+        : "Switch to the classic swimmers";
+  };
+  swimmerButton();
+  $("help-swimmers").onclick = async () => {
+    const next = activeSwimmerChoice() === "classic" ? "models" : "classic";
+    chooseSwimmers(next);
+    if (next === "models") await loadSwimmerModels();
+    world.swapSwimmers();
+    crashlog.crumb(
+      "swimmers",
+      "switched to " + next + (next === "models" && !swimmerModelsReady() ? " (models missing)" : ""),
+    );
+    swimmerButton();
+    toast(
+      next === "models" && !swimmerModelsReady()
+        ? "The swimmer characters could not load."
+        : next === "models"
+          ? "The swimmer characters are back."
+          : "The classic swimmers are back.",
+    );
+  };
   $("help").onclick = showHelp;
   document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = closeHelp));
   $("help-dialog").addEventListener("cancel", (e) => {
@@ -2176,16 +2209,25 @@ function bind() {
   document.addEventListener("keydown", unlockMusic, { capture: true });
 }
 try {
-  // Coach Panic's model is fetched first (a few seconds at most; without it the classic coach plays).
-  if (activeChoice() === "panic") {
-    const began = performance.now();
-    await Promise.race([loadCoachModel(), new Promise((resolve) => setTimeout(resolve, 6000))]);
-    crashlog.crumb(
-      "coach",
-      (coachModelReady() ? "Coach Panic loaded in " : "Coach Panic not ready after ") +
-        Math.round(performance.now() - began) +
-        " ms",
-    );
+  // Coach Panic's model and the five swimmers' are fetched first, together (a few seconds at most; without them the classic
+  // coach and swimmers play, and a swimmer model that arrives later is used from the next swimmer on).
+  const began = performance.now();
+  const fetching = [];
+  if (activeChoice() === "panic") fetching.push(loadCoachModel());
+  if (activeSwimmerChoice() === "models") fetching.push(loadSwimmerModels());
+  if (fetching.length) {
+    await Promise.race([Promise.all(fetching), new Promise((resolve) => setTimeout(resolve, 6000))]);
+    const took = Math.round(performance.now() - began) + " ms";
+    if (activeChoice() === "panic")
+      crashlog.crumb(
+        "coach",
+        (coachModelReady() ? "Coach Panic loaded in " : "Coach Panic not ready after ") + took,
+      );
+    if (activeSwimmerChoice() === "models")
+      crashlog.crumb(
+        "swimmers",
+        (swimmerModelsReady() ? "swimmer models loaded in " : "swimmer models not ready after ") + took,
+      );
   }
   world = new PoolWorld($("world"), pick);
   sim = makeDemo();

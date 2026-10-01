@@ -33,7 +33,12 @@ preview they can check on any device and exports the glTF.
      Run it last, on every character with clips; `node rig-check.mjs` fails a clip that is off the floor.
    - `character_clips.py -- in.glb out.glb --character NAME`: a character's own looping clips (e.g. Marco's impatient
      `WaitWatch`), authored as keys in its `CLIPS` table: IK arms (wrist target + elbow direction), planted-foot legs, head
-     look-at. List them as `"own"` in `characters.json`; run `ground_clips.py` after it.
+     look-at. List them as `"own"` in `characters.json`; run `ground_clips.py` after it. `--character shared` is the table
+     of clips every character gets (Panic: a hop on the spot with the hands up), authored once on the Coach.
+   - `transplant_clips.py SOURCE.glb TARGET.glb OUT.glb --only Panic`: plain Python, no Blender. Adds clips of one GLB to a
+     finished character on the same skeleton without touching its mesh, textures or other clips (rotations by bone name,
+     hips travel x the hip-height ratio). Use it for a clip added to characters that are already built; then
+     `ground_clips.py --only Panic`, list it as `"retargeted"` and run `node rig-check.mjs`.
    - `fix_mouth.py -- in.glb out.glb --box x0,x1,z0,z1,y_max --paint`: takes a mouth Meshy invented off a character that has
      none (relaxes the lip groove, renews the normals, paints the texture with the skin round it). Run it on the raw mesh,
      before `game_export.py`; the header says how to pick the box.

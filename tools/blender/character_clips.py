@@ -1,5 +1,7 @@
 """Add a character's own clips (what the person does while waiting to be assigned to a lane) to a rigged humanoid:
     tools/blender/run.sh tools/blender/character_clips.py -- in.glb out.glb --character marco [--only WaitWatch]
+(`--character shared` is the clips every character gets, made on Coach Panic: Panic. transplant_clips.py then moves them to
+the others.)
 The clips of the file stay, the new ones are added under their own names, and each one loops (its last frame is its
 first again). The legs stay planted: the feet are held where they stand, and the knees bend to follow the hips. Every bone
 is keyed in every frame, like the other clips, so switching clips never leaves a bone behind.
@@ -33,7 +35,84 @@ BEND = math.radians(14.0)
 # ---- the clips --------------------------------------------------------------------------------------------------------
 # Keys are (frame, value). Frames run 0 to `frames`; the last key of each control should equal its first so the clip loops.
 HANGING = "hang"
+
+
+def panic_clip():
+    """Panic: jumping on the spot without a pause, arms thrown up and flapping, head tipped back and shaking. Two hops make
+    the loop (1 s at 24 fps, 0.5 s a hop), the second a mirror of the first, so the swimmer twists and kicks one way and then
+    the other. A hop is the real thing: the feet leave the floor for most of it (the hips follow a parabola and the feet rise
+    with them, a little more, so the knees bend in the air) and the hips sink into the knees on landing. The legs are
+    straight only when standing, so a bent knee is a foot closer to the hips: on the floor the hips go down, in the air the
+    foot comes up. The numbers are in metres on the Coach (hips 0.82 m, legs 0.63 m) and become a child's or a giant's
+    through transplant_clips.py's scale."""
+    hop, frames = 12, 24
+    height = 0.22  # how high the hips rise above standing
+    depth = 0.085  # how much shorter the legs are at the bottom of a landing
+    tuck = 0.09  # ... and at the top of a hop
+    base = 0.015  # ... and at the moment of landing and of take-off (the knees are never locked, and a knee that goes
+    # from straight to bent in one frame would pop)
+    contact = 0.32  # the share of a hop spent on the floor
+    tau = 2 * math.pi
+
+    def flight(p):
+        """None on the floor, else 0 to 1 through the air (the share of the flight)."""
+        return None if p < contact else (p - contact) / (1 - contact)
+
+    def shorter(p, more=1.0):
+        """How much shorter the legs are than standing, in metres."""
+        q = flight(p)
+        if q is None:
+            return base + (depth - base) * math.sin(math.pi * p / contact)
+        return base + (tuck * more - base) * math.sin(math.pi * q)
+
+    def hips_z(p):
+        q = flight(p)
+        if q is None:
+            return -shorter(p)
+        return -base + (height + base) * 4 * q * (1 - q)
+
+    def foot(side, f):
+        p = (f % hop) / hop
+        mirror = 1.0 if (f % frames) < hop else -1.0  # which hop of the two this is
+        q = flight(p)
+        if q is None:
+            return (0.0, 0.03, 0.0)
+        air = math.sin(math.pi * q)
+        more = 1.0 + 0.4 * mirror * (1.0 if side == "L" else -1.0)  # one knee comes up higher, then the other
+        return (-0.05 * air * more, 0.03 + 0.03 * air, hips_z(p) + shorter(p, more))  # the heels kick back, the feet part
+
+    def arm(side, f):
+        lag = 0.0 if side == "L" else 3.0  # frames: the right arm trails, so the two never flap together
+        s = ((f - lag) % hop) / hop
+        lift = 0.5 + 0.5 * math.cos(tau * (s - 0.66))  # highest just after the top of the hop, lowest as the body lands
+        wave = 0.07 * math.sin(tau * (2 * s + (0.0 if side == "L" else 0.4)))  # the hands wave from side to side
+        up, low = (0.18, 0.04, 0.97), (0.50, -0.06, 0.52)
+        tgt = tuple(low[i] + (up[i] - low[i]) * lift for i in range(3))
+        pole_up, pole_low = (0.9, 0.7, 0.0), (0.6, 0.3, -0.9)
+        pole = tuple(pole_low[i] + (pole_up[i] - pole_low[i]) * lift for i in range(3))
+        return {"space": "chest", "tgt": (tgt[0] + wave, tgt[1], tgt[2]), "pole": pole, "twist": 0}
+
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "shrug", "armL", "armR", "footL", "footR")}
+    for f in range(frames + 1):
+        p = (f % hop) / hop
+        w = tau * (f % frames) / frames  # once round per two hops
+        keys["hips"].append((f, (0.012 * math.sin(w), 0.0, hips_z(p))))
+        keys["hips_turn"].append((f, (8 * math.sin(w), 0.0, 3 * math.sin(w + 1.0))))
+        keys["spine"].append((f, (0.0, 7 * math.cos(tau * (p - 0.13)), 3 * math.sin(w))))
+        keys["head"].append((f, (14 * math.sin(w + 1.2), -8 - 6 * math.cos(tau * (p - 0.63)), 7 * math.sin(w + 2.4))))
+        keys["shrug"].append((f, 0.35 + 0.3 * math.cos(tau * (p - 0.7))))
+        keys["armL"].append((f, arm("L", f)))
+        keys["armR"].append((f, arm("R", f)))
+        keys["footL"].append((f, foot("L", f)))
+        keys["footR"].append((f, foot("R", f)))
+    return {"frames": frames, "breath_frames": 12, **keys}
+
+
 CLIPS = {
+    # What every character does, made on the Coach and moved to the others (transplant_clips.py).
+    "shared": {
+        "Panic": panic_clip(),
+    },
     "marco": {
         # Impatient, waiting to be given a lane: a long look at his watch, a sigh, looking around for whoever is coming, the
         # foot tapping, a second quick look at the watch.

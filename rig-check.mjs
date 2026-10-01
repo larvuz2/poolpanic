@@ -4,8 +4,10 @@
 // inside the body, and a skin whose weights add up to one with the same bones left unweighted as in the template. The
 // clips such a character lists as "retargeted" (tools/blender/retarget_clips.py) really are the template's: the same
 // rotation of every bone at every frame, the hips' travel the template's times one factor and a lift straight up, the
-// bones' own offsets. And every clip, the template's too, stands on the floor (tools/blender/ground_clips.py): played
-// on the skinned mesh, its lowest point is at floor level, not under it.
+// bones' own offsets (tools/blender/transplant_clips.py puts a clip added later the same way). And every clip, the
+// template's too, stands on the floor (tools/blender/ground_clips.py): played on the skinned mesh, its lowest point is at
+// floor level, not under it. Panic, the hop with the hands up, really leaves the floor (the feet rise by a quarter of the
+// hips' height) and keeps both hands above the shoulders, and above the head at the top of the hop.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -130,20 +132,26 @@ function sample(track, time) {
 // How high the lowest point of the posed mesh is, in metres above the floor, at every frame of a clip (about 48 of them in
 // a long one). The bones are posed from the clip's keys, and from their rest values where it has none; each vertex is
 // skinned by its weights. Only the height is worked out, which is one row of each bone's matrix.
+function poseAt(rig, clip, f) {
+  const { nodes, parent, order } = rig.skin;
+  const world = new Map();
+  for (const i of order) {
+    const node = nodes[i];
+    const keyed = (path) =>
+      clip[`${node.name}.${path}`] ? sample(clip[`${node.name}.${path}`], f / FPS) : node[path];
+    const local = node.matrix || compose(keyed("translation"), keyed("rotation"), keyed("scale"));
+    world.set(i, parent.has(i) ? multiply(world.get(parent.get(i)), local) : local);
+  }
+  return world;
+}
+
 function lowestPoints(rig, clip) {
-  const { nodes, parent, order, jointNodes, inverseBind, positions, joints, weights } = rig.skin;
+  const { jointNodes, inverseBind, positions, joints, weights } = rig.skin;
   const frames = Math.round(clipLength(clip) * FPS);
   const step = Math.max(1, Math.ceil(frames / 48));
   const lows = [];
   for (let f = 0; f <= frames; f += step) {
-    const world = new Map();
-    for (const i of order) {
-      const node = nodes[i];
-      const keyed = (path) =>
-        clip[`${node.name}.${path}`] ? sample(clip[`${node.name}.${path}`], f / FPS) : node[path];
-      const local = node.matrix || compose(keyed("translation"), keyed("rotation"), keyed("scale"));
-      world.set(i, parent.has(i) ? multiply(world.get(parent.get(i)), local) : local);
-    }
+    const world = poseAt(rig, clip, f);
     const rows = jointNodes.map((node, k) =>
       multiply(world.get(node), inverseBind.subarray(k * 16, k * 16 + 16)),
     );
@@ -173,6 +181,45 @@ function standsOnTheFloor(rig, label) {
       `${label} / ${name}: the lowest point is ${Math.abs(low * 100).toFixed(1)} cm ${low < 0 ? "under" : "above"} the floor (tools/blender/ground_clips.py lifts the hips)`,
     );
   }
+}
+
+// Panic is jumping on the spot with the hands up: part of every half second is spent with both feet off the floor, by a good
+// share of the hips' height, and the hands are above the shoulders all the time and above the head at the top of a hop.
+function hopsWithHandsUp(rig, label) {
+  const clip = rig.clips.Panic;
+  if (!clip) return;
+  const hips = rig.bones.Hips.world[13]; // the hips' height at rest, metres
+  const air = Math.max(...lowestPoints(rig, clip));
+  assert.ok(
+    air > 0.25 * hips,
+    `${label} / Panic: the feet rise only ${(air * 100).toFixed(1)} cm, less than a quarter of the hips' ${(hips * 100).toFixed(0)} cm: that is not a jump`,
+  );
+  const named = (world, name) => {
+    const node = rig.skin.nodes.findIndex((n) => n.name === name);
+    return world.get(node)[13];
+  };
+  const frames = Math.round(clipLength(clip) * FPS);
+  let top = { hips: -Infinity };
+  for (let f = 0; f < frames; f++) {
+    const world = poseAt(rig, clip, f);
+    const y = Object.fromEntries(
+      ["Hips", "Head", "LeftHand", "RightHand", "LeftShoulder", "RightShoulder"].map((n) => [
+        n,
+        named(world, n),
+      ]),
+    );
+    for (const side of ["Left", "Right"])
+      assert.ok(
+        y[side + "Hand"] > y[side + "Shoulder"] + 0.05 * hips,
+        `${label} / Panic: the ${side.toLowerCase()} hand is not up at frame ${f} (${(y[side + "Hand"] * 100).toFixed(0)} cm, the shoulder ${(y[side + "Shoulder"] * 100).toFixed(0)} cm)`,
+      );
+    if (y.Hips > top.hips) top = { frame: f, ...y };
+  }
+  for (const side of ["Left", "Right"])
+    assert.ok(
+      top[side + "Hand"] > top.Head,
+      `${label} / Panic: at the top of the hop (frame ${top.frame}) the ${side.toLowerCase()} hand is not above the head`,
+    );
 }
 
 // The skin's bones by name: parent, rest rotation, rest matrix in the scene and inverse bind matrix.
@@ -272,11 +319,13 @@ for (const character of manifest.characters) {
   if (!templates.has(source.id)) {
     templates.set(source.id, readRig(resolve(dir, source.file)));
     standsOnTheFloor(templates.get(source.id), source.name);
+    hopsWithHandsUp(templates.get(source.id), source.name);
   }
   const template = templates.get(source.id);
   const rig = readRig(resolve(dir, character.file));
   const label = `${character.name} (on ${source.name}'s skeleton)`;
   standsOnTheFloor(rig, label);
+  hopsWithHandsUp(rig, label);
 
   // The bones: the same names, in the same hierarchy, at the same rest rotations, under a root with the same scale.
   assert.deepEqual(
