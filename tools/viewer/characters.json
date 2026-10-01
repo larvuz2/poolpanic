@@ -4,7 +4,7 @@
       "id": "coach-panic",
       "name": "Coach Panic",
       "file": "../../dist/assets/coach-panic.glb",
-      "note": "Meshy 7 mesh, 24-bone Meshy rig. Walk and Run from Meshy's clips via polish_walk.py, idles from idle_clips.py.",
+      "note": "Meshy 7 mesh, 24-bone Meshy rig. Walk and Run from Meshy's clips via polish_walk.py, idles from idle_clips.py, feet put on the floor by ground_clips.py.",
       "clips": {
         "Run": {
           "pop": true,
@@ -16,7 +16,7 @@
       "id": "marco",
       "name": "Marco",
       "file": "models/marco.glb",
-      "note": "Competitive swimmer. Blue cap and briefs with a white hip stripe, goggles on his eyes, black watch, tall and muscular. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.15. Baseline clips, not tuned for this character yet.",
+      "note": "Competitive swimmer. Blue cap and briefs with a white hip stripe, goggles on his eyes, black watch, tall and muscular. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.15. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -35,7 +35,7 @@
       "id": "berta",
       "name": "Doña Berta",
       "file": "models/berta.glb",
-      "note": "Senior swimmer. Blue flower cap, purple-rimmed swim goggles, triangle-print swimsuit, short and wide. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.63. Baseline clips, not tuned for this character yet.",
+      "note": "Senior swimmer. Blue flower cap, purple-rimmed swim goggles, triangle-print swimsuit, short and wide. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.63. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -54,7 +54,7 @@
       "id": "nico",
       "name": "Nico “Splash”",
       "file": "models/nico.glb",
-      "note": "Kid. About 70% height, spiky hair, goggles on his eyes with a yellow strap, orange armbands, wavy blue shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.50. Baseline clips, not tuned for this character yet.",
+      "note": "Kid. About 70% height, spiky hair, goggles on his eyes with a yellow strap, orange armbands, wavy blue shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.50. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -73,7 +73,7 @@
       "id": "valentina",
       "name": "Valentina",
       "file": "models/valentina.glb",
-      "note": "Aqua-aerobics instructor. Pink headband, headset mic, big hair bun, pink and purple outfit with wristbands. No goggles, no mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.97. Baseline clips, not tuned for this character yet.",
+      "note": "Aqua-aerobics instructor. Pink headband, headset mic, big hair bun, pink and purple outfit with wristbands. No goggles, no mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.97. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -92,7 +92,7 @@
       "id": "bruno",
       "name": "Bruno",
       "file": "models/bruno.glb",
-      "note": "Nervous beginner. Goggles on his eyes, orange life vest over a teal tee, yellow belt and armbands, red shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.01. Baseline clips, not tuned for this character yet.",
+      "note": "Nervous beginner. Goggles on his eyes, orange life vest over a teal tee, yellow belt and armbands, red shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.01. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {

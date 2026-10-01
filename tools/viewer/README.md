@@ -29,7 +29,7 @@ A character rigged on another's skeleton (`rig_from_template.py`) says so with `
 character whose skeleton it copies). `rig-check.mjs`, also run by `npm test`, then checks it has that character's bones,
 rest rotations, a consistent bind pose and weights that add up to one. Clips taken from that character
 (`retarget_clips.py`) are listed as `"retargeted": ["Run", "Walk"]`, and `rig-check.mjs` compares each with the original
-frame by frame. A rigged character may have no clips yet: the viewer shows it in its T-pose, and the **Skeleton** button
+frame by frame, and fails any clip whose lowest point is off the floor (`ground_clips.py`). A rigged character may have no clips yet: the viewer shows it in its T-pose, and the **Skeleton** button
 draws the bones.
 
 ## Adding a character or an animation

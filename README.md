@@ -105,7 +105,7 @@ The coach is Coach Panic, a Meshy-generated character (about 10k triangles, 24 b
 - **Standing** plays IdleScan, with an IdleScratch after a few seconds of standing still (never while a job is in hand).
 - **The classic coach stays.** It is still built and posed, hidden behind the model, and `?coach=classic` (remembered on the device) or *Switch to the classic coach* in How to play brings it back; `?coach=panic` or the same button goes back to Coach Panic. If the model fails to load, or a clip throws, the classic coach plays.
 - **Not animated by hand yet.** The arm poses the classic coach strikes (carrying, bandaging, the life ring) are not applied to the model: carried items sit in front of his chest and he keeps his run or idle arms. A swim is the run clip on his front.
-- `dist/scene/coach-model.mjs` is pure view code and `coach-model-check.mjs` covers it. The GLB comes from `tools/blender` (`smooth_joints.py` then `game_export.py`); replacing `dist/assets/coach-panic.glb` replaces him in both the game and the viewer.
+- `dist/scene/coach-model.mjs` is pure view code and `coach-model-check.mjs` covers it. The GLB comes from `tools/blender` (`smooth_joints.py`, `game_export.py`, then `ground_clips.py`, which stands his clips on the floor); replacing `dist/assets/coach-panic.glb` replaces him in both the game and the viewer.
 
 ## Environments: skies, weather and halls
 

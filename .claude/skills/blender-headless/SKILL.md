@@ -28,6 +28,9 @@ preview they can check on any device and exports the glTF.
    - `retarget_clips.py -- rigged.glb out.glb`: the Coach's clips (Run, Walk, IdleScan, IdleScratch) onto such a character:
      rotation keys copied by bone name, the hips' travel scaled by the ratio of hip heights, nothing else changed. List
      the clips as `"retargeted"` in `tools/viewer/characters.json`; `node rig-check.mjs` compares them with the Coach's.
+   - `ground_clips.py -- in.glb out.glb`: lifts the hips of each clip so the lowest point of the mesh rests on the floor, not
+     under it (a retargeted or Meshy walk often sinks 5 to 8 cm). Rewrites only those position keys; idles are untouched.
+     Run it last, on every character with clips; `node rig-check.mjs` fails a clip that is off the floor.
    - `smooth_joints.py -- in.glb out.glb`: extra rings and smooth weights at knees and elbows, so deep bends (a run) do
      not tear the mesh. Run it before `game_export.py`.
    - `game_export.py -- in.glb out.glb --tex 1024`: shrink textures, keep every clip, print triangles, clips and size.

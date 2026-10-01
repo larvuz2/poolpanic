@@ -3,20 +3,24 @@
 // rest rotations, so the template's clips play on it by bone name), a bind pose that matches its bones, bones that sit
 // inside the body, and a skin whose weights add up to one with the same bones left unweighted as in the template. The
 // clips such a character lists as "retargeted" (tools/blender/retarget_clips.py) really are the template's: the same
-// rotation of every bone at every frame, the hips' travel the template's times one factor, the bones' own offsets.
+// rotation of every bone at every frame, the hips' travel the template's times one factor and a lift straight up, the
+// bones' own offsets. And every clip, the template's too, stands on the floor (tools/blender/ground_clips.py): played
+// on the skinned mesh, its lowest point is at floor level, not under it.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const dir = "tools/viewer";
-const REST_DEG = 0.1; // rest rotations are copied, a clip's rotation keys only fit the new rig if they match
+const REST_DEG = 0.01; // rest rotations are copied, a clip's rotation keys only fit the new rig if they match
 const BIND_ERROR = 1e-3; // inverse bind matrix times the bone's rest matrix is the identity
 const MARGIN = 0.03; // metres a bone may stick out of the mesh's box (a fingertip, a toe)
 const HEIGHT_SHIFT = 0.25; // a bone sits within a quarter of the body height of where the template has it
 const FPS = 24;
-const CLIP_DEG = 0.15; // a retargeted clip turns every bone as the template's does, to within a rounding error
+const CLIP_DEG = 0.01; // a retargeted clip turns every bone as the template's does, to within a rounding error
 const CLIP_CM = 0.01; // translations are in centimetres: a tenth of a millimetre
 const TRAVEL_RANGE = [0.25, 4]; // the hips travel this many times the template's (a child, a giant)
+const LIFT_MAX_CM = 12; // a clip's hips sit at most this much higher than the template's travel says
+const GROUND_CM = 0.5; // the lowest point of a clip is within half a centimetre of the floor
 
 function readGlb(file) {
   const data = readFileSync(file);
@@ -72,8 +76,12 @@ function compose(t = [0, 0, 0], q = [0, 0, 0, 1], s = [1, 1, 1]) {
   return m;
 }
 
-const degrees = (p, q) =>
-  (2 * Math.acos(Math.min(1, Math.abs(p.reduce((sum, v, i) => sum + v * q[i], 0)))) * 180) / Math.PI;
+// The angle between two rotations. Normalised first: a quaternion stored as floats is not quite unit length, and acos
+// near 1 turns that rounding into a few hundredths of a degree between two copies of the same rotation.
+const degrees = (p, q) => {
+  const dot = p.reduce((sum, v, i) => sum + v * q[i], 0) / (Math.hypot(...p) * Math.hypot(...q));
+  return (2 * Math.acos(Math.min(1, Math.abs(dot))) * 180) / Math.PI;
+};
 
 // Every clip as {track name: keys}, a track named "Bone.path" (rotation, translation or scale).
 function readClips(glb) {
@@ -116,6 +124,54 @@ function sample(track, time) {
   const mix = a.map((v, k) => v * (1 - f) + flip * b[k] * f);
   const length = width === 4 ? Math.hypot(...mix) : 1;
   return mix.map((v) => v / length);
+}
+
+// How high the lowest point of the posed mesh is, in metres above the floor, at every frame of a clip (about 48 of them in
+// a long one). The bones are posed from the clip's keys, and from their rest values where it has none; each vertex is
+// skinned by its weights. Only the height is worked out, which is one row of each bone's matrix.
+function lowestPoints(rig, clip) {
+  const { nodes, parent, order, jointNodes, inverseBind, positions, joints, weights } = rig.skin;
+  const frames = Math.round(clipLength(clip) * FPS);
+  const step = Math.max(1, Math.ceil(frames / 48));
+  const lows = [];
+  for (let f = 0; f <= frames; f += step) {
+    const world = new Map();
+    for (const i of order) {
+      const node = nodes[i];
+      const keyed = (path) =>
+        clip[`${node.name}.${path}`] ? sample(clip[`${node.name}.${path}`], f / FPS) : node[path];
+      const local = node.matrix || compose(keyed("translation"), keyed("rotation"), keyed("scale"));
+      world.set(i, parent.has(i) ? multiply(world.get(parent.get(i)), local) : local);
+    }
+    const rows = jointNodes.map((node, k) =>
+      multiply(world.get(node), inverseBind.subarray(k * 16, k * 16 + 16)),
+    );
+    let low = Infinity;
+    for (let v = 0; v < positions.length / 3; v++) {
+      let y = 0;
+      for (let c = 0; c < 4; c++) {
+        const w = weights[v * 4 + c];
+        if (w === 0) continue;
+        const m = rows[joints[v * 4 + c]];
+        y +=
+          w * (m[1] * positions[v * 3] + m[5] * positions[v * 3 + 1] + m[9] * positions[v * 3 + 2] + m[13]);
+      }
+      low = Math.min(low, y);
+    }
+    lows.push(low);
+  }
+  return lows;
+}
+
+// Every clip stands on the floor: its lowest point is at floor level, not under it (a hover or a sink fails).
+function standsOnTheFloor(rig, label) {
+  for (const [name, clip] of Object.entries(rig.clips)) {
+    const low = Math.min(...lowestPoints(rig, clip));
+    assert.ok(
+      Math.abs(low) < GROUND_CM / 100,
+      `${label} / ${name}: the lowest point is ${Math.abs(low * 100).toFixed(1)} cm ${low < 0 ? "under" : "above"} the floor (tools/blender/ground_clips.py lifts the hips)`,
+    );
+  }
 }
 
 // The skin's bones by name: parent, rest rotation, rest matrix in the scene and inverse bind matrix.
@@ -167,6 +223,14 @@ function readRig(file) {
     }
     worstSum = Math.max(worstSum, Math.abs(sum - 1));
   }
+  // What lowestPoints needs: the nodes the bones hang from, from the roots down, and the skin's matrices and vertices.
+  const needed = new Set();
+  for (const joint of skin.joints) for (let n = joint; n !== undefined; n = parent.get(n)) needed.add(n);
+  const depth = (n) => {
+    let d = 0;
+    for (let p = parent.get(n); p !== undefined; p = parent.get(p)) d++;
+    return d;
+  };
   return {
     bones,
     root: {
@@ -176,6 +240,16 @@ function readRig(file) {
     },
     box: { min: position.min, max: position.max },
     clips: readClips(glb),
+    skin: {
+      nodes,
+      parent,
+      order: [...needed].sort((a, b) => depth(a) - depth(b)),
+      jointNodes: skin.joints,
+      inverseBind,
+      positions: position.values,
+      joints,
+      weights,
+    },
     carried,
     worstSum,
     vertices: position.count,
@@ -194,10 +268,14 @@ for (const character of manifest.characters) {
     source,
     `${character.name}: the skeleton "${character.skeleton}" is not a character in characters.json`,
   );
-  if (!templates.has(source.id)) templates.set(source.id, readRig(resolve(dir, source.file)));
+  if (!templates.has(source.id)) {
+    templates.set(source.id, readRig(resolve(dir, source.file)));
+    standsOnTheFloor(templates.get(source.id), source.name);
+  }
   const template = templates.get(source.id);
   const rig = readRig(resolve(dir, character.file));
   const label = `${character.name} (on ${source.name}'s skeleton)`;
+  standsOnTheFloor(rig, label);
 
   // The bones: the same names, in the same hierarchy, at the same rest rotations, under a root with the same scale.
   assert.deepEqual(
@@ -260,7 +338,8 @@ for (const character of manifest.characters) {
   }
 
   // The clips it got from the template: the same length, every bone's rotation the template's at every frame, the root's
-  // travel the template's times one factor, every other bone at its own rest offset (not the template's), no scaling.
+  // travel the template's times one factor plus a lift straight up (each body stands on the floor in its own way), every
+  // other bone at its own rest offset (not the template's), no scaling.
   const rootName = Object.keys(template.bones).find(
     (name) => !(template.bones[name].parent in template.bones),
   );
@@ -271,9 +350,7 @@ for (const character of manifest.characters) {
     assert.ok(clip, `${label}: the clip ${name} is missing`);
     assert.ok(Math.abs(clipLength(clip) - clipLength(base)) < 1e-3, `${label} / ${name}: a different length`);
     const frames = Array.from({ length: Math.round(clipLength(base) * FPS) + 1 }, (_, f) => f / FPS);
-    let travel = 0; // template's root travel and the character's, summed as products and squares for a least-squares factor
-    let travelSquares = 0;
-    const pairs = [];
+    const pairs = []; // the template's root travel from its rest position, and the character's from its own, per frame
     for (const [track, keys] of Object.entries(base)) {
       const [bone, path] = [track.slice(0, track.lastIndexOf(".")), track.slice(track.lastIndexOf(".") + 1)];
       const mine = clip[track];
@@ -292,13 +369,8 @@ for (const character of manifest.characters) {
       } else if (bone === rootName) {
         const from = template.bones[bone].translation;
         const to = rig.bones[bone].translation;
-        for (const t of frames) {
-          const a = sample(keys, t).map((v, k) => v - from[k]);
-          const b = sample(mine, t).map((v, k) => v - to[k]);
-          travel += a.reduce((sum, v, k) => sum + v * b[k], 0);
-          travelSquares += a.reduce((sum, v) => sum + v * v, 0);
-          pairs.push([a, b]);
-        }
+        for (const t of frames)
+          pairs.push([sample(keys, t).map((v, k) => v - from[k]), sample(mine, t).map((v, k) => v - to[k])]);
       } else {
         const rest = rig.bones[bone].translation;
         assert.ok(
@@ -307,9 +379,20 @@ for (const character of manifest.characters) {
         );
       }
     }
-    // Where the template's root moves, this one's moves the same way, scaled; where it stays, this one stays.
-    const factor = travelSquares > 1 ? travel / travelSquares : 0;
-    if (travelSquares > 1)
+    // Where the template's root moves, this one's moves the same way, scaled; where it stays, this one stays. Fitted
+    // as factor * template + lift, so a constant lift (and only that) is allowed, and it must point straight up.
+    const mean = (k, side) => pairs.reduce((sum, pair) => sum + pair[side][k], 0) / pairs.length;
+    const centre = [0, 1, 2].map((k) => [mean(k, 0), mean(k, 1)]);
+    let cross = 0;
+    let spread = 0;
+    for (const [a, b] of pairs)
+      for (let k = 0; k < 3; k++) {
+        cross += (a[k] - centre[k][0]) * (b[k] - centre[k][1]);
+        spread += (a[k] - centre[k][0]) ** 2;
+      }
+    const factor = spread > 1 ? cross / spread : 0;
+    const lift = centre.map(([a, b]) => b - factor * a);
+    if (spread > 1)
       assert.ok(
         factor > TRAVEL_RANGE[0] && factor < TRAVEL_RANGE[1],
         `${label} / ${name}: ${rootName} travels ${factor.toFixed(2)} times as far as the template's`,
@@ -317,9 +400,14 @@ for (const character of manifest.characters) {
     for (const [a, b] of pairs)
       for (let k = 0; k < 3; k++)
         assert.ok(
-          Math.abs(b[k] - factor * a[k]) < CLIP_CM,
+          Math.abs(b[k] - factor * a[k] - lift[k]) < CLIP_CM,
           `${label} / ${name}: ${rootName} does not move like the template's times ${factor.toFixed(2)}`,
         );
+    if (pairs.length)
+      assert.ok(
+        Math.abs(lift[0]) < CLIP_CM && Math.abs(lift[2]) < CLIP_CM && Math.abs(lift[1]) < LIFT_MAX_CM,
+        `${label} / ${name}: ${rootName} is shifted by (${lift.map((v) => v.toFixed(2)).join(", ")}) cm, more than a lift straight up`,
+      );
     retargeted++;
   }
   rigged++;
@@ -328,5 +416,5 @@ assert.ok(rigged > 0, "characters.json lists at least one character on another c
 assert.ok(retargeted > 0, "characters.json lists at least one retargeted clip");
 
 console.log(
-  `Rig checks passed: ${rigged} character(s) share the template's ${templates.size ? Object.keys([...templates.values()][0].bones).length : 0} bones (names, hierarchy, rest rotations), with a consistent bind pose and skin weights that add up to one, and ${retargeted} retargeted clip(s) that move every bone as the template's do.`,
+  `Rig checks passed: ${rigged} character(s) share the template's ${templates.size ? Object.keys([...templates.values()][0].bones).length : 0} bones (names, hierarchy, rest rotations), with a consistent bind pose and skin weights that add up to one, and ${retargeted} retargeted clip(s) that move every bone as the template's do. Every clip, the template's too, stands on the floor.`,
 );
