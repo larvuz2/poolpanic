@@ -330,11 +330,19 @@ async function openCharacter(entry) {
 
 // ---- showing a character ------------------------------------------------------------------------------------------
 
+// Frames the character between the readouts: the head (and the name plate over it, for a premium character) below the one
+// at the top of the stage, the feet above the one at the bottom. It is as large as 2.7 character heights away gives, and
+// smaller where the stage is short (a phone).
 function setCamera(azimuthDeg, elevationDeg = 7) {
   const c = S.character;
   const h = c ? c.height : 1.8;
-  const target = new THREE.Vector3(0, h * 0.5, 0);
-  const d = h * 2.7;
+  const stageH = Math.max(160, stage.clientHeight);
+  const top = 14 + ($(".hud-top")?.offsetHeight || 24) + (c?.entry.premium ? 58 : 14); // under the readout (and the name plate)
+  const bottom = stageH - 48;
+  const half = Math.tan((camera.fov * Math.PI) / 360);
+  const pixelsPerMetre = Math.min(stageH / 2 / (2.7 * h * half), (bottom - top) / (h * 1.05));
+  const d = stageH / 2 / (pixelsPerMetre * half);
+  const target = new THREE.Vector3(0, h / 2 + ((top + bottom) / 2 - stageH / 2) / pixelsPerMetre, 0);
   const az = (azimuthDeg * Math.PI) / 180;
   const el = (elevationDeg * Math.PI) / 180;
   camera.position.set(target.x + Math.sin(az) * Math.cos(el) * d, target.y + Math.sin(el) * d, target.z + Math.cos(az) * Math.cos(el) * d);
@@ -356,12 +364,20 @@ function activate(character) {
   character.helper.visible = $("#t-bones").getAttribute("aria-pressed") === "true";
   scene.add(character.helper);
   applyWireframe();
-  if (!previous) setCamera(-35);
   store.set("character", character.entry.id);
 
   $("#hud-char").textContent = character.entry.name;
+  $("#tag-name").textContent = character.entry.name;
+  $("#tag").hidden = !character.entry.premium;
   const s = character.stats;
   $("#hud-stats").textContent = `${s.triangles.toLocaleString("en-US")} tris · ${s.bones} bones · ${character.clips.length} clips`;
+  if (!previous) setCamera(-35);
+  else {
+    // The next character is framed to fit from the side the camera is on, so a child and a tall man fill the stage alike
+    // and a premium name plate always has room above the head. (After the readout is written: its height sets the room.)
+    const v = camera.position.clone().sub(controls.target);
+    setCamera((Math.atan2(v.x, v.z) * 180) / Math.PI, (Math.atan2(v.y, Math.hypot(v.x, v.z)) * 180) / Math.PI);
+  }
   renderStats(character);
   renderClips(character);
   const remembered = store.get("clip:" + character.entry.id, null);
@@ -549,7 +565,24 @@ function tick() {
     }
   }
   controls.update();
+  placeTag();
   renderer.render(scene, camera);
+}
+
+// A premium character's name plate floats just over the top of its head, whatever the camera does. The anchor is a fixed
+// point above the character, not the head bone, so the plate stays still while the head bobs in a run.
+const tagAt = new THREE.Vector3();
+function placeTag() {
+  const tag = $("#tag");
+  const character = S.character;
+  if (!character?.entry.premium) return;
+  character.root.getWorldPosition(tagAt);
+  tagAt.y += character.feetY + character.height * 1.03 + 0.02;
+  tagAt.project(camera);
+  const visible = tagAt.z < 1;
+  tag.style.visibility = visible ? "visible" : "hidden";
+  if (visible)
+    tag.style.transform = `translate(calc(${((tagAt.x * 0.5 + 0.5) * stage.clientWidth).toFixed(1)}px - 50%), calc(${((-tagAt.y * 0.5 + 0.5) * stage.clientHeight).toFixed(1)}px - 100% - 8px))`;
 }
 
 // ---- wiring the controls ------------------------------------------------------------------------------------------

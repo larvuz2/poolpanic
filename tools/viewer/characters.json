@@ -32,7 +32,8 @@
       ],
       "own": [
         "WaitWatch"
-      ]
+      ],
+      "premium": true
     },
     {
       "id": "berta",
@@ -54,7 +55,8 @@
       ],
       "own": [
         "WaitChat"
-      ]
+      ],
+      "premium": true
     },
     {
       "id": "nico",
@@ -76,7 +78,8 @@
       ],
       "own": [
         "WaitFidget"
-      ]
+      ],
+      "premium": true
     },
     {
       "id": "valentina",
@@ -98,7 +101,8 @@
       ],
       "own": [
         "WaitWarmUp"
-      ]
+      ],
+      "premium": true
     },
     {
       "id": "bruno",
@@ -120,7 +124,8 @@
       ],
       "own": [
         "WaitNervous"
-      ]
+      ],
+      "premium": true
     }
   ]
 }

@@ -51,6 +51,13 @@
   .hud-bottom { bottom: 14px; font-size: 13px; white-space: pre; gap: 0; }
   .hud-bottom em { font-style: normal; color: var(--accent); }
   .drop { position: absolute; inset: 12px; display: grid; place-items: center; border: 2px dashed var(--accent); border-radius: 10px; background: color-mix(in srgb, var(--stage) 80%, transparent); font-weight: 500; pointer-events: none; }
+  /* A premium character carries its name over its head, on a gold plate with a star: the way the game will mark the guests that matter. */
+  .tag { position: absolute; left: 0; top: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 14px 6px; border-radius: 10px; pointer-events: none; white-space: nowrap;
+    background: linear-gradient(160deg, #ffe08a, #f2a93b); color: #2b1a00; box-shadow: 0 3px 10px rgb(0 0 0 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.55); will-change: transform; }
+  .tag::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px; background: #f2a93b; transform: translateX(-50%) rotate(45deg); border-radius: 0 0 3px 0; z-index: -1; }
+  .tag-kind { font-size: 9.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; line-height: 1.2; }
+  .tag-star { font-size: 11px; letter-spacing: 0; }
+  .tag-name { font-size: 15px; font-weight: 600; line-height: 1.2; letter-spacing: -0.005em; }
   .note { position: absolute; left: 16px; right: 16px; top: 52px; max-width: 560px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: 6px; background: var(--raise); font-size: 13px; }
   .note.error { border-left-color: var(--accent); }
 
@@ -117,6 +124,7 @@
     <canvas id="gl" aria-label="3D preview: drag to orbit, scroll or pinch to zoom"></canvas>
     <div class="hud hud-top"><b id="hud-char">Loading…</b><span class="mono" id="hud-stats"></span></div>
     <div class="hud hud-bottom mono"><em id="hud-name"></em><span id="hud-rest"></span></div>
+    <div class="tag" id="tag" hidden aria-hidden="true"><span class="tag-kind"><span class="tag-star">★</span> Premium</span><span class="tag-name" id="tag-name"></span></div>
     <div class="note" id="note" role="status" hidden></div>
     <div class="drop" id="drop" hidden>Drop a .glb to preview it here</div>
   </main>

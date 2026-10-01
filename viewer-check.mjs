@@ -72,6 +72,10 @@ for (const character of manifest.characters) {
   assert.ok(character.id && character.name && character.file, "a character has an id, a name and a file");
   assert.ok(!ids.has(character.id), `duplicate character id ${character.id}`);
   ids.add(character.id);
+  assert.ok(
+    character.premium === undefined || typeof character.premium === "boolean",
+    `${character.id}: premium is true or false`,
+  );
   for (const file of [character.file, ...(character.clipFiles || [])]) {
     const path = resolve(dir, file); // a character's file is found from the viewer's folder (Coach Panic's is the game's own)
     assert.ok(existsSync(path), `${path} is missing`);
@@ -107,6 +111,10 @@ assert.ok(
   "index.html is a page fragment: the host adds the document, head and body",
 );
 assert.ok(page.includes('src="viewer.js"'), "index.html loads viewer.js");
+assert.ok(
+  page.includes('id="tag"') && page.includes('id="tag-name"'),
+  "index.html has the name plate that marks a premium character",
+);
 const syntax = spawnSync(process.execPath, ["--check", `${dir}/viewer.js`], { encoding: "utf8" });
 assert.equal(syntax.status, 0, `viewer.js does not parse:\n${syntax.stderr}`);
 
