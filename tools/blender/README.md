@@ -21,6 +21,7 @@ tools/blender/run.sh SCRIPT.py -- ARGS...
 | `rig_from_template.py -- body.glb rigged.glb [--template dist/assets/coach-panic.glb] [--set y_crotch=0.70] [--debug joints.json] [--tex-quality 90]` | Rigs a T-pose humanoid with another character's skeleton (Coach Panic's 24 bones): same names, hierarchy and rest rotations, joints moved to fit the body, skin weights worked out for the new mesh. No animation is added (`retarget_clips.py` brings the template's clips over). Uses `rigfit.py` (measures landmarks on a mesh, places joints by the template's proportions) |
 | `retarget_clips.py -- rigged.glb out.glb [--template dist/assets/coach-panic.glb] [--scale K] [--only Run,Walk] [--tex-quality 90]` | Puts the template's clips (Coach Panic's Run, Walk, IdleScan, IdleScratch) on a character rigged by `rig_from_template.py`: every bone's rotation keys are copied by name, the hips' travel is multiplied by the ratio of the two hip heights (or `--scale`), each clip keeps its name and length, mesh, skin and textures stay as they were. A clip already in the file is dropped |
 | `ground_clips.py -- in.glb out.glb [--only Walk,Run]` | Stands a character's clips on the floor: plays each clip in Blender, finds how far the mesh sinks under the floor at its lowest point, and lifts the hips by that much in every key of that clip (one height per clip; the pose, speed and loop do not change). Only those position keys are rewritten, in the GLB itself, so the rest of the file is byte for byte what it was. A clip that already stands on the floor (an idle) is left alone, so running it twice changes nothing. Run it last |
+| `character_clips.py -- in.glb out.glb --character marco [--only WaitWatch]` | Adds a character's own clips to a character on Coach Panic's skeleton (the clips of the file stay). A clip is a list of keys per control (the wrist's target and the elbow's direction for each arm, the hips, spine and head turns, where the head looks, a foot lifting for a tap) written in the `CLIPS` table of the script, and every frame is solved: arms by two-bone IK in fractions of the arm's reach, so one pose fits a tall swimmer and a child, legs with the feet held where they stand and the knees bending to the hips. Every bone is keyed, the clip loops. Run `ground_clips.py` after it |
 | `make_test_humanoid.py -- out.glb` | A blocky stand-in character (T-pose, 1.8 m) for trying the pipeline without a real mesh |
 
 `common.py` holds what they share (import any of glTF/GLB, FBX, OBJ, blend; bounds; lights; camera; engine choice).
@@ -89,6 +90,16 @@ seconds each (the same input always gives the same GLB), and the same rig is wha
   height per clip cannot plant the foot in every frame: in the middle of a step the lowest foot hovers 1 to 4 cm (more in
   the airborne frames of a run), but never sinks. The idles already stand on the floor and are not touched. `rig-check.mjs`
   plays every clip on the skinned mesh and fails if its lowest point is more than half a centimetre above or below the floor.
+- **Their own clips** (`character_clips.py`). Each of the five has one clip of its own, for the time it spends waiting to be
+  assigned a lane (not wired into the game yet; the guests there are still the procedural swimmers): Marco `WaitWatch`
+  (impatient: a long look at his watch, a sigh, hand on hip, looking around, a foot tapping, a second quick look),
+  Berta `WaitChat` (hands clasped, rocking, looking about, a pat of her cap, a little wave), Nico `WaitFidget` (bouncing,
+  arms swinging, a hand shot up to be noticed), Valentina `WaitWarmUp` (stretch, side bends, shoulder rolls, hips circle),
+  Bruno `WaitNervous` (arms hugged round himself, a tug at his goggles and his vest strap, worried glances). They are
+  listed as `"own"` in `characters.json`. To add one, add keys to `CLIPS`, build it, look at it in Anim Bench (the front,
+  the side and the three-quarter view show different faults), and keep a bone from turning more than 40 degrees in a frame.
+  Aiming a bone by the shortest turn from its rest direction flips near the opposite direction, which is where a
+  folded arm goes: the script frames each bone by its direction and the way its joint bends instead.
 - Knee and elbow smoothing (`smooth_joints.py`) is not applied to these five yet. Add it when a run shows tearing there.
 
 ## Rigging notes

@@ -16,7 +16,7 @@
       "id": "marco",
       "name": "Marco",
       "file": "models/marco.glb",
-      "note": "Competitive swimmer. Blue cap and briefs with a white hip stripe, goggles on his eyes, black watch, tall and muscular. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.15. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet.",
+      "note": "Competitive swimmer. Blue cap and briefs with a white hip stripe, goggles on his eyes, black watch, tall and muscular. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.15. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitWatch, impatient: a long look at his watch, a sigh, hand on hip, looking around, the foot tapping, a second quick look at the watch (10 s): plays while waiting to be assigned a lane.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -29,13 +29,16 @@
         "IdleScratch",
         "Run",
         "Walk"
+      ],
+      "own": [
+        "WaitWatch"
       ]
     },
     {
       "id": "berta",
       "name": "Doña Berta",
       "file": "models/berta.glb",
-      "note": "Senior swimmer. Blue flower cap, purple-rimmed swim goggles, triangle-print swimsuit, short and wide. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.63. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet.",
+      "note": "Senior swimmer. Blue flower cap, purple-rimmed swim goggles, triangle-print swimsuit, short and wide. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.63. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitChat, friendly: hands clasped over her belly, rocking gently, looking about, patting her flowered cap, a little wave (10 s): plays while waiting to be assigned a lane.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -48,13 +51,16 @@
         "IdleScratch",
         "Run",
         "Walk"
+      ],
+      "own": [
+        "WaitChat"
       ]
     },
     {
       "id": "nico",
       "name": "Nico “Splash”",
       "file": "models/nico.glb",
-      "note": "Kid. About 70% height, spiky hair, goggles on his eyes with a yellow strap, orange armbands, wavy blue shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.50. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet.",
+      "note": "Kid. About 70% height, spiky hair, goggles on his eyes with a yellow strap, orange armbands, wavy blue shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.50. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitFidget, restless: bouncing on his knees, arms swinging, craning around, a hand shot up to be noticed (8 s): plays while waiting to be assigned a lane.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -67,13 +73,16 @@
         "IdleScratch",
         "Run",
         "Walk"
+      ],
+      "own": [
+        "WaitFidget"
       ]
     },
     {
       "id": "valentina",
       "name": "Valentina",
       "file": "models/valentina.glb",
-      "note": "Aqua-aerobics instructor. Pink headband, headset mic, big hair bun, pink and purple outfit with wristbands. No goggles, no mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.97. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet.",
+      "note": "Aqua-aerobics instructor. Pink headband, headset mic, big hair bun, pink and purple outfit with wristbands. No goggles, no mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.97. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitWarmUp, instructor: a stretch overhead, side bends, shoulder rolls, hands on hips and a hip circle, a look round (12 s): plays while waiting to be assigned a lane.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -86,13 +95,16 @@
         "IdleScratch",
         "Run",
         "Walk"
+      ],
+      "own": [
+        "WaitWarmUp"
       ]
     },
     {
       "id": "bruno",
       "name": "Bruno",
       "file": "models/bruno.glb",
-      "note": "Nervous beginner. Goggles on his eyes, orange life vest over a teal tee, yellow belt and armbands, red shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.01. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet.",
+      "note": "Nervous beginner. Goggles on his eyes, orange life vest over a teal tee, yellow belt and armbands, red shorts. No mouth. Meshy 7 mesh from GPT Image 2.5 reference, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.01. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character yet. Own clip WaitNervous, nervous: arms hugged round himself, a tug at his goggles, a check of the life vest strap, weight shifting, worried glances (10 s): plays while waiting to be assigned a lane.",
       "skeleton": "coach-panic",
       "clips": {
         "Run": {
@@ -105,6 +117,9 @@
         "IdleScratch",
         "Run",
         "Walk"
+      ],
+      "own": [
+        "WaitNervous"
       ]
     }
   ]

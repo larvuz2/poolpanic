@@ -16,7 +16,7 @@ Anything can be previewed without publishing: drop a `.glb` on the page, or use 
 | --- | --- |
 | `index.html` | The page, written as a fragment: the artifact host adds the document, head and body |
 | `viewer.js` | The app |
-| `characters.json` | The characters the page lists: `{id, name, file, note, clipFiles?, clips?, skeleton?, retargeted?}` |
+| `characters.json` | The characters the page lists: `{id, name, file, note, clipFiles?, clips?, skeleton?, retargeted?, own?}` |
 | `models/*.glb` | Characters that are only in the viewer. A character's `file` in `characters.json` is found from this folder, so Coach Panic's is the game's own `../../dist/assets/coach-panic.glb` |
 | `vendor/` | three r170's `GLTFLoader`, `OrbitControls` and `BufferGeometryUtils`, untouched |
 | `build.sh` | Assembles `.build/` (the flat folder that is published); takes `three.module.js` from `dist/assets` |
@@ -29,7 +29,7 @@ A character rigged on another's skeleton (`rig_from_template.py`) says so with `
 character whose skeleton it copies). `rig-check.mjs`, also run by `npm test`, then checks it has that character's bones,
 rest rotations, a consistent bind pose and weights that add up to one. Clips taken from that character
 (`retarget_clips.py`) are listed as `"retargeted": ["Run", "Walk"]`, and `rig-check.mjs` compares each with the original
-frame by frame, and fails any clip whose lowest point is off the floor (`ground_clips.py`). A rigged character may have no clips yet: the viewer shows it in its T-pose, and the **Skeleton** button
+frame by frame, and fails any clip whose lowest point is off the floor (`ground_clips.py`). Clips made for the character itself (`character_clips.py`) are listed as `"own"`. A rigged character may have no clips yet: the viewer shows it in its T-pose, and the **Skeleton** button
 draws the bones.
 
 ## Adding a character or an animation

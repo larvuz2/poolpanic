@@ -31,6 +31,9 @@ preview they can check on any device and exports the glTF.
    - `ground_clips.py -- in.glb out.glb`: lifts the hips of each clip so the lowest point of the mesh rests on the floor, not
      under it (a retargeted or Meshy walk often sinks 5 to 8 cm). Rewrites only those position keys; idles are untouched.
      Run it last, on every character with clips; `node rig-check.mjs` fails a clip that is off the floor.
+   - `character_clips.py -- in.glb out.glb --character NAME`: a character's own looping clips (e.g. Marco's impatient
+     `WaitWatch`), authored as keys in its `CLIPS` table: IK arms (wrist target + elbow direction), planted-foot legs, head
+     look-at. List them as `"own"` in `characters.json`; run `ground_clips.py` after it.
    - `smooth_joints.py -- in.glb out.glb`: extra rings and smooth weights at knees and elbows, so deep bends (a run) do
      not tear the mesh. Run it before `game_export.py`.
    - `game_export.py -- in.glb out.glb --tex 1024`: shrink textures, keep every clip, print triangles, clips and size.

@@ -410,6 +410,10 @@ for (const character of manifest.characters) {
       );
     retargeted++;
   }
+  // Clips the character has of its own, made for its body (tools/blender/character_clips.py): present and, like every clip,
+  // standing on the floor (checked above).
+  for (const name of character.own || [])
+    assert.ok(rig.clips[name], `${label}: its own clip ${name} is missing`);
   rigged++;
 }
 assert.ok(rigged > 0, "characters.json lists at least one character on another character's skeleton");
