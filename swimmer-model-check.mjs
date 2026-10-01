@@ -162,6 +162,7 @@ function fakeRig(look = SWIMMERS[1]) {
     walk: action("walk"),
     run: action("run"),
     panic: action("panic"),
+    swim: action("swim"),
   };
   const mixer = {
     advanced: 0,
@@ -200,13 +201,24 @@ const run = (rig, frames, state) => {
   assert.equal(rig.current, "walk", "a dip in speed does not flicker to idle");
   run(rig, 60, { speed: 0 });
   assert.equal(rig.current, "idle", "stopping is idle");
-  // Swimming: the run on the front, at the stroke the world sync asks for.
+  // Swimming: the crawl (the swimmer is laid on its front by the world sync), at the stroke the world sync asks for.
   run(rig, 5, { swim: true, stroke: 0.6 });
-  assert.equal(rig.current, "run", "swimming plays the run");
+  assert.equal(rig.current, "swim", "swimming plays the Swim clip");
   run(rig, 40, { swim: true, stroke: 0.6 });
-  assert.ok(Math.abs(actions.run.rate - 0.6) < 0.05, `at the stroke rate (${actions.run.rate})`);
+  assert.ok(Math.abs(actions.swim.rate - 0.6) < 0.05, `at the stroke rate (${actions.swim.rate})`);
   run(rig, 40, { swim: true, stroke: 1.4 });
-  assert.ok(Math.abs(actions.run.rate - 1.4) < 0.05, `which can change (${actions.run.rate})`);
+  assert.ok(Math.abs(actions.swim.rate - 1.4) < 0.05, `which can change (${actions.swim.rate})`);
+  run(rig, 40, { speed: 0 });
+  assert.equal(rig.current, "idle", "out of the water it stands");
+}
+{
+  // A model without the Swim clip swims with the Run clip.
+  const { rig, actions } = fakeRig();
+  delete rig.actions.swim;
+  run(rig, 5, { swim: true, stroke: 0.8 });
+  assert.equal(rig.current, "run", "without a Swim clip the swim is the run");
+  run(rig, 40, { swim: true, stroke: 0.8 });
+  assert.ok(Math.abs(actions.run.rate - 0.8) < 0.05, "at the stroke rate");
 }
 {
   // Panic: the clip for hopping on the spot with the hands up; swimming comes first, and a model without it ignores it.
@@ -223,7 +235,7 @@ const run = (rig, frames, state) => {
   run(rig, 30, { panic: false });
   assert.equal(rig.current, "idle", "calming down is standing again");
   run(rig, 10, { panic: true, swim: true, stroke: 1 });
-  assert.equal(rig.current, "run", "in the water it swims, panic or not");
+  assert.equal(rig.current, "swim", "in the water it swims, panic or not");
   const times = new Set();
   for (let i = 0; i < 12; i++) {
     const other = fakeRig().rig;
@@ -505,7 +517,7 @@ someone.lane = 1;
 someone.actualSpeed = 2;
 someone.p = 3;
 step(2);
-assert.equal(u.rig.current, "run", "a swimmer in the water plays the run");
+assert.equal(u.rig.current, "swim", "a swimmer in the water plays the crawl");
 assert.ok(Math.abs(u.root.rotation.x - Math.PI / 2) < 1e-6, "on its front");
 assert.ok(
   Math.abs(u.root.position.z + 0.65 * u.fit) < 1e-6,

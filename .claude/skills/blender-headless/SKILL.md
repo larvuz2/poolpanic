@@ -34,7 +34,8 @@ preview they can check on any device and exports the glTF.
    - `character_clips.py -- in.glb out.glb --character NAME`: a character's own looping clips (e.g. Marco's impatient
      `WaitWatch`), authored as keys in its `CLIPS` table: IK arms (wrist target + elbow direction), planted-foot legs, head
      look-at. List them as `"own"` in `characters.json`; run `ground_clips.py` after it. `--character shared` is the table
-     of clips every character gets (Panic: a hop on the spot with the hands up), authored once on the Coach.
+     of clips every character gets (Panic: a hop on the spot with the hands up; Swim: a freestyle crawl, made standing and
+     played lying down), authored once on the Coach. A clip played lying on the front is `"prone": true` in `characters.json`.
    - `transplant_clips.py SOURCE.glb TARGET.glb OUT.glb --only Panic`: plain Python, no Blender. Adds clips of one GLB to a
      finished character on the same skeleton without touching its mesh, textures or other clips (rotations by bone name,
      hips travel x the hip-height ratio). Use it for a clip added to characters that are already built; then

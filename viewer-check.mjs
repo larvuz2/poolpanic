@@ -76,6 +76,7 @@ for (const character of manifest.characters) {
     character.premium === undefined || typeof character.premium === "boolean",
     `${character.id}: premium is true or false`,
   );
+  const known = new Set(); // every clip the character's files have
   for (const file of [character.file, ...(character.clipFiles || [])]) {
     const path = resolve(dir, file); // a character's file is found from the viewer's folder (Coach Panic's is the game's own)
     assert.ok(existsSync(path), `${path} is missing`);
@@ -88,6 +89,7 @@ for (const character of manifest.characters) {
       const name = animation.name;
       assert.ok(name && !names.has(name), `${file}: clip names must be present and unique (${name})`);
       names.add(name);
+      known.add(name);
       clipCount++;
       const allowed = character.clips?.[name] || {};
       const { closed, maxDeg } = inspectClip(glb, animation);
@@ -100,6 +102,14 @@ for (const character of manifest.characters) {
         `${character.name} / ${name}: a bone turns ${maxDeg.toFixed(0)}° in one frame (set clips.${name}.pop to allow)`,
       );
     }
+  }
+  // What the manifest says about a clip is about a clip that is there: a typo in a name would silently turn a flag off.
+  for (const [name, flags] of Object.entries(character.clips || {})) {
+    assert.ok(known.has(name), `${character.name}: clips.${name} is not a clip of its files`);
+    assert.ok(
+      flags.prone === undefined || typeof flags.prone === "boolean",
+      `${character.name}: clips.${name}.prone is true or false`,
+    );
   }
 }
 

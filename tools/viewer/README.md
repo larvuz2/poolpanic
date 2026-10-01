@@ -32,6 +32,11 @@ rest rotations, a consistent bind pose and weights that add up to one. Clips tak
 frame by frame, and fails any clip whose lowest point is off the floor (`ground_clips.py`). Clips made for the character itself (`character_clips.py`) are listed as `"own"`. A rigged character may have no clips yet: the viewer shows it in its T-pose, and the **Skeleton** button
 draws the bones.
 
+A clip made to be played lying on the front (a swim: the game lays the swimmer down, so the clip is made standing) says
+`"clips": {"Swim": {"prone": true}}`. The page then shows the character lying on its front, floating over the grid, from its
+right side with the head on the right, while the clip plays (and stands it up again for any other clip), marks the clip
+"lying down", hides the name plate and gives it no ground speed.
+
 A named character that matters more than the generic swimmers says `"premium": true`. The page then floats a gold plate
 over its head with a star, **Premium** and its name, which is how the game will mark those guests. The plate is placed from
 a fixed point just above the character (not the head bone), so it stays still in a run, and the camera is framed to leave it

@@ -45,6 +45,8 @@ const S = {
   loops: 0,
   backdrop: store.get("backdrop", "auto"),
   cache: new Map(),
+  lying: false, // the character is laid on its front (a clip the manifest marks "prone")
+  standingView: null, // the camera's {azimuth, elevation} before it went to the side to watch a swimmer
 };
 
 // ---- the scene ----------------------------------------------------------------------------------------------------
@@ -307,7 +309,8 @@ async function buildCharacter(entry) {
     },
     helper: null,
   };
-  for (const c of clips) c.ground = groundSpeed(character, c); // stopAllAction puts the bones back at rest
+  // (a clip played lying down is a swim, in place: its kicking feet are not planted ones)
+  for (const c of clips) c.ground = entry.clips?.[c.name]?.prone ? null : groundSpeed(character, c); // stopAllAction puts the bones back at rest
   wireMixer(character);
   return character;
 }
@@ -337,17 +340,44 @@ function setCamera(azimuthDeg, elevationDeg = 7) {
   const c = S.character;
   const h = c ? c.height : 1.8;
   const stageH = Math.max(160, stage.clientHeight);
-  const top = 14 + ($(".hud-top")?.offsetHeight || 24) + (c?.entry.premium ? 58 : 14); // under the readout (and the name plate)
+  const lying = S.lying;
+  const top = 14 + ($(".hud-top")?.offsetHeight || 24) + (c?.entry.premium && !lying ? 58 : 14); // under the readout (and the name plate)
   const bottom = stageH - 48;
   const half = Math.tan((camera.fov * Math.PI) / 360);
-  const pixelsPerMetre = Math.min(stageH / 2 / (2.7 * h * half), (bottom - top) / (h * 1.05));
+  // Standing, the character's height fills the stage between the readouts; lying, its length (and the arms ahead of it) fills
+  // the width, which is what limits it on a phone.
+  let pixelsPerMetre = Math.min(stageH / 2 / (2.7 * h * half), (bottom - top) / (h * 1.05));
+  if (lying) pixelsPerMetre = Math.min(stageH / 2 / (2.2 * h * half), (bottom - top) / (h * 0.6), Math.max(160, stage.clientWidth) / (h * 1.55));
   const d = stageH / 2 / (pixelsPerMetre * half);
-  const target = new THREE.Vector3(0, h / 2 + ((top + bottom) / 2 - stageH / 2) / pixelsPerMetre, 0);
+  const target = new THREE.Vector3(0, (lying ? LYING_HEIGHT : h / 2) + ((top + bottom) / 2 - stageH / 2) / pixelsPerMetre, 0);
   const az = (azimuthDeg * Math.PI) / 180;
   const el = (elevationDeg * Math.PI) / 180;
   camera.position.set(target.x + Math.sin(az) * Math.cos(el) * d, target.y + Math.sin(el) * d, target.z + Math.cos(az) * Math.cos(el) * d);
   controls.target.copy(target);
   controls.update();
+}
+
+// A clip the manifest marks "prone" (a swim) is made standing, as every clip is: the game lays the swimmer on its front and
+// the clip's own motion about the body's long axis (the roll, the arms going round) is what a swimmer does about the water.
+// So the character is shown lying on its front, head toward the way it faces, floating over the grid and seen from the side
+// (and from where it was when the clip is left).
+const LYING_HEIGHT = 0.5; // metres: how high the body floats
+
+function lay(prone) {
+  const character = S.character;
+  if (!character || S.lying === prone) return;
+  const view = () => {
+    const v = camera.position.clone().sub(controls.target);
+    return { azimuth: (Math.atan2(v.x, v.z) * 180) / Math.PI, elevation: (Math.atan2(v.y, Math.hypot(v.x, v.z)) * 180) / Math.PI };
+  };
+  if (prone) S.standingView = view();
+  S.lying = prone;
+  character.root.rotation.x = prone ? Math.PI / 2 : 0;
+  character.root.position.set(0, prone ? LYING_HEIGHT : 0, prone ? -character.height / 2 : 0);
+  character.root.updateMatrixWorld(true);
+  const back = prone ? { azimuth: -82, elevation: 24 } : S.standingView || view(); // (from the swimmer's right: the head is on the right)
+  setCamera(back.azimuth, back.elevation);
+  $("#tag").hidden = !character.entry.premium || prone;
 }
 
 function activate(character) {
@@ -356,7 +386,10 @@ function activate(character) {
     previous.mixer.stopAllAction();
     scene.remove(previous.root);
     if (previous.helper) scene.remove(previous.helper);
+    previous.root.rotation.x = 0; // (a cached character comes back standing)
+    previous.root.position.set(0, 0, 0);
   }
+  S.lying = false;
   S.character = character;
   S.clip = null;
   scene.add(character.root);
@@ -445,6 +478,13 @@ function renderClips(character) {
     loop.textContent = c.info.closed ? "loops clean" : "open loop";
     loop.title = c.info.closed ? "The last pose equals the first, so the loop has no jump." : "The last pose differs from the first: the loop will pop.";
     badges.append(loop);
+    if (character.entry.clips?.[c.name]?.prone) {
+      const lying = document.createElement("span");
+      lying.className = "badge";
+      lying.textContent = "lying down";
+      lying.title = "The clip is made standing; the game lays the swimmer on its front, so it is shown lying on its front.";
+      badges.append(lying);
+    }
     if (c.info.maxDeg > POP_DEG && !character.entry.clips?.[c.name]?.pop) {
       const pop = document.createElement("span");
       pop.className = "badge warn";
@@ -488,6 +528,7 @@ function selectClip(entry, { fade = S.blend } = {}) {
   }
   for (const c of character.clips) c.button?.setAttribute("aria-current", String(c === entry));
   store.set("clip:" + character.entry.id, entry.name);
+  lay(!!character.entry.clips?.[entry.name]?.prone);
   const speedHint = entry.ground;
   const match = $("#match");
   match.hidden = !speedHint;
@@ -575,7 +616,7 @@ const tagAt = new THREE.Vector3();
 function placeTag() {
   const tag = $("#tag");
   const character = S.character;
-  if (!character?.entry.premium) return;
+  if (!character?.entry.premium || S.lying) return;
   character.root.getWorldPosition(tagAt);
   tagAt.y += character.feetY + character.height * 1.03 + 0.02;
   tagAt.project(camera);

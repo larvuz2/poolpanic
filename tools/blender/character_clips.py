@@ -1,7 +1,7 @@
 """Add a character's own clips (what the person does while waiting to be assigned to a lane) to a rigged humanoid:
     tools/blender/run.sh tools/blender/character_clips.py -- in.glb out.glb --character marco [--only WaitWatch]
-(`--character shared` is the clips every character gets, made on Coach Panic: Panic. transplant_clips.py then moves them to
-the others.)
+(`--character shared` is the clips every character gets, made on Coach Panic: Panic and Swim. transplant_clips.py then
+moves them to the others.)
 The clips of the file stay, the new ones are added under their own names, and each one loops (its last frame is its
 first again). The legs stay planted: the feet are held where they stand, and the knees bend to follow the hips. Every bone
 is keyed in every frame, like the other clips, so switching clips never leaves a bone behind.
@@ -17,6 +17,7 @@ the elbow points (two-bone IK), so the same pose fits a tall swimmer and a child
                       (yaw + turns left, pitch + looks down, roll + tips the head to its left)
     "look"            0..1: how much the head looks at the left wrist ("look_wrist": "L"/"R") rather than where "head" points
     "shrug"           0..1: shoulders up
+    "breath"          how much the body breathes (the hips and spine rise a few millimetres every "breath_frames"); 1 by default
     "footL" / "footR" (forward, out, lift) metres the foot goes from where it stands (a tap lifts it a little)"""
 import math
 import os
@@ -108,10 +109,65 @@ def panic_clip():
     return {"frames": frames, "breath_frames": 12, **keys}
 
 
+def swim_clip():
+    """Swim: the freestyle crawl. It is made standing, as every clip is: the game lays the swimmer on its front (the head
+    leads, the belly is down), so what the body does about its own long axis is what a swimmer does about the water. One
+    stroke cycle is 24 frames (1 s at 24 fps; the game plays it faster or slower with the swimmer's speed) and both arms
+    make it:
+      - an arm is a windmill about the shoulder. In the water that is the pull, the hand deep under the chest with the elbow
+        bent and high, and then the recovery, the hand skimming the surface close to the body while the elbow leads out to
+        the side, and the hand reaching forward to enter ahead of the head. The other arm is half a cycle behind;
+      - the body rolls about its long axis toward the pulling arm (the shoulders first, the hips a little after);
+      - the head stays still in the water, which means turning against the roll, and once a cycle turns out to the side of
+        the recovering arm to breathe;
+      - the legs flutter in a six-beat kick (three kicks a leg to each cycle), straight, with a little bend."""
+    frames = 24
+    tau = 2 * math.pi
+    bend = 0.035  # metres: how much shorter a leg is at its most bent
+    kick = 0.13  # metres: how far a foot goes forward and back of where it hangs
+
+    def smooth(u):
+        u = max(0.0, min(1.0, u))
+        return u * u * u * (u * (u * 6 - 15) + 10)
+
+    def breath(f):
+        """0 with the face in the water, 1 with it turned out to breathe (frames 2 to 10, to the right)."""
+        return smooth((f - 1.5) / 3.0) * (1.0 - smooth((f - 8.0) / 3.0))
+
+    def arm(side, f):
+        """The hand goes round the shoulder once a cycle: overhead (alpha 0), down in front of the body (the pull: deep, the
+        hand 0.55 of the reach below the chest, the elbow bent), by the thigh (alpha pi), and back up (the recovery: shallow,
+        the hand skimming the water 0.15 below the shoulder and 0.4 out, so the elbow is what leads and sticks out)."""
+        alpha = tau * f / frames + (0.0 if side == "L" else math.pi)
+        s = math.sin(alpha)
+        pull = s >= 0
+        x = 0.12 + (0.12 if pull else 0.34) * s * s  # out from the body: the recovery swings wide
+        y = -(0.55 if pull else 0.15) * abs(s)  # in front of the body (under it, in the water): the pull is deep
+        z = 0.97 * math.cos(alpha)  # up the body (ahead of the head, in the water) and back down it
+        return {"space": "chest", "tgt": (x, y, z), "pole": (0.7, 0.8, 0.0), "twist": 0}
+
+    keys = {name: [] for name in ("hips_turn", "spine", "head", "armL", "armR", "footL", "footR")}
+    for f in range(frames + 1):
+        w = tau * (f % frames) / frames
+        hips_yaw = -24 * math.sin(w)  # to the left (a negative turn is to the right) while the left arm pulls
+        spine_yaw = -26 * math.sin(w + 0.35)  # the shoulders lead the hips
+        keys["hips_turn"].append((f, (hips_yaw, 0.0, 0.0)))
+        keys["spine"].append((f, (spine_yaw, 0.0, 0.0)))
+        head_yaw = -0.8 * (hips_yaw + spine_yaw) - 62 * breath(f % frames)  # against the roll, and out to breathe
+        keys["head"].append((f, (head_yaw, -18.0 - 6 * breath(f % frames), 3 * math.sin(w))))
+        keys["armL"].append((f, arm("L", f)))
+        keys["armR"].append((f, arm("R", f)))
+        for side in ("L", "R"):
+            theta = 3 * w + (0.0 if side == "L" else math.pi)
+            keys["foot" + side].append((f, (kick * math.sin(theta), 0.0, bend * (0.5 + 0.5 * math.sin(theta + 0.8)))))
+    return {"frames": frames, "breath": 0.0, **keys}  # (the hips stay where they are: no breathing on top)
+
+
 CLIPS = {
     # What every character does, made on the Coach and moved to the others (transplant_clips.py).
     "shared": {
         "Panic": panic_clip(),
+        "Swim": swim_clip(),
     },
     "marco": {
         # Impatient, waiting to be given a lane: a long look at his watch, a sigh, looking around for whoever is coming, the
@@ -464,7 +520,7 @@ def pose_frame(clip, t):
         a, b, u = between(clip[name], t)
         return lerp(a, b, u)
 
-    breath = math.sin(2 * math.pi * t / clip.get("breath_frames", BREATH))
+    breath = clip.get("breath", 1.0) * math.sin(2 * math.pi * t / clip.get("breath_frames", BREATH))
     for pb in pose:
         pb.location = (0, 0, 0)
         pb.rotation_quaternion = Quaternion((1, 0, 0, 0))

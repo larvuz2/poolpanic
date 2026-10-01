@@ -120,6 +120,7 @@ function fakeRig() {
     scratch: action("scratch"),
     walk: action("walk"),
     run: action("run"),
+    swim: action("swim"),
   };
   const mixer = {
     advanced: 0,
@@ -155,8 +156,17 @@ function fakeRig() {
   rig.update(1 / 60, { speed: 0 });
   assert.equal(rig.current, "idle", "at the spawn point he stands");
   rig.update(1 / 60, { speed: 0, prone: true });
-  assert.equal(rig.current, "run", "swimming plays the run on his front");
+  assert.equal(rig.current, "swim", "swimming plays the crawl on his front");
+  for (let i = 0; i < 30; i++) rig.update(1 / 60, { speed: 0, prone: true });
+  assert.ok(Math.abs(actions.swim.rate - 1.1) < 0.05, `at a stroke of his own (${actions.swim.rate})`);
   assert.ok(mixer.advanced > 0);
+}
+{
+  // A file without the Swim clip crawls with the Run clip.
+  const { rig, actions } = fakeRig();
+  delete rig.actions.swim;
+  rig.update(1 / 60, { speed: 0, prone: true });
+  assert.equal(rig.current, "run", "without a Swim clip the swim is the run");
 }
 {
   // Standing long enough brings a head scratch; a job in hand or moving does not.
@@ -249,7 +259,7 @@ assert.deepEqual(
 sim.coach.carry = null;
 sim.coach.swimming = true;
 world.sync(sim, (t += 1 / 60), 1 / 60);
-assert.equal(u.rig.current, "run", "swimming plays the run");
+assert.equal(u.rig.current, "swim", "swimming plays the crawl");
 sim.coach.swimming = false;
 sim.coach.slipTime = 0.5;
 world.sync(sim, (t += 1 / 60), 1 / 60);

@@ -7,7 +7,9 @@
 // bones' own offsets (tools/blender/transplant_clips.py puts a clip added later the same way). And every clip, the
 // template's too, stands on the floor (tools/blender/ground_clips.py): played on the skinned mesh, its lowest point is at
 // floor level, not under it. Panic, the hop with the hands up, really leaves the floor (the feet rise by a quarter of the
-// hips' height) and keeps both hands above the shoulders, and above the head at the top of the hop.
+// hips' height) and keeps both hands above the shoulders, and above the head at the top of the hop. Swim, the freestyle crawl,
+// goes round with the arms half a cycle apart, rolls the shoulders, kicks the feet in turn, turns the face out to breathe and
+// leaves the hips where they are.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -222,6 +224,92 @@ function hopsWithHandsUp(rig, label) {
     );
 }
 
+// Swim is the freestyle crawl, made standing (the game lays the swimmer on its front, so the body's own long axis is up).
+// Each arm goes round the shoulder, overhead to down by the body and back, half a cycle behind the other; the shoulders roll
+// from side to side; the feet kick in turn, a good way each side of where they hang; the face is in the water but turns well out
+// to the side to breathe; and the hips stay put (the game places the swimmer).
+function crawlsLikeAFreestyler(rig, label) {
+  const clip = rig.clips.Swim;
+  if (!clip) return;
+  const hips = rig.bones.Hips.world[13];
+  const at = (world, name) => {
+    const m = world.get(rig.skin.nodes.findIndex((n) => n.name === name));
+    return [m[12], m[13], m[14]];
+  };
+  const frames = Math.round(clipLength(clip) * FPS);
+  const rows = [];
+  for (let f = 0; f < frames; f++) {
+    const world = poseAt(rig, clip, f);
+    const p = Object.fromEntries(
+      [
+        "Hips",
+        "Head",
+        "headfront",
+        "LeftHand",
+        "RightHand",
+        "LeftShoulder",
+        "RightShoulder",
+        "LeftFoot",
+        "RightFoot",
+      ].map((n) => [n, at(world, n)]),
+    );
+    rows.push(p);
+  }
+  const series = (fn) => rows.map(fn);
+  const range = (v) => Math.max(...v) - Math.min(...v);
+  const argmax = (v) => v.indexOf(Math.max(...v));
+  const correlation = (a, b) => {
+    const mean = (v) => v.reduce((x, y) => x + y, 0) / v.length;
+    const [ma, mb] = [mean(a), mean(b)];
+    const cross = a.reduce((sum, v, i) => sum + (v - ma) * (b[i] - mb), 0);
+    return (
+      cross /
+      Math.sqrt(a.reduce((sum, v) => sum + (v - ma) ** 2, 0) * b.reduce((sum, v) => sum + (v - mb) ** 2, 0))
+    );
+  };
+  const degrees = (r) => (r * 180) / Math.PI;
+  const hand = {
+    Left: series((r) => r.LeftHand[1] - r.LeftShoulder[1]),
+    Right: series((r) => r.RightHand[1] - r.RightShoulder[1]),
+  };
+  for (const side of ["Left", "Right"]) {
+    assert.ok(
+      Math.max(...hand[side]) > 0.45 * hips && Math.min(...hand[side]) < -0.45 * hips,
+      `${label} / Swim: the ${side.toLowerCase()} hand does not go from overhead to down by the body (${(Math.max(...hand[side]) * 100).toFixed(0)} cm above the shoulder, ${(Math.min(...hand[side]) * 100).toFixed(0)} cm)`,
+    );
+  }
+  const apart = (argmax(hand.Right) - argmax(hand.Left) + frames) % frames;
+  assert.ok(
+    Math.abs(apart - frames / 2) <= 3,
+    `${label} / Swim: the arms are ${apart} frames of ${frames} apart, not half a cycle`,
+  );
+  const kick = { Left: series((r) => r.LeftFoot[2]), Right: series((r) => r.RightFoot[2]) };
+  for (const side of ["Left", "Right"])
+    assert.ok(
+      range(kick[side]) > 0.15 * hips,
+      `${label} / Swim: the ${side.toLowerCase()} foot kicks only ${(range(kick[side]) * 100).toFixed(1)} cm`,
+    );
+  assert.ok(correlation(kick.Left, kick.Right) < -0.5, `${label} / Swim: the feet do not kick in turn`);
+  const roll = series((r) =>
+    degrees(Math.atan2(r.LeftShoulder[2] - r.RightShoulder[2], r.LeftShoulder[0] - r.RightShoulder[0])),
+  );
+  assert.ok(range(roll) > 35, `${label} / Swim: the shoulders roll only ${range(roll).toFixed(0)} degrees`);
+  const face = series((r) => degrees(Math.atan2(r.headfront[0] - r.Head[0], r.headfront[2] - r.Head[2])));
+  assert.ok(
+    Math.max(...face.map(Math.abs)) > 50 && Math.min(...face.map(Math.abs)) < 25,
+    `${label} / Swim: the face does not turn out to breathe and back into the water (${Math.min(...face.map(Math.abs)).toFixed(0)} to ${Math.max(...face.map(Math.abs)).toFixed(0)} degrees)`,
+  );
+  const drift = Math.max(
+    range(series((r) => r.Hips[0])),
+    range(series((r) => r.Hips[1])),
+    range(series((r) => r.Hips[2])),
+  );
+  assert.ok(
+    drift < 0.02,
+    `${label} / Swim: the hips move ${(drift * 100).toFixed(1)} cm: the game places the swimmer`,
+  );
+}
+
 // The skin's bones by name: parent, rest rotation, rest matrix in the scene and inverse bind matrix.
 function readRig(file) {
   const glb = readGlb(file);
@@ -320,12 +408,14 @@ for (const character of manifest.characters) {
     templates.set(source.id, readRig(resolve(dir, source.file)));
     standsOnTheFloor(templates.get(source.id), source.name);
     hopsWithHandsUp(templates.get(source.id), source.name);
+    crawlsLikeAFreestyler(templates.get(source.id), source.name);
   }
   const template = templates.get(source.id);
   const rig = readRig(resolve(dir, character.file));
   const label = `${character.name} (on ${source.name}'s skeleton)`;
   standsOnTheFloor(rig, label);
   hopsWithHandsUp(rig, label);
+  crawlsLikeAFreestyler(rig, label);
 
   // The bones: the same names, in the same hierarchy, at the same rest rotations, under a root with the same scale.
   assert.deepEqual(

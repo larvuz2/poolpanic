@@ -1,10 +1,10 @@
 // The five generic swimmers in the game: Meshy characters (assets/swimmer-*.glb) standing in for the swimmers that
 // actors.mjs builds from balls and boxes. Like Coach Panic (coach-model.mjs) they have Coach Panic's own skeleton and his
-// four clips, so this file is mostly the rules that pick a clip. The classic swimmer is still built and still posed,
+// clips, so this file is mostly the rules that pick a clip. The classic swimmer is still built and still posed,
 // but hidden; the model goes in beside its parts. Rules, in short:
 //   - moving on foot: Walk up to a brisk pace, Run beyond it, played at the speed that keeps the feet on the floor;
-//   - swimming (the body lies on its front, as the world sync poses it): the Run clip, at a stroke rate that follows the
-//     swimmer's speed;
+//   - swimming (the body lies on its front, as the world sync poses it): the Swim clip, a freestyle crawl made standing like
+//     the others, at a stroke rate that follows the swimmer's speed (the Run clip for a model that has no Swim);
 //   - standing: IdleScan, with an IdleScratch now and then;
 //   - panicking on the deck (the pool is closed, a mess in the queue): the Panic clip, a hop on the spot with the hands up;
 //   - the poses the game sets on the classic arms and legs for what is going on (running away with the hands up, climbing
@@ -15,8 +15,16 @@ import { THREE } from "./kit.mjs";
 import { TYPES, swimmerLook } from "../sim.mjs";
 
 export const SWIMMER_KEY = "pool-panic.swimmers.v1";
-export const CLIPS = { idle: "IdleScan", scratch: "IdleScratch", walk: "Walk", run: "Run", panic: "Panic" };
-// A model must have these; one without Panic hops with the classic swimmer's poses instead.
+export const CLIPS = {
+  idle: "IdleScan",
+  scratch: "IdleScratch",
+  walk: "Walk",
+  run: "Run",
+  panic: "Panic",
+  swim: "Swim",
+};
+// A model must have these; one without Panic hops with the classic swimmer's poses instead, and one without Swim swims with
+// the Run clip.
 const REQUIRED = ["idle", "scratch", "walk", "run"];
 // The five: the file, the ground speed at which each clip's planted foot stops sliding (m/s, from Anim Bench), the eye
 // line [height, forward] of the goggles and how far the chest reaches front and back (metres, in the T-pose).
@@ -266,7 +274,7 @@ export class SwimmerRig {
     next.reset();
     next.enabled = true;
     next.setEffectiveWeight(1);
-    next.setEffectiveTimeScale(name === "run" || name === "walk" ? this.rate : 1);
+    next.setEffectiveTimeScale(name === "run" || name === "walk" || name === "swim" ? this.rate : 1);
     next.play();
     // A crowd that panics does not hop in step.
     if (name === "panic") next.time = Math.random() * (next.getClip?.().duration || 0);
@@ -282,7 +290,7 @@ export class SwimmerRig {
     let want;
     let rate = 1;
     if (swim) {
-      want = "run";
+      want = this.actions.swim ? "swim" : "run";
       rate = stroke;
       this.moving = true;
       this.running = true;
@@ -316,10 +324,13 @@ export class SwimmerRig {
       this.idleFor = 0;
       this.scratchAfter = SwimmerRig.scratchDelay();
     }
-    this.to(want, want === "panic" ? 0.12 : want === "run" || want === "walk" ? 0.15 : 0.22);
+    this.to(
+      want,
+      want === "panic" ? 0.12 : want === "run" || want === "walk" || want === "swim" ? 0.15 : 0.22,
+    );
     // The rate follows smoothly; the idles play as they are.
     this.rate += (rate - this.rate) * Math.min(1, dt * 12);
-    if (this.current === "run" || this.current === "walk")
+    if (this.current === "run" || this.current === "walk" || this.current === "swim")
       this.actions[this.current].setEffectiveTimeScale(this.rate);
     this.mixer.update(dt);
     if (this.body && puppet && classic) this.pose(dt, puppet, classic);

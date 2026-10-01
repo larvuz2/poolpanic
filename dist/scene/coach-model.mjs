@@ -1,14 +1,17 @@
 // Coach Panic in the game: the Meshy character (assets/coach-panic.glb) standing in for the coach that actors.mjs
 // builds from balls and boxes. The classic coach is still built, and still posed, but hidden, so one switch brings it
 // back (?coach=classic, or the button in How to play). The clips: IdleScan and IdleScratch (standing still), Walk (the
-// few steps into the start of a shift) and Run (every other movement). Rules, in short:
+// few steps into the start of a shift), Run (every other movement on foot) and Swim (the freestyle crawl, made standing
+// and played on his front in the water). Rules, in short:
 //   - a shift's countdown: Walk, from a few steps behind the spawn point to exactly the spawn point as it reaches zero;
 //   - moving: Run, played faster or slower with the coach's speed so the feet keep up with the floor;
+//   - swimming: Swim (Run, if the file has no Swim);
 //   - standing: IdleScan, with an IdleScratch now and then.
 import { THREE } from "./kit.mjs";
 
 export const COACH_KEY = "pool-panic.coach.v1";
-export const CLIPS = { idle: "IdleScan", scratch: "IdleScratch", walk: "Walk", run: "Run" };
+export const CLIPS = { idle: "IdleScan", scratch: "IdleScratch", walk: "Walk", run: "Run", swim: "Swim" };
+const REQUIRED = ["idle", "scratch", "walk", "run"];
 // The speed each clip covers without the feet sliding (Anim Bench's ground estimate), in world units per second.
 export const RUN_SPEED = 3.85;
 export const WALK_SPEED = 1.21;
@@ -64,7 +67,7 @@ export async function loadCoachModel(url = new URL("../assets/coach-panic.glb", 
     const gltf = await new GLTFLoader().loadAsync(url);
     const clips = {};
     for (const clip of gltf.animations) clips[clip.name] = clip;
-    const missing = Object.values(CLIPS).filter((name) => !clips[name]);
+    const missing = REQUIRED.map((key) => CLIPS[key]).filter((name) => !clips[name]);
     if (missing.length) throw new Error("the model lacks the clips " + missing.join(", "));
     gltf.scene.traverse((o) => {
       if (!o.isMesh) return;
@@ -104,7 +107,7 @@ export class CoachRig {
     next.reset();
     next.enabled = true;
     next.setEffectiveWeight(1);
-    next.setEffectiveTimeScale(name === "run" || name === "walk" ? this.rate : 1);
+    next.setEffectiveTimeScale(name === "run" || name === "walk" || name === "swim" ? this.rate : 1);
     next.play();
     if (previous && fade > 0) next.crossFadeFrom(previous, fade, false);
     else if (previous) previous.stop();
@@ -125,8 +128,8 @@ export class CoachRig {
         want = "run";
         rate = clamp(speed / RUN_SPEED, 0.6, 2.1);
       } else if (prone) {
-        want = "run";
-        rate = 1.2;
+        want = this.actions.swim ? "swim" : "run";
+        rate = this.actions.swim ? 1.1 : 1.2;
       } else want = "idle";
     }
     if (want === "idle") {
@@ -144,10 +147,10 @@ export class CoachRig {
       this.idleFor = 0;
       this.scratchAfter = CoachRig.scratchDelay();
     }
-    this.to(want, want === "run" ? 0.12 : 0.22);
+    this.to(want, want === "run" || want === "swim" ? 0.12 : 0.22);
     // The playing rate follows the coach's speed smoothly; the other clips play as they are.
     this.rate += (rate - this.rate) * Math.min(1, dt * 14);
-    if (this.current === "run" || this.current === "walk")
+    if (this.current === "run" || this.current === "walk" || this.current === "swim")
       this.actions[this.current].setEffectiveTimeScale(this.rate);
     this.mixer.update(dt);
   }
@@ -218,6 +221,7 @@ export function attachCoachModel(group, choice = activeChoice()) {
   const mixer = new THREE.AnimationMixer(model);
   const actions = {};
   for (const [key, name] of Object.entries(CLIPS)) {
+    if (!template.clips[name]) continue; // (a file without Swim crawls with the Run clip)
     const action = mixer.clipAction(template.clips[name]);
     if (key === "scratch") {
       action.setLoop(THREE.LoopOnce, 1);
