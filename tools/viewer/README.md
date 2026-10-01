@@ -25,6 +25,11 @@ Anything can be previewed without publishing: drop a `.glb` on the page, or use 
 bone, and the build is complete. A character that is only a mesh (no rig yet) is listed with `"static": true`. A clip that is meant to open or pop can say so in `characters.json`:
 `"clips": {"Fall": {"open": true}}`.
 
+A character rigged on another's skeleton (`rig_from_template.py`) says so with `"skeleton": "coach-panic"` (the `id` of the
+character whose skeleton it copies). `rig-check.mjs`, also run by `npm test`, then checks it has that character's bones,
+rest rotations, a consistent bind pose and weights that add up to one. Such a character may have no clips yet: the
+viewer shows it in its T-pose, and the **Skeleton** button draws the bones.
+
 ## Adding a character or an animation
 
 1. Make the GLB with the Blender tools (`tools/blender/README.md`): `polish_walk.py`, `idle_clips.py`, `game_export.py`.
