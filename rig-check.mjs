@@ -14,6 +14,7 @@ const dir = "tools/viewer";
 const REST_DEG = 0.01; // rest rotations are copied, a clip's rotation keys only fit the new rig if they match
 const BIND_ERROR = 1e-3; // inverse bind matrix times the bone's rest matrix is the identity
 const MARGIN = 0.03; // metres a bone may stick out of the mesh's box (a fingertip, a toe)
+const FRONT_MARKER_MARGIN = 0.08; // headfront marks the front of the face at the template's proportion: it can stand in front of a shallow head
 const HEIGHT_SHIFT = 0.25; // a bone sits within a quarter of the body height of where the template has it
 const FPS = 24;
 const CLIP_DEG = 0.01; // a retargeted clip turns every bone as the template's does, to within a rounding error
@@ -307,11 +308,13 @@ for (const character of manifest.characters) {
         `${label}: ${name}'s bind matrix does not match its rest pose`,
       );
     const at = [bone.world[12], bone.world[13], bone.world[14]];
-    for (let axis = 0; axis < 3; axis++)
+    for (let axis = 0; axis < 3; axis++) {
+      const margin = name === "headfront" && axis === 2 ? FRONT_MARKER_MARGIN : MARGIN;
       assert.ok(
-        at[axis] > rig.box.min[axis] - MARGIN && at[axis] < rig.box.max[axis] + MARGIN,
+        at[axis] > rig.box.min[axis] - margin && at[axis] < rig.box.max[axis] + margin,
         `${label}: ${name} is outside the mesh (axis ${"xyz"[axis]}: ${at[axis].toFixed(3)})`,
       );
+    }
     const shift = Math.abs(at[1] / height - base.world[13] / templateHeight);
     assert.ok(
       shift < HEIGHT_SHIFT,

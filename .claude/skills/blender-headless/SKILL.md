@@ -34,6 +34,9 @@ preview they can check on any device and exports the glTF.
    - `character_clips.py -- in.glb out.glb --character NAME`: a character's own looping clips (e.g. Marco's impatient
      `WaitWatch`), authored as keys in its `CLIPS` table: IK arms (wrist target + elbow direction), planted-foot legs, head
      look-at. List them as `"own"` in `characters.json`; run `ground_clips.py` after it.
+   - `fix_mouth.py -- in.glb out.glb --box x0,x1,z0,z1,y_max --paint`: takes a mouth Meshy invented off a character that has
+     none (relaxes the lip groove, renews the normals, paints the texture with the skin round it). Run it on the raw mesh,
+     before `game_export.py`; the header says how to pick the box.
    - `smooth_joints.py -- in.glb out.glb`: extra rings and smooth weights at knees and elbows, so deep bends (a run) do
      not tear the mesh. Run it before `game_export.py`.
    - `game_export.py -- in.glb out.glb --tex 1024`: shrink textures, keep every clip, print triangles, clips and size.

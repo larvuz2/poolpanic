@@ -126,6 +126,101 @@
         "WaitNervous"
       ],
       "premium": true
+    },
+    {
+      "id": "swimmer-boy",
+      "name": "Swimmer: boy",
+      "file": "models/swimmer-boy.glb",
+      "note": "Generic swimmer, 1.58 m. Blue cap, goggles on his eyes, navy jammers with light-blue stripes, thin build, big head. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.89. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
+      "skeleton": "coach-panic",
+      "clips": {
+        "Run": {
+          "pop": true,
+          "why": "the knee swings about 42 degrees a frame in a fast run, as in the Coach's own clip"
+        }
+      },
+      "retargeted": [
+        "IdleScan",
+        "IdleScratch",
+        "Run",
+        "Walk"
+      ]
+    },
+    {
+      "id": "swimmer-tall-man",
+      "name": "Swimmer: tall man",
+      "file": "models/swimmer-tall-man.glb",
+      "note": "Generic swimmer, 1.84 m. Black cap, goggles with blue lenses and strap on his eyes, black jammers, athletic build. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.05. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
+      "skeleton": "coach-panic",
+      "clips": {
+        "Run": {
+          "pop": true,
+          "why": "the knee swings about 42 degrees a frame in a fast run, as in the Coach's own clip"
+        }
+      },
+      "retargeted": [
+        "IdleScan",
+        "IdleScratch",
+        "Run",
+        "Walk"
+      ]
+    },
+    {
+      "id": "swimmer-woman",
+      "name": "Swimmer: woman",
+      "file": "models/swimmer-woman.glb",
+      "note": "Generic swimmer, 1.70 m. Hot-pink cap, goggles with purple lenses on her eyes, navy racerback swimsuit with pink and white side stripes, slim, brown hair strands under the cap. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.03. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
+      "skeleton": "coach-panic",
+      "clips": {
+        "Run": {
+          "pop": true,
+          "why": "the knee swings about 42 degrees a frame in a fast run, as in the Coach's own clip"
+        }
+      },
+      "retargeted": [
+        "IdleScan",
+        "IdleScratch",
+        "Run",
+        "Walk"
+      ]
+    },
+    {
+      "id": "swimmer-heavy-man",
+      "name": "Swimmer: heavy-set man",
+      "file": "models/swimmer-heavy-man.glb",
+      "note": "Generic swimmer, 1.56 m. Green cap, goggles with green lenses on his eyes, green trunks with a white drawstring bow, round belly. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x0.76. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
+      "skeleton": "coach-panic",
+      "clips": {
+        "Run": {
+          "pop": true,
+          "why": "the knee swings about 42 degrees a frame in a fast run, as in the Coach's own clip"
+        }
+      },
+      "retargeted": [
+        "IdleScan",
+        "IdleScratch",
+        "Run",
+        "Walk"
+      ]
+    },
+    {
+      "id": "swimmer-tall-woman",
+      "name": "Swimmer: tall woman",
+      "file": "models/swimmer-tall-woman.glb",
+      "note": "Generic swimmer, 1.86 m. Purple cap, goggles with purple lenses on her eyes, purple one-piece swimsuit, long brown ponytail, very tall and slender. No mouth. Meshy 7 mesh from a GPT Image 2.5 T-pose, about 10k tris. Rigged on Coach Panic's own 24-bone skeleton (rig_from_template.py), with the Coach's four clips retargeted onto it (retarget_clips.py): the same motion, hip travel x1.14. Feet put on the floor by ground_clips.py. Baseline clips, not tuned for this character. One of the five generic swimmers; the named characters are the premium ones.",
+      "skeleton": "coach-panic",
+      "clips": {
+        "Run": {
+          "pop": true,
+          "why": "the knee swings about 42 degrees a frame in a fast run, as in the Coach's own clip"
+        }
+      },
+      "retargeted": [
+        "IdleScan",
+        "IdleScratch",
+        "Run",
+        "Walk"
+      ]
     }
   ]
 }

@@ -100,7 +100,17 @@ seconds each (the same input always gives the same GLB), and the same rig is wha
   the side and the three-quarter view show different faults), and keep a bone from turning more than 40 degrees in a frame.
   Aiming a bone by the shortest turn from its rest direction flips near the opposite direction, which is where a
   folded arm goes: the script frames each bone by its direction and the way its joint bends instead.
-- Knee and elbow smoothing (`smooth_joints.py`) is not applied to these five yet. Add it when a run shows tearing there.
+- **The five generic swimmers** (`swimmer-boy`, `swimmer-tall-man`, `swimmer-woman`, `swimmer-heavy-man`,
+  `swimmer-tall-woman`, in `tools/viewer/models/`) are the unnamed guests: Meshy meshes of GPT Image 2.5 T-poses, goggles on
+  their eyes, no mouth. Made the same way, one `game_export.py --height` each (1.58, 1.84, 1.70, 1.56, 1.86 m: the tall man's
+  1.84 and the others in the proportions of the lineup the designs came from), then `rig_from_template.py` (no `--set`
+  needed), `retarget_clips.py` (hip travel x0.89, 1.05, 1.03, 0.76, 1.14) and `ground_clips.py` (Walk / Run lifts in cm:
+  boy +1.1 / +2.9, tall man -1.4 / -0.2, woman -1.5 / -0.6, heavy man +0.1 / +0.2, tall woman -1.7 / -0.9). They have only
+  the Coach's four clips: the named, premium characters are the ones with clips of their own. Meshy modelled a smile on the
+  boy (a lip groove with a dark inside): `fix_mouth.py` took it off the raw mesh before the pipeline (its header has the
+  box he needed). The mesh's front-most point is not always the face, so `rig-check.mjs` lets the `headfront` marker stand
+  up to 8 cm in front of a shallow head.
+- Knee and elbow smoothing (`smooth_joints.py`) is not applied to these ten yet. Add it when a run shows tearing there.
 
 ## Rigging notes
 
