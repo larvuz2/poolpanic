@@ -67,6 +67,7 @@ assert.ok(
   "characters.json lists characters",
 );
 const ids = new Set();
+const clipFrames = new Map(); // "character id/clip name" -> length in frames
 let clipCount = 0;
 for (const character of manifest.characters) {
   assert.ok(character.id && character.name && character.file, "a character has an id, a name and a file");
@@ -90,6 +91,10 @@ for (const character of manifest.characters) {
       assert.ok(name && !names.has(name), `${file}: clip names must be present and unique (${name})`);
       names.add(name);
       known.add(name);
+      clipFrames.set(
+        `${character.id}/${name}`,
+        Math.round(Math.max(...animation.samplers.map((x) => accessor(glb, x.input).at(-1)[0])) * FPS),
+      );
       clipCount++;
       const allowed = character.clips?.[name] || {};
       const { closed, maxDeg } = inspectClip(glb, animation);
@@ -110,6 +115,27 @@ for (const character of manifest.characters) {
       flags.prone === undefined || typeof flags.prone === "boolean",
       `${character.name}: clips.${name}.prone is true or false`,
     );
+    // A clip that ends in the water (the cannonball): the surface's height under the floor, and the run-up the viewer gives
+    // the character (metres carried forward between two frames of the clip) so the fall ends over the water.
+    if (flags.water !== undefined) {
+      const { level, run } = flags.water;
+      assert.ok(
+        typeof level === "number" && level < 0 && level > -2,
+        `${character.name}: clips.${name}.water.level is the water's height under the floor, in metres`,
+      );
+      const frames = clipFrames.get(`${character.id}/${name}`);
+      assert.ok(
+        run &&
+          Number.isInteger(run.from) &&
+          Number.isInteger(run.to) &&
+          run.from >= 0 &&
+          run.from < run.to &&
+          run.to <= frames &&
+          run.metres > 0,
+        `${character.name}: clips.${name}.water.run is {from, to, metres}: two frames of the clip, in order, and a distance`,
+      );
+      assert.ok(flags.open, `${character.name}: clips.${name} ends in the water, so it is an open clip`);
+    }
   }
 }
 

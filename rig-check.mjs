@@ -10,6 +10,13 @@
 // hips' height) and keeps both hands above the shoulders, and above the head at the top of the hop. Swim, the freestyle crawl,
 // goes round with the arms half a cycle apart, rolls the shoulders, kicks the feet in turn, turns the face out to breathe and
 // leaves the hips where they are.
+// A character may also have bones of its own on top of the template's ("extraBones": name -> parent, the belly bones of
+// tools/blender/belly_bones.py): they hang from the bone named, sit inside the body, carry skin, and move in the clips the
+// belly bounces in (tools/blender/belly_jiggle.py). A clip taken from the template may have some bones turned a little
+// differently on purpose, up to a limit the manifest gives ("adjusted": bone -> degrees; tools/blender/clear_limbs.py swings
+// the arms out of a belly and takes some of the knee's bend); every other bone is the template's, exactly. A clip that ends
+// in the water ("clips": {"Cannonball": {"water": {"level": -0.25}}}) starts on the floor and is not grounded: it jumps, falls
+// like a body (the hips' acceleration is gravity's) and ends under the water's surface.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -147,10 +154,10 @@ function poseAt(rig, clip, f) {
   return world;
 }
 
-function lowestPoints(rig, clip) {
+function lowestPoints(rig, clip, everyFrame = false) {
   const { jointNodes, inverseBind, positions, joints, weights } = rig.skin;
   const frames = Math.round(clipLength(clip) * FPS);
-  const step = Math.max(1, Math.ceil(frames / 48));
+  const step = everyFrame ? 1 : Math.max(1, Math.ceil(frames / 48));
   const lows = [];
   for (let f = 0; f <= frames; f += step) {
     const world = poseAt(rig, clip, f);
@@ -175,8 +182,9 @@ function lowestPoints(rig, clip) {
 }
 
 // Every clip stands on the floor: its lowest point is at floor level, not under it (a hover or a sink fails).
-function standsOnTheFloor(rig, label) {
+function standsOnTheFloor(rig, label, flags = {}) {
   for (const [name, clip] of Object.entries(rig.clips)) {
+    if (flags[name]?.water) continue; // it ends in the water: dropsIntoTheWater says what it does instead
     const low = Math.min(...lowestPoints(rig, clip));
     assert.ok(
       Math.abs(low) < GROUND_CM / 100,
@@ -310,6 +318,83 @@ function crawlsLikeAFreestyler(rig, label) {
   );
 }
 
+// A clip that ends in the water (the cannonball) is made on the deck, 0.25 m above the water: the body stands on the floor,
+// jumps (the hips up by more than a quarter of their own height), tucks its legs up (the knees come above the hips'
+// own level less a third of their height), falls like a body in the air (the hips' acceleration is gravity's, 9.8 m/s^2, to
+// within a quarter) and goes into the water, its lowest part ending well under the surface.
+const GRAVITY = 9.8;
+function dropsIntoTheWater(rig, label, name, water) {
+  const clip = rig.clips[name];
+  if (!clip) return;
+  const hips = rig.bones.Hips.world[13];
+  const node = (n) => rig.skin.nodes.findIndex((x) => x.name === n);
+  const frames = Math.round(clipLength(clip) * FPS);
+  const rows = [];
+  for (let f = 0; f <= frames; f++) {
+    const world = poseAt(rig, clip, f);
+    rows.push({ hips: world.get(node("Hips"))[13], knee: world.get(node("LeftLeg"))[13] });
+  }
+  const lows = lowestPoints(rig, clip, true);
+  assert.ok(
+    Math.abs(lows[0]) < GROUND_CM / 100,
+    `${label} / ${name}: it starts ${Math.abs(lows[0] * 100).toFixed(1)} cm ${lows[0] < 0 ? "under" : "above"} the floor`,
+  );
+  const jump = Math.max(...rows.map((r) => r.hips)) - rows[0].hips;
+  assert.ok(
+    jump > 0.25 * hips,
+    `${label} / ${name}: the hips rise only ${(jump * 100).toFixed(0)} cm, not a jump`,
+  );
+  const top = rows.findIndex((r) => r.hips === Math.max(...rows.map((x) => x.hips)));
+  assert.ok(
+    rows[top].knee - rows[top].hips > -0.3 * hips,
+    `${label} / ${name}: at the top of the jump the knee is ${((rows[top].hips - rows[top].knee) * 100).toFixed(0)} cm under the hips: the legs are not tucked`,
+  );
+  const end = lows.at(-1);
+  assert.ok(
+    end < water.level - 0.3,
+    `${label} / ${name}: it ends ${((end - water.level) * 100).toFixed(0)} cm from the water's surface, not well under it`,
+  );
+  // from the top of the jump until the lowest part reaches the water the hips fall freely: a second difference of g per frame^2
+  const gravity = GRAVITY / FPS ** 2;
+  const reached = lows.findIndex((v, f) => f > top && v <= water.level);
+  assert.ok(reached > top + 2, `${label} / ${name}: it never reaches the water after the top of the jump`);
+  for (let f = top; f + 2 < reached; f++) {
+    const a = rows[f].hips - 2 * rows[f + 1].hips + rows[f + 2].hips; // negative: falling faster
+    assert.ok(
+      Math.abs(-a - gravity) < 0.25 * gravity,
+      `${label} / ${name}: frame ${f + 1} the hips accelerate ${(-a * FPS ** 2).toFixed(1)} m/s^2 downward, not gravity's ${GRAVITY}`,
+    );
+  }
+  // and the water takes the speed: within four frames of reaching it the hips fall at under 70% of the speed they arrived with
+  const speed = (f) => rows[f - 1].hips - rows[f].hips; // metres per frame, downward
+  assert.ok(
+    reached + 4 <= frames && speed(reached + 4) < 0.7 * speed(reached - 1),
+    `${label} / ${name}: the hips are not slowed by the water (${(speed(reached - 1) * FPS).toFixed(1)} m/s on arriving, ${(speed(Math.min(frames, reached + 4)) * FPS).toFixed(1)} m/s four frames later)`,
+  );
+}
+
+// The belly bones of a character's own move in the clips that make a belly bounce (a walk, a run): by more than two
+// centimetres, in the file's own units (centimetres), on some axis.
+function bellyBounces(rig, label, bones, clips) {
+  for (const name of clips) {
+    const clip = rig.clips[name];
+    if (!clip) continue;
+    for (const bone of bones) {
+      const track = clip[`${bone}.translation`];
+      assert.ok(track, `${label} / ${name}: the belly bone ${bone} has no position keys`);
+      const range = [0, 1, 2].map((k) => {
+        const values = Array.from({ length: track.times.length }, (_, i) => track.values[i * 3 + k]);
+        return Math.max(...values) - Math.min(...values);
+      });
+      if (bone === "BellyLower")
+        assert.ok(
+          Math.max(...range) > 1,
+          `${label} / ${name}: ${bone} moves only ${Math.max(...range).toFixed(2)} cm: the belly does not bounce`,
+        );
+    }
+  }
+}
+
 // The skin's bones by name: parent, rest rotation, rest matrix in the scene and inverse bind matrix.
 function readRig(file) {
   const glb = readGlb(file);
@@ -413,14 +498,18 @@ for (const character of manifest.characters) {
   const template = templates.get(source.id);
   const rig = readRig(resolve(dir, character.file));
   const label = `${character.name} (on ${source.name}'s skeleton)`;
-  standsOnTheFloor(rig, label);
+  const extra = character.extraBones || {}; // bones of its own, on top of the template's: name -> the bone it hangs from
+  standsOnTheFloor(rig, label, character.clips);
   hopsWithHandsUp(rig, label);
   crawlsLikeAFreestyler(rig, label);
+  for (const [name, flags] of Object.entries(character.clips || {}))
+    if (flags.water) dropsIntoTheWater(rig, label, name, flags.water);
+  if (Object.keys(extra).length) bellyBounces(rig, label, Object.keys(extra), ["Walk", "Run"]);
 
   // The bones: the same names, in the same hierarchy, at the same rest rotations, under a root with the same scale.
   assert.deepEqual(
     Object.keys(rig.bones).sort(),
-    Object.keys(template.bones).sort(),
+    [...Object.keys(template.bones), ...Object.keys(extra)].sort(),
     `${label}: different bones`,
   );
   assert.deepEqual(rig.root.scale, template.root.scale, `${label}: the armature's scale differs`);
@@ -431,7 +520,11 @@ for (const character of manifest.characters) {
   const height = rig.box.max[1] - rig.box.min[1];
   const templateHeight = template.box.max[1] - template.box.min[1];
   for (const [name, bone] of Object.entries(rig.bones)) {
-    const base = template.bones[name];
+    const base = template.bones[name] || {
+      parent: extra[name], // a bone of its own: it only has to hang from the bone the manifest names
+      rotation: bone.rotation,
+      world: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (bone.world[13] * templateHeight) / height, 0, 1],
+    };
     assert.equal(bone.parent, base.parent, `${label}: ${name} hangs from ${bone.parent}, not ${base.parent}`);
     const turn = degrees(bone.rotation, base.rotation);
     assert.ok(
@@ -466,7 +559,7 @@ for (const character of manifest.characters) {
   // The skin: every vertex's four weights add up to one, and the same bones as in the template carry nothing.
   assert.ok(rig.worstSum < 1e-2, `${label}: a vertex's weights add up to ${(1 + rig.worstSum).toFixed(3)}`);
   for (const [name, total] of Object.entries(rig.carried)) {
-    const expected = template.carried[name] > 1e-6;
+    const expected = name in extra || template.carried[name] > 1e-6;
     assert.equal(
       total > 1e-6,
       expected,
@@ -499,9 +592,10 @@ for (const character of manifest.characters) {
       assert.ok(mine, `${label} / ${name}: no ${path} track for ${bone}`);
       if (path === "rotation") {
         const worst = Math.max(...frames.map((t) => degrees(sample(keys, t), sample(mine, t))));
+        const allowed = character.adjusted?.[bone] ?? CLIP_DEG; // a bone turned on purpose (clear_limbs.py) has its limit
         assert.ok(
-          worst < CLIP_DEG,
-          `${label} / ${name}: ${bone} turns ${worst.toFixed(2)}° differently from the template's`,
+          worst < allowed,
+          `${label} / ${name}: ${bone} turns ${worst.toFixed(2)}° differently from the template's${allowed > CLIP_DEG ? ` (the manifest allows ${allowed}°)` : ""}`,
         );
       } else if (path === "scale") {
         assert.ok(
@@ -553,7 +647,7 @@ for (const character of manifest.characters) {
     retargeted++;
   }
   // Clips the character has of its own, made for its body (tools/blender/character_clips.py): present and, like every clip,
-  // standing on the floor (checked above).
+  // standing on the floor (checked above), or, for one that ends in the water, jumping into it (dropsIntoTheWater).
   for (const name of character.own || [])
     assert.ok(rig.clips[name], `${label}: its own clip ${name} is missing`);
   rigged++;
@@ -562,5 +656,5 @@ assert.ok(rigged > 0, "characters.json lists at least one character on another c
 assert.ok(retargeted > 0, "characters.json lists at least one retargeted clip");
 
 console.log(
-  `Rig checks passed: ${rigged} character(s) share the template's ${templates.size ? Object.keys([...templates.values()][0].bones).length : 0} bones (names, hierarchy, rest rotations), with a consistent bind pose and skin weights that add up to one, and ${retargeted} retargeted clip(s) that move every bone as the template's do. Every clip, the template's too, stands on the floor.`,
+  `Rig checks passed: ${rigged} character(s) share the template's ${templates.size ? Object.keys([...templates.values()][0].bones).length : 0} bones (names, hierarchy, rest rotations), with a consistent bind pose and skin weights that add up to one, and ${retargeted} retargeted clip(s) that move every bone as the template's do (bar the arms and knees a manifest adjusts). Every clip, the template's too, stands on the floor; one that ends in the water starts on it and falls into the water like a body.`,
 );

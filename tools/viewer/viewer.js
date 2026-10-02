@@ -47,6 +47,8 @@ const S = {
   cache: new Map(),
   lying: false, // the character is laid on its front (a clip the manifest marks "prone")
   standingView: null, // the camera's {azimuth, elevation} before it went to the side to watch a swimmer
+  water: null, // the flags of the clip playing when it is one that ends in the water (the manifest's "water"): the page is a pool
+  poolView: null, // the camera's {azimuth, elevation} before it went to the pool
 };
 
 // ---- the scene ----------------------------------------------------------------------------------------------------
@@ -96,6 +98,29 @@ shadowCatcher.rotation.x = -Math.PI / 2;
 shadowCatcher.position.y = 0.002;
 shadowCatcher.receiveShadow = true;
 scene.add(shadowCatcher);
+
+// A clip the manifest marks "water" (the cannonball) is made on a deck with the water below it, and ends under the surface. For
+// that clip the page is a pool: the floor ends in an edge with the pool's wall under it, translucent water lies at the clip's
+// own level, and the character is run off the deck while the clip plays (the clip is in place; the game moves its characters),
+// so the fall ends in the water.
+const POOL_START = -0.9; // metres behind the pool's edge the character starts
+const POOL_DEPTH = 1.8;
+const pool = new THREE.Group();
+pool.visible = false;
+scene.add(pool);
+const poolWall = new THREE.Mesh(new THREE.PlaneGeometry(48, POOL_DEPTH), new THREE.MeshBasicMaterial({ color: 0x8aa3ba, side: THREE.DoubleSide }));
+poolWall.position.set(0, -POOL_DEPTH / 2, 0);
+const poolBottom = new THREE.Mesh(new THREE.PlaneGeometry(48, 24), new THREE.MeshBasicMaterial({ color: 0x1d5f9a }));
+poolBottom.rotation.x = -Math.PI / 2;
+poolBottom.position.set(0, -POOL_DEPTH, 12);
+const waterSurface = new THREE.Mesh(
+  new THREE.PlaneGeometry(48, 24),
+  new THREE.MeshBasicMaterial({ color: 0x3aa0f0, transparent: true, opacity: 0.5, depthWrite: false }),
+);
+waterSurface.rotation.x = -Math.PI / 2;
+waterSurface.position.set(0, -0.25, 12);
+waterSurface.renderOrder = 2;
+pool.add(poolWall, poolBottom, waterSurface);
 
 function backdropColor() {
   if (S.backdrop in BACKDROPS) return BACKDROPS[S.backdrop];
@@ -341,6 +366,7 @@ function setCamera(azimuthDeg, elevationDeg = 7) {
   const h = c ? c.height : 1.8;
   const stageH = Math.max(160, stage.clientHeight);
   const lying = S.lying;
+  const water = S.water;
   const top = 14 + ($(".hud-top")?.offsetHeight || 24) + (c?.entry.premium && !lying ? 58 : 14); // under the readout (and the name plate)
   const bottom = stageH - 48;
   const half = Math.tan((camera.fov * Math.PI) / 360);
@@ -348,8 +374,11 @@ function setCamera(azimuthDeg, elevationDeg = 7) {
   // the width, which is what limits it on a phone.
   let pixelsPerMetre = Math.min(stageH / 2 / (2.7 * h * half), (bottom - top) / (h * 1.05));
   if (lying) pixelsPerMetre = Math.min(stageH / 2 / (2.2 * h * half), (bottom - top) / (h * 0.6), Math.max(160, stage.clientWidth) / (h * 1.55));
+  // At the pool the whole jump is in view: from under the surface to the top of the jump, and from the start to the splash.
+  if (water) pixelsPerMetre = Math.min((bottom - top) / (h * 2.3), Math.max(160, stage.clientWidth) / (h * 2.3));
   const d = stageH / 2 / (pixelsPerMetre * half);
-  const target = new THREE.Vector3(0, (lying ? LYING_HEIGHT : h / 2) + ((top + bottom) / 2 - stageH / 2) / pixelsPerMetre, 0);
+  const centreY = lying ? LYING_HEIGHT : water ? h * 0.4 : h / 2;
+  const target = new THREE.Vector3(0, centreY + ((top + bottom) / 2 - stageH / 2) / pixelsPerMetre, water ? POOL_START + water.run.metres / 2 : 0);
   const az = (azimuthDeg * Math.PI) / 180;
   const el = (elevationDeg * Math.PI) / 180;
   camera.position.set(target.x + Math.sin(az) * Math.cos(el) * d, target.y + Math.sin(el) * d, target.z + Math.cos(az) * Math.cos(el) * d);
@@ -380,6 +409,40 @@ function lay(prone) {
   $("#tag").hidden = !character.entry.premium || prone;
 }
 
+// Where the character is along the run-up of a pool clip: standing at the start, carried forward steadily from the frame it
+// leaves the deck to the frame it reaches the water (the manifest's water.run: from, to, metres), and held there.
+function runZ(water, frame) {
+  const { from, to, metres } = water.run;
+  return POOL_START + metres * Math.min(1, Math.max(0, (frame - from) / (to - from)));
+}
+
+// The pool (the scene only): the floor is the deck up to the edge, the water at the clip's level.
+function showPool(water) {
+  pool.visible = !!water;
+  floor.scale.y = shadowCatcher.scale.y = water ? 0.5 : 1; // the plane's own y runs along the world's z: half of it, back from the edge
+  floor.position.z = shadowCatcher.position.z = water ? -12 : 0;
+  floorTexture.repeat.set(48, water ? 24 : 48); // (1 m squares either way)
+  if (water) waterSurface.position.y = water.level;
+}
+
+function dive(water) {
+  const character = S.character;
+  if (!character || S.water === (water || null)) return;
+  const view = () => {
+    const v = camera.position.clone().sub(controls.target);
+    return { azimuth: (Math.atan2(v.x, v.z) * 180) / Math.PI, elevation: (Math.atan2(v.y, Math.hypot(v.x, v.z)) * 180) / Math.PI };
+  };
+  if (water && !S.water) S.poolView = view();
+  const back = !water && S.poolView ? S.poolView : null;
+  S.water = water || null;
+  showPool(S.water);
+  character.root.position.z = water ? POOL_START : 0;
+  character.root.updateMatrixWorld(true);
+  // (from the swimmer's right, a little above the water: it runs to the right)
+  const cam = water ? { azimuth: -62, elevation: 9 } : back || view();
+  setCamera(cam.azimuth, cam.elevation);
+}
+
 function activate(character) {
   const previous = S.character;
   if (previous) {
@@ -389,6 +452,8 @@ function activate(character) {
     previous.root.rotation.x = 0; // (a cached character comes back standing)
     previous.root.position.set(0, 0, 0);
   }
+  S.water = null;
+  showPool(null);
   S.lying = false;
   S.character = character;
   S.clip = null;
@@ -485,6 +550,13 @@ function renderClips(character) {
       lying.title = "The clip is made standing; the game lays the swimmer on its front, so it is shown lying on its front.";
       badges.append(lying);
     }
+    if (character.entry.clips?.[c.name]?.water) {
+      const wet = document.createElement("span");
+      wet.className = "badge";
+      wet.textContent = "into the water";
+      wet.title = `The clip jumps from the deck into water ${Math.abs(character.entry.clips[c.name].water.level).toFixed(2)} m below it and ends under the surface; it is made in place, so the page runs the character off the deck.`;
+      badges.append(wet);
+    }
     if (c.info.maxDeg > POP_DEG && !character.entry.clips?.[c.name]?.pop) {
       const pop = document.createElement("span");
       pop.className = "badge warn";
@@ -528,7 +600,10 @@ function selectClip(entry, { fade = S.blend } = {}) {
   }
   for (const c of character.clips) c.button?.setAttribute("aria-current", String(c === entry));
   store.set("clip:" + character.entry.id, entry.name);
-  lay(!!character.entry.clips?.[entry.name]?.prone);
+  const flags = character.entry.clips?.[entry.name] || {};
+  if (!flags.water) dive(null); // leave a pool first, so the camera it brings back is the one lay() keeps
+  lay(!!flags.prone);
+  if (flags.water) dive(flags.water);
   const speedHint = entry.ground;
   const match = $("#match");
   match.hidden = !speedHint;
@@ -594,8 +669,9 @@ function tick() {
   if (character) {
     const advance = S.playing ? dt * S.speed : 0;
     character.mixer.update(advance);
-    if (S.ground > 0) floorTexture.offset.y = (floorTexture.offset.y - S.ground * advance) % 1; // the ground runs back under a character facing +Z
+    if (S.ground > 0 && !S.water) floorTexture.offset.y = (floorTexture.offset.y - S.ground * advance) % 1; // the ground runs back under a character facing +Z
     const a = S.clip;
+    if (a && S.water) character.root.position.z = runZ(S.water, a.action.time * FPS);
     if (a) {
       const t = a.action.time;
       const frame = Math.min(a.info.frames, Math.round(t * FPS));

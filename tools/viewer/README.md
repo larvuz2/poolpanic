@@ -16,7 +16,7 @@ Anything can be previewed without publishing: drop a `.glb` on the page, or use 
 | --- | --- |
 | `index.html` | The page, written as a fragment: the artifact host adds the document, head and body |
 | `viewer.js` | The app |
-| `characters.json` | The characters the page lists: `{id, name, file, note, clipFiles?, clips?, skeleton?, retargeted?, own?, premium?}` |
+| `characters.json` | The characters the page lists: `{id, name, file, note, clipFiles?, clips?, skeleton?, extraBones?, adjusted?, retargeted?, own?, premium?}` |
 | `models/*.glb` | Characters that are only in the viewer. A character's `file` in `characters.json` is found from this folder, so Coach Panic's is the game's own `../../dist/assets/coach-panic.glb`, and so are the five generic swimmers' (`../../dist/assets/swimmer-*.glb`) |
 | `vendor/` | three r170's `GLTFLoader`, `OrbitControls` and `BufferGeometryUtils`, untouched |
 | `build.sh` | Assembles `.build/` (the flat folder that is published); takes `three.module.js` from `dist/assets` |
@@ -36,6 +36,21 @@ A clip made to be played lying on the front (a swim: the game lays the swimmer d
 `"clips": {"Swim": {"prone": true}}`. The page then shows the character lying on its front, floating over the grid, from its
 right side with the head on the right, while the clip plays (and stands it up again for any other clip), marks the clip
 "lying down", hides the name plate and gives it no ground speed.
+
+A character with bones of its own on top of the template's (Carl's three belly bones, `tools/blender/belly_bones.py`) lists them as
+`"extraBones": {"BellyUpper": "Spine01", "BellyMid": "Spine02", "BellyLower": "Hips"}` (name: the bone it hangs from), and
+`rig-check.mjs` checks they hang from it, sit inside the body, carry skin and move in the Walk and Run. Clips taken from the template
+that were changed on purpose (the arms swung out of a belly, the knees' bend cut: `tools/blender/clear_limbs.py`) say how far a bone
+may differ from the template's, in degrees: `"adjusted": {"LeftArm": 55, "RightArm": 55, "LeftLeg": 55, "RightLeg": 55}`; every
+other bone must still be the template's, exactly.
+
+A clip that ends in the water (Carl's cannonball: made on the deck, falls into water 0.25 m below it) says
+`"clips": {"Cannonball": {"open": true, "water": {"level": -0.25, "run": {"from": 20, "to": 37, "metres": 1.7}}}}`. Such a clip does not
+loop (`open`) and is not grounded; `rig-check.mjs` checks that it starts on the floor, jumps, tucks its legs, falls at gravity's
+acceleration, is slowed by the water and ends well under the surface. The clip is made in place (the game moves its characters), so
+the page turns into a pool while it plays: the floor ends at an edge with the pool wall under it, translucent water lies at
+`level`, and the character is carried forward `metres` between the frames `from` and `to` (a steady speed, from 0.9 m behind the edge)
+so the fall ends over the water. The camera frames the whole jump from the right, and the clip is marked "into the water".
 
 A named character that matters more than the generic swimmers says `"premium": true`. The page then floats a gold plate
 over its head with a star, **Premium** and its name, which is how the game will mark those guests. The plate is placed from

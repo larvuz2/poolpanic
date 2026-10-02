@@ -6,7 +6,9 @@ from the same rest orientations, so a rotation means the same on either), and th
 of the two hip heights unless --scale says otherwise, so a child hops lower and a giant higher. Unlike it, the file is not
 read into Blender and written out again: the mesh, skin, textures and the other clips stay byte for byte what they were, and
 the new clips are appended to the file's binary data. A clip the target already has is an error, not an overwrite (start from
-the file without it). The clips go into the file in alphabetical order, like the exporter's.
+the file without it). The clips go into the file in alphabetical order, like the exporter's. The target may have bones of its
+own on top of the source's (the belly bones of belly_bones.py): the new clips do not key them, so they stay at rest, and
+clear_limbs.py and belly_jiggle.py are run on the new clips afterwards.
 
 glTF stores a bone's whole local translation, not an offset from its rest position, so a copied value would put the Coach's
 joint positions on another body. What is carried over is each key's offset from the source bone's rest translation, scaled
@@ -132,8 +134,9 @@ def main():
         return {doc["nodes"][j]["name"] for skin in doc["skins"] for j in skin["joints"]}
 
     src_joints, dst_joints = joints(src), joints(dst)
-    if src_joints != dst_joints:
-        raise SystemExit(f"The skeletons differ, so the clips do not fit: {sorted(src_joints ^ dst_joints)}")
+    if src_joints - dst_joints:
+        raise SystemExit(f"The skeletons differ, so the clips do not fit: the target lacks {sorted(src_joints - dst_joints)}")
+    extra = sorted(dst_joints - src_joints)  # bones the target has of its own (the belly bones): the clips do not move them
     bones = sorted(src_joints)
     for name in bones:
         a = src["nodes"][src_names[name]].get("rotation", [0, 0, 0, 1])
@@ -204,6 +207,8 @@ def main():
     dst["buffers"][0]["byteLength"] = len(binary)
     write_glb(out_path, dst, bytes(binary))
     print(f"TRANSPLANTED {out_path}: {len(made)} clip(s) on {len(bones)} bones, {os.path.getsize(out_path)} bytes")
+    if extra:
+        print(f"NOTE {', '.join(extra)} are the target's own and stay at rest in the new clip(s): run clear_limbs.py and belly_jiggle.py on them")
 
 
 if __name__ == "__main__":

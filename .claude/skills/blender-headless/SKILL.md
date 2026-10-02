@@ -38,8 +38,16 @@ preview they can check on any device and exports the glTF.
      played lying down), authored once on the Coach. A clip played lying on the front is `"prone": true` in `characters.json`.
    - `transplant_clips.py SOURCE.glb TARGET.glb OUT.glb --only Panic`: plain Python, no Blender. Adds clips of one GLB to a
      finished character on the same skeleton without touching its mesh, textures or other clips (rotations by bone name,
-     hips travel x the hip-height ratio). Use it for a clip added to characters that are already built; then
-     `ground_clips.py --only Panic`, list it as `"retargeted"` and run `node rig-check.mjs`.
+     hips travel x the hip-height ratio; extra bones of the target, such as Carl's belly bones, stay at rest). Use it for a clip
+     added to characters that are already built; then `ground_clips.py --only Panic`, list it as `"retargeted"` and run `node rig-check.mjs`.
+   - A round character (Carl: a belly wider than the shoulders): `belly_bones.py` (Blender) adds BellyUpper/BellyMid/BellyLower to
+     a character on the Coach's skeleton and weights the front of the belly to them; then, all plain Python (numpy, scipy),
+     `belly_jiggle.py in.glb out.glb` keys the belly's motion into every clip (springs: it lags, bounces, breathes),
+     `clear_limbs.py in.glb out.glb` turns the arms out of the belly and cuts the knees' bend where a shin would go into it
+     (the torso is measured as a volume, `skinpose.Volume`), and `cannonball_clip.py in.glb out.glb` adds Carl's own one-shot
+     `Cannonball` (poses from `posing.py`; not grounded). List the belly bones as `"extraBones"`, the arm and knee limits as
+     `"adjusted"` and the clip as `"water"` in `characters.json`; `node rig-check.mjs` knows all three. Order and numbers:
+     "A character with a belly (Carl)" in `tools/blender/README.md`. `ground_clips.py --only` leaves the Cannonball alone.
    - `fix_mouth.py -- in.glb out.glb --box x0,x1,z0,z1,y_max --paint`: takes a mouth Meshy invented off a character that has
      none (relaxes the lip groove, renews the normals, paints the texture with the skin round it). Run it on the raw mesh,
      before `game_export.py`; the header says how to pick the box.

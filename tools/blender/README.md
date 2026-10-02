@@ -22,7 +22,11 @@ tools/blender/run.sh SCRIPT.py -- ARGS...
 | `retarget_clips.py -- rigged.glb out.glb [--template dist/assets/coach-panic.glb] [--scale K] [--only Run,Walk] [--tex-quality 90]` | Puts the template's clips (Coach Panic's Run, Walk, IdleScan, IdleScratch) on a character rigged by `rig_from_template.py`: every bone's rotation keys are copied by name, the hips' travel is multiplied by the ratio of the two hip heights (or `--scale`), each clip keeps its name and length, mesh, skin and textures stay as they were. A clip already in the file is dropped |
 | `ground_clips.py -- in.glb out.glb [--only Walk,Run]` | Stands a character's clips on the floor: plays each clip in Blender, finds how far the mesh sinks under the floor at its lowest point, and lifts the hips by that much in every key of that clip (one height per clip; the pose, speed and loop do not change). Only those position keys are rewritten, in the GLB itself, so the rest of the file is byte for byte what it was. A clip that already stands on the floor (an idle) is left alone, so running it twice changes nothing. Run it last |
 | `character_clips.py -- in.glb out.glb --character marco [--only WaitWatch]` | Adds a character's own clips to a character on Coach Panic's skeleton (the clips of the file stay). A clip is a list of keys per control (the wrist's target and the elbow's direction for each arm, the hips, spine and head turns, where the head looks, a foot lifting for a tap) written in the `CLIPS` table of the script, and every frame is solved: arms by two-bone IK in fractions of the arm's reach, so one pose fits a tall swimmer and a child, legs with the feet held where they stand and the knees bending to the hips. Every bone is keyed, the clip loops. Run `ground_clips.py` after it. `--character shared` is the table of clips every character gets (Panic and Swim), made on Coach Panic and moved to the others with `transplant_clips.py` |
-| `transplant_clips.py SOURCE.glb TARGET.glb OUT.glb --only Panic,Swim [--scale K]` | Plain Python (no Blender): adds clips of one GLB to a finished character on the same skeleton and changes nothing else in the file (the mesh, skin, textures and the other clips stay byte for byte). Rotation keys are copied by name, the hips' travel is scaled by the ratio of the two hip heights (or `--scale`), and a bone's translation is carried as its offset from its own rest position, since glTF stores the whole local translation. Refuses a skeleton that differs or a clip the target already has. Run `ground_clips.py --only Panic,Swim` after it |
+| `transplant_clips.py SOURCE.glb TARGET.glb OUT.glb --only Panic,Swim [--scale K]` | Plain Python (no Blender): adds clips of one GLB to a finished character on the same skeleton and changes nothing else in the file (the mesh, skin, textures and the other clips stay byte for byte). Rotation keys are copied by name, the hips' travel is scaled by the ratio of the two hip heights (or `--scale`), and a bone's translation is carried as its offset from its own rest position, since glTF stores the whole local translation. Refuses a skeleton that differs (a target with bones of its own on top, the belly bones, is fine: they stay at rest) or a clip the target already has. Run `ground_clips.py --only Panic,Swim` after it |
+| `belly_bones.py -- rigged.glb out.glb [--front 0.2] [--keep-legs 0]` | Adds three bones to a character rigged on Coach Panic's skeleton, for a round body whose stomach should move by itself: BellyUpper (child of Spine01), BellyMid (Spine02), BellyLower (Hips), each a short bone at the belly's middle line pointing forward to its front, with the front of the belly weighted to them by height (the 24 bones, the bind pose and the clips stay). First it takes the thigh bones' hold off the lower back and the behind (on a wide body the automatic weights give them most of it, and the back swings with every knee). Needs Blender |
+| `belly_jiggle.py in.glb out.glb [--only Walk,Run] [--oneshot Cannonball] [--gain 1.0]` | Plain Python (numpy): writes the belly's own motion into the clips, as position keys of the three belly bones: a mass on a spring per axis that lags the spine and hips, bounces on every step and landing, sways with a turn and rises with a breath in the idles. A looping clip is run round for ten loops and the last one kept, so the belly is in step with its loop; a one-shot clip starts at rest. The belly never goes more than 2.5 / 4 / 3 cm (sideways / up / forward) from where it hangs |
+| `clear_limbs.py in.glb out.glb [--only Walk,Run] [--oneshot Cannonball] [--arms-only Cannonball] [--overlap 0.015] [--arm-max 50]` | Plain Python (numpy, scipy): keeps arms and knees out of a belly. A clip taken from a slim body hangs the arms by the sides, swings them past the hips and kicks the heels up behind; on a wide body that is inside it. The torso is a volume (the body's bind pose, filled, carried by the skin weights) and each clip is played on the skinned mesh: the least outward turn of the whole arm about the shoulder, and the least cut of the knee's bend, that leave the limb no more than 1.5 cm inside it is found frame by frame, smoothed in time, and written into the arm and knee rotation keys. A clip that is clear is left byte for byte as it is |
+| `cannonball_clip.py in.glb out.glb` | Plain Python (numpy): makes Carl's one-shot clip `Cannonball` (below) and puts it in his file. `posing.py` (poses the skeleton from joint angles and wrist and ankle targets, with two-bone IK) and `skinpose.py` (reads a GLB, skins it, measures the body) are its libraries, and the other plain-Python tools' |
 | `make_test_humanoid.py -- out.glb` | A blocky stand-in character (T-pose, 1.8 m) for trying the pipeline without a real mesh |
 
 `common.py` holds what they share (import any of glTF/GLB, FBX, OBJ, blend; bounds; lights; camera; engine choice).
@@ -140,6 +144,55 @@ seconds each (the same input always gives the same GLB), and the same rig is wha
   box he needed). The mesh's front-most point is not always the face, so `rig-check.mjs` lets the `headfront` marker stand
   up to 8 cm in front of a shallow head.
 - Knee and elbow smoothing (`smooth_joints.py`) is not applied to these ten yet. Add it when a run shows tearing there.
+
+## A character with a belly (Carl)
+
+Carl (`carl`, `tools/viewer/models/carl.glb`; he is not in the game yet) is the man who does the cannonball: 1.70 m, very round
+(the belly is 90 cm across, wider than his shoulders and hanging over short legs), messy hair, big worried eyes, no mouth. His
+mesh is Meshy's from the T-pose picked for him (`game_export.py --height 1.70`, about 10k triangles), rigged on Coach Panic's
+skeleton like the others (`rig_from_template.py`, `retarget_clips.py`, hip travel x0.70), and then four things a slim body never
+needs:
+
+```sh
+tools/blender/run.sh tools/blender/belly_bones.py -- retargeted.glb belly.glb            # + BellyUpper, BellyMid, BellyLower, and the thighs off his back
+python3 tools/blender/belly_jiggle.py belly.glb jiggle.glb                               # the belly's motion, in every clip
+python3 tools/blender/clear_limbs.py jiggle.glb cleared.glb --arm-max 62                 # arms out of the belly, shins out of the behind
+python3 tools/blender/cannonball_clip.py cleared.glb jump.glb                            # the one clip only he has
+python3 tools/blender/clear_limbs.py jump.glb jump2.glb --only Cannonball --oneshot Cannonball --arms-only Cannonball --arm-max 70
+python3 tools/blender/belly_jiggle.py jump2.glb jump3.glb --only Cannonball --oneshot Cannonball
+tools/blender/run.sh tools/blender/ground_clips.py -- jump3.glb carl.glb --only IdleScan,IdleScratch,Panic,Run,Swim,Walk   # not the Cannonball
+```
+
+- **The belly bones.** Three bones, 27 in all, so the stomach can move on its own while the rest of him walks. 1609 vertices
+  (the front of the belly, by height) are weighted to them; the back, the flanks behind the middle, the chest, thighs and arms
+  keep the skin they had. Nothing in the game has to simulate it: `belly_jiggle.py` bakes the motion into the clips (the lower
+  belly, the heaviest, goes up and down 3.5 cm in the Walk and 3.6 cm in the Run, 0.6 cm with each breath in the idles).
+  `rig-check.mjs` knows them as `"extraBones": {"BellyUpper": "Spine01", ...}` in `characters.json`: they hang from the bone
+  named, sit inside the body, carry skin, and the Walk and Run move them.
+- **Arms and legs out of the body.** The arms of a retargeted clip hang by the sides and the heels kick up behind, which on his
+  body is inside it (by up to 23 cm for the arms, in the Swim, and 24 for the legs, in the Run). `clear_limbs.py` turns each arm out about the shoulder and cuts
+  the knee's bend just far enough: the arms by up to 35 degrees in the Walk and idles, 45 in the Run, 54 in the Swim; the knees by up to
+  34% of the bend in the Run (51 degrees). Everything else of the clip (the swing, the rhythm, the loop) stays. The Walk, Run, IdleScan and
+  Panic end clear (to within 1.5 cm: skin resting on skin); in the Swim a hand rests on the belly for a few frames of
+  each stroke (up to 5 cm into it) and in IdleScratch the scratching arm's elbow is up to 3 cm into it. The manifest says
+  how far a clip may differ from the Coach's: `"adjusted": {"LeftArm": 55, "RightArm": 55, "LeftLeg": 55, "RightLeg": 55}` (degrees).
+  The torso is measured as a volume (`skinpose.Volume`), because a surface normal says nothing at a fold; the noise floor of
+  the measure is 1.2 to 1.7 cm, which is why the tolerance is 1.5.
+- **Cannonball** (`cannonball_clip.py`, 55 frames, 2.25 s, plays once and is made in place: the game moves him). The pose
+  respects his body instead of forcing a textbook tuck: a deep crouch, feet wide, arms swung back, the belly leaning forward over
+  the knees (frames 6 to 13), a beat, then the push (frames 14 to 20: the hips rise 23 cm to the tiptoes, the arms swing up in
+  front, the chest first), the takeoff at 2.9 m/s (0.42 m up), and in the air the thighs come up under and beside the belly only as
+  far as it lets them, the lower legs folded underneath and the feet pointed, the arms down and out round the belly with the
+  elbows wide and the hands resting on its flanks beside the knees, the shoulders rounded, the back curled (never folded over the
+  legs) and the head tucked to look at the water. The tuck is held at the top (frame 27) and the body falls at 9.8 m/s^2; the
+  tucked body's lowest part, the feet under the belly, reaches the water 0.25 m below the deck at frame 37, the pelvis rocks back,
+  the water throws his arms out and his head up, and he sinks and slows while the belly goes on without him
+  (`belly_jiggle.py --oneshot`). It is not grounded (`ground_clips.py` would lift it by the depth he sinks). His hands cannot
+  really hold his shins: his arms are 53 cm long, the belly is wider than they reach round and his knees end up under it.
+  `characters.json` marks it `"water": {"level": -0.25, "run": {"from": 20, "to": 37, "metres": 1.7}}`: Anim Bench shows it over
+  a pool and runs him off the deck between those frames (see `tools/viewer/README.md`), and `rig-check.mjs` checks that the clip starts on the floor, jumps, tucks, falls
+  at gravity's acceleration, is slowed by the water and ends well under its surface. The knees snap straight in the push-off and fold up in the tuck at about 40 degrees a frame
+  (`"pop": true`).
 
 ## Rigging notes
 
