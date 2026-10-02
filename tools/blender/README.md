@@ -27,6 +27,7 @@ tools/blender/run.sh SCRIPT.py -- ARGS...
 | `belly_jiggle.py in.glb out.glb [--only Walk,Run] [--oneshot Cannonball] [--gain 1.0]` | Plain Python (numpy): writes the belly's own motion into the clips, as position keys of the three belly bones: a mass on a spring per axis that lags the spine and hips, bounces on every step and landing, sways with a turn and rises with a breath in the idles. A looping clip is run round for ten loops and the last one kept, so the belly is in step with its loop; a one-shot clip starts at rest. The belly never goes more than 2.5 / 4 / 3 cm (sideways / up / forward) from where it hangs |
 | `clear_limbs.py in.glb out.glb [--only Walk,Run] [--oneshot Cannonball] [--arms-only Cannonball] [--overlap 0.015] [--arm-max 50]` | Plain Python (numpy, scipy): keeps arms and knees out of a belly. A clip taken from a slim body hangs the arms by the sides, swings them past the hips and kicks the heels up behind; on a wide body that is inside it. The torso is a volume (the body's bind pose, filled, carried by the skin weights) and each clip is played on the skinned mesh: the least outward turn of the whole arm about the shoulder, and the least cut of the knee's bend, that leave the limb no more than 1.5 cm inside it is found frame by frame, smoothed in time, and written into the arm and knee rotation keys. A clip that is clear is left byte for byte as it is |
 | `cannonball_clip.py in.glb out.glb` | Plain Python (numpy): makes Carl's one-shot clip `Cannonball` (below) and puts it in his file. `posing.py` (poses the skeleton from joint angles and wrist and ankle targets, with two-bone IK) and `skinpose.py` (reads a GLB, skins it, measures the body) are its libraries, and the other plain-Python tools' |
+| `round_character.sh retargeted.glb out.glb` | Everything a round character gets after `retarget_clips.py`, in the order that works: `belly_bones.py`, `belly_jiggle.py`, `clear_limbs.py`, `cannonball_clip.py` (its tuck depth measured on the body), the Cannonball's arms cleared and its belly moved, and `ground_clips.py` on the six other clips (not the Cannonball). Carl and the leopard man are made with it |
 | `make_test_humanoid.py -- out.glb` | A blocky stand-in character (T-pose, 1.8 m) for trying the pipeline without a real mesh |
 
 `common.py` holds what they share (import any of glTF/GLB, FBX, OBJ, blend; bounds; lights; camera; engine choice).
@@ -145,7 +146,7 @@ seconds each (the same input always gives the same GLB), and the same rig is wha
   up to 8 cm in front of a shallow head.
 - Knee and elbow smoothing (`smooth_joints.py`) is not applied to these ten yet. Add it when a run shows tearing there.
 
-## A character with a belly (Carl)
+## A character with a belly (Carl and the leopard man)
 
 Carl (`carl`, `tools/viewer/models/carl.glb`; he is not in the game yet) is the man who does the cannonball: 1.70 m, very round
 (the belly is 90 cm across, wider than his shoulders and hanging over short legs), messy hair, big worried eyes, no mouth. His
@@ -154,6 +155,8 @@ skeleton like the others (`rig_from_template.py`, `retarget_clips.py`, hip trave
 needs:
 
 ```sh
+tools/blender/round_character.sh retargeted.glb carl.glb      # all of the steps below, in one go
+# or one by one:
 tools/blender/run.sh tools/blender/belly_bones.py -- retargeted.glb belly.glb            # + BellyUpper, BellyMid, BellyLower, and the thighs off his back
 python3 tools/blender/belly_jiggle.py belly.glb jiggle.glb                               # the belly's motion, in every clip
 python3 tools/blender/clear_limbs.py jiggle.glb cleared.glb --arm-max 62                 # arms out of the belly, shins out of the behind
@@ -172,9 +175,13 @@ tools/blender/run.sh tools/blender/ground_clips.py -- jump3.glb carl.glb --only 
 - **Arms and legs out of the body.** The arms of a retargeted clip hang by the sides and the heels kick up behind, which on his
   body is inside it (by up to 23 cm for the arms, in the Swim, and 24 for the legs, in the Run). `clear_limbs.py` turns each arm out about the shoulder and cuts
   the knee's bend just far enough: the arms by up to 35 degrees in the Walk and idles, 45 in the Run, 54 in the Swim; the knees by up to
-  34% of the bend in the Run (51 degrees). Everything else of the clip (the swing, the rhythm, the loop) stays. The Walk, Run, IdleScan and
-  Panic end clear (to within 1.5 cm: skin resting on skin); in the Swim a hand rests on the belly for a few frames of
-  each stroke (up to 5 cm into it) and in IdleScratch the scratching arm's elbow is up to 3 cm into it. The manifest says
+  34% of the bend in the Run (51 degrees). Everything else of the clip (the swing, the rhythm, the loop) stays. What is kept out of
+  is the torso as it is before the arm turns, to within 1.5 cm (skin resting on skin), and in the Walk, Run, IdleScan and Panic the
+  forearms and hands end clear of it. The skin of the armpit and the flank follows the arm's own weights, so it is dragged out a little
+  with the arm, and measured against the torso so deformed (the report prints that too) the upper arm rests on the belly's flank, up to
+  5 cm into it in a few frames of the Walk, Run and idles: an arm pressed against a soft belly. Holding it clear of that as well takes
+  about 20 degrees more turn (the arms held out like a wrestler's). In the Swim a hand rests on the belly for a few frames of each
+  stroke (up to 5 cm into it) and in IdleScratch the scratching arm's elbow is up to 3 cm into it. The manifest says
   how far a clip may differ from the Coach's: `"adjusted": {"LeftArm": 55, "RightArm": 55, "LeftLeg": 55, "RightLeg": 55}` (degrees).
   The torso is measured as a volume (`skinpose.Volume`), because a surface normal says nothing at a fold; the noise floor of
   the measure is 1.2 to 1.7 cm, which is why the tolerance is 1.5.
@@ -193,6 +200,15 @@ tools/blender/run.sh tools/blender/ground_clips.py -- jump3.glb carl.glb --only 
   a pool and runs him off the deck between those frames (see `tools/viewer/README.md`), and `rig-check.mjs` checks that the clip starts on the floor, jumps, tucks, falls
   at gravity's acceleration, is slowed by the water and ends well under its surface. The knees snap straight in the push-off and fold up in the tuck at about 40 degrees a frame
   (`"pop": true`).
+
+- **The leopard man** (`leopard-man`, `tools/viewer/models/leopard-man.glb`; the name is a placeholder) is the second round character:
+  bald with a curl of hair over each ear, thick brows, big white eyes, a mustache (no mouth), leopard-print briefs, from the T-pose
+  the user supplied (Meshy 7, 10.4k triangles, `game_export.py --height 1.70`). His proportions are Carl's to within a few centimetres
+  (hips 0.56 m, a belly 0.94 m across and 0.39 m forward of the spine at its fullest, the same height of belly), so everything above
+  applies unchanged and `round_character.sh retargeted.glb out.glb` runs the whole chain. What differs: hip travel x0.69 against the
+  Coach, the arms turned out by up to 33 degrees (Walk, idles), 34 (Run), 51 (Swim), the knees cut by up to 45 degrees in the Run, and
+  the tucked body hangs 0.114 m above the floor (Carl's 0.124: `cannonball_clip.py` measures it on each body), so the splash is at the
+  same frame, 37. His Cannonball is Carl's, made on his body.
 
 ## Rigging notes
 

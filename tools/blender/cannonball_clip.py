@@ -119,45 +119,62 @@ POLE_HANG = (0.3, -0.3, -1.0)
 AP = APEX
 MID = (TAKEOFF + APEX) / 2  # halfway up: the tuck is under way
 
-KEYS = {
-    "pelvis_pitch": [(0, 0), (6, 0), (DOWN, 14), (PUSH, 14), (20, 2, "out"), (MID, -3), (AP, -6), (HIT, -6), (HIT + 4, -14, "out"), (END, -8)],
-    "spine_pitch": [(0, 0), (6, 0), (DOWN, 16), (PUSH, 16), (20, -3, "out"), (MID + 0.5, 16), (AP + 1, 30), (HIT, 34), (HIT + 4, 22, "out"), (END, 26)],
-    "head_pitch": [(0, 0), (6, -3), (DOWN, 10), (PUSH, 10), (20, -8, "out"), (MID + 1.5, 22), (AP + 1, 28), (HIT, 34), (HIT + 4, 10, "out"), (END, 16)],
-    "hunch": [(0, 0), (DOWN, 4), (PUSH, 4), (20, 0), (AP, 14), (HIT, 16), (HIT + 4, 8), (END, 8)],
-    "shrug": [(0, 0), (DOWN, 2), (PUSH, 2), (20, 0), (AP, 6), (HIT, 6), (HIT + 4, 12), (END, 10)],
-    "wrist": [  # out, up, forward in the chest's axes, as the way from the shoulder (turned round the shoulder: curve_polar)
-        (0, HANG),
-        (6, HANG),
-        (DOWN, (0.34, -0.28, -0.40)),  # swung back and out
-        (PUSH, (0.34, -0.28, -0.40)),
-        (20, (0.30, 0.15, 0.48)),  # up and forward with the push
-        (MID, (0.38, -0.15, 0.20)),
-        (AP, (0.30, -0.40, 0.05)),  # elbows out, the forearms down along the belly's flanks: the arms go round it
-        (HIT, (0.30, -0.40, 0.05)),
-        (HIT + 5, (0.49, 0.02, 0.05), "out"),  # thrown out by the water
-        (END, (0.47, 0.20, 0.00)),
-    ],
-    "elbow": [
-        (0, POLE_HANG),
-        (6, POLE_HANG),
-        (DOWN, (0.5, 0.0, -1.0)),
-        (PUSH, (0.5, 0.0, -1.0)),
-        (20, (0.8, 0.5, -0.3)),
-        (MID, (1.0, 0.2, -0.5)),
-        (AP, (1.0, 0.1, -0.2)),
-        (HIT, (1.0, 0.1, -0.2)),
-        (HIT + 5, POLE_HANG),  # (an arm flung out straight bends its elbow back, as the pole says)
-        (END, POLE_HANG),
-    ],
-    "stance": [(0, 0.0), (6, 0.0), (DOWN, 0.10), (PUSH, 0.10), (20, 0.03, "out"), (22, 0.03)],  # how far out each planted foot is
-    "toe_out": [(0, 0.0), (6, 0.0), (DOWN, 18.0), (PUSH, 18.0), (20, 6.0)],
-    "air": [(0, 0.0), (20, 0.0), (21, 1.0)],  # 0: the feet stand where they stand; 1: the legs are as the tuck says (the feet have left the deck)
-    "lift": [(0, 0.0), (19, 0.0), (21, 1.0)],  # 0: the foot flat on the floor; 1: it follows the shin, pointed by `plantar` (the heel goes first)
-    "plantar": [(0, 0.0), (19, 0.0), (21, 40.0), (END, 35.0)],
-    # the legs in the air: the thigh's and shin's directions (out, up, forward), in the pelvis' axes: straight at the takeoff, tucked at the top
-    "thigh": [(20, (0.15, -0.95, 0.0)), (AP, (0.7, 0.10, 0.70)), (END, (0.7, 0.10, 0.70))],
-    "shin": [(20, (0.15, -0.95, 0.0)), (AP, (-0.15, -0.6, -0.78)), (END, (-0.15, -0.6, -0.78))],
-}
+
+def make_keys():
+    """The keys of every control, in frames (the water's frame HIT depends on the body: see configure)."""
+    return {
+        "pelvis_pitch": [(0, 0), (6, 0), (DOWN, 14), (PUSH, 14), (20, 2, "out"), (MID, -3), (AP, -6), (HIT, -6), (HIT + 4, -14, "out"), (END, -8)],
+        "spine_pitch": [(0, 0), (6, 0), (DOWN, 16), (PUSH, 16), (20, -3, "out"), (MID + 0.5, 16), (AP + 1, 30), (HIT, 34), (HIT + 4, 22, "out"), (END, 26)],
+        "head_pitch": [(0, 0), (6, -3), (DOWN, 10), (PUSH, 10), (20, -8, "out"), (MID + 1.5, 22), (AP + 1, 28), (HIT, 34), (HIT + 4, 10, "out"), (END, 16)],
+        "hunch": [(0, 0), (DOWN, 4), (PUSH, 4), (20, 0), (AP, 14), (HIT, 16), (HIT + 4, 8), (END, 8)],
+        "shrug": [(0, 0), (DOWN, 2), (PUSH, 2), (20, 0), (AP, 6), (HIT, 6), (HIT + 4, 12), (END, 10)],
+        "wrist": [  # out, up, forward in the chest's axes, as the way from the shoulder (turned round the shoulder: curve_polar)
+            (0, HANG),
+            (6, HANG),
+            (DOWN, (0.34, -0.28, -0.40)),  # swung back and out
+            (PUSH, (0.34, -0.28, -0.40)),
+            (20, (0.30, 0.15, 0.48)),  # up and forward with the push
+            (MID, (0.38, -0.15, 0.20)),
+            (AP, (0.30, -0.40, 0.05)),  # elbows out, the forearms down along the belly's flanks: the arms go round it
+            (HIT, (0.30, -0.40, 0.05)),
+            (HIT + 5, (0.49, 0.02, 0.05), "out"),  # thrown out by the water
+            (END, (0.47, 0.20, 0.00)),
+        ],
+        "elbow": [
+            (0, POLE_HANG),
+            (6, POLE_HANG),
+            (DOWN, (0.5, 0.0, -1.0)),
+            (PUSH, (0.5, 0.0, -1.0)),
+            (20, (0.8, 0.5, -0.3)),
+            (MID, (1.0, 0.2, -0.5)),
+            (AP, (1.0, 0.1, -0.2)),
+            (HIT, (1.0, 0.1, -0.2)),
+            (HIT + 5, POLE_HANG),  # (an arm flung out straight bends its elbow back, as the pole says)
+            (END, POLE_HANG),
+        ],
+        "stance": [(0, 0.0), (6, 0.0), (DOWN, 0.10), (PUSH, 0.10), (20, 0.03, "out"), (22, 0.03)],  # how far out each planted foot is
+        "toe_out": [(0, 0.0), (6, 0.0), (DOWN, 18.0), (PUSH, 18.0), (20, 6.0)],
+        "air": [(0, 0.0), (20, 0.0), (21, 1.0)],  # 0: the feet stand where they stand; 1: the legs are as the tuck says (the feet have left the deck)
+        "lift": [(0, 0.0), (19, 0.0), (21, 1.0)],  # 0: the foot flat on the floor; 1: it follows the shin, pointed by `plantar` (the heel goes first)
+        "plantar": [(0, 0.0), (19, 0.0), (21, 40.0), (END, 35.0)],
+        # the legs in the air: the thigh's and shin's directions (out, up, forward), in the pelvis' axes: straight at the takeoff, tucked at the top
+        "thigh": [(20, (0.15, -0.95, 0.0)), (AP, (0.7, 0.10, 0.70)), (END, (0.7, 0.10, 0.70))],
+        "shin": [(20, (0.15, -0.95, 0.0)), (AP, (-0.15, -0.6, -0.78)), (END, (-0.15, -0.6, -0.78))],
+    }
+
+
+KEYS = make_keys()
+
+
+def configure(low_point):
+    """Set what depends on how low the tucked body hangs (the feet under the belly, above the floor with the hips standing): the
+    hips' height at which that reaches the water, the frame it does, and the keys that follow it. A body measures its own."""
+    global LOW_POINT, CONTACT, FALL, HIT, KEYS
+    LOW_POINT = low_point
+    CONTACT = WATER_Y - LOW_POINT
+    FALL = math.sqrt(2 * (TAKEOFF_Y + JUMP - CONTACT) / G)
+    HIT = APEX + FALL
+    KEYS = make_keys()
 
 
 def build(P, f):
@@ -211,16 +228,17 @@ def main():
     src, dst = args
     rig = Rig(src)
     P = Posing(rig)
+    # how low the tucked body hangs is the body's own (its legs, its feet): measure it at the top of the jump, then fix the frame of the splash
+    lows = []
+    for f in (APEX, APEX + 1):
+        world = rig.world_matrices(build(P, float(f)))
+        lows.append(float(rig.skin(rig.skin_matrices(world))[:, 1].min()) - hips_up(f))
+    measured = sum(lows) / len(lows)
+    print(f"TUCK the lowest part of the tucked body hangs {measured:.3f} m above the floor with the hips standing (Carl's: 0.12)")
+    configure(measured)
     frames = [build(P, f) for f in (debug if debug else range(END + 1))]
     add_clip(rig, dst, "Try" if debug else "Cannonball", frames)
     print(f"CANNONBALL {dst}: {len(frames)} frames; hips {min(hips_up(f) for f in range(END + 1)):+.2f}..{max(hips_up(f) for f in range(END + 1)):+.2f} m; water reached at frame {HIT:.1f}")
-    if not debug:  # the lowest point of the skinned body at the top of the jump is what LOW_POINT says it is
-        played = Rig(dst)
-        for f in (APEX, APEX + 4):
-            _, verts = played.pose("Cannonball", f / FPS)
-            low = float(verts[:, 1].min()) - hips_up(f)
-            if abs(low - LOW_POINT) > 0.02:
-                print(f"WARNING frame {f}: the tucked body hangs {low:.2f} m above the floor with the hips standing, LOW_POINT says {LOW_POINT:.2f}")
 
 
 if __name__ == "__main__":

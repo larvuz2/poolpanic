@@ -15,7 +15,10 @@ centimetres of the joint it hangs from (an armpit is where an arm meets the body
   Legs: the shin and foot are kept out of the hips and behind (a Run's heel kick goes into a wide behind): the knee's bend is
   scaled down, the knee's local rotation moved a share of the way back to its rest, until the shin is clear.
 The least change that leaves the limb no more than `--overlap` metres (1.5 cm: skin pressing on skin; a thick arm rests on a
-round belly even in a T-pose) inside the torso is found frame by frame (a scan, then bisection),
+round belly even in a T-pose) inside the torso is found frame by frame (a scan, then bisection), against the torso as it is
+before the turn. The skin of the armpit and the flank follows the arm's own weights, so in the finished clip it is dragged out a
+little with the arm: the report also says how deep the arm is against the torso so deformed (the upper arm, which rests on
+the belly's flank, is up to about 5 cm in a few frames; the forearm and hand stay out),
 smoothed in time (the biggest change wins in a short window, then a blur, so a limb never snaps and is never closer than
 found), and written back as that bone's rotation keys. A clip that is already clear is left as it is, byte for byte, and the
 loop of a looping clip stays closed (the smoothing wraps); a one-shot clip (`--oneshot`, a jump that does not repeat) has its own
@@ -100,6 +103,19 @@ class Solver:
         points = rig.skin(rig.skin_matrices(world), info["vertices"])
         keep = np.linalg.norm(points - world[info["node"]][:3, 3], axis=1) > SKIP
         return float(-self.volume.signed(tree, points[keep]).min())
+
+    def arm_depth_dragged(self, side, local, turn, axis):
+        """The same depth, with the torso as the turned pose deforms it: the skin of the armpit and the flank follows the
+        arm's own weights, so it is dragged out a little with the arm. (arm_turn works on the torso as it is before the turn,
+        which is what is kept off the arm; this is what the finished clip measures.)"""
+        rig, info = self.rig, self.arms[side]
+        trs = dict(local)
+        t, q, s = trs[info["node"]]
+        trs[info["node"]] = (t, skinpose.quat_multiply(skinpose.axis_angle_quat(axis, turn), q), s)
+        world = rig.world_matrices(trs)
+        points = rig.skin(rig.skin_matrices(world), info["vertices"])
+        keep = np.linalg.norm(points - world[info["node"]][:3, 3], axis=1) > SKIP
+        return float(-self.volume.signed(self.volume.tree(rig.skin_matrices(world)), points[keep]).min())
 
     def arm_turn(self, side, local, tree, margin, limit, step=3.0):
         """(the least outward turn in radians that leaves the arm no more than `margin` metres inside the torso, the axis it is about):
@@ -227,12 +243,14 @@ def solve_clip(solver, name, margin, arm_max, knee_min, loops=True, legs=True):
     turn_s = {s: smooth_amounts(t, loops) for s, t in turns.items()}
     reduce_s = {s: smooth_amounts(1.0 - np.asarray(v), loops) for s, v in shares.items()}  # how much of the bend is taken away
     after = {k: -1.0 for k in before}
+    dragged = {s: -1.0 for s in solver.arms}
     for f in range(frames):
         for side in solver.arms:
             after[("arm", side)] = max(after[("arm", side)], solver.arm_depth(side, locals_[f], trees[f], turn_s[side][f], axes[side][f]))
+            dragged[side] = max(dragged[side], solver.arm_depth_dragged(side, locals_[f], turn_s[side][f], axes[side][f]))
             if legs:
                 after[("leg", side)] = max(after[("leg", side)], solver.knee_depth(side, locals_[f], trees[f], 1.0 - reduce_s[side][f]))
-    return turn_s, axes, reduce_s, before, after
+    return turn_s, axes, reduce_s, before, after, dragged
 
 
 def main():
@@ -256,7 +274,7 @@ def main():
         loops = name not in options["--oneshot"]
         legs = name not in options["--arms-only"]
         frames = int(round(rig.length(name) * FPS)) + (0 if loops else 1)
-        turn_s, axes, reduce_s, before, after = solve_clip(solver, name, margin, options["--arm-max"], options["--knee-min"], loops, legs)
+        turn_s, axes, reduce_s, before, after, dragged = solve_clip(solver, name, margin, options["--arm-max"], options["--knee-min"], loops, legs)
         leg_note = (
             f"legs {cm(before[('leg', 'Left')])}/{cm(before[('leg', 'Right')])} -> {cm(after[('leg', 'Left')])}/{cm(after[('leg', 'Right')])} cm"
             f" (knee bend cut by up to {100 * max(reduce_s['Left'].max(), reduce_s['Right'].max()):.0f}%)"
@@ -265,7 +283,7 @@ def main():
         )
         print(
             f"CLEAR {name:12s} arms {cm(before[('arm', 'Left')])}/{cm(before[('arm', 'Right')])} -> {cm(after[('arm', 'Left')])}/{cm(after[('arm', 'Right')])} cm"
-            f" (turned out up to {math.degrees(max(turn_s['Left'].max(), turn_s['Right'].max())):.1f}°); " + leg_note
+            f" (turned out up to {math.degrees(max(turn_s['Left'].max(), turn_s['Right'].max())):.1f}°; with the torso dragged by the arm's own skin: {cm(dragged['Left'])}/{cm(dragged['Right'])}); " + leg_note
         )
         touched = False
         for side, info in solver.arms.items():

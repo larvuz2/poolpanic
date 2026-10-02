@@ -325,6 +325,57 @@
       "own": [
         "Cannonball"
       ]
+    },
+    {
+      "id": "leopard-man",
+      "name": "Leopard Man",
+      "file": "models/leopard-man.glb",
+      "note": "Heavy-set man, 1.70 m, very round like Carl. Bald with a curl of hair over each ear, thick brows, big white eyes, a big mustache, no mouth, orange-tan skin, leopard-print briefs. Meshy 7 mesh from the GPT Image 2.5 T-pose the user supplied for him, about 10k tris. Made exactly like Carl: Coach Panic's own 24-bone skeleton (rig_from_template.py) plus three belly bones (belly_bones.py: BellyUpper, BellyMid, BellyLower), the Coach's clips retargeted onto it (retarget_clips.py, hip travel x0.69), the belly's motion baked into every clip (belly_jiggle.py: it lags the body, bounces on steps and landings, rises with each breath in the idles), the arms swung out of the belly (by up to 51 degrees) and the knees' bend cut where a shin would go into it (by up to 45 degrees) by clear_limbs.py (the forearms and hands stay out of the belly; the upper arm rests on its flank, up to 5 cm into it in a few frames; in Swim a hand rests on the belly for a few frames), feet put on the floor by ground_clips.py, all in one go with round_character.sh. Own clip Cannonball, the same heavy jump as Carl's made on his body (2.25 s, plays once, in place: the game moves him): a deep crouch with the arms swung back, an explosive push, the belly and chest rising first, the knees lifting only as far as the belly lets them, the feet curled underneath, elbows out and the hands round the belly's flanks, the tuck held at the top with the shoulders rounded and the head tucked, a fall at 9.8 m/s2 and a bottom-first splash into water 0.25 m below the deck at frame 37, the pose rocking back, the arms flung out, and a sink under the surface. The viewer shows it over a pool, running him off the deck. The name is a placeholder.",
+      "skeleton": "coach-panic",
+      "extraBones": {
+        "BellyUpper": "Spine01",
+        "BellyMid": "Spine02",
+        "BellyLower": "Hips"
+      },
+      "adjusted": {
+        "LeftArm": 55,
+        "RightArm": 55,
+        "LeftLeg": 50,
+        "RightLeg": 50
+      },
+      "clips": {
+        "Cannonball": {
+          "open": true,
+          "pop": true,
+          "why": "the knees snap straight in the push-off and fold up in the tuck at about 40 degrees a frame",
+          "water": {
+            "level": -0.25,
+            "run": {
+              "from": 20,
+              "to": 37,
+              "metres": 1.7
+            }
+          }
+        },
+        "Run": {
+          "pop": true,
+          "why": "the knee swings about 42 degrees a frame in a fast run, as in the Coach's own clip"
+        },
+        "Swim": {
+          "prone": true
+        }
+      },
+      "retargeted": [
+        "IdleScan",
+        "IdleScratch",
+        "Panic",
+        "Run",
+        "Swim",
+        "Walk"
+      ],
+      "own": [
+        "Cannonball"
+      ]
     }
   ]
 }
