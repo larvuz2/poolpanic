@@ -17,7 +17,7 @@ Anything can be previewed without publishing: drop a `.glb` on the page, or use 
 | `index.html` | The page, written as a fragment: the artifact host adds the document, head and body |
 | `viewer.js` | The app |
 | `characters.json` | The characters the page lists: `{id, name, file, note, clipFiles?, clips?, skeleton?, extraBones?, adjusted?, retargeted?, own?, premium?}` |
-| `models/*.glb` | Characters that are only in the viewer. A character's `file` in `characters.json` is found from this folder, so Coach Panic's is the game's own `../../dist/assets/coach-panic.glb`, and so are the five generic swimmers' (`../../dist/assets/swimmer-*.glb`) |
+| `models/*.glb` | Characters that are only in the viewer. A character's `file` in `characters.json` is found from this folder, so Coach Panic's is the game's own `../../dist/assets/coach-panic.glb`, and so are the five generic swimmers' (`../../dist/assets/swimmer-*.glb`) and the two cannonball men's (`../../dist/assets/carl.glb`, `leopard-man.glb`) |
 | `vendor/` | three r170's `GLTFLoader`, `OrbitControls` and `BufferGeometryUtils`, untouched |
 | `build.sh` | Assembles `.build/` (the flat folder that is published); takes `three.module.js` from `dist/assets` |
 

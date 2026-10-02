@@ -29,8 +29,10 @@ import {
   activeSwimmerChoice,
   chooseSwimmers,
   loadSwimmerModels,
+  loadFigure,
   swimmerModelsReady,
 } from "./scene/swimmer-models.mjs";
+import { cannonballMan } from "./incidents/carl.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
 import { MomentDirector, edgeArrow } from "./moments.mjs";
@@ -732,6 +734,14 @@ function renderLaneControls(venue) {
       : "");
   $("lane-controls").classList.toggle("five-lanes", venue.lanes.length > 3);
 }
+// ?cannonball=carl or ?cannonball=leopard puts that man in every Cannonball incident, whatever the level (to look at him).
+const forcedMan = ["carl", "leopard"].includes(params.get("cannonball")) ? params.get("cannonball") : null;
+// A shift with a Cannonball incident has its cannonball man (Carl or the leopard man, by the level) as a model: it is fetched
+// while the shift begins, long before the incident, and the classic Carl plays if it is not there in time.
+function loadCannonballMan(s) {
+  if (activeSwimmerChoice() !== "models" || !s.config.chaos?.some((e) => e.kinds.includes("carl"))) return;
+  loadFigure(cannonballMan(s.config, s.level).id);
+}
 // Begin the shift the map has selected: a level (with a booking from Splash Park on) or a chunk's drill.
 function start(bookingId = null) {
   audio.panic = false;
@@ -744,11 +754,16 @@ function start(bookingId = null) {
   const drill = selected.kind === "drill" ? DRILLS[selected.id] : null;
   activeBooking = drill ? null : bookingId;
   runSeed = Date.now();
+  const man = forcedMan && { cannonball: forcedMan };
   sim = drill
-    ? new PoolSimulation(drill.tier, runSeed, { config: drill.config, drill: drill.id })
-    : new PoolSimulation(level, runSeed, { booking: activeBooking });
+    ? new PoolSimulation(drill.tier, runSeed, { config: { ...drill.config, ...man }, drill: drill.id })
+    : new PoolSimulation(level, runSeed, {
+        booking: activeBooking,
+        ...(man && { config: { ...SHIFTS[level - 1], ...man } }),
+      });
   syncVenue(sim);
   world.resetActors();
+  loadCannonballMan(sim);
   sim.start({ countdown: true });
   mode = "countdown";
   snagged = false;
@@ -870,7 +885,7 @@ function updatePanel() {
       zone = zoneOfLevel(level),
       status = zoneStatus(records, zone, progressFlags),
       best = records.bests[level - 1] || 0,
-      notes = shiftHighlights(shift);
+      notes = shiftHighlights(shift, level);
     num.textContent = two(level);
     $("selected-shift-name").textContent = shift.name;
     $("selected-shift-meta").textContent = `${formatTime(shift.duration)} · ${shift.total} SWIMMERS`;
@@ -891,10 +906,12 @@ function requestStart() {
     offer = shift ? offerBookings(level, 0, shift) : [];
   if (!offer.length) return start();
   $("booking-shift").textContent = shift.name.toUpperCase();
+  // (A booking that brings the cannonball man brings the one this level has.)
+  const noted = (b) => b.note.replace("Cannonball Carl", "Cannonball " + cannonballMan(shift, level).name);
   $("booking-cards").innerHTML = offer
     .map(
       (b) =>
-        `<button class="booking-card${b.id === "regular" ? " regular" : ""}" data-booking="${b.id}" aria-label="${b.name}, payout ×${b.payout}. ${b.note}"><span class="b-icon" aria-hidden="true">${b.icon}</span><strong>${b.name}</strong><span class="b-pay">×${b.payout}<small>PAYOUT</small></span><span class="b-note">${b.note}</span><span class="b-trouble" aria-hidden="true">${b.trouble.join(" ")}</span></button>`,
+        `<button class="booking-card${b.id === "regular" ? " regular" : ""}" data-booking="${b.id}" aria-label="${b.name}, payout ×${b.payout}. ${noted(b)}"><span class="b-icon" aria-hidden="true">${b.icon}</span><strong>${b.name}</strong><span class="b-pay">×${b.payout}<small>PAYOUT</small></span><span class="b-note">${noted(b)}</span><span class="b-trouble" aria-hidden="true">${b.trouble.join(" ")}</span></button>`,
     )
     .join("");
   $("booking-dialog").showModal();
@@ -1116,7 +1133,8 @@ function finish() {
       : st.blackouts
         ? "When the lights flicker, sprint to the fuse box. A quick reset stops the blackout."
         : st.cannonballs > 1
-          ? "Carl hits the deck running. Meet him before the edge and show him the red card."
+          ? cannonballMan(sim.config, sim.level).name +
+            " hits the deck running. Meet him before the edge and show him the red card."
           : r.collisions > 2
             ? "Traffic was your biggest troublemaker. Pair similar speeds and keep aqua out of fast lanes."
             : r.lost > 3
@@ -1411,7 +1429,7 @@ function updateUI() {
                     : sim.fish?.stage === "approach"
                       ? "Is that kid carrying a FISH?"
                       : sim.carl
-                        ? "Carl is loose. Brace for splash."
+                        ? sim.carl.name + " is loose. Brace for splash."
                         : sim.dog && sim.dog.stage !== "leaving"
                           ? "There’s a dog on the deck!"
                           : sim.get(sim.jumper)?.jumpStage === "waiting"
@@ -2054,7 +2072,10 @@ function bind() {
   $("help-swimmers").onclick = async () => {
     const next = activeSwimmerChoice() === "classic" ? "models" : "classic";
     chooseSwimmers(next);
-    if (next === "models") await loadSwimmerModels();
+    if (next === "models") {
+      await loadSwimmerModels();
+      loadCannonballMan(sim);
+    }
     world.swapSwimmers();
     crashlog.crumb(
       "swimmers",

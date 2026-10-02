@@ -2,22 +2,28 @@
 // that pick the clip, how the poses set on the classic limbs reach the model's bones, and swapping the models in and out
 // of the scene (with a stand-in model that has the real model's bone names).
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import * as THREE from "./dist/assets/three.module.js";
-import { PoolSimulation, swimmerLook } from "./dist/sim.mjs";
+import { PoolSimulation, loopPosition, swimmerLook } from "./dist/sim.mjs";
 import {
   CLIPS,
+  FIGURES,
   SWIMMERS,
   SwimmerRig,
   attachSwimmerModel,
   chooseSwimmers,
   dropSwimmerModel,
+  figureReady,
   lookFor,
   swimmerChoice,
   swimmerModelsReady,
+  useFigureTemplates,
   useSwimmerTemplates,
   wantsModel,
 } from "./dist/scene/swimmer-models.mjs";
+import { CLIP, SETTLE, figurePose } from "./dist/scene/figure-pose.mjs";
+import { CARL_TUNING as T } from "./dist/incidents/carl.mjs";
 
 // ---- which swimmers -----------------------------------------------------------------------------------------------
 const store = (initial = {}) => ({
@@ -163,12 +169,15 @@ function fakeRig(look = SWIMMERS[1]) {
     run: action("run"),
     panic: action("panic"),
     swim: action("swim"),
+    cannonball: action("cannonball"),
   };
   const mixer = {
     advanced: 0,
     update(dt) {
       this.advanced += dt;
-      for (const a of Object.values(actions)) if (a.playing) a.time += dt;
+      // (The Cannonball is scrubbed, not played: its rate is zero.)
+      for (const a of Object.values(actions))
+        if (a.playing) a.time += a.name === "cannonball" ? dt * a.rate : dt;
     },
   };
   return { rig: new SwimmerRig(mixer, actions, look), actions, mixer, log, look };
@@ -567,6 +576,287 @@ for (const p of world.people.values())
   assert.equal(p.userData.rig, undefined, "classic swimmers, all of them");
 chooseSwimmers("models");
 
+// ---- the cannonball men: Carl and the leopard man -----------------------------------------------------------------------
+assert.deepEqual(
+  FIGURES.map((f) => f.id),
+  ["carl", "leopard"],
+  "Carl and the leopard man",
+);
+for (const look of FIGURES) {
+  assert.ok(look.run > look.walk * 2 && look.walk > 0.5, `${look.id}: a run covers more ground than a walk`);
+  assert.ok(look.eyes[0] > 1.2 && look.eyes[1] > 0.1, `${look.id}: the eye line is on the head`);
+  assert.ok(look.depth > 0.3, `${look.id}: a belly's depth`);
+  assert.ok(existsSync(`dist/assets/${look.file}`), `${look.id}: the model is in the game's assets`);
+}
+{
+  // Anim Bench shows the very files the game loads, and its manifest holds the take-off and the splash the game plays to.
+  const manifest = JSON.parse(readFileSync("tools/viewer/characters.json", "utf8")).characters;
+  for (const [look, id] of [
+    [FIGURES[0], "carl"],
+    [FIGURES[1], "leopard-man"],
+  ]) {
+    const entry = manifest.find((c) => c.id === id);
+    assert.ok(entry.file.endsWith("dist/assets/" + look.file), `${id}: the same file in the viewer`);
+    assert.deepEqual(
+      [entry.clips.Cannonball.water.run.from, entry.clips.Cannonball.water.run.to],
+      [CLIP.takeoff, CLIP.splash],
+      `${id}: the take-off and the splash frames are the clip's`,
+    );
+  }
+}
+assert.ok(!figureReady("carl"), "no cannonball man is loaded before he is asked for");
+assert.equal(lookFor({ figure: "carl" }), null, "so none is drawn");
+
+// How he is posed through the incident, from the simulation's own state: one continuous run through the Cannonball clip.
+{
+  const f = 1 / CLIP.fps;
+  const at = (status, left) => figurePose({ status, timer: left });
+  const near = (a, b, why) => assert.ok(Math.abs(a - b) < 1e-9, `${why} (${a} and ${b})`);
+  assert.equal(figurePose({ status: "walking", timer: 0 }).jump ?? null, null, "he walks in as a walk");
+  assert.equal(figurePose({ status: "running", timer: 0 }).jump ?? null, null);
+  near(at("windup", T.windup).jump, 0, "the wind-up starts at the clip's first frame");
+  near(at("windup", 0).jump, CLIP.down * f, "and ends at the bottom of the crouch");
+  near(at("charge", T.charge).jump, CLIP.down * f, "the charge goes on from there");
+  near(at("charge", 0).jump, CLIP.takeoff * f, "to the take-off");
+  near(at("flying", T.flight).jump, CLIP.takeoff * f, "the flight starts at the take-off");
+  near(at("flying", 0).jump, CLIP.splash * f, "and ends at the splash, when the simulation says it does");
+  assert.ok(
+    at("windup", T.windup).at === "edge" && at("charge", 0).at === "edge" && !at("flying", T.flight).at,
+    "he crouches at the edge, and is carried over the water",
+  );
+  let last = -1;
+  for (const [status, span] of [
+    ["windup", T.windup],
+    ["charge", T.charge],
+    ["flying", T.flight],
+  ])
+    for (let i = 0; i <= 20; i++) {
+      const j = at(status, span * (1 - i / 20)).jump;
+      assert.ok(j >= last - 1e-9, `the clip only goes forward (${status} ${i}: ${j})`);
+      last = j;
+    }
+  // In the water: the swim, from the splash until he is out; he settles onto his front just after it and stands to climb.
+  const floating = at("floating", T.float);
+  assert.ok(
+    floating.swim && floating.lie === 0 && floating.jump == null,
+    "the swim starts at the splash, upright",
+  );
+  near(at("floating", T.float - SETTLE).lie, 1, "and he is on his front a moment later");
+  assert.ok(at("floating", T.float - SETTLE / 2).lie > 0 && at("floating", T.float - SETTLE / 2).lie < 1);
+  assert.ok(at("swimming", 0).swim && at("swimming", 0).lie === 1, "he swims to the wall");
+  const climb = at("climbing", T.climb);
+  assert.ok(
+    !climb.swim && climb.lie === 1 && climb.puppet,
+    "he starts the climb on his front, with the climbing pose",
+  );
+  near(at("climbing", 0).lie, 0, "and is upright when it is done");
+  assert.ok(!at("running", 0).swim && at("running", 0).lie === 0, "out of the water he runs");
+}
+
+// The rig: the Cannonball clip is set to where the incident is in it, and the swim takes over after the splash.
+{
+  const { rig, actions } = fakeRig(FIGURES[0]);
+  run(rig, 40, { speed: 3.4 });
+  assert.equal(rig.current, "run", "he runs in");
+  rig.update(1 / 60, { jump: 0.4 });
+  assert.equal(rig.current, "cannonball", "the jump is the Cannonball clip");
+  assert.equal(actions.cannonball.rate, 0, "which does not run by itself");
+  assert.equal(actions.cannonball.time, 0.4, "it is set to where the incident is in it");
+  rig.update(1 / 60, { jump: 0.9, speed: 5 });
+  assert.equal(actions.cannonball.time, 0.9, "and follows it, whatever his speed");
+  rig.update(0, { jump: 1.5 });
+  assert.equal(actions.cannonball.time, 1.5, "also in a hit-stop");
+  rig.update(1 / 60, { swim: true, stroke: 0.7 });
+  assert.equal(rig.current, "swim", "after the splash he swims");
+  run(rig, 40, { swim: true, stroke: 0.7 });
+  assert.ok(Math.abs(actions.swim.rate - 0.7) < 0.05, "at his stroke");
+  run(rig, 40, { speed: 0 });
+  assert.equal(rig.current, "idle", "out of the water he stands");
+  // A model without the clip (any of the five swimmers) ignores it.
+  const plain = fakeRig();
+  delete plain.rig.actions.cannonball;
+  run(plain.rig, 5, { jump: 0.5 });
+  assert.notEqual(plain.rig.current, "cannonball", "a swimmer has no Cannonball");
+}
+
+// In the scene: the incident's man is a model when it is loaded, and the world sync poses him as the incident goes.
+{
+  const looks = { carl: standIn(1.68), leopard: standIn(1.68) };
+  useFigureTemplates(looks);
+  assert.ok(figureReady("carl") && figureReady("leopard"), "the stand-ins are in");
+  assert.equal(lookFor({ figure: "leopard" }).id, "leopard");
+  assert.ok(wantsModel({ type: "carl", visitor: true, figure: "carl" }), "the cannonball man");
+  assert.ok(
+    wantsModel({ type: "intermediate", carl: true, figure: "leopard" }),
+    "and the customer he becomes when he is red-carded",
+  );
+  assert.ok(!wantsModel({ type: "carl", visitor: true }), "a Carl with no figure is the classic one");
+  assert.ok(!wantsModel({ type: "kid", visitor: true }), "and the fish kid stays the fish kid");
+  useFigureTemplates({ carl: looks.carl });
+  assert.equal(lookFor({ figure: "leopard" }), null, "a man who did not load is the classic Carl");
+  useFigureTemplates(looks);
+
+  const s9 = new PoolSimulation(9, 5);
+  s9.start({ countdown: false });
+  for (let i = 0; i < 60 * 20; i++) s9.tick(1 / 60);
+  world.resetActors();
+  let clock = 500;
+  const sync = (n = 1) => {
+    for (let i = 0; i < n; i++) world.sync(s9, (clock += 1 / 60), 1 / 60);
+  };
+  s9.triggerChaos("carl");
+  const v = s9.visitors[0];
+  sync(2);
+  assert.equal(v.figure, "leopard", "level 9 has the leopard man");
+  const g = world.incidentView.visitors.get(v.id);
+  const u = g.userData;
+  assert.ok(u.rig && u.model && u.look.id === "leopard", "he is drawn as the leopard man");
+  assert.ok(
+    u.classic.every((part) => !part.visible || part === u.carry || part === u.f),
+    "not as the classic Carl",
+  );
+  assert.equal(u.root.scale.x, 1, "as tall as he is, not as the classic Carl's 1.14");
+  assert.ok(u.fit > 0.9 && u.fit < 1, "and his length in the water follows it");
+  const stage = (status, timer, extra = {}) => {
+    Object.assign(v, { status, timer, ...extra });
+    sync(2);
+  };
+  const clipAt = () => u.rig.actions.cannonball.time;
+  const f = 1 / CLIP.fps;
+  v.spot = { x: 5.75, z: 2, face: -1 };
+  v.edge = { x: 5.75, z: 2 };
+  v.angle = -Math.PI / 2;
+  stage("windup", T.windup / 2, { x: 6.4, z: 2 });
+  assert.equal(u.rig.current, "cannonball", "he winds up with the Cannonball clip");
+  assert.ok(Math.abs(clipAt() - (CLIP.down * f) / 2) < 1e-6, `half way into the crouch (${clipAt()})`);
+  assert.ok(
+    Math.abs(g.position.x - 5.75) < 1e-6,
+    "at the edge, where the classic Carl would be backing away",
+  );
+  stage("charge", T.charge, { x: 6.4 });
+  assert.ok(Math.abs(clipAt() - CLIP.down * f) < 1e-6, "the push comes next");
+  stage("flying", T.flight, { x: 5.75 });
+  assert.ok(Math.abs(clipAt() - CLIP.takeoff * f) < 1e-6, "he takes off");
+  assert.ok(Math.abs(g.position.y) < 1e-9, "the jump is the clip's: the group does not arc");
+  assert.ok(!u.shadow.visible, "and the shadow on the deck goes");
+  stage("flying", 0, { x: 3.9 });
+  assert.ok(Math.abs(clipAt() - CLIP.splash * f) < 1e-6, "he reaches the water at the splash frame");
+  stage("floating", T.float);
+  assert.equal(u.rig.current, "swim", "in the water he swims");
+  assert.ok(Math.abs(u.root.rotation.x) < 0.05, "upright at the splash");
+  stage("floating", T.float - SETTLE);
+  assert.ok(Math.abs(u.root.rotation.x - Math.PI / 2) < 1e-6, "on his front a moment later");
+  assert.ok(
+    Math.abs(g.position.y + 0.39) < 1e-6 && Math.abs(u.root.scale.x - 0.85) < 1e-6,
+    "in the water, as a swimmer",
+  );
+  assert.ok(Math.abs(u.root.position.z + 0.65 * u.fit) < 1e-6, "set back by his own length");
+  stage("swimming", 0, { x: 4.4, angle: Math.PI / 2 });
+  assert.equal(u.rig.current, "swim");
+  for (let i = 0; i < 60; i++) sync();
+  assert.ok(Math.abs(g.rotation.y - Math.PI / 2) < 0.01, "he has turned to the wall (not at once)");
+  stage("climbing", T.climb / 2, { x: 5.2 });
+  assert.ok(Math.abs(u.root.rotation.x - Math.PI / 4) < 1e-6, "he stands up as he climbs");
+  assert.ok(u.puppet.arms && u.puppet.legs, "with the climbing pose on his arms and legs");
+  stage("running", 0, { x: 5.9 });
+  assert.ok(!u.puppet.arms && Math.abs(u.root.rotation.x) < 1e-6, "out of the water he is upright");
+  for (let i = 0; i < 40; i++) {
+    v.x += 5.4 / 60;
+    sync();
+  }
+  assert.equal(u.rig.current, "run", "and runs to the next spot");
+  assert.equal(u.root.scale.x, 1 - 0.15 * 0, "at his own size");
+  // A broken model is let go: the classic Carl takes over, drawn at his own size.
+  const quiet = console.error;
+  console.error = () => {};
+  u.rig.update = () => {
+    throw new Error("broken clip");
+  };
+  sync(1);
+  console.error = quiet;
+  assert.equal(u.rig, null, "the broken model is let go");
+  sync(1);
+  assert.ok(
+    u.classic.every((part) => part.visible || part === u.carry || part === u.f),
+    "the classic Carl shows",
+  );
+  assert.ok(Math.abs(u.root.scale.x - 1.14) < 1e-9, "at the classic Carl's size");
+  // He goes when the incident is over, and his skeleton with him.
+  s9.visitors = [];
+  sync(1);
+  assert.ok(!world.incidentView.visitors.has(v.id), "gone from the scene");
+}
+
+// While a cannonball man is in the pool the crowd panics: the swimmers in the water stand upright and hop, so do those on the
+// deck who wait; those on their way keep walking. With the classic swimmers the hop is the classic one.
+{
+  useSwimmerTemplates(Object.fromEntries(SWIMMERS.map((look, i) => [look.id, standIn(1.55 + i * 0.07)])));
+  chooseSwimmers("models");
+  const s9 = new PoolSimulation(9, 5);
+  s9.start({ countdown: false });
+  for (let i = 0; i < 60 * 14; i++) s9.tick(1 / 60);
+  s9.people.length = 0;
+  const swimmer = s9.spawn({ type: "beginner" });
+  Object.assign(swimmer, { status: "swim", lane: 0, p: 5, actualSpeed: 1.5, h: 90 });
+  const pos = loopPosition(swimmer.p, s9.lanes[0]);
+  Object.assign(swimmer, { x: pos.x, z: pos.z, angle: pos.angle });
+  const waiting = s9.spawn({ type: "advanced" });
+  const walker = s9.spawn({ type: "intermediate" });
+  Object.assign(walker, { status: "enter", path: [{ x: 0, z: 6 }], x: -3, z: 9 });
+  assert.equal(waiting.status, "queue");
+  world.swapSwimmers();
+  world.resetActors();
+  let clock = 900;
+  const sync = (n = 1) => {
+    for (let i = 0; i < n; i++) world.sync(s9, (clock += 1 / 60), 1 / 60);
+  };
+  sync(30);
+  const [gs, gq, gw] = [swimmer, waiting, walker].map((p) => world.people.get(p.id).userData);
+  assert.equal(gs.rig.current, "swim", "calm: the swimmer swims");
+  assert.equal(gq.rig.current, "idle", "the queue stands");
+  const lying = world.people.get(swimmer.id).position.y;
+  assert.ok(Math.abs(lying + 0.39) < 1e-6, "lying on the water");
+  s9.carl = { inWater: true, stage: "loose", cannonballs: 1, id: -1, name: "Carl", figure: "carl" };
+  assert.ok(s9.crowdPanic(), "he is in the water");
+  sync(30);
+  assert.equal(gs.rig.current, "panic", "the swimmer in the water plays the Panic clip");
+  assert.ok(!gs.puppet.arms && !gs.puppet.legs, "which is the whole body");
+  const held = world.people.get(swimmer.id);
+  assert.ok(Math.abs(held.position.y + 0.82) < 1e-6, "standing in the water to the waist");
+  assert.ok(Math.abs(gs.root.rotation.x) < 1e-6, "upright, not on its front");
+  assert.ok(!gs.shadow.visible, "with no shadow on the deck");
+  assert.equal(gq.rig.current, "panic", "the swimmer in the queue panics");
+  assert.notEqual(gw.rig.current, "panic", "one on the way to the pool does not");
+  {
+    const real = world.reducedMotion;
+    world.reducedMotion = { matches: true };
+    sync(2);
+    assert.ok(gs.puppet.arms && gq.puppet.arms, "with reduced motion they stand with their hands up");
+    world.reducedMotion = real;
+  }
+  s9.carl.inWater = false;
+  sync(30);
+  assert.equal(gs.rig.current, "swim", "when he is out the swimmer swims on");
+  assert.ok(Math.abs(world.people.get(swimmer.id).position.y + 0.39) < 1e-6, "lying on the water again");
+  assert.equal(gq.rig.current, "idle", "and the queue calms down");
+  // The classic swimmers: the hop is the classic one, in the water too.
+  chooseSwimmers("classic");
+  world.swapSwimmers();
+  s9.carl.inWater = true;
+  sync(30);
+  const classicSwimmer = world.people.get(swimmer.id).userData;
+  assert.equal(classicSwimmer.rig, undefined, "classic swimmers");
+  assert.ok(Math.abs(world.people.get(swimmer.id).position.y + 0.82) < 1e-6, "in the water to the waist");
+  assert.ok(Math.abs(classicSwimmer.arms[0].rotation.z - 2.7) < 1e-9, "with their hands up");
+  assert.ok(
+    Math.abs(world.people.get(waiting.id).userData.arms[0].rotation.z - 2.7) < 1e-9,
+    "as in the queue",
+  );
+  s9.carl = null;
+  chooseSwimmers("models");
+  world.swapSwimmers();
+}
+
 console.log(
-  "Swimmer model checks passed: the choice is remembered, five looks given out evenly, the clip rules and their paces, the poses laid over the clips, VIPs, daredevils and Carl, the swap in the scene, and a model that breaks is dropped.",
+  "Swimmer model checks passed: the choice is remembered, five looks given out evenly, the clip rules and their paces, the poses laid over the clips, VIPs, daredevils and Carl, the swap in the scene, a model that breaks is dropped, and the cannonball men: the Cannonball clip followed through the incident, the swim in the water, and the crowd's panic.",
 );

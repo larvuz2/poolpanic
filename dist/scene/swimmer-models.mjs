@@ -11,6 +11,10 @@
 //     out, treading water, resting, the trampoline, a slip, an injury) are copied onto the model's bones while they last
 //     (`puppet`).
 // Which of the five a swimmer is comes from the swimmer's `skin` number, so it stays the same for the whole shift.
+// The cannonball man of the Cannonball incident (incidents/carl.mjs) is one of two more models, Carl or the leopard man (the
+// `figure` on the visitor and on the customer Carl turns into when he is red-carded): the same skeleton, the same clips and a
+// one-shot Cannonball, which the world sync plays frame by frame as the incident goes (figure-pose.mjs). Only the one the level
+// has is loaded, when the level starts.
 import { THREE } from "./kit.mjs";
 import { TYPES, swimmerLook } from "../sim.mjs";
 
@@ -22,9 +26,10 @@ export const CLIPS = {
   run: "Run",
   panic: "Panic",
   swim: "Swim",
+  cannonball: "Cannonball", // only the two cannonball men have it
 };
-// A model must have these; one without Panic hops with the classic swimmer's poses instead, and one without Swim swims with
-// the Run clip.
+// A model must have these; one without Panic hops with the classic swimmer's poses instead, one without Swim swims with
+// the Run clip, and one without Cannonball is the classic Carl.
 const REQUIRED = ["idle", "scratch", "walk", "run"];
 // The five: the file, the ground speed at which each clip's planted foot stops sliding (m/s, from Anim Bench), the eye
 // line [height, forward] of the goggles and how far the chest reaches front and back (metres, in the T-pose).
@@ -75,6 +80,31 @@ export const SWIMMERS = [
     back: 0.17,
   },
 ];
+// The two cannonball men, 1.68 m of very round man each (three belly bones, see tools/blender/README.md): the same fields as a
+// swimmer, measured the same way, and `depth`, how far the belly or the back reaches from the middle of the body when he lies
+// down (his chest alone would let him sink into the deck in a slip).
+export const FIGURES = [
+  {
+    id: "carl",
+    file: "carl.glb",
+    walk: 0.813,
+    run: 2.462,
+    eyes: [1.42, 0.2],
+    front: 0.24,
+    back: 0.28,
+    depth: 0.4,
+  },
+  {
+    id: "leopard",
+    file: "leopard-man.glb",
+    walk: 0.793,
+    run: 2.489,
+    eyes: [1.47, 0.2],
+    front: 0.21,
+    back: 0.33,
+    depth: 0.4,
+  },
+];
 // The classic swimmer's head is a ball of this radius, 1.42 up; its crown, star and sore eyes are drawn for that head.
 const CLASSIC_HEAD = { y: 1.42, r: 0.34 };
 const WALK_TO_RUN = 2.4; // m/s: faster than this is a run (and slower than 2.0 a walk again)
@@ -114,8 +144,11 @@ export function chooseSwimmers(choice) {
 // ---- loading -------------------------------------------------------------------------------------------------------
 
 const templates = new Map(); // swimmer id -> {scene, clips, clone, look, rest…}
+const figures = new Map(); // the same for the cannonball men, loaded one at a time: "carl" or "leopard"
 export const swimmerModelsReady = () => templates.size > 0;
 export const swimmerTemplateIds = () => [...templates.keys()];
+export const figureReady = (id) => figures.has(id);
+const templateFor = (id) => templates.get(id) || figures.get(id);
 
 // Limbs, in the order the classic swimmer's `arms` and `legs` come: the one at -x (the character's right) first.
 const SIDES = [
@@ -195,50 +228,81 @@ export function useSwimmerTemplates(list) {
     if (t) templates.set(look.id, { ...t, look, ...measure(t.scene) });
   }
 }
-// Fetch and parse the five models once; the loader is imported here so the classic swimmers never pay for it. A model
-// that does not load is left out (and with none, the classic swimmers play).
+export function useFigureTemplates(list) {
+  figures.clear();
+  for (const look of FIGURES) {
+    const t = list?.[look.id];
+    if (t) figures.set(look.id, { ...t, look, ...measure(t.scene) });
+  }
+}
+// One model, fetched and parsed: the loader is imported here so the classic swimmers never pay for it.
+async function fetchTemplate(look, base, required) {
+  const [{ GLTFLoader }, { clone }] = await Promise.all([
+    import("../assets/GLTFLoader.js"),
+    import("../assets/SkeletonUtils.js"),
+  ]);
+  const gltf = await new GLTFLoader().loadAsync(base + look.file);
+  const clips = {};
+  for (const clip of gltf.animations) clips[clip.name] = clip;
+  const missing = required.map((key) => CLIPS[key]).filter((name) => !clips[name]);
+  if (missing.length) throw new Error("the model lacks the clips " + missing.join(", "));
+  gltf.scene.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true;
+    o.frustumCulled = false; // a skinned mesh's bounds are those of its bind pose
+  });
+  return { scene: gltf.scene, clips, clone, look, ...measure(gltf.scene) };
+}
+// Fetch and parse the five models once. A model that does not load is left out (and with none, the classic swimmers play).
 export async function loadSwimmerModels(base = new URL("../assets/", import.meta.url).href) {
   if (templates.size === SWIMMERS.length) return templates;
-  try {
-    const [{ GLTFLoader }, { clone }] = await Promise.all([
-      import("../assets/GLTFLoader.js"),
-      import("../assets/SkeletonUtils.js"),
-    ]);
-    const loader = new GLTFLoader();
-    await Promise.all(
-      SWIMMERS.map(async (look) => {
-        if (templates.has(look.id)) return;
-        try {
-          const gltf = await loader.loadAsync(base + look.file);
-          const clips = {};
-          for (const clip of gltf.animations) clips[clip.name] = clip;
-          const missing = REQUIRED.map((key) => CLIPS[key]).filter((name) => !clips[name]);
-          if (missing.length) throw new Error("the model lacks the clips " + missing.join(", "));
-          gltf.scene.traverse((o) => {
-            if (!o.isMesh) return;
-            o.castShadow = true;
-            o.frustumCulled = false; // a skinned mesh's bounds are those of its bind pose
-          });
-          templates.set(look.id, { scene: gltf.scene, clips, clone, look, ...measure(gltf.scene) });
-        } catch (error) {
-          console.warn("The swimmer " + look.id + " did not load.", error);
-        }
-      }),
-    );
-  } catch (error) {
-    console.warn("The swimmer models did not load; the classic swimmers stay.", error);
-  }
+  await Promise.all(
+    SWIMMERS.map(async (look) => {
+      if (templates.has(look.id)) return;
+      try {
+        templates.set(look.id, await fetchTemplate(look, base, REQUIRED));
+      } catch (error) {
+        console.warn("The swimmer " + look.id + " did not load.", error);
+      }
+    }),
+  );
   return templates;
 }
+// The cannonball man of a level (about 1 MB), once; asked for when the level starts, so he is there when the incident does.
+// Without him (a model that does not load, or no Cannonball clip) the classic Carl plays.
+const loading = new Map();
+export function loadFigure(id, base = new URL("../assets/", import.meta.url).href) {
+  const look = FIGURES.find((f) => f.id === id);
+  if (!look) return Promise.resolve(null);
+  if (figures.has(id)) return Promise.resolve(figures.get(id));
+  if (!loading.has(id))
+    loading.set(
+      id,
+      fetchTemplate(look, base, [...REQUIRED, "cannonball"])
+        .then((t) => {
+          figures.set(id, t);
+          return t;
+        })
+        .catch((error) => {
+          console.warn("The cannonball man " + id + " did not load; the classic Carl stays.", error);
+          return null;
+        })
+        .finally(() => loading.delete(id)),
+    );
+  return loading.get(id);
+}
 
-// The model a swimmer is: the same one every time for the same `skin` number (the simulation hands them out evenly).
+// The model a swimmer is: the same one every time for the same `skin` number (the simulation hands them out evenly), or the
+// cannonball man he is (`figure`), when that model is loaded.
 export function lookFor(p) {
+  if (p.figure) return FIGURES.find((look) => look.id === p.figure && figures.has(look.id)) || null;
   const have = SWIMMERS.filter((look) => templates.has(look.id));
   if (!have.length) return null;
   return have[Math.abs(Math.floor(p.skin ?? p.id ?? 0)) % have.length];
 }
-// Only the swimmers of the simulation: not Carl, nor the fish kid and other visitors.
-export const wantsModel = (p) => !!TYPES[p.type] && !p.carl && !p.visitor;
+// The swimmers of the simulation, and the cannonball man in whichever form (the visitor, the customer he becomes); not the fish
+// kid and the other visitors, nor a Carl with no model to be (the classic Carl).
+export const wantsModel = (p) => !!p.figure || (!!TYPES[p.type] && !p.carl && !p.visitor);
 
 // ---- the clips -----------------------------------------------------------------------------------------------------
 
@@ -274,7 +338,10 @@ export class SwimmerRig {
     next.reset();
     next.enabled = true;
     next.setEffectiveWeight(1);
-    next.setEffectiveTimeScale(name === "run" || name === "walk" || name === "swim" ? this.rate : 1);
+    // (The Cannonball does not run by itself: update() sets its time from the incident, frame by frame.)
+    next.setEffectiveTimeScale(
+      name === "cannonball" ? 0 : name === "run" || name === "walk" || name === "swim" ? this.rate : 1,
+    );
     next.play();
     // A crowd that panics does not hop in step.
     if (name === "panic") next.time = Math.random() * (next.getClip?.().duration || 0);
@@ -284,9 +351,13 @@ export class SwimmerRig {
   }
   // dt: seconds of world time (zero in a hit-stop). speed: how fast the swimmer is covering ground on foot. swim: the body
   // is on its front in the water, `stroke` the clip's rate there. panic: hopping on the spot with the hands up (the clip does
-  // all of it, so the poses are not asked for). puppet: {arms, legs} (the swimmer's userData) and `classic` the classic
-  // {arms, legs} groups whose rotations are the poses to copy.
-  update(dt, { speed = 0, swim = false, stroke = 1, puppet = null, classic = null, panic = false } = {}) {
+  // all of it, so the poses are not asked for). jump: a cannonball man's Cannonball clip at this many seconds (null when he is
+  // not jumping). puppet: {arms, legs} (the swimmer's userData) and `classic` the classic {arms, legs} groups whose rotations
+  // are the poses to copy.
+  update(
+    dt,
+    { speed = 0, swim = false, stroke = 1, puppet = null, classic = null, panic = false, jump = null } = {},
+  ) {
     let want;
     let rate = 1;
     if (swim) {
@@ -309,6 +380,8 @@ export class SwimmerRig {
       }
     }
     if (panic && !swim && this.actions.panic) want = "panic";
+    const jumping = jump !== null && !!this.actions.cannonball;
+    if (jumping) want = "cannonball";
     if (want === "idle") {
       const scratch = this.actions.scratch;
       if (this.current === "scratch") {
@@ -324,10 +397,18 @@ export class SwimmerRig {
       this.idleFor = 0;
       this.scratchAfter = SwimmerRig.scratchDelay();
     }
+    // (The first stroke after the splash takes a moment to take over from the tuck.)
     this.to(
       want,
-      want === "panic" ? 0.12 : want === "run" || want === "walk" || want === "swim" ? 0.15 : 0.22,
+      want === "panic" || want === "cannonball"
+        ? 0.12
+        : want === "swim" && this.current === "cannonball"
+          ? 0.3
+          : want === "run" || want === "walk" || want === "swim"
+            ? 0.15
+            : 0.22,
     );
+    if (jumping) this.actions.cannonball.time = jump;
     // The rate follows smoothly; the idles play as they are.
     this.rate += (rate - this.rate) * Math.min(1, dt * 12);
     if (this.current === "run" || this.current === "walk" || this.current === "swim")
@@ -365,7 +446,7 @@ export function attachSwimmerModel(group, p, choice = activeSwimmerChoice()) {
   if (choice !== "models" || !wantsModel(p)) return null;
   const look = lookFor(p);
   if (!look) return null;
-  const t = templates.get(look.id);
+  const t = templateFor(look.id);
   const u = group.userData;
   const model = t.clone(t.scene);
   const trimmings = new Set([u.carry, u.f, u.crown, u.sash, u.star, u.cape]);
@@ -392,7 +473,7 @@ export function attachSwimmerModel(group, p, choice = activeSwimmerChoice()) {
   // The classic swimmer's suit and cap say which type it is (green beginner, blue intermediate, red pro, purple aqua,
   // orange daredevil, gold VIP). A model's suit is its own, so the disc on the floor under its feet takes that colour.
   const disc = u.shadow?.material;
-  if (disc) {
+  if (disc && TYPES[p.type]) {
     u.discWas = { color: disc.color.getHex(), opacity: disc.opacity };
     disc.color.set(swimmerLook(p).color);
     disc.opacity = 0.5;
@@ -428,8 +509,12 @@ export function attachSwimmerModel(group, p, choice = activeSwimmerChoice()) {
   }
   // How a body lies and how long it is, for the world sync's poses: the half depth a swimmer on its back or front is
   // lowered by, and the height as a share of the classic swimmer's 1.75 (the lengths of a swim, a climb and a slip).
-  u.depth = Math.min(look.back, 0.17) + 0.02;
+  u.depth = look.depth ?? Math.min(look.back, 0.17) + 0.02;
   u.fit = t.topY / 1.75;
+  // The classic Carl is drawn bigger than a swimmer (a visitor 1.14 times, a customer 1.08); the model is as tall as it is.
+  u.classicScale = { root: u.root.scale.x, base: u.baseScale };
+  u.root.scale.setScalar(1);
+  u.baseScale = 1;
   const names = {};
   for (const side of SIDES) for (const key of Object.values(side)) names[key] = model.getObjectByName(key);
   const bones = SIDES.map((side) => ({
@@ -446,7 +531,7 @@ export function attachSwimmerModel(group, p, choice = activeSwimmerChoice()) {
   for (const [key, name] of Object.entries(CLIPS)) {
     if (!t.clips[name]) continue;
     const action = mixer.clipAction(t.clips[name]);
-    if (key === "scratch") {
+    if (key === "scratch" || key === "cannonball") {
       action.setLoop(THREE.LoopOnce, 1);
       action.clampWhenFinished = true;
     }
@@ -463,7 +548,7 @@ export function setQueasy(group, on) {
   const u = group.userData;
   if (!u.model || !!u.sick === on) return;
   u.sick = on;
-  const t = templates.get(u.look.id);
+  const t = templateFor(u.look.id);
   t.sick ||= new Map();
   u.model.traverse((o) => {
     if (!o.isMesh) return;
@@ -507,6 +592,10 @@ export function dropSwimmerModel(group) {
     u.shadow.material.opacity = u.discWas.opacity;
     u.discWas = null;
   }
-  u.rig = u.model = u.look = u.depth = u.hipsY = u.fit = null;
+  if (u.classicScale) {
+    u.root.scale.setScalar(u.classicScale.root);
+    u.baseScale = u.classicScale.base;
+  }
+  u.rig = u.model = u.look = u.depth = u.hipsY = u.fit = u.classicScale = null;
   u.sick = false;
 }

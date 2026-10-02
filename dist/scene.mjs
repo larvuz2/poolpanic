@@ -16,7 +16,7 @@ import { finsObject, lifeRingObject, skimmerObject, pooObject, bucket } from "./
 import { IncidentView } from "./scene/incident-view.mjs";
 import { readTuning } from "./tuning.mjs";
 import { CoachCam, COACH_CAM } from "./scene/coach-cam.mjs";
-import { waitingInWater } from "./rescue.mjs";
+import { waitingInWater, heldInWater } from "./rescue.mjs";
 import { bumpLean } from "./deck-physics.mjs";
 import { CLUB, doorOpening } from "./spatial.mjs";
 import { guidanceState, cuePulse } from "./guidance.mjs";
@@ -540,9 +540,11 @@ export class PoolWorld extends SceneKit {
     this.coach = this.makeCoach(choice);
     this.scene.add(this.coach);
   }
-  // Change the swimmers' look now (How to play): everyone on the deck is built again, the next sync makes them as chosen.
+  // Change the swimmers' look now (How to play): everyone on the deck is built again, the next sync makes them as chosen (a
+  // cannonball man in the middle of his incident too).
   swapSwimmers() {
     for (const id of [...this.people.keys()]) this.removePerson(id);
+    this.incidentView.clearVisitors();
   }
   slipPose(u, remaining, duration) {
     if (!(remaining > 0)) return;
@@ -589,6 +591,7 @@ export class PoolWorld extends SceneKit {
       f.rotation.x = Math.sin(time * 1.4 + i * 0.5) * 0.06;
     });
     const active = new Set();
+    this.crowd = !!sim.crowdPanic?.(); // a cannonball man is in the pool: the swimmers in it hold still, and everyone panics
     for (const p of sim.people) {
       if (p.status === "gone") continue;
       active.add(p.id);
@@ -746,12 +749,22 @@ export class PoolWorld extends SceneKit {
 
   syncSwimmer(sim, p, g, time, dt = 0.016) {
     const u = g.userData;
-    const swim =
+    // The crowd panics while a cannonball man is in the pool: a swimmer in the water is held where it is, upright, and hops with
+    // its hands up like those who wait on the deck.
+    const crowd = !!this.crowd,
+      held = heldInWater(sim, p, crowd);
+    const lying =
       (p.status === "swim" && p.type !== "aqua") ||
       (p.status === "evacuating" && p.evacWater) ||
       (p.status === "exit" && p.exitPhase === "water") ||
       p.status === "switch" ||
       (p.status === "fleeing" && p.fleePhase === "swim");
+    // A swimmer on its front who is held stands up in the water (and lies down again when let go) over a third of a second,
+    // not at once: `u.stand` goes from 0, on its front, to 1, standing. The crawl plays while it is mostly lying.
+    const goal = held ? 1 : 0;
+    u.stand = lying && u.lying ? u.stand + Math.max(-dt * 3, Math.min(dt * 3, goal - u.stand)) : goal;
+    u.lying = lying;
+    const swim = lying && u.stand < 0.5;
     const fit = u.fit || 1; // a model's height as a share of the classic swimmer's: how far back a swim or a climb sits it
     u.puppet.arms = u.puppet.legs = false;
     const walking =
@@ -762,16 +775,21 @@ export class PoolWorld extends SceneKit {
       (p.status === "recovering" && p.recoveryStage === "to-bench") ||
       (p.status === "fleeing" && p.fleePhase === "run") ||
       (p.status === "trampoline" && ["toStairs"].includes(p.jumpStage));
-    g.position.set(p.x, swim ? -0.39 : p.status === "swim" ? -0.75 : 0, p.z);
+    g.position.set(
+      p.x,
+      swim ? -0.39 : held ? (p.type === "aqua" ? -0.75 : -0.82) : p.status === "swim" ? -0.75 : 0,
+      p.z,
+    );
     g.rotation.set(0, p.angle || 0, 0);
     u.root.rotation.set(0, 0, 0);
     u.root.position.set(0, 0, 0);
     u.legs.forEach((l) => (l.visible = !u.rig)); // a swimmer model's own legs show instead
     u.f.visible = p.hasFins;
     u.hit.position.y = swim ? 0.25 : 0.9;
-    u.shadow.visible = !swim && p.status !== "swim";
+    u.shadow.visible = !swim && !held && p.status !== "swim";
     u.bandage.visible = !!p.bandaged;
     const base = u.baseScale || 1;
+    const standing = (0.94 + (p.shape || 0) * 0.12) * base;
     if (swim) {
       u.root.rotation.x = Math.PI / 2;
       u.root.position.y = 0.27;
@@ -791,7 +809,7 @@ export class PoolWorld extends SceneKit {
       });
       if (p.h < 35) u.root.rotation.z = Math.sin(time * 10) * 0.06;
     } else {
-      u.root.scale.setScalar((0.94 + (p.shape || 0) * 0.12) * base);
+      u.root.scale.setScalar(standing);
       u.root.position.z = 0;
       const tempo = walking ? time * (p.status === "fleeing" ? 14 : 9) : time * 2.2;
       const movement = walking ? 0.55 : p.type === "aqua" ? 0.8 : 0.09;
@@ -825,8 +843,14 @@ export class PoolWorld extends SceneKit {
       u.root.rotation.z = Math.sin(time * 4) * 0.08;
       u.puppet.arms = true;
     }
-    let panicClip = false;
-    if (p.status === "panic" || (sim.cleanup && p.status === "queue") || p.status === "fleeing") {
+    let panicClip = false,
+      lift = 0; // (how high a hop takes the classic swimmer off its feet)
+    if (
+      p.status === "panic" ||
+      ((sim.cleanup || crowd) && p.status === "queue") ||
+      held ||
+      p.status === "fleeing"
+    ) {
       const running = p.status === "fleeing" || p.panicStyle === "circles";
       // A swimmer model that has the Panic clip hops on the spot with it, arms and all (with reduced motion it stands with
       // its hands up instead, like the classic swimmer).
@@ -836,8 +860,8 @@ export class PoolWorld extends SceneKit {
       );
       u.puppet.arms = !panicClip; // hands up
       if (!running) {
-        u.root.position.y =
-          panicClip || this.reducedMotion.matches ? 0 : Math.abs(Math.sin(time * 8 + u.phase)) * 0.42;
+        lift = panicClip || this.reducedMotion.matches ? 0 : Math.abs(Math.sin(time * 8 + u.phase)) * 0.42;
+        u.root.position.y = lift;
         u.legs.forEach((l) => (l.rotation.x = -0.15));
         u.puppet.legs = !panicClip;
         if (panicClip) u.f.visible = false; // the fins stay on the floor: the feet are in the air
@@ -845,6 +869,14 @@ export class PoolWorld extends SceneKit {
         u.legs.forEach((l, i) => (l.rotation.x = Math.sin(time * 16 + i * Math.PI) * 0.7));
         u.root.position.y = this.reducedMotion.matches ? 0 : Math.abs(Math.sin(time * 16 + u.phase)) * 0.12;
       }
+    }
+    if (lying && u.stand > 0 && u.stand < 1) {
+      // On the way between lying on the water and standing in it: the pose is turned up, set into the water and grown as it goes.
+      const flat = 1 - u.stand;
+      g.position.y = -0.39 - 0.43 * u.stand;
+      u.root.rotation.x = (Math.PI / 2) * flat;
+      u.root.position.set(0, 0.27 * flat + lift, -0.65 * fit * flat);
+      u.root.scale.setScalar((0.85 + (standing / base - 0.85) * u.stand) * base);
     }
     if (!swim && p.status !== "swim") {
       const lean = bumpLean(p, this.reducedMotion.matches);

@@ -7,6 +7,7 @@
 import { SHIFTS } from "./sim.mjs";
 import { drillForChunk } from "./drills.mjs";
 import { TWISTS } from "./incidents/twist.mjs";
+import { cannonballMan } from "./incidents/carl.mjs";
 import { isUnlocked, starsFor, progressFlags } from "./progression.mjs";
 
 export const ACT_LENGTH = 10;
@@ -139,7 +140,8 @@ const TWIST_LABELS = {
   class: "An aqua class arrives",
   storm: "A storm rolls in",
 };
-export function shiftHighlights(config) {
+// `level` is the shift's number: it says which man does the cannonball (Carl, or the leopard man); without it, Carl.
+export function shiftHighlights(config, level = 0) {
   const seen = new Set(),
     list = [];
   const add = (key, icon, label) => {
@@ -149,7 +151,12 @@ export function shiftHighlights(config) {
   };
   for (const entry of config.chaos || [])
     for (const kind of entry.kinds)
-      if (INCIDENT_ICONS[kind]) add(kind, INCIDENT_ICONS[kind].icon, INCIDENT_ICONS[kind].label);
+      if (INCIDENT_ICONS[kind])
+        add(
+          kind,
+          INCIDENT_ICONS[kind].icon,
+          kind === "carl" ? "Cannonball " + cannonballMan(config, level).name : INCIDENT_ICONS[kind].label,
+        );
   for (const t of [].concat(config.twist || []))
     if (TWISTS[t.kind]) add("twist-" + t.kind, TWISTS[t.kind].icon, TWIST_LABELS[t.kind] || t.kind);
   if (config.daredevilAt?.length) add("daredevil", "🤸", "Daredevils");

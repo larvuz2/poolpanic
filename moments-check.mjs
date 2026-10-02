@@ -399,6 +399,12 @@ function diveAt(s, z) {
   const d = new MomentDirector({ seen: ["dog"], remember: (list) => (remembered = list) });
   const carl = d.incident({ kind: "carl", x: 1, z: 2 }, 10);
   assert.ok(carl.first && carl.how, "A first sighting carries its one-line lesson");
+  assert.equal(carl.title, "CANNONBALL CARL!", "Carl is the default cannonball man");
+  assert.equal(
+    new MomentDirector().incident({ kind: "carl", x: 0, z: 0, name: "Leopard Man" }, 10).title,
+    "CANNONBALL LEOPARD MAN!",
+    "and the sting names whoever it is",
+  );
   assert.equal(carl.duration, T.firstSting);
   assert.deepEqual([...remembered].sort(), ["carl", "dog"], "…and is remembered for next time");
   assert.equal(d.incident({ kind: "dog", x: 0, z: 0, name: "Biscuit" }, 10.2), null, "A second sting waits");

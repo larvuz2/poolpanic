@@ -148,7 +148,7 @@ seconds each (the same input always gives the same GLB), and the same rig is wha
 
 ## A character with a belly (Carl and the leopard man)
 
-Carl (`carl`, `tools/viewer/models/carl.glb`; he is not in the game yet) is the man who does the cannonball: 1.70 m, very round
+Carl (`carl`, `dist/assets/carl.glb`, with the leopard man the cannonball man of the game: README.md, "The cannonball men") is the man who does the cannonball: 1.70 m, very round
 (the belly is 90 cm across, wider than his shoulders and hanging over short legs), messy hair, big worried eyes, no mouth. His
 mesh is Meshy's from the T-pose picked for him (`game_export.py --height 1.70`, about 10k triangles), rigged on Coach Panic's
 skeleton like the others (`rig_from_template.py`, `retarget_clips.py`, hip travel x0.70), and then four things a slim body never
@@ -201,7 +201,7 @@ tools/blender/run.sh tools/blender/ground_clips.py -- jump3.glb carl.glb --only 
   at gravity's acceleration, is slowed by the water and ends well under its surface. The knees snap straight in the push-off and fold up in the tuck at about 40 degrees a frame
   (`"pop": true`).
 
-- **The leopard man** (`leopard-man`, `tools/viewer/models/leopard-man.glb`; the name is a placeholder) is the second round character:
+- **The leopard man** (`leopard-man`, `dist/assets/leopard-man.glb`; the name is a placeholder) is the second round character:
   bald with a curl of hair over each ear, thick brows, big white eyes, a mustache (no mouth), leopard-print briefs, from the T-pose
   the user supplied (Meshy 7, 10.4k triangles, `game_export.py --height 1.70`). His proportions are Carl's to within a few centimetres
   (hips 0.56 m, a belly 0.94 m across and 0.39 m forward of the spine at its fullest, the same height of belly), so everything above

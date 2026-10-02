@@ -3,6 +3,8 @@
 import { THREE, COLORS } from "./kit.mjs";
 import { character, dogObject } from "./actors.mjs";
 import { CARL_TUNING } from "../incidents/carl.mjs";
+import { attachSwimmerModel, dropSwimmerModel } from "./swimmer-models.mjs";
+import { figurePose } from "./figure-pose.mjs";
 import { guidanceState } from "../guidance.mjs";
 import {
   fishObject,
@@ -224,7 +226,7 @@ export class IncidentView {
   }
 
   // ------------------------------------------------------------------------------------------------------
-  syncVisitors(sim, time) {
+  syncVisitors(sim, time, dt = 0.016) {
     const alive = new Set();
     for (const v of sim.visitors || []) {
       alive.add(v.id);
@@ -237,6 +239,14 @@ export class IncidentView {
       if (!g) {
         g = v.kind === "dog" ? dogObject(this.w) : character(this.w, v);
         g.userData.visitorKind = v.kind;
+        // The cannonball man is a model (Carl or the leopard man, swimmer-models.mjs) when it is loaded; else the classic Carl.
+        if (v.kind === "carl")
+          try {
+            attachSwimmerModel(g, v);
+          } catch (error) {
+            console.error(error);
+            dropSwimmerModel(g);
+          }
         // Clicking a visitor walks the coach over (or acts, when already in reach).
         g.userData.hit.userData = { kind: "visitor", id: v.id };
         if (!this.w.clickables.includes(g.userData.hit)) this.w.clickables.push(g.userData.hit);
@@ -245,12 +255,13 @@ export class IncidentView {
       }
       if (v.kind === "kid") this.poseKid(sim, v, g, time);
       else if (v.kind === "dog") this.poseDog(sim, v, g, time);
-      else if (v.kind === "carl") this.poseCarl(sim, v, g, time);
+      else if (v.kind === "carl") this.poseCarl(sim, v, g, time, dt);
     }
     for (const [id, g] of this.visitors) if (!alive.has(id)) this.dropVisitor(id, g);
   }
   dropVisitor(id, g) {
     this.w.clickables = this.w.clickables.filter((x) => x !== g.userData.hit);
+    dropSwimmerModel(g); // (a cannonball man's model gives its skeleton back; nothing for the others)
     g.removeFromParent();
     this.visitors.delete(id);
   }
@@ -356,7 +367,7 @@ export class IncidentView {
       }
     }
   }
-  poseCarl(sim, v, g, time) {
+  poseCarl(sim, v, g, time, dt = 0.016) {
     const u = g.userData,
       reduced = this.w.reducedMotion.matches;
     g.position.set(v.x, 0, v.z);
@@ -425,6 +436,48 @@ export class IncidentView {
         u.arms.forEach((a, i) => a.rotation.set(-1.2, 0, i ? 0.9 : -0.9));
         u.legs[0].rotation.x = reduced ? 0 : Math.max(0, Math.sin(time * 9)) * -0.25;
         break;
+    }
+    if (u.rig) this.poseFigure(v, g, dt);
+  }
+  // The cannonball man as a model (see figure-pose.mjs): over the classic poses above, which stay under it (the climb's arms
+  // and legs are copied onto the model from them). His clip comes from where the simulation has him; the body settles onto its
+  // front in the water and stands up again to climb out, as a swimmer's does.
+  poseFigure(v, g, dt) {
+    const u = g.userData,
+      pose = figurePose(v),
+      fit = u.fit || 1,
+      lie = pose.lie || 0;
+    const at = pose.at === "edge" && v.edge ? v.edge : v;
+    g.position.set(at.x, -0.39 * lie, at.z);
+    // He turns round to where he is going, not at once (the simulation turns him to face the wall as the swim back begins).
+    const yaw = v.angle || 0;
+    u.yaw =
+      u.yaw === undefined
+        ? yaw
+        : u.yaw + Math.atan2(Math.sin(yaw - u.yaw), Math.cos(yaw - u.yaw)) * Math.min(1, dt * 10);
+    g.rotation.y = u.yaw;
+    u.root.rotation.set((Math.PI / 2) * lie, 0, 0);
+    u.root.position.set(0, 0.27 * lie, -0.65 * fit * lie);
+    u.root.scale.setScalar(1 - 0.15 * lie);
+    u.shadow.visible = lie === 0 && v.status !== "flying";
+    u.puppet.arms = u.puppet.legs = !!pose.puppet;
+    // How fast he covers the ground, from where he is drawn (a hit-stop, with no time passing, keeps the last speed).
+    const was = u.lastAt;
+    u.lastAt = { x: at.x, z: at.z };
+    if (was && dt > 0) u.footSpeed = Math.hypot(at.x - was.x, at.z - was.z) / dt;
+    try {
+      u.rig.update(dt, {
+        speed: pose.swim || pose.jump != null ? 0 : u.footSpeed || 0,
+        swim: !!pose.swim,
+        stroke: pose.stroke ?? 1,
+        jump: pose.jump ?? null,
+        puppet: u.puppet,
+        classic: u,
+      });
+    } catch (error) {
+      // A failing model must not stop the shift: this is the classic Carl from here on.
+      console.error(error);
+      dropSwimmerModel(g);
     }
   }
   syncPuddles(sim) {
