@@ -6,7 +6,7 @@
   "scripts": {
     "start": "python3 -m http.server 8000 --directory dist",
     "test": "node run-checks.mjs",
-    "format": "prettier --write \"dist/**/*.mjs\" \"dist/index.html\" \"dist/style.css\" \"*.mjs\" \"desktop/*.cjs\" \"desktop/scripts/*.mjs\""
+    "format": "prettier --write \"dist/**/*.mjs\" \"dist/index.html\" \"dist/style.css\" \"*.mjs\""
   },
   "devDependencies": {
     "@napi-rs/canvas": "^0.1.80",

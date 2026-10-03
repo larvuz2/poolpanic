@@ -41,8 +41,6 @@ import { installCrashLog, describeGpu } from "./crashlog-hooks.mjs";
 import { BUILD } from "./version.mjs";
 import { playCinematic } from "./cinematic.mjs";
 import { readTuning, isWebKit } from "./tuning.mjs";
-import { Achievements } from "./achievements.mjs";
-import { isDesktop, quitGame, richPresence, unlockAchievement } from "./platform.mjs";
 import * as hunts from "./bisect.mjs";
 import {
   STORY,
@@ -390,24 +388,6 @@ function saveStory() {
     localStorage.setItem(STORY.storageKey, JSON.stringify(story));
   } catch {}
 }
-// Achievements (achievements.mjs): kept on the device, shown as a toast, and told to Steam when the game runs in the desktop app.
-let achieved = [];
-try {
-  achieved = JSON.parse(localStorage.getItem("pool-panic.achievements.v1") || "[]");
-} catch {}
-const achievements = new Achievements({
-  unlocked: achieved,
-  remember: (list) => {
-    try {
-      localStorage.setItem("pool-panic.achievements.v1", JSON.stringify(list));
-    } catch {}
-  },
-  announce: (a) => {
-    toast("🏆 " + a.name + " · " + a.text);
-    unlockAchievement(a.id);
-  },
-});
-achievements.replay(unlockAchievement); // (those earned before Steam was there; nothing in a browser)
 function renderFund(bump = false) {
   $("fund-now").textContent = money(Math.min(fundOf(story), STORY.goal));
   $("fund-goal").textContent = "/ " + money(STORY.goal);
@@ -792,7 +772,6 @@ function start(bookingId = null) {
   world.resetActors();
   loadCannonballMan(sim);
   loadFishKid(sim);
-  richPresence(drill ? "Drill · " + drill.name : "Level " + level + " · " + sim.config.name);
   sim.start({ countdown: true });
   mode = "countdown";
   snagged = false;
@@ -1062,13 +1041,6 @@ function finish() {
     newBest = drill ? recordDrill(records, drill.id, r.score) : recordResult(records, played, r.score),
     after = zone && zoneStatus(records, zone, progressFlags);
   saveRecords();
-  achievements.shift({
-    stars: r.stars,
-    drill: !!drill,
-    levelStars: (n) => starsFor(n, records.bests[n - 1] || 0),
-    levels: SHIFTS.length,
-  });
-  richPresence("Looking at the results");
   // A chunk just cleared wakes the next area: the map plays its reveal, and this dialog's main button goes there.
   const chunkDone = !!zone && !before.complete && after.complete,
     next = chunkDone ? ZONES[zone.order + 1] : null,
@@ -1104,10 +1076,7 @@ function finish() {
     drill ? "drill:" + drill.id : String(played),
     shiftPay(r.stars, booked ? booked.payout : 1),
   );
-  if (pay.reached) {
-    story.ending = true;
-    achievements.fund();
-  }
+  if (pay.reached) story.ending = true;
   if (pay.gained || pay.reached) saveStory();
   showFundResult(pay, booked);
   renderFund(pay.gained > 0);
@@ -1820,7 +1789,6 @@ function events() {
       if (NOTABLE.has(e.type))
         crashlog.crumb("event", e.type + (e.kind ? " " + e.kind : "") + (e.name ? " " + e.name : ""));
       else if (e.type === "save") crashlog.crumb("save", String(e.kind));
-      if (e.type === "save") achievements.save(e.kind);
       if (e.type === "countdown") {
         $("countdown-number").textContent = e.value;
         if (!reducedMotion.matches)
@@ -2054,10 +2022,6 @@ function bind() {
   };
   $("pause").onclick = pause;
   $("resume").onclick = resume;
-  if (isDesktop()) {
-    $("quit-game").hidden = false; // (a window needs a way out that is not the keyboard)
-    $("quit-game").onclick = quitGame;
-  }
   $("restart").onclick = () => start(activeBooking);
   $("crash-copy").onclick = () => shareCrash("copy");
   $("crash-issue").onclick = () => shareCrash("issue");
