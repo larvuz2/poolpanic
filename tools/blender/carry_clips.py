@@ -36,15 +36,15 @@ ARM_NODES = [s + n for s in ("Left", "Right") for n in ("Shoulder", "Arm", "Fore
 
 # the bucket held at the chest: its middle (x to his left, y up, z forward) from the chest bone's rest position, in the chest's
 # frame; the hands on its two sides, `hand_out` from the middle and a little low
-HOLD_C = (0.0, -0.03, 0.2)
+HOLD_C = (0.0, -0.06, 0.2)  # (lowered from -0.03: the rim was level with his chin in a walk)
 HAND = (0.14, -0.01, 0.0)
 POLE = (0.9, -0.6, -0.1)  # the elbows go out and down
 
 # BucketDump: (frame, bucket middle, tip forward in degrees, spine lean, head pitch, shoulders hunch); ease between keys
 DUMP_FRAMES = 30
 DUMP = [
-    (0, (0.0, -0.03, 0.2), 0.0, 0.0, 0.0),
-    (4, (0.0, -0.04, 0.18), -5.0, -6.0, -4.0),  # a breath in: pulled in toward the chest, leaning back
+    (0, HOLD_C, 0.0, 0.0, 0.0),  # it starts where every carrying clip holds the bucket
+    (4, (HOLD_C[0], HOLD_C[1] - 0.01, HOLD_C[2] - 0.02), -5.0, -6.0, -4.0),  # a breath in: pulled in toward the chest, leaning back
     (13, (0.0, -0.01, 0.34), 112.0, 28.0, 6.0),  # heaved up and out, tipped mouth-down, leaning over the edge
     (17, (0.0, -0.01, 0.34), 112.0, 28.0, 6.0),
     (19, (0.0, 0.0, 0.35), 124.0, 30.0, 10.0),  # a shake
