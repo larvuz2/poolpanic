@@ -109,9 +109,10 @@ export const FIGURES = [
     back: 0.33,
     depth: 0.4,
   },
-  // The fish kid: a small boy (1.2 m) on the same skeleton with the four carrying clips and a bucket of his own
-  // (dist/assets/bucket.glb: held at the chest bone's rest position plus `hold`, where the clips' hands are). He walks only up to
-  // `toRun` m/s (a child's stride is short), and `dumpEnd` is the second of BucketDump the bucket is tipped out at (frame 19).
+  // The fish kid: a small boy (1.2 m) on the same skeleton with the four carrying clips and a bucket of his own, which is in
+  // his file (tools/blender/carry_clips.py --bucket: the node `Bucket` under `BucketMount`, which the clips move, so the bucket
+  // goes where his hands go; `height` is its fallback height). He walks only up to `toRun` m/s (a child's stride is short), and
+  // `dumpEnd` is the second of BucketDump the bucket is tipped out at (frame 19).
   {
     id: "kid",
     file: "fish-kid.glb",
@@ -123,7 +124,7 @@ export const FIGURES = [
     back: 0.1,
     depth: 0.12,
     needs: ["carry", "carryWalk", "carryRun", "dump"],
-    bucket: { file: "bucket.glb", hold: [0, -0.03, 0.2], height: 0.28 },
+    bucket: { height: 0.28 },
     dumpEnd: 19 / 24,
   },
 ];
@@ -274,12 +275,7 @@ async function fetchTemplate(look, base, required) {
     o.castShadow = true;
     o.frustumCulled = false; // a skinned mesh's bounds are those of its bind pose
   });
-  let bucket = null;
-  if (look.bucket) {
-    bucket = (await new GLTFLoader().loadAsync(base + look.bucket.file)).scene;
-    bucket.traverse((o) => o.isMesh && (o.castShadow = true));
-  }
-  return { scene: gltf.scene, clips, clone, look, bucket, ...measure(gltf.scene) };
+  return { scene: gltf.scene, clips, clone, look, ...measure(gltf.scene) };
 }
 // Fetch and parse the five models once. A model that does not load is left out (and with none, the classic swimmers play).
 export async function loadSwimmerModels(base = new URL("../assets/", import.meta.url).href) {
@@ -585,33 +581,30 @@ export function attachSwimmerModel(group, p, choice = activeSwimmerChoice()) {
     actions[key] = action;
   }
   u.rig = new SwimmerRig(mixer, actions, look, { top: model, bones, template: t });
-  if (look.bucket && t.bucket && u.kidBucket && model.getObjectByName("BucketMount"))
-    attachBucket(u, model, t, look, mount);
+  if (look.bucket && u.kidBucket) attachBucket(u, model, look);
   u.lastAt = null;
   return u.rig;
 }
-// The fish kid's bucket: a Meshy bucket in the BucketMount node of his skeleton (a child of his chest bone that the carrying clips
-// move, so the bucket goes where his hands go), placed at its rest position in his frame. The classic bucket is hidden and the
-// fish moves into the new one. `u.bucketModel` is the bucket and `u.mounts.bucket` what it hangs on.
+// The fish kid's bucket is in his file, a mesh (`Bucket`) under `BucketMount`, a node of his skeleton, a child of the chest bone,
+// that the carrying clips move, so it goes where his hands go (and shows the same in Anim Bench). The classic bucket is hidden
+// and the fish moves into the model's. `u.bucketModel` is the bucket (its origin is on its base) and `u.bucketHeight` how tall
+// it is. A file with no bucket in it leaves the classic one.
 // How far up the bucket's middle the fish's middle sits: its nose and shoulders stand out of the mouth.
 export const FISH_IN = 0.05;
-function attachBucket(u, model, t, look, mount) {
-  const { hold, height } = look.bucket;
-  u.mounts.bucket = mount("BucketMount");
-  const bucket = new THREE.Group();
-  const mesh = t.clone(t.bucket);
-  mesh.position.y = -height / 2; // the model stands on its base: the group is its middle
-  bucket.add(mesh);
-  bucket.position.set(t.chest.x + hold[0], t.chest.y + hold[1], t.chest.z + hold[2]);
-  u.mounts.bucket.add(bucket);
+function attachBucket(u, model, look) {
+  const bucket = model.getObjectByName("Bucket");
+  if (!bucket) return;
+  bucket.traverse((o) => o.isMesh && (o.castShadow = true));
   u.bucketModel = bucket;
+  u.bucketHeight = bucket.userData.height || look.bucket.height;
   u.kidBucket.visible = false;
   u.fish = u.kidBucket.getObjectByName("bucket-fish");
   if (u.fish) {
     u.fishWas = u.fish.parent;
     u.fishScale = u.fish.scale.x;
+    u.fishY = u.bucketHeight / 2 + FISH_IN;
     bucket.add(u.fish);
-    u.fish.position.set(0, FISH_IN, 0);
+    u.fish.position.set(0, u.fishY, 0);
     u.fish.rotation.set(-Math.PI / 2 + 0.3, 0, 0);
     u.fish.scale.setScalar(0.4);
   }
@@ -648,7 +641,8 @@ export function dropSwimmerModel(group) {
   if (!u.model) return; // (also after a model that failed halfway through being put on)
   u.rig?.mixer.stopAllAction();
   if (u.bucketModel) {
-    u.bucketModel.removeFromParent();
+    u.bucketHolder?.removeFromParent(); // (the bucket on the deck, after the dump)
+    u.bucketHolder = null;
     if (u.fish && u.fishWas) {
       u.fishWas.add(u.fish);
       u.fish.position.set(0, 0.5, 0.02);

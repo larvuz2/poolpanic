@@ -112,11 +112,15 @@ function standIn(height = 1.7, mount = false) {
     const m = new THREE.Object3D();
     m.name = "BucketMount";
     sp.add(m);
+    const bucket = new THREE.Group(); // (the file's own bucket: a mesh under the node the clips move)
+    bucket.name = "Bucket";
+    bucket.userData.height = 0.28;
+    m.add(bucket);
   }
   const clips = Object.fromEntries(
     Object.values(CLIPS).map((name) => [name, new THREE.AnimationClip(name, 6, [])]),
   );
-  return { scene, clips, clone: (g) => g.clone(), bucket: mount ? new THREE.Group() : null };
+  return { scene, clips, clone: (g) => g.clone() };
 }
 useSwimmerTemplates(Object.fromEntries(SWIMMERS.map((look, i) => [look.id, standIn(1.55 + i * 0.07)])));
 assert.ok(swimmerModelsReady(), "the stand-ins are in");
@@ -873,10 +877,48 @@ assert.equal(lookFor({ figure: "carl" }), null, "so none is drawn");
     kid.run > kid.walk * 2 && kid.walk > 0.4 && kid.toRun > kid.walk,
     "the kid's paces: a short stride, a run beyond a walk",
   );
-  assert.ok(
-    existsSync("dist/assets/" + kid.file) && existsSync("dist/assets/" + kid.bucket.file),
-    "his model and his bucket are in the assets",
-  );
+  assert.ok(existsSync("dist/assets/" + kid.file), "his model is in the assets");
+  {
+    // The bucket is in his file, under the node the carrying clips move: BucketMount > BucketFrame > Bucket (a mesh), and each of
+    // the four clips keys that node, so the bucket goes where the hands go in the viewer as in the game.
+    const bytes = readFileSync("dist/assets/" + kid.file);
+    const json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString("utf8"));
+    const named = (name) => json.nodes.findIndex((n) => n.name === name);
+    const [mount, frame, bucket] = ["BucketMount", "BucketFrame", "Bucket"].map(named);
+    assert.ok(mount > 0 && frame > 0 && bucket > 0, "the file has the mount, its frame and the bucket");
+    assert.ok(
+      json.nodes[mount].children.includes(frame) && json.nodes[frame].children.includes(bucket),
+      "nested as said",
+    );
+    assert.ok(
+      json.nodes.some((n) => n.name === "Spine" && n.children.includes(mount)),
+      "the mount hangs from the chest bone",
+    );
+    assert.ok(
+      json.nodes[bucket].mesh !== undefined && json.nodes[bucket].skin === undefined,
+      "the bucket is a plain mesh",
+    );
+    assert.ok(
+      Math.abs(json.nodes[frame].scale[0] * 0.01 - 1) < 1e-6,
+      "its frame undoes the armature's scale: metres inside",
+    );
+    assert.ok(
+      json.nodes[bucket].extras?.height > 0.2 && json.nodes[bucket].extras.height < 0.4,
+      "a bucket of a child's size",
+    );
+    for (const name of ["CarryIdle", "CarryWalk", "CarryRun", "BucketDump"]) {
+      const clip = json.animations.find((a) => a.name === name);
+      const paths = clip.channels.filter((c) => c.target.node === mount).map((c) => c.target.path);
+      assert.ok(
+        paths.includes("translation") && paths.includes("rotation"),
+        `${name} moves the bucket's mount`,
+      );
+    }
+    assert.ok(
+      !existsSync("dist/assets/bucket.glb"),
+      "(there is no second copy of the bucket for the game to load)",
+    );
+  }
   assert.deepEqual(
     kid.needs,
     ["carry", "carryWalk", "carryRun", "dump"],
@@ -933,8 +975,12 @@ assert.equal(lookFor({ figure: "carl" }), null, "so none is drawn");
   const g = world.incidentView.visitors.get(v.id);
   const u = g.userData;
   assert.ok(u.rig && u.look.id === "kid" && u.bucketModel, "he is drawn as the model, with a bucket");
-  assert.equal(u.bucketModel.parent, u.mounts.bucket, "the bucket hangs on the node the clips move");
-  assert.equal(u.bucketModel.parent.parent.name, "BucketMount", "which is his skeleton's");
+  assert.equal(
+    u.bucketModel.parent.name,
+    "BucketMount",
+    "the bucket hangs on the node the clips move, which is his skeleton's",
+  );
+  assert.equal(u.bucketHeight, 0.28, "it is as tall as the file says");
   assert.ok(u.kidBucket.visible === false, "the classic bucket is hidden");
   assert.ok(u.fish && u.fish.parent === u.bucketModel && u.fish.visible, "the fish rides in it");
   assert.equal(u.root.scale.x, 1, "as tall as he is");
@@ -955,7 +1001,10 @@ assert.equal(lookFor({ figure: "carl" }), null, "so none is drawn");
   assert.ok(u.fish.position.y > 0.05, "and the fish slides up its mouth");
   Object.assign(v, { status: "crying", hasFish: false, dumpTime: 0 });
   sync(2);
-  assert.equal(u.bucketModel.parent, u.root, "crying, the empty bucket is on the deck beside him");
+  assert.ok(
+    u.bucketHolder && u.bucketModel.parent === u.bucketHolder && u.bucketHolder.parent === u.root,
+    "crying, the empty bucket is on the deck beside him, out of the mount",
+  );
   assert.ok(!u.fish.visible && u.puppet.arms, "the fish is gone and his hands are at his face");
   assert.notEqual(u.rig.current, "carry", "and he is not carrying anything");
   // A broken model is let go: the classic kid takes over, the fish back in its own bucket.

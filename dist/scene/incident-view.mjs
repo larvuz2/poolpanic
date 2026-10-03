@@ -3,7 +3,7 @@
 import { THREE, COLORS } from "./kit.mjs";
 import { character, dogObject } from "./actors.mjs";
 import { CARL_TUNING } from "../incidents/carl.mjs";
-import { attachSwimmerModel, dropSwimmerModel, FISH_IN } from "./swimmer-models.mjs";
+import { attachSwimmerModel, dropSwimmerModel } from "./swimmer-models.mjs";
 import { figurePose } from "./figure-pose.mjs";
 import { guidanceState } from "../guidance.mjs";
 import {
@@ -333,16 +333,23 @@ export class IncidentView {
     const bucket = u.bucketModel;
     if (bucket) {
       bucket.visible = !!v.hasFish || dumping || crying;
-      if (crying && bucket.parent !== u.root) {
-        u.root.add(bucket);
-        bucket.position.set(0.35, 0.14, 0.35);
-        bucket.rotation.set(0, 0, 1.3);
+      if (crying && !u.bucketHolder) {
+        // The empty bucket on the deck beside him, on its side: out of his hands (and the mount), into a holder of its own.
+        const holder = new THREE.Group();
+        holder.position.set(0.35, 0.13, 0.35);
+        holder.rotation.set(0, 0, 1.3);
+        u.root.add(holder);
+        holder.add(bucket);
+        bucket.position.set(0, -u.bucketHeight / 2, 0);
+        bucket.quaternion.identity();
+        bucket.scale.setScalar(1);
+        u.bucketHolder = holder;
       }
       if (u.fish) {
         u.fish.visible = !!v.hasFish;
         // Tipped out, the fish slides up the bucket's tilted mouth.
         const out = dumping ? 1 - Math.max(0, v.dumpTime) : 0;
-        u.fish.position.y = FISH_IN + out * out * 0.3;
+        u.fish.position.y = u.fishY + out * out * 0.3;
         const tail = u.fish.getObjectByName("fish-tail");
         if (tail) tail.rotation.y = reduced ? 0 : Math.sin(time * 12) * 0.5;
       }

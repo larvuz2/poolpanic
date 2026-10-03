@@ -1,9 +1,11 @@
 """Give a kid on Coach Panic's skeleton a bucket to carry, and put its clips in his file:
-    python3 tools/blender/carry_clips.py in.glb out.glb [--bucket-height 0.24] [--debug-frames 0,10,20]
-(plain Python with numpy, no Blender; posing.py poses the skeleton, skinpose.py reads it). The bucket is not in the file: the
-game and the viewer put their own bucket (dist/assets/bucket.glb) in a node this script adds, `BucketMount`, a child of the
-chest bone (`Spine`) that stands where the bucket's rest pose is, and the clips move that node, so that the bucket goes where
-the hands go. Four clips are added:
+    python3 tools/blender/carry_clips.py in.glb out.glb [--bucket tools/blender/assets/bucket.glb] [--debug-frames 0,10,20]
+(plain Python with numpy, no Blender; posing.py poses the skeleton, skinpose.py reads it). The bucket goes where the hands go
+because the file gets a node, `BucketMount`, a child of the chest bone (`Spine`) that the clips move, and, with `--bucket`, the
+bucket itself (a plain mesh, not skinned: the Meshy 7 bucket made by game_export.py) hangs under it, in two nodes: `BucketFrame`,
+which undoes the chest bone's rest pose and the armature's scale so that what is inside it is in metres in the character's own
+frame, and `Bucket` (extras: its height), the mesh, standing where the hands hold it at rest. So the viewer and the game show
+the same bucket in the same hands, with nothing but the file. Four clips are added:
   - CarryIdle: standing, the bucket hugged to the chest at its middle, the head scanning about (IdleScan's, with the arms
     replaced), loops;
   - CarryWalk and CarryRun: the Walk and Run clips with the arms replaced by the hold, loops: the arms are the same in every
@@ -132,6 +134,75 @@ def add_mount_tracks(path, clip, translations, rotations):
     write(path, doc, binary)
 
 
+def embed_bucket(path, bucket_path):
+    """Put the bucket's mesh in the file, under the mount: BucketMount > BucketFrame > Bucket (see the docstring)."""
+    rig = Rig(path)
+    P = Posing(rig)
+    rest = rig.world_matrices(rig.local(None, 0.0))[rig.by_name[CHEST]]
+    frame = np.linalg.inv(rest)  # the chest bone's rest pose, undone: the node's own frame is the character's, in metres
+    scale = float(np.linalg.norm(frame[:3, 0]))
+    rotation = frame[:3, :3] / scale
+    assert abs(np.linalg.det(rotation) - 1) < 1e-6 and np.allclose(rotation @ rotation.T, np.eye(3), atol=1e-6), "the bone's rest frame is not a rotation"
+    frame_t = frame[:3, 3]
+
+    doc, binary = skinpose.read_glb(path)
+    bdoc, bbin = skinpose.read_glb(bucket_path)
+    binary = bytearray(binary)
+    binary.extend(b"\0" * (-len(binary) % 4))
+    base = len(binary)
+    binary.extend(bbin)
+    count = {k: len(doc.get(k, [])) for k in ("bufferViews", "accessors", "images", "samplers", "textures", "materials", "meshes", "nodes")}
+    for view in bdoc["bufferViews"]:
+        view = dict(view, buffer=0, byteOffset=view.get("byteOffset", 0) + base)
+        doc["bufferViews"].append(view)
+    for acc in bdoc["accessors"]:
+        acc = dict(acc)
+        acc["bufferView"] += count["bufferViews"]
+        doc["accessors"].append(acc)
+    for img in bdoc.get("images", []):
+        doc.setdefault("images", []).append(dict(img, bufferView=img["bufferView"] + count["bufferViews"], name="BucketImage"))
+    for smp in bdoc.get("samplers", []):
+        doc.setdefault("samplers", []).append(dict(smp))
+    for tex in bdoc.get("textures", []):
+        tex = dict(tex, source=tex["source"] + count["images"])
+        if "sampler" in tex:
+            tex["sampler"] += count["samplers"]
+        doc.setdefault("textures", []).append(tex)
+    for mat in bdoc.get("materials", []):
+        mat = json.loads(json.dumps(mat))
+        mat["name"] = "BucketMaterial"
+        for holder in (mat.get("pbrMetallicRoughness", {}), mat):
+            for key, value in holder.items():
+                if isinstance(value, dict) and "index" in value and key.endswith("Texture"):
+                    value["index"] += count["textures"]
+        doc.setdefault("materials", []).append(mat)
+    mesh = json.loads(json.dumps(bdoc["meshes"][0]))
+    mesh["name"] = "BucketMesh"
+    for prim in mesh["primitives"]:
+        prim["attributes"] = {k: v + count["accessors"] for k, v in prim["attributes"].items()}
+        prim["indices"] += count["accessors"]
+        prim["material"] += count["materials"]
+    doc["meshes"].append(mesh)
+    # the bucket stands on its base at the origin: its middle goes where the hands hold it
+    top = next(a for a in bdoc["accessors"] if a.get("type") == "VEC3" and a.get("max"))
+    height = float(top["max"][1] - top["min"][1])
+    hold = P.P0[CHEST] + np.array(HOLD_C) - np.array([0.0, height / 2, 0.0])
+    bucket = {"name": "Bucket", "mesh": count["meshes"], "translation": [float(v) for v in hold], "extras": {"height": round(height, 4)}}
+    frame_node = {
+        "name": "BucketFrame",
+        "children": [count["nodes"] + 1],
+        "translation": [float(v) for v in frame_t],
+        "rotation": [float(v) for v in matrix_quat(rotation)],
+        "scale": [scale, scale, scale],
+    }
+    doc["nodes"] += [frame_node, bucket]
+    mount = next(i for i, n in enumerate(doc["nodes"]) if n.get("name") == MOUNT)
+    doc["nodes"][mount].setdefault("children", []).append(count["nodes"])
+    doc["buffers"][0]["byteLength"] = len(binary)
+    write(path, doc, binary)
+    print(f"BUCKET {bucket_path}: {height * 100:.0f} cm high, in the file under {MOUNT}, frame scale {scale:g}")
+
+
 class Carrier:
     def __init__(self, rig):
         self.rig = rig
@@ -202,6 +273,11 @@ def main():
         i = args.index("--debug-frames")
         debug = [float(v) for v in args[i + 1].split(",")]
         del args[i : i + 2]
+    bucket = None
+    if "--bucket" in args:
+        i = args.index("--bucket")
+        bucket = args[i + 1]
+        del args[i : i + 2]
     if len(args) != 2:
         raise SystemExit(__doc__)
     src, dst = args
@@ -255,6 +331,8 @@ def main():
     os.replace(current + ".next", current)
     add_mount_tracks(current, "Try" if debug else "BucketDump", ts, qs)
     print(f"REACH dump: the hands fall at most {worst:.3f} m short of the bucket's sides")
+    if bucket and not debug:
+        embed_bucket(current, bucket)
     os.replace(current, dst)
     print("CARRY", dst, os.path.getsize(dst), "bytes")
 
