@@ -27,6 +27,11 @@ export const CLIPS = {
   panic: "Panic",
   swim: "Swim",
   cannonball: "Cannonball", // only the two cannonball men have it
+  // only the fish kid has these four: the bucket held to the chest (standing, walking, running) and tipped out
+  carry: "CarryIdle",
+  carryWalk: "CarryWalk",
+  carryRun: "CarryRun",
+  dump: "BucketDump",
 };
 // A model must have these; one without Panic hops with the classic swimmer's poses instead, one without Swim swims with
 // the Run clip, and one without Cannonball is the classic Carl.
@@ -103,6 +108,23 @@ export const FIGURES = [
     front: 0.21,
     back: 0.33,
     depth: 0.4,
+  },
+  // The fish kid: a small boy (1.2 m) on the same skeleton with the four carrying clips and a bucket of his own
+  // (dist/assets/bucket.glb: held at the chest bone's rest position plus `hold`, where the clips' hands are). He walks only up to
+  // `toRun` m/s (a child's stride is short), and `dumpEnd` is the second of BucketDump the bucket is tipped out at (frame 19).
+  {
+    id: "kid",
+    file: "fish-kid.glb",
+    walk: 0.588,
+    run: 1.576,
+    toRun: 1.0,
+    eyes: [0.93, 0.14],
+    front: 0.1,
+    back: 0.1,
+    depth: 0.12,
+    needs: ["carry", "carryWalk", "carryRun", "dump"],
+    bucket: { file: "bucket.glb", hold: [0, -0.03, 0.2], height: 0.28 },
+    dumpEnd: 19 / 24,
   },
 ];
 // The classic swimmer's head is a ball of this radius, 1.42 up; its crown, star and sore eyes are drawn for that head.
@@ -210,6 +232,7 @@ function measure(scene) {
       rest[name] = scene.getObjectByName(name).quaternion.clone();
   }
   return {
+    chest: scene.getObjectByName("Spine") ? at("Spine") : null,
     hipsY: at("Hips").y,
     headY: (head.y + top.y) / 2,
     headR: (top.y - head.y) / 2,
@@ -251,7 +274,12 @@ async function fetchTemplate(look, base, required) {
     o.castShadow = true;
     o.frustumCulled = false; // a skinned mesh's bounds are those of its bind pose
   });
-  return { scene: gltf.scene, clips, clone, look, ...measure(gltf.scene) };
+  let bucket = null;
+  if (look.bucket) {
+    bucket = (await new GLTFLoader().loadAsync(base + look.bucket.file)).scene;
+    bucket.traverse((o) => o.isMesh && (o.castShadow = true));
+  }
+  return { scene: gltf.scene, clips, clone, look, bucket, ...measure(gltf.scene) };
 }
 // Fetch and parse the five models once. A model that does not load is left out (and with none, the classic swimmers play).
 export async function loadSwimmerModels(base = new URL("../assets/", import.meta.url).href) {
@@ -278,13 +306,13 @@ export function loadFigure(id, base = new URL("../assets/", import.meta.url).hre
   if (!loading.has(id))
     loading.set(
       id,
-      fetchTemplate(look, base, [...REQUIRED, "cannonball"])
+      fetchTemplate(look, base, [...REQUIRED, ...(look.needs || ["cannonball"])])
         .then((t) => {
           figures.set(id, t);
           return t;
         })
         .catch((error) => {
-          console.warn("The cannonball man " + id + " did not load; the classic Carl stays.", error);
+          console.warn("The figure " + id + " did not load; the classic one stays.", error);
           return null;
         })
         .finally(() => loading.delete(id)),
@@ -306,6 +334,8 @@ export const wantsModel = (p) => !!p.figure || (!!TYPES[p.type] && !p.carl && !p
 
 // ---- the clips -----------------------------------------------------------------------------------------------------
 
+const RATED = new Set(["run", "walk", "swim", "carryRun", "carryWalk"]); // the clips played at a rate that follows the speed
+
 // Chooses the clip from what the swimmer is doing, and lays the classic poses over the clips where the game asks for one.
 // `mixer` and `actions` are three's AnimationMixer and the four AnimationActions (kept apart so a check can drive the
 // rules with stand-ins); `body` is what the pose layer needs: {top, bones, template}, or null when there is none.
@@ -315,6 +345,8 @@ export class SwimmerRig {
     this.actions = actions;
     this.walkSpeed = speeds.walk;
     this.runSpeed = speeds.run;
+    this.toRun = speeds.toRun ?? WALK_TO_RUN; // faster than this on foot is a run, and slower than 0.83 of it a walk again
+    this.toWalk = speeds.toRun ? speeds.toRun * 0.83 : RUN_TO_WALK;
     this.body = body;
     this.current = null;
     this.moving = false;
@@ -340,7 +372,7 @@ export class SwimmerRig {
     next.setEffectiveWeight(1);
     // (The Cannonball does not run by itself: update() sets its time from the incident, frame by frame.)
     next.setEffectiveTimeScale(
-      name === "cannonball" ? 0 : name === "run" || name === "walk" || name === "swim" ? this.rate : 1,
+      name === "cannonball" || name === "dump" ? 0 : RATED.has(name) ? this.rate : 1,
     );
     next.play();
     // A crowd that panics does not hop in step.
@@ -356,7 +388,17 @@ export class SwimmerRig {
   // are the poses to copy.
   update(
     dt,
-    { speed = 0, swim = false, stroke = 1, puppet = null, classic = null, panic = false, jump = null } = {},
+    {
+      speed = 0,
+      swim = false,
+      stroke = 1,
+      puppet = null,
+      classic = null,
+      panic = false,
+      jump = null,
+      carry = false,
+      dump = null,
+    } = {},
   ) {
     let want;
     let rate = 1;
@@ -369,7 +411,7 @@ export class SwimmerRig {
       this.speed += (speed - this.speed) * Math.min(1, dt * 12);
       this.moving = this.speed > (this.moving ? 0.35 : 0.9);
       if (this.moving) {
-        this.running = this.speed > (this.running ? RUN_TO_WALK : WALK_TO_RUN);
+        this.running = this.speed > (this.running ? this.toWalk : this.toRun);
         want = this.running ? "run" : "walk";
         rate = this.running
           ? clamp(this.speed / this.runSpeed, 0.6, 2.1)
@@ -382,7 +424,9 @@ export class SwimmerRig {
     if (panic && !swim && this.actions.panic) want = "panic";
     const jumping = jump !== null && !!this.actions.cannonball;
     if (jumping) want = "cannonball";
-    if (want === "idle") {
+    // Carrying the bucket (the fish kid): its own idle, walk and run, and no scratching of the head with both hands full.
+    const carrying = carry && !swim && !!this.actions.carry;
+    if (want === "idle" && !carrying) {
       const scratch = this.actions.scratch;
       if (this.current === "scratch") {
         // Stay with the scratch until it is nearly over, then settle back into the scan.
@@ -397,22 +441,25 @@ export class SwimmerRig {
       this.idleFor = 0;
       this.scratchAfter = SwimmerRig.scratchDelay();
     }
+    if (carrying) want = { idle: "carry", walk: "carryWalk", run: "carryRun" }[want] || want;
+    const dumping = dump !== null && !!this.actions.dump;
+    if (dumping) want = "dump";
     // (The first stroke after the splash takes a moment to take over from the tuck.)
     this.to(
       want,
-      want === "panic" || want === "cannonball"
+      want === "panic" || want === "cannonball" || want === "dump"
         ? 0.12
         : want === "swim" && this.current === "cannonball"
           ? 0.3
-          : want === "run" || want === "walk" || want === "swim"
+          : RATED.has(want)
             ? 0.15
             : 0.22,
     );
     if (jumping) this.actions.cannonball.time = jump;
+    if (dumping) this.actions.dump.time = dump;
     // The rate follows smoothly; the idles play as they are.
     this.rate += (rate - this.rate) * Math.min(1, dt * 12);
-    if (this.current === "run" || this.current === "walk" || this.current === "swim")
-      this.actions[this.current].setEffectiveTimeScale(this.rate);
+    if (RATED.has(this.current)) this.actions[this.current].setEffectiveTimeScale(this.rate);
     this.mixer.update(dt);
     if (this.body && puppet && classic) this.pose(dt, puppet, classic);
   }
@@ -449,7 +496,7 @@ export function attachSwimmerModel(group, p, choice = activeSwimmerChoice()) {
   const t = templateFor(look.id);
   const u = group.userData;
   const model = t.clone(t.scene);
-  const trimmings = new Set([u.carry, u.f, u.crown, u.sash, u.star, u.cape]);
+  const trimmings = new Set([u.carry, u.f, u.crown, u.sash, u.star, u.cape, u.kidBucket]);
   u.classic = u.root.children.filter((child) => !trimmings.has(child));
   for (const part of u.classic) part.visible = false;
   u.root.add(model);
@@ -531,15 +578,43 @@ export function attachSwimmerModel(group, p, choice = activeSwimmerChoice()) {
   for (const [key, name] of Object.entries(CLIPS)) {
     if (!t.clips[name]) continue;
     const action = mixer.clipAction(t.clips[name]);
-    if (key === "scratch" || key === "cannonball") {
+    if (key === "scratch" || key === "cannonball" || key === "dump") {
       action.setLoop(THREE.LoopOnce, 1);
       action.clampWhenFinished = true;
     }
     actions[key] = action;
   }
   u.rig = new SwimmerRig(mixer, actions, look, { top: model, bones, template: t });
+  if (look.bucket && t.bucket && u.kidBucket && model.getObjectByName("BucketMount"))
+    attachBucket(u, model, t, look, mount);
   u.lastAt = null;
   return u.rig;
+}
+// The fish kid's bucket: a Meshy bucket in the BucketMount node of his skeleton (a child of his chest bone that the carrying clips
+// move, so the bucket goes where his hands go), placed at its rest position in his frame. The classic bucket is hidden and the
+// fish moves into the new one. `u.bucketModel` is the bucket and `u.mounts.bucket` what it hangs on.
+// How far up the bucket's middle the fish's middle sits: its nose and shoulders stand out of the mouth.
+export const FISH_IN = 0.05;
+function attachBucket(u, model, t, look, mount) {
+  const { hold, height } = look.bucket;
+  u.mounts.bucket = mount("BucketMount");
+  const bucket = new THREE.Group();
+  const mesh = t.clone(t.bucket);
+  mesh.position.y = -height / 2; // the model stands on its base: the group is its middle
+  bucket.add(mesh);
+  bucket.position.set(t.chest.x + hold[0], t.chest.y + hold[1], t.chest.z + hold[2]);
+  u.mounts.bucket.add(bucket);
+  u.bucketModel = bucket;
+  u.kidBucket.visible = false;
+  u.fish = u.kidBucket.getObjectByName("bucket-fish");
+  if (u.fish) {
+    u.fishWas = u.fish.parent;
+    u.fishScale = u.fish.scale.x;
+    bucket.add(u.fish);
+    u.fish.position.set(0, FISH_IN, 0);
+    u.fish.rotation.set(-Math.PI / 2 + 0.3, 0, 0);
+    u.fish.scale.setScalar(0.4);
+  }
 }
 // A queasy swimmer's skin goes green in the classic look; on a model the whole body takes a green tint instead (a tinted
 // copy of each material, made once per model).
@@ -572,6 +647,16 @@ export function dropSwimmerModel(group) {
   const u = group.userData;
   if (!u.model) return; // (also after a model that failed halfway through being put on)
   u.rig?.mixer.stopAllAction();
+  if (u.bucketModel) {
+    u.bucketModel.removeFromParent();
+    if (u.fish && u.fishWas) {
+      u.fishWas.add(u.fish);
+      u.fish.position.set(0, 0.5, 0.02);
+      u.fish.rotation.set(-Math.PI / 2 + 0.3, 0, 0);
+      u.fish.scale.setScalar(u.fishScale);
+    }
+    u.bucketModel = u.fish = u.fishWas = null;
+  }
   u.model.traverse((o) => o.isSkinnedMesh && o.skeleton.dispose());
   u.root.remove(u.model);
   for (const part of u.classic || []) part.visible = true;

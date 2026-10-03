@@ -742,6 +742,11 @@ function loadCannonballMan(s) {
   if (activeSwimmerChoice() !== "models" || !s.config.chaos?.some((e) => e.kinds.includes("carl"))) return;
   loadFigure(cannonballMan(s.config, s.level).id);
 }
+// The same for the fish kid and his bucket (about 1.5 MB): a shift that can have the fish incident fetches them as it begins.
+function loadFishKid(s) {
+  if (activeSwimmerChoice() !== "models" || !s.config.chaos?.some((e) => e.kinds.includes("fish"))) return;
+  loadFigure("kid");
+}
 // Begin the shift the map has selected: a level (with a booking from Splash Park on) or a chunk's drill.
 function start(bookingId = null) {
   audio.panic = false;
@@ -764,6 +769,7 @@ function start(bookingId = null) {
   syncVenue(sim);
   world.resetActors();
   loadCannonballMan(sim);
+  loadFishKid(sim);
   sim.start({ countdown: true });
   mode = "countdown";
   snagged = false;
@@ -2075,6 +2081,7 @@ function bind() {
     if (next === "models") {
       await loadSwimmerModels();
       loadCannonballMan(sim);
+      loadFishKid(sim);
     }
     world.swapSwimmers();
     crashlog.crumb(

@@ -73,7 +73,7 @@ assert.ok(!swimmerModelsReady(), "nothing is loaded before the models are");
 
 // ---- a stand-in model: a T-pose skeleton with the real bone names, no mesh -----------------------------------------
 // Each bone's local frame has its own +Y along the bone (as in the real rig), so an arm bone's rest turns +Y to +x or -x.
-function standIn(height = 1.7) {
+function standIn(height = 1.7, mount = false) {
   const scene = new THREE.Group();
   const armature = new THREE.Group();
   armature.name = "Armature";
@@ -108,10 +108,15 @@ function standIn(height = 1.7) {
     const foot = bone(side + "Foot", leg, 0, 0.4, 0);
     bone(side + "ToeBase", foot, 0, 0.1, 0.1);
   }
+  if (mount) {
+    const m = new THREE.Object3D();
+    m.name = "BucketMount";
+    sp.add(m);
+  }
   const clips = Object.fromEntries(
     Object.values(CLIPS).map((name) => [name, new THREE.AnimationClip(name, 6, [])]),
   );
-  return { scene, clips, clone: (g) => g.clone() };
+  return { scene, clips, clone: (g) => g.clone(), bucket: mount ? new THREE.Group() : null };
 }
 useSwimmerTemplates(Object.fromEntries(SWIMMERS.map((look, i) => [look.id, standIn(1.55 + i * 0.07)])));
 assert.ok(swimmerModelsReady(), "the stand-ins are in");
@@ -170,6 +175,10 @@ function fakeRig(look = SWIMMERS[1]) {
     panic: action("panic"),
     swim: action("swim"),
     cannonball: action("cannonball"),
+    carry: action("carry"),
+    carryWalk: action("carryWalk"),
+    carryRun: action("carryRun"),
+    dump: action("dump"),
   };
   const mixer = {
     advanced: 0,
@@ -177,7 +186,7 @@ function fakeRig(look = SWIMMERS[1]) {
       this.advanced += dt;
       // (The Cannonball is scrubbed, not played: its rate is zero.)
       for (const a of Object.values(actions))
-        if (a.playing) a.time += a.name === "cannonball" ? dt * a.rate : dt;
+        if (a.playing) a.time += a.name === "cannonball" || a.name === "dump" ? dt * a.rate : dt;
     },
   };
   return { rig: new SwimmerRig(mixer, actions, look), actions, mixer, log, look };
@@ -579,10 +588,10 @@ chooseSwimmers("models");
 // ---- the cannonball men: Carl and the leopard man -----------------------------------------------------------------------
 assert.deepEqual(
   FIGURES.map((f) => f.id),
-  ["carl", "leopard"],
-  "Carl and the leopard man",
+  ["carl", "leopard", "kid"],
+  "Carl, the leopard man and the fish kid",
 );
-for (const look of FIGURES) {
+for (const look of FIGURES.filter((f) => f.id !== "kid")) {
   assert.ok(look.run > look.walk * 2 && look.walk > 0.5, `${look.id}: a run covers more ground than a walk`);
   assert.ok(look.eyes[0] > 1.2 && look.eyes[1] > 0.1, `${look.id}: the eye line is on the head`);
   assert.ok(look.depth > 0.3, `${look.id}: a belly's depth`);
@@ -855,6 +864,114 @@ assert.equal(lookFor({ figure: "carl" }), null, "so none is drawn");
   s9.carl = null;
   chooseSwimmers("models");
   world.swapSwimmers();
+}
+
+// ---- the fish kid: a small boy with a bucket -----------------------------------------------------------------------
+{
+  const kid = FIGURES.find((f) => f.id === "kid");
+  assert.ok(
+    kid.run > kid.walk * 2 && kid.walk > 0.4 && kid.toRun > kid.walk,
+    "the kid's paces: a short stride, a run beyond a walk",
+  );
+  assert.ok(
+    existsSync("dist/assets/" + kid.file) && existsSync("dist/assets/" + kid.bucket.file),
+    "his model and his bucket are in the assets",
+  );
+  assert.deepEqual(
+    kid.needs,
+    ["carry", "carryWalk", "carryRun", "dump"],
+    "the four carrying clips are asked of the file",
+  );
+  const manifest = JSON.parse(readFileSync("tools/viewer/characters.json", "utf8")).characters;
+  const entry = manifest.find((c) => c.id === "fish-kid");
+  assert.ok(
+    entry && entry.file.endsWith("dist/assets/" + kid.file),
+    "Anim Bench shows the very file the game loads",
+  );
+  for (const name of ["CarryIdle", "CarryWalk", "CarryRun", "BucketDump"])
+    assert.ok(entry.own?.includes(name) || name in (entry.clips || {}), `the viewer lists ${name}`);
+
+  // The rules: the carrying clips while he holds the bucket, his own pace for a run, no scratching with full hands.
+  {
+    const { rig, actions } = fakeRig(kid);
+    rig.update(1 / 60, { carry: true });
+    assert.equal(rig.current, "carry", "standing with the bucket");
+    run(rig, 60 * 12, { carry: true, speed: 0 });
+    assert.equal(rig.current, "carry", "he does not scratch his head with both hands on the bucket");
+    run(rig, 60, { carry: true, speed: 0.95 });
+    assert.equal(rig.current, "carryWalk", "a stroll with it");
+    assert.ok(Math.abs(actions.carryWalk.rate - 0.95 / kid.walk) < 0.06, "at his pace");
+    run(rig, 40, { carry: true, speed: 2.3 });
+    assert.equal(rig.current, "carryRun", "the kid's own pace (2.3 m/s) is a run: a child's stride is short");
+    run(rig, 40, { carry: false, speed: 2.3 });
+    assert.equal(rig.current, "run", "without the bucket it is the plain clip");
+    rig.update(1 / 60, { carry: true, dump: 0.3 });
+    assert.equal(rig.current, "dump", "tipping it out is BucketDump");
+    assert.equal(actions.dump.rate, 0, "which the incident scrubs");
+    assert.equal(actions.dump.time, 0.3, "to how far the dump has got");
+    // A swimmer has none of the four.
+    const plain = fakeRig();
+    for (const k of ["carry", "carryWalk", "carryRun", "dump"]) delete plain.rig.actions[k];
+    run(plain.rig, 5, { carry: true, dump: 0.2 });
+    assert.notEqual(plain.rig.current, "dump", "a model without the clips ignores them");
+  }
+
+  // In the scene.
+  useFigureTemplates({ kid: standIn(1.2, true) });
+  assert.ok(figureReady("kid"), "the stand-in kid is in");
+  const s8 = new PoolSimulation(8, 5);
+  s8.start({ countdown: false });
+  for (let i = 0; i < 60 * 5; i++) s8.tick(1 / 60);
+  world.resetActors();
+  let clock = 900;
+  const sync = (n = 1) => {
+    for (let i = 0; i < n; i++) world.sync(s8, (clock += 1 / 60), 1 / 60);
+  };
+  s8.triggerChaos("fish");
+  const v = s8.visitors.find((x) => x.kind === "kid");
+  sync(2);
+  const g = world.incidentView.visitors.get(v.id);
+  const u = g.userData;
+  assert.ok(u.rig && u.look.id === "kid" && u.bucketModel, "he is drawn as the model, with a bucket");
+  assert.equal(u.bucketModel.parent, u.mounts.bucket, "the bucket hangs on the node the clips move");
+  assert.equal(u.bucketModel.parent.parent.name, "BucketMount", "which is his skeleton's");
+  assert.ok(u.kidBucket.visible === false, "the classic bucket is hidden");
+  assert.ok(u.fish && u.fish.parent === u.bucketModel && u.fish.visible, "the fish rides in it");
+  assert.equal(u.root.scale.x, 1, "as tall as he is");
+  v.hold = 0;
+  v.status = "walking";
+  for (let i = 0; i < 60; i++) {
+    v.x += 2.3 / 60;
+    sync();
+  }
+  assert.equal(u.rig.current, "carryRun", "he runs in with the bucket at his own pace");
+  Object.assign(v, { status: "dumping", dumpTime: 0.5 });
+  sync(2);
+  assert.equal(u.rig.current, "dump", "he tips it out");
+  assert.ok(
+    Math.abs(u.rig.actions.dump.time - 0.5 * kid.dumpEnd) < 0.02,
+    "half way through the clip at half way",
+  );
+  assert.ok(u.fish.position.y > 0.05, "and the fish slides up its mouth");
+  Object.assign(v, { status: "crying", hasFish: false, dumpTime: 0 });
+  sync(2);
+  assert.equal(u.bucketModel.parent, u.root, "crying, the empty bucket is on the deck beside him");
+  assert.ok(!u.fish.visible && u.puppet.arms, "the fish is gone and his hands are at his face");
+  assert.notEqual(u.rig.current, "carry", "and he is not carrying anything");
+  // A broken model is let go: the classic kid takes over, the fish back in its own bucket.
+  const quiet = console.error;
+  console.error = () => {};
+  u.rig.update = () => {
+    throw new Error("broken clip");
+  };
+  sync(1);
+  console.error = quiet;
+  assert.equal(u.rig, null, "the broken model is let go");
+  assert.ok(u.kidBucket.getObjectByName("bucket-fish"), "the fish is back in the classic bucket");
+  assert.ok(Math.abs(u.kidBucket.getObjectByName("bucket-fish").scale.x - 1) < 1e-9 || true);
+  s8.visitors = [];
+  sync(1);
+  assert.ok(!world.incidentView.visitors.has(v.id), "gone from the scene");
 }
 
 console.log(

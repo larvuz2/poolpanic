@@ -3,7 +3,7 @@
 import { THREE, COLORS } from "./kit.mjs";
 import { character, dogObject } from "./actors.mjs";
 import { CARL_TUNING } from "../incidents/carl.mjs";
-import { attachSwimmerModel, dropSwimmerModel } from "./swimmer-models.mjs";
+import { attachSwimmerModel, dropSwimmerModel, FISH_IN } from "./swimmer-models.mjs";
 import { figurePose } from "./figure-pose.mjs";
 import { guidanceState } from "../guidance.mjs";
 import {
@@ -239,10 +239,11 @@ export class IncidentView {
       if (!g) {
         g = v.kind === "dog" ? dogObject(this.w) : character(this.w, v);
         g.userData.visitorKind = v.kind;
-        // The cannonball man is a model (Carl or the leopard man, swimmer-models.mjs) when it is loaded; else the classic Carl.
-        if (v.kind === "carl")
+        // The cannonball man is a model (Carl or the leopard man, swimmer-models.mjs) when it is loaded, and so is the fish kid
+        // (with his bucket); else the classic ones.
+        if (v.kind === "carl" || v.kind === "kid")
           try {
-            attachSwimmerModel(g, v);
+            attachSwimmerModel(g, v.kind === "kid" ? { ...v, figure: "kid" } : v);
           } catch (error) {
             console.error(error);
             dropSwimmerModel(g);
@@ -253,7 +254,7 @@ export class IncidentView {
         this.visitors.set(v.id, g);
         this.w.scene.add(g);
       }
-      if (v.kind === "kid") this.poseKid(sim, v, g, time);
+      if (v.kind === "kid") this.poseKid(sim, v, g, time, dt);
       else if (v.kind === "dog") this.poseDog(sim, v, g, time);
       else if (v.kind === "carl") this.poseCarl(sim, v, g, time, dt);
     }
@@ -269,7 +270,7 @@ export class IncidentView {
   clearVisitors() {
     for (const [id, g] of [...this.visitors]) this.dropVisitor(id, g);
   }
-  poseKid(sim, v, g, time) {
+  poseKid(sim, v, g, time, dt = 0.016) {
     const u = g.userData,
       reduced = this.w.reducedMotion.matches;
     g.position.set(v.x, 0, v.z);
@@ -289,30 +290,80 @@ export class IncidentView {
         v.hasFish ? (i ? -0.35 : 0.35) : 0,
       ),
     );
+    const model = !!u.rig;
     const bucket = u.kidBucket;
-    bucket.visible = v.hasFish || v.status === "crying";
-    bucket.rotation.set(0, 0, 0);
-    const fish = bucket.getObjectByName("bucket-fish");
-    fish.visible = v.hasFish;
-    const tail = fish.getObjectByName("fish-tail");
-    if (tail) tail.rotation.y = reduced ? 0 : Math.sin(time * 12) * 0.5;
-    if (v.status === "dumping") {
-      const t = 1 - Math.max(0, v.dumpTime) / 1;
-      bucket.rotation.x = t * 1.9;
-      u.root.rotation.x = t * 0.25;
+    if (!model) {
+      bucket.visible = v.hasFish || v.status === "crying";
+      bucket.rotation.set(0, 0, 0);
+      const fish = bucket.getObjectByName("bucket-fish");
+      fish.visible = v.hasFish;
+      const tail = fish.getObjectByName("fish-tail");
+      if (tail) tail.rotation.y = reduced ? 0 : Math.sin(time * 12) * 0.5;
+      if (v.status === "dumping") {
+        const t = 1 - Math.max(0, v.dumpTime) / 1;
+        bucket.rotation.x = t * 1.9;
+        u.root.rotation.x = t * 0.25;
+      }
     }
     if (v.status === "crying") {
-      bucket.position.set(0.35, 0.18, 0.35);
-      bucket.rotation.set(0, 0, 1.3);
+      if (!model) {
+        bucket.position.set(0.35, 0.18, 0.35);
+        bucket.rotation.set(0, 0, 1.3);
+      }
       u.arms.forEach((a, i) => a.rotation.set(-2.2, 0, i ? 0.55 : -0.55));
       u.root.position.y = reduced ? 0 : Math.abs(Math.sin(time * 9)) * 0.03;
       u.root.rotation.z = reduced ? 0 : Math.sin(time * 14) * 0.04;
-    } else bucket.position.set(0, 0.85, 0.42);
+    } else if (!model) bucket.position.set(0, 0.85, 0.42);
     if (v.status === "happy") {
       u.arms.forEach((a, i) => a.rotation.set(-1.25, 0, i ? -0.35 : 0.35));
       u.root.position.y += reduced ? 0 : Math.abs(Math.sin(time * 8)) * 0.18;
     }
     if (v.status === "sulking") u.root.rotation.x = 0.18;
+    if (model) this.poseKidFigure(v, g, time, dt);
+  }
+  // The fish kid as a model (swimmer-models.mjs): the carrying clips while he has the fish, BucketDump while he tips it out (the
+  // clip's time follows how far the dump has got: the bucket is out at the end of it, when the simulation lets the fish go), and
+  // the empty bucket on the deck beside him when he cries, with the classic arms over his face (the puppet).
+  poseKidFigure(v, g, time, dt) {
+    const u = g.userData,
+      reduced = this.w.reducedMotion.matches,
+      crying = v.status === "crying",
+      dumping = v.status === "dumping";
+    if (!crying) u.root.position.y = v.status === "happy" ? u.root.position.y : 0; // (the clips bob him)
+    const bucket = u.bucketModel;
+    if (bucket) {
+      bucket.visible = !!v.hasFish || dumping || crying;
+      if (crying && bucket.parent !== u.root) {
+        u.root.add(bucket);
+        bucket.position.set(0.35, 0.14, 0.35);
+        bucket.rotation.set(0, 0, 1.3);
+      }
+      if (u.fish) {
+        u.fish.visible = !!v.hasFish;
+        // Tipped out, the fish slides up the bucket's tilted mouth.
+        const out = dumping ? 1 - Math.max(0, v.dumpTime) : 0;
+        u.fish.position.y = FISH_IN + out * out * 0.3;
+        const tail = u.fish.getObjectByName("fish-tail");
+        if (tail) tail.rotation.y = reduced ? 0 : Math.sin(time * 12) * 0.5;
+      }
+    }
+    const was = u.lastAt;
+    u.lastAt = { x: v.x, z: v.z };
+    if (was && dt > 0) u.footSpeed = Math.hypot(v.x - was.x, v.z - was.z) / dt;
+    u.puppet.arms = crying;
+    u.puppet.legs = false;
+    try {
+      u.rig.update(dt, {
+        speed: u.footSpeed || 0,
+        carry: !!v.hasFish && !!bucket,
+        dump: dumping ? (1 - Math.max(0, v.dumpTime) / 1) * u.look.dumpEnd : null,
+        puppet: u.puppet,
+        classic: u,
+      });
+    } catch (error) {
+      console.error(error); // the classic kid from here on
+      dropSwimmerModel(g);
+    }
   }
 
   poseDog(sim, v, g, time) {
