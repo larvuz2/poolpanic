@@ -127,7 +127,7 @@ def build_armature():
     for side, s in (("L", 1), ("R", -1)):
         bone("thigh." + side, at(s * P["hip_x"], P["hip"] - 0.02), at(s * P["hip_x"], P["knee"]), "hips")
         bone("shin." + side, bones["thigh." + side].tail, at(s * P["hip_x"], P["ankle"]), "thigh." + side, True)
-        bone("foot." + side, bones["shin." + side].tail, at(s * P["hip_x"], P["ankle"] * 0.4, -P["toe"]), "shin." + side, True)
+        bone("foot." + side, bones["shin." + side].tail, at(s * P["hip_x"], P["ankle"], -P["toe"]), "shin." + side, True)
         bone("shoulder." + side, at(s * P["clav_x"], P["chest_top"] - 0.01), at(s * P["shoulder_x"], P["shoulder_z"]), "chest")
         bone("upper_arm." + side, bones["shoulder." + side].tail, at(s * P["elbow_x"], P["shoulder_z"] - 0.004), "shoulder." + side, True)
         bone("forearm." + side, bones["upper_arm." + side].tail, at(s * P["wrist_x"], P["shoulder_z"] - 0.01), "upper_arm." + side, True)
@@ -376,7 +376,9 @@ def legs(phase, amp=0.5, bend=0.8, stance=0.03):
         rig.aim("thigh." + side, unit(s * stance, -math.sin(a), -math.cos(a)), frame="hips")
         b = a - bend * lift
         rig.aim("shin." + side, unit(s * stance, -math.sin(b), -math.cos(b)), frame="hips")
-        pitch = 0.45 * lift - 0.25 * max(0.0, -swing)
+        # The foot bone lies flat in the rest pose, so aiming it horizontally keeps the whole sole on the floor: only the
+        # swinging foot lifts its toe, and only the very last of the push-off lifts the heel.
+        pitch = 0.5 * max(0.0, lift - 0.45) / 0.55 - 0.1 * max(0.0, -swing - 0.7) / 0.3
         rig.aim("foot." + side, unit(0.0, -math.cos(pitch), math.sin(pitch)), frame="hips")
     return
 
@@ -433,7 +435,7 @@ def walk(t):
         fore = unit(s_ * OUT, -math.sin(a + bend), -math.cos(a + bend))
         rig.aim("upper_arm." + side, up)
         rig.aim("forearm." + side, fore)
-    rig.hips_offset = Vector((0.012 * math.sin(ph), 0, -0.028 * abs(math.cos(ph)) + 0.01))
+    rig.hips_offset = Vector((0.012 * math.sin(ph), 0, -0.012 * abs(math.cos(ph)) + 0.005))  # small: there is no foot IK, so a deep bob sinks the soles
 
 
 def complain(t):
@@ -459,7 +461,7 @@ def complain(t):
         shape = {"up": w, rest: (1 - w) * (1 - shrug)}
         shape["down"] = shape.get("down", 0.0) + (1 - w) * shrug
         arm_pose(side, shape, wag=wag * w)
-    rig.hips_offset = Vector((0.01 * (left - right), 0, -0.01 * abs(wag) * (left + right)))
+    rig.hips_offset = Vector((0.01 * (left - right), 0, -0.004 * abs(wag) * (left + right)))
 
 
 def point(t):
@@ -474,7 +476,7 @@ def point(t):
     rig.aim("upper_arm.R", Vector((-up.x, up.y, up.z)))
     bent = mix(fore, unit(0.3, -0.35, 0.9), 0.55 * (1 - jab))
     rig.aim("forearm.R", Vector((-bent.x, bent.y, bent.z)))
-    rig.hips_offset = Vector((0, -0.01 * jab, -0.012 * jab))
+    rig.hips_offset = Vector((0, -0.01 * jab, -0.004 * jab))
 
 
 def defeated(t):
@@ -486,7 +488,7 @@ def defeated(t):
     stand_legs(shift=0.0)
     arm_pose("L", {"hip": 1 - drop, "down": drop})
     arm_pose("R", {"down": 1.0})
-    rig.hips_offset = Vector((0, 0, -0.035 * sigh))
+    rig.hips_offset = Vector((0, 0, -0.008 * sigh))
 
 
 CLIPS = [
