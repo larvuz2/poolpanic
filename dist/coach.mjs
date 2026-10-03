@@ -15,8 +15,13 @@ export class CoachController {
     const n = Math.max(1, Math.hypot(x, z));
     this.coach.input = { x: x / n, z: z / n };
   }
+  // E is held down (the app sets this from the key or the touch button): hold-to-act incidents read it.
+  setHold(on) {
+    this.holdInteract = !!on;
+  }
   clearInput() {
     const c = this.coach;
+    this.holdInteract = false;
     this.setMovement(0, 0);
     c.vx = 0;
     c.vz = 0;
@@ -75,6 +80,14 @@ export class CoachController {
     // Coach Cam: the coach faces wherever the player looks, not where they walk.
     if (c.lookAngle != null) c.angle = c.lookAngle;
     if (this.updateBusy(dt)) return;
+    // Calming Karen: planted, facing her, until E is let go (incidents/karen.mjs).
+    if (c.calming) {
+      c.vx = c.vz = 0;
+      c.dashTime = 0;
+      c.jumpBuffer = 0;
+      c.state = "Calming Karen";
+      return;
+    }
     c.feedback = Math.max(0, c.feedback - dt);
     c.landing = Math.max(0, c.landing - dt);
     c.slipCooldown = Math.max(0, c.slipCooldown - dt);

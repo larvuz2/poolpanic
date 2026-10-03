@@ -160,7 +160,7 @@ assert.match(cloud(200), /<ellipse/);
   );
   assert.deepEqual(
     level(4).map((h) => h.icon),
-    ["🐶"],
+    ["🐶", "😡"],
   );
   for (let n = 1; n <= SHIFTS.length; n++) {
     const list = level(n);

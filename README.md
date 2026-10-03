@@ -2,7 +2,7 @@
 
 > A playful 3D swimming-pool management game: three lanes, then five, endless little disasters, one more shift.
 
-This README is the project brief and agent onboarding guide. It combines the creator's direction with the implemented prototype as inspected on September 26, 2026, updated on September 27, 2026 for the chaos incidents, the Splash Park (then called the Riviera Splash Resort) and levels 11–15, and on September 29, 2026 for the campaign map, chunks and acts, mid-shift twists, drills and bookings, and again for levels 16–20, the Sunset Lagoon and Grand Gala Arena, VIP guests, the storm twist and the Coach Cam environments. Read it before changing the game. Descriptions marked as current refer to the code; proposed possibilities are not commitments or implemented features.
+This README is the project brief and agent onboarding guide. It combines the creator's direction with the implemented prototype as inspected on September 26, 2026, updated on September 27, 2026 for the chaos incidents, the Splash Park (then called the Riviera Splash Resort) and levels 11–15, and on September 29, 2026 for the campaign map, chunks and acts, mid-shift twists, drills and bookings, and again for levels 16–20, the Sunset Lagoon and Grand Gala Arena, VIP guests, the storm twist and the Coach Cam environments, and on October 3, 2026 for Karen. Read it before changing the game. Descriptions marked as current refer to the code; proposed possibilities are not commitments or implemented features.
 
 ## Vision and player fantasy
 
@@ -50,7 +50,7 @@ A lane assignment is a management action. Equipment pickup, handoff, cleanup, an
 | WASD / arrows | Move the coach relative to the screen; swim during a permitted rescue |
 | Space | Jump; climb out near a pool edge during rescue |
 | Shift | Short dash with an internal cooldown |
-| E | Contextual nearby interaction: pickup, handoff, selection, disposal, return, or drop |
+| E | Contextual nearby interaction: pickup, handoff, selection, disposal, return, or drop. **Hold** it next to Karen to calm her down |
 | Click swimmer / swimmer tag / queue card | Select a swimmer |
 | Click lane / lane button, or 1–5 | Assign the selected waiting swimmer, or move a selected swimmer who is already in the water |
 | T / click the trampoline tower | Send the selected daredevil to the trampoline (Splash Park) |
@@ -217,6 +217,7 @@ Each shift from level 4 schedules incidents from a seeded plan (`chaos` entries 
 | --- | --- | --- | --- |
 | 🐟 Fish Kid | A kid walks in carrying a bucket with a big fish and dodges once. Catch the kid on the deck and press E (+100). | The fish goes in (−200). Everyone races to the walls, leaps out and runs around in panicked circles. The pool closes and the shift clock holds while queue patience keeps draining. | Grab the fish net and walk to the edge to dive in. The fish flees, darts when cornered and tires; cut it off and net it (+75). Swimmers return to their lanes and unfinished workouts. Hand the fish back to the kid (+50) and hang up the net. |
 | 🐕 Loose Dog | A dog trots in and starts sniffing around. | It steals fins and clutter (fins stay counted), bowls walkers over, jumps in and shakes out slippery puddles, and gets the zoomies. | Grab the treats; the dog follows while you keep them close. Lead it to a locker door (+150). |
+| 😡 Karen | A woman in a pink tank top storms out of a locker door and marches **straight at the coach**, shouting. Everyone on deck within 3.3 m of her stops, covers their ears and loses points (−20 and 6 happiness each, once per person; the streak breaks). Run to her and hold E (+100, +50 if nobody was annoyed). | She never swims and never gives up: she follows the coach round the deck (to the pool edge when the coach is in the water) and keeps annoying everyone she passes. | Hold E beside her for three seconds while the ring over her head fills. Let go or step away and it drains. Calmed, she sighs and leaves through a locker door. See [Karen](#karen--level-4-onward). |
 | 💣 Cannonball Carl | Carl barrels toward the edge yelling. Red-card him first (E, +100) and he joins the queue as an ordinary customer. | Each cannonball costs 60 and breaks the streak, stalls nearby swimmers, knocks goggles onto the deck and floods the edge with puddles. He climbs out and runs to a new spot. | Red-card him on dry land (+150) and he leaves. |
 | ⚡ Power Outage | Lights flicker and the fuse box sparks for 7 seconds. A quick reset (0.8 s at the box) prevents the blackout (+100). | Blackout (−100): emergency lighting and lightning, swimmers bump into each other in the dark, lose goggles and grow grumpy. | Fetch the flashlight, flip the breakers (1.4 s, +100), return the flashlight. |
 
@@ -248,13 +249,28 @@ A VIP is an ordinary lap swimmer in a gold suit with a crown and a crimson sash 
 
 The storm twist (see below) is weather the whole scene shares: `stormLevel()` in `dist/chaos.mjs` ramps 0→1 over six seconds and the sky, light, fog, water and lamps follow it, with rain from about 30% and lightning from 50%, each strike followed by thunder (reduced motion keeps the storm but drops the flashes). From 70% on, a rain puddle forms on the deck every 2.6–4.4 seconds, half of them where people walk to the water, never within 2.2 m of the coach, at most six at once. They are ordinary puddles: anyone who walks across one slips (a swimmer loses a little happiness), and jumping over them works. Each dries in about 14 seconds.
 
+### Karen — level 4 onward
+
+Karen (`dist/incidents/karen.mjs`) is the first incident you **hold a key for** and the first with a **radius of influence**. She appears once on level 4 (`Fin club`, 74–94 seconds in), after the dog.
+
+- **She goes for the coach.** Out of the locker room she walks at 3.1 m/s to wherever the coach is and re-plans as the coach moves. She stops 1.25 m away and rants. If the coach moves more than 2.2 m off she follows. A coach in the water (a rescue) cannot be reached, so she stands at the nearest edge.
+- **Annoyance.** Everyone standing or walking on the deck within 3.3 m (swimmers in the queue, arriving or heading for the water, people leaving, the kid and Carl; not people in the water) is annoyed: they **stop where they are**, **cover both ears**, **hunch forward** and **shake their head** in disgust. Each person costs 20 points and 6 happiness once, and the streak breaks. Walkers resume where they stopped half a second after she moves on, and ease back into whatever they were doing (idle, walking). A red circle on the floor shows her range.
+- **Calming her.** E next to her (within 2 m) starts the calm-down: **hold E until the ring fills** (3 seconds). The coach plants their feet, faces her and pats the air in front of them with both arms, up and down. Let go or move out of reach and the ring drains in about 1.6 seconds. Clicking or tapping her, or the touch/Interact buttons, starts a *latched* calm-down that carries on by itself until the coach moves. Calmed: +100 (+50 when nobody was annoyed), the "CALMED DOWN!" stamp, a sigh, and she leaves through the nearer locker door; her influence ends at once.
+- **Her look.** Karen is a rigged 3D model (`dist/assets/models/karen.glb`, see [Karen's model](#karens-model)) with five clips: `Walk` (a furious march), `Complain` (left arm up and waving, then the right), `Point` (right arm out, jabbing), `Defeated` (once, a slump and a sigh) and `Idle`. While she rants the simulation cycles complain → point at the **pool** → complain → point at a **random spot** → complain → point at another random spot, turning her to face the target. Red, distorted words (`@#$%!`, `BLAH!`, `GRR!`…) spit out of her head. Until the model has loaded, or when it cannot (the headless checks), a stand-in built like the other characters plays the same states.
+- **Audio.** Her voice is a procedural placeholder (a burst of nasal syllables every 1.3–2.4 seconds while she is loud). To use recordings, put them in `dist/assets/audio/` and list them in `dist/audio-files.mjs` (`AUDIO_FILES.karen`); each squawk then plays one at random.
+- **Prevention is speed.** There is no warning window: the sooner she is calmed, the fewer people she annoys. The bot in `check-bot.mjs` runs to her and holds E; `karen-check.mjs` covers all of it.
+
+### Karen's model
+
+`tools/blender/karen_rig.py` turned the character art into the game asset. The steps, so it can be redone or reused for another character: the source image went to fal's Hunyuan 3D v3.1 Pro (`fal-ai/hunyuan-3d/v3.1/pro/image-to-3d`, about $0.015); the resulting 60,000-triangle GLB is decimated to 18,000 triangles and a 1,024 px JPEG texture, scaled to 1.8 m, rigged with the 19-bone humanoid skeleton from `humanoid_rig.py` (bone positions measured from the image), skinned by distance (Blender's bone-heat weights fail on this mesh, which has parts that do not touch), and animated by writing each pose as directions for the limbs ("aim the arm along this vector") rather than bone-local angles. Run `tools/blender/run.sh tools/blender/karen_rig.py -- raw.glb out.glb --debug DIR` to also render the fit and a few frames of every clip into `DIR`. Loading uses the vendored `GLTFLoader.js`, `SkeletonUtils.js` and `BufferGeometryUtils.js` in `dist/assets/` (three.js 0.170.0, MIT).
+
 ## Incident moments: stings, the loud alert, and payoffs
 
 Chaos only feels funny when the player can read it, so every problem announces itself the same way, one thing at a time points to where to go next, and every save pays off.
 
 - **Stings.** When an incident starts or gets worse, a big sign slams in and names it together with the action, e.g. "LOOSE DOG! Grab the treats · lead Biscuit out". The game slows down for a moment, the overview camera glides over to make room for the incident, and each incident has its own sound. The sign then flies up into the incident banner, which keeps the current step. Stings replace the warning toast they would duplicate.
   - The first time a player meets an incident, the sting runs longer, the game nearly stops, and a one-line lesson explains how it works (a "NEW" tag marks it). Seen incidents are remembered per device in `localStorage` under `pool-panic.seen.v1`, so later stings are short.
-  - Incidents that sting: cramp, tummy trouble, the accident in the pool, fish kid, fish in the pool, loose dog, Cannonball Carl, flickering lights, blackout, a daredevil waiting over a busy splash lane, the daredevil jumping anyway, and a crash. A clean jump into an empty lane is not an incident.
+  - Incidents that sting: cramp, tummy trouble, the accident in the pool, fish kid, fish in the pool, loose dog, Cannonball Carl, Karen, flickering lights, blackout, a daredevil waiting over a busy splash lane, the daredevil jumping anyway, and a crash. A clean jump into an empty lane is not an incident.
   - Two incidents at once queue rather than stack. Reduced motion keeps the camera still and drops the bounce, but keeps the slow-down and the sign.
 - **The loud alert.** Of everything going on, only the most urgent problem is loud (nearest first on a tie). A marker sits over its *next* target, not just the problem: the life ring before the victim, the treats before the dog, the flashlight before the fuse box in a blackout. When that target is off screen or under the HUD, an arrow at the edge of the safe area points to it, with the distance. In the Coach Cam, a target behind the player puts the arrow on the side to turn toward, sliding down to "behind you". Urgency, highest first:
   1. someone in the water waiting for a ring;
@@ -412,13 +428,14 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/sanitation.mjs` | Stomach warning, evacuation, skimmer workflow, chemistry recovery |
 | `dist/rescue.mjs` | Cramp and crash rescues, rings, water missions, recovery bench and return |
 | `dist/chaos.mjs` | Incident scheduling, visitors, puddles, the storm's weather and rain puddles, fleeing swimmers, shared hooks, pointer shortcuts |
-| `dist/incidents/*.mjs` | One module per incident: `fish`, `dog`, `carl`, `outage`, `trampoline`; plus `twist` (the five mid-shift twists: rush, closure, swim team, aqua class, storm) |
+| `dist/incidents/*.mjs` | One module per incident: `fish`, `dog`, `carl`, `outage`, `trampoline`, `karen`; plus `twist` (the five mid-shift twists: rush, closure, swim team, aqua class, storm) |
 | `dist/deck-physics.mjs` | Deck contacts, separation, passing and route cooperation |
 | `dist/spatial.mjs` | The four venues from two pool-geometry functions (the club's, and Splash Park's shared by the Lagoon and the Arena): stations, fixtures, rings, furniture, deck tests, routing, movement tuning |
 | `dist/scene.mjs` | Three.js world: lighting presets, environment, batching, sync of characters, camera and picking |
 | `dist/scene/*.mjs` | Scene kit, procedural textures, basin and water shader, props, characters, the club, resort, lagoon and arena builders, incident visuals |
 | `dist/scene/sky.mjs`, `daylight.mjs` | The Coach Cam's open-air world: sky dome, clouds, hills, sea, lighthouse, wildlife, rain and lightning, and the shared time-of-day scale that colours it all |
 | `dist/scene/hall*.mjs`, `crowd.mjs`, `geom.mjs` | The indoor halls (roof profiles, trusses, windows, skylights, flags, bunting, pendants), instanced spectators, and shared geometry helpers (GPU-flutter flags and garlands) |
+| `dist/scene/karen-view.mjs` | Karen on screen: the rigged GLB with its mixer (and a stand-in), the red scribbles, the annoyed pose everyone strikes near her and the coach's calming pose |
 | `dist/scene/coach-cam.mjs` | Coach Cam: first-person camera, look and field-of-view limits, spring-driven hands, held items, crosshair picking |
 | `dist/input.mjs` | Keyboard/touch intents and held input |
 | `dist/guidance.mjs` | Shared world/HUD guidance state and pulse |
@@ -429,12 +446,12 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/bookings.mjs` | Act 2 bookings and `applyBooking` (pure data) |
 | `dist/map-art.mjs` | The map's layout and isometric SVG art, as strings. No DOM |
 | `dist/map.mjs` | The map's DOM layer: buttons, tags, coach, clouds and reveal, driven by the campaign state |
-| `dist/audio.mjs` | Procedural music and effects |
+| `dist/audio.mjs`, `dist/audio-files.mjs` | Procedural music and effects; the list of recorded sounds that replace placeholders (Karen's voice) |
 | `dist/tuning.mjs`, `dist/bisect.mjs` | The URL switches for isolating a crash, and the crash hunt's plan and state (pure); the scripted runs themselves are in `dist/app.mjs` |
 | `dist/story.mjs`, `dist/cinematic.mjs` | The Ocean Fund's rules and the intro and ending scenes as data (pure), and the small full-screen cinematic player |
 | `dist/crashlog.mjs`, `crashlog-hooks.mjs` | The crash log: breadcrumbs, errors, reports and GitHub issue links (pure), and its browser wiring (window errors, console, visibility, WebGL loss, Web Locks) |
 | `dist/version.mjs`, `stamp-version.mjs` | The build's identity (`dev` locally, the commit on Netlify) and the script that stamps it |
-| `dist/assets/` | Bundled Three.js, rounded-box helper and license |
+| `dist/assets/` | Bundled Three.js, rounded-box helper, the glTF loader with its two helpers, license, `models/karen.glb` and `audio/` |
 | `*-check.mjs`, `check-bot.mjs`, `check-helpers.mjs` | Deterministic regression and CPU scene checks; the coach bot and helpers they share |
 | `artifacts/game-progress.md` | Historical sprint notes; some pending statements are historical, not current status |
 | `artifacts/final-evidence.md` | Latest gameplay sprint verification record |
@@ -530,6 +547,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node hunt-check.mjs` | The crash hunt: the URL switches, the plan, surviving the crashes it hunts (a test left running counts as a crash), verdicts, damaged saves |
 | `node story-check.mjs` | The story: pay and payouts, sanitised saves, a fund that cannot be farmed, Marina's texts, well-formed scenes, the cinematic player against a fake dialog |
 | `node crashlog-check.mjs` | The crash log: breadcrumbs and errors kept and capped, repeats counted, one storage key per launch, a page that vanished mid-shift told from the background, a closed page and another tab, reports and issue links that fit, a full or broken storage, and the browser wiring against a fake browser |
+| `node karen-check.mjs` | Karen: on level 4's plan, through a locker door to the coach, follows and stays off the water, annoys each person once (they stop, resume after), hold-E ring fills and drains, planted coach, latched click-to-calm, +100/+50, leaves and the influence ends, swimmers generated identically, and on screen: scribbles, her circle, hands over ears, the coach's pat |
 | `node coachcam-check.mjs` | Coach Cam: facing follows the look, E prefers what is in view, view-relative movement, eye and water-level height with the body hidden, hand lag and settle, head bob (off with reduced motion), landing dip, items in hand, field of view, crosshair target |
 
 Read the selected test's imports before running it in a new environment. CPU scene checks use the runtime's canvas dependency and are not GPU rendering tests. Historical checks passed during implementation, but that is not a claim that this documentation update reran every suite.
@@ -569,6 +587,8 @@ The levels 16–20 update (the Lagoon, the Arena, VIPs, the storm and the Coach 
 - the map with all twenty levels at desktop size, and the level panel with the nine icons of the finale.
 
 A frame issues roughly 320–520 draw calls in every venue and view (the Lagoon is the busiest), and 300,000–665,000 triangles with the shadow pass counted; the arena's Coach Cam is the heaviest (its crowd is about 300 triangles a person, its trusses plain boxes). Real GPU and device performance, how long a venue takes to build on a phone (about five seconds in software rendering, the same as before), and the new sounds (the storm sting, the VIP arrival) have not been checked.
+
+The Karen update (October 3, 2026: the incident, her rigged model, the annoyed and calming animations) is covered by `karen-check.mjs` and the extended `season-check.mjs` and `scene-check.mjs`. It was also driven through headless Chromium with software WebGL (ad-hoc Playwright scripts, not in the repository): Karen walking, ranting, pointing, being calmed and leaving in the overview, the progress ring filling, a queued swimmer with hands over their ears seen close up from the Coach Cam, the coach's patting hands in the Coach Cam, and no page errors. Her model loads from `dist/assets/models/karen.glb`; real GPU performance with it (18,000 triangles, a 19-bone skin), real devices and the placeholder voice (never listened to) are unchecked.
 
 ## Direction already established by the creator
 

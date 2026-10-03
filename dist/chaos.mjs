@@ -7,6 +7,7 @@ import { FishKid } from "./incidents/fish.mjs";
 import { LooseDog } from "./incidents/dog.mjs";
 import { CannonballCarl } from "./incidents/carl.mjs";
 import { PowerOutage } from "./incidents/outage.mjs";
+import { Karen, annoyable } from "./incidents/karen.mjs";
 import { planTwists, startTwist } from "./incidents/twist.mjs";
 import {
   Trampoline,
@@ -16,7 +17,7 @@ import {
   injuredOnDeck,
 } from "./incidents/trampoline.mjs";
 
-export const SYSTEMS = [PowerOutage, CannonballCarl, FishKid, LooseDog, Trampoline];
+export const SYSTEMS = [PowerOutage, CannonballCarl, FishKid, LooseDog, Trampoline, Karen];
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -240,6 +241,15 @@ export class ChaosController extends RescueController {
         (h) => h.kind === "puddle" && Math.hypot(x - h.x, z - h.z) < h.r * Math.min(1, h.life / 3 + 0.4),
       )
     );
+  }
+
+  // ------------------------------------------------------------------------------------------------------
+  // Karen's annoyance (incidents/karen.mjs): whoever she has marked stops walking and holds their ears until she
+  // has moved on. People who are only standing (the queue) keep their patience clock running.
+  tickAnnoyed(p, dt) {
+    if (!(p.karenAnnoyed > 0)) return false;
+    p.karenAnnoyed = Math.max(0, p.karenAnnoyed - dt);
+    return annoyable(p) && p.status !== "queue";
   }
 
   // ------------------------------------------------------------------------------------------------------
@@ -506,6 +516,7 @@ export class ChaosController extends RescueController {
     if (!v || this.status !== "playing") return false;
     const option = this.interactionNear(v, 0.6);
     if (option) return option.run();
+    if (v.kind === "karen") return this.guideTo(v, "Run up to Karen and HOLD E until she calms down!");
     if (v.kind === "dog") {
       if (this.coach.carry !== "treats")
         return this.guideTo(this.venue.fixtures.treats, "Grab the dog treats to lure the dog out.");

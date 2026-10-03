@@ -14,6 +14,7 @@ tools/blender/run.sh SCRIPT.py -- ARGS...
 | `inspect_model.py -- model.glb` | Size, meshes (verts, triangles, materials), armatures (bones) and animations (frame ranges) |
 | `turntable.py -- model.glb out_dir [--frames 48] [--size 480] [--engine eevee\|workbench\|cycles] [--animation NAME] [--still-frame N] [--no-mp4]` | `still.png` and `turntable.mp4` (the camera circles the model; `--animation` plays a clip meanwhile) |
 | `humanoid_rig.py -- in.glb out.glb [--walk] [--frames 24] [--height M]` | Fits a 19-bone humanoid armature to the mesh, automatic weights, optional looping walk cycle named `Walk`, exports GLB with skin and animation |
+| `karen_rig.py -- raw.glb out.glb [--tris N] [--tex PX] [--height M] [--debug DIR]` | The whole pipeline for one character (Karen): decimate, scale, shrink the texture, fit the skeleton by measured proportions, skin by distance (for meshes whose pieces do not touch, where `humanoid_rig.py`'s automatic weights fail), and write five clips by aiming limbs along directions. `--debug` renders the fit and key frames. A good template for the next character |
 | `make_test_humanoid.py -- out.glb` | A blocky stand-in character (T-pose, 1.8 m) for trying the pipeline without a real mesh |
 
 `common.py` holds what they share (import any of glTF/GLB, FBX, OBJ, blend; bounds; lights; camera; engine choice).
@@ -29,6 +30,9 @@ tools/blender/run.sh SCRIPT.py -- ARGS...
   ignores them.
 
 ## Tried so far
+
+Karen (the complaining visitor): a Hunyuan 3D mesh from a single T-pose image, rigged and animated with `karen_rig.py` (Idle, Walk, Complain, Point, Defeated), exported to `dist/assets/models/karen.glb` at 1.3 MB and played in the game with three's `AnimationMixer`. Two lessons: bone-heat weights failed outright (non-touching pieces), and distance weights need per-bone thickness and a rule that keeps hair and bag out of the arms (see `skin()`); and posing by direction vectors is far easier to get right than bone-local Euler angles.
+
 
 A generated stand-in character: rigged (19 bones, every vertex weighted), walk cycle exported, re-imported, a turntable
 MP4 rendered with the clip playing (24 frames at 400 px, about two minutes on 4 CPU cores).

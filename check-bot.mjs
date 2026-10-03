@@ -207,6 +207,8 @@ export class CoachBot {
       const carl = s.carl && s.visitor(s.carl.id);
       if (carl && CARL_CATCHABLE.includes(carl.status)) return this.carl;
       if (s.dog && s.dog.stage !== "leaving") return this.dog;
+      const karen = s.karen && s.visitor(s.karen.id);
+      if (karen && ["marching", "ranting"].includes(karen.status)) return this.karen;
     }
     if (c.carry) return this.putAway;
     return null;
@@ -264,6 +266,21 @@ export class CoachBot {
       600,
     );
     this.use("red-card");
+  }
+  // Run to Karen and hold E until she is calm (letting go early only drains the ring).
+  karen() {
+    const s = this.s,
+      v = s.visitor(s.karen.id);
+    this.chase(
+      () => v,
+      () => !s.karen || s.nearestInteraction()?.kind === "calm",
+      900,
+    );
+    if (!s.karen || s.nearestInteraction()?.kind !== "calm") return;
+    s.setHold(true);
+    s.interact();
+    for (let f = 0; f < 60 * 6 && s.karen && s.karen.calming && !this.over; f++) this.frame();
+    s.setHold(false);
   }
   outage() {
     const s = this.s,

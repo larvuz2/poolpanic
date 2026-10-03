@@ -9,12 +9,12 @@ const directions = {
   ArrowRight: [1, 0],
 };
 export class CoachInput {
-  constructor({ onJump, onDash, onInteract, onPause, onShortcut, isPlaying }) {
+  constructor({ onJump, onDash, onInteract, onHold, onPause, onShortcut, isPlaying }) {
     this.held = new Set();
     this.touch = new Map();
     // Coach Cam: ← / → turn the view instead of strafing (A / D still strafe).
     this.lookMode = false;
-    this.handlers = { onJump, onDash, onInteract, onPause, onShortcut, isPlaying };
+    this.handlers = { onJump, onDash, onInteract, onHold, onPause, onShortcut, isPlaying };
   }
   keyDown(event) {
     const { isPlaying, onJump, onDash, onInteract, onPause, onShortcut } = this.handlers;
@@ -41,6 +41,8 @@ export class CoachInput {
       }
       return;
     }
+    // E held down is announced first, so a hold-to-act incident (calming Karen) sees it when E is pressed.
+    if (code === "KeyE" && isPlaying()) this.handlers.onHold?.(true);
     if (event.repeat) return;
     if (code === "KeyP") {
       event.preventDefault();
@@ -56,6 +58,7 @@ export class CoachInput {
   }
   keyUp(event) {
     this.held.delete(event.code);
+    if (event.code === "KeyE") this.handlers.onHold?.(false);
   }
   vector() {
     let x = 0,
@@ -83,6 +86,7 @@ export class CoachInput {
   clear() {
     this.held.clear();
     this.touch.clear();
+    this.handlers.onHold?.(false);
   }
   bindTouch(button, x, z) {
     const stop = (e) => {
