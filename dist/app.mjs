@@ -2264,6 +2264,11 @@ function bind() {
   document.addEventListener("keydown", unlockMusic, { capture: true });
 }
 try {
+  // The crash hunt's character-models test (?nomodels): classic characters for this page only, nothing remembered.
+  if (tuning.has("nomodels")) {
+    chooseCoach("classic", false);
+    chooseSwimmers("classic", false);
+  }
   // Coach Panic's model and the five swimmers' are fetched first, together (a few seconds at most; without them the classic
   // coach and swimmers play, and a swimmer model that arrives later is used from the next swimmer on).
   const began = performance.now();

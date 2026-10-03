@@ -33,7 +33,7 @@ export function karenObject(w, v) {
   const g = character(w, { ...v, type: "karen", skin: 0 });
   const u = g.userData;
   u.karen = { model: null, mixer: null, actions: {}, current: null, face: v.angle || 0, scribble: 0 };
-  if (!w.headless)
+  if (!w.headless && !globalThis.__poolTuning?.has("nomodels"))
     loadKaren().then((gltf) => {
       if (!gltf || !g.parent || u.karen.model) return;
       const model = cloneSkinned(gltf.scene);

@@ -159,9 +159,9 @@ export function saveSwimmerChoice(choice, storage = globalThis.localStorage) {
 }
 let chosen = null;
 export const activeSwimmerChoice = () => (chosen ??= swimmerChoice());
-export function chooseSwimmers(choice) {
+export function chooseSwimmers(choice, remember = true) {
   chosen = choice;
-  saveSwimmerChoice(choice);
+  if (remember) saveSwimmerChoice(choice);
 }
 
 // ---- loading -------------------------------------------------------------------------------------------------------

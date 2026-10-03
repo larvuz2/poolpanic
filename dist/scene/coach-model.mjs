@@ -42,9 +42,9 @@ export function saveCoachChoice(choice, storage = globalThis.localStorage) {
 // The choice for this page: the address and the saved one are read once, then the How to play button changes it.
 let chosen = null;
 export const activeChoice = () => (chosen ??= coachChoice());
-export function chooseCoach(choice) {
+export function chooseCoach(choice, remember = true) {
   chosen = choice;
-  saveCoachChoice(choice);
+  if (remember) saveCoachChoice(choice);
 }
 
 // ---- loading ------------------------------------------------------------------------------------------------------

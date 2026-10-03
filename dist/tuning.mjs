@@ -6,6 +6,8 @@
 //   noshadow     no shadow maps                    nohall       the indoor hall and roof stay hidden
 //   nolights     no point or spot lights           nopoints     no glow points (lamp halos, dust, fireflies)
 //   noaa         no antialiasing                   overview     the overview camera, whatever the setting
+//   nomodels     the classic coach, swimmers, kid, Carl, fish and Karen: no character model is fetched or drawn (for this page
+//                only: unlike ?coach=classic and ?swimmers=classic it is not remembered)
 //   safe         all of the above off at once (except dpr and overview)
 //
 // The hands layer crashed an iPad's Safari (see the README), so Safari's engine leaves it off unless `hands` is
@@ -21,6 +23,7 @@ export const SAFE = [
   "nolights",
   "nopoints",
   "noaa",
+  "nomodels",
 ];
 const HANDS = ["hands", "handsnodepth", "handsnoenv", "handsnotorch", "handsbasic", "handsinline"];
 const KNOWN = new Set([...SAFE, ...HANDS, "safe", "overview", "dpr"]);

@@ -7,6 +7,7 @@
 
 export const MAIN_PLAN = [
   { id: "control", label: "Everything on", flags: [] },
+  { id: "nomodels", label: "Character models off (classic characters)", flags: ["nomodels"] },
   { id: "noshadow", label: "Shadows off", flags: ["noshadow"] },
   { id: "noparticles", label: "Splash particles off", flags: ["noparticles"] },
   { id: "nohands", label: "Hands layer off", flags: ["nohands"] },

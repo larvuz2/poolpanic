@@ -41,6 +41,15 @@ const memory = () => {
   assert.deepEqual(hunt.PLAN[0].flags, []);
   const known = new Set([...SAFE, "safe", "overview", "dpr"]);
   for (const p of hunt.PLAN) for (const f of p.flags) assert.ok(known.has(f), f);
+  assert.deepEqual(
+    hunt.PLAN.find((p) => p.id === "nomodels")?.flags,
+    ["nomodels"],
+    "the character models are a suspect of their own",
+  );
+  assert.ok(
+    readTuning("?nomodels").has("nomodels") && readTuning("?safe").has("nomodels"),
+    "and part of safe",
+  );
   assert.equal(new Set(hunt.PLAN.map((p) => p.id)).size, hunt.PLAN.length, "Unique ids");
 }
 

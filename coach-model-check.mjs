@@ -8,6 +8,8 @@ import {
   CLIPS,
   WALK_SPEED,
   CoachRig,
+  activeChoice,
+  chooseCoach,
   coachChoice,
   planIntro,
   introAt,
@@ -48,6 +50,19 @@ const store = (initial = {}) => ({
   };
   assert.equal(coachChoice("", broken), "panic", "blocked storage still gives the default");
   assert.equal(coachChoice("?coach=classic", broken), "classic");
+}
+{
+  // The crash hunt's character-models test (?nomodels) plays one page with the classic coach and remembers nothing.
+  const s = store();
+  Object.defineProperty(globalThis, "localStorage", { value: s, configurable: true, writable: true });
+  chooseCoach("classic", false);
+  assert.equal(activeChoice(), "classic", "this page plays the classic coach");
+  assert.deepEqual(s.data, {}, "and nothing is remembered");
+  chooseCoach("classic");
+  assert.equal(s.data["pool-panic.coach.v1"], "classic", "while the choice in How to play is");
+  chooseCoach("panic");
+  assert.deepEqual(s.data, {}, "and choosing Coach Panic again forgets it");
+  delete globalThis.localStorage;
 }
 
 // ---- walking in: a few steps, ending at the spawn point as the countdown reaches zero -------------------------------

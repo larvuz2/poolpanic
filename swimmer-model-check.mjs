@@ -11,6 +11,7 @@ import {
   FIGURES,
   SWIMMERS,
   SwimmerRig,
+  activeSwimmerChoice,
   attachSwimmerModel,
   chooseSwimmers,
   dropSwimmerModel,
@@ -62,6 +63,20 @@ const store = (initial = {}) => ({
   };
   assert.equal(swimmerChoice("", broken), "models", "blocked storage still gives the default");
   assert.equal(swimmerChoice("?swimmers=classic", broken), "classic");
+}
+{
+  // The crash hunt's character-models test (?nomodels) plays one page with the classic swimmers and remembers nothing; the
+  // choice in How to play is remembered.
+  const s = store();
+  Object.defineProperty(globalThis, "localStorage", { value: s, configurable: true, writable: true });
+  chooseSwimmers("classic", false);
+  assert.equal(activeSwimmerChoice(), "classic", "this page plays the classic swimmers");
+  assert.deepEqual(s.data, {}, "and nothing is remembered");
+  chooseSwimmers("classic");
+  assert.equal(s.data["pool-panic.swimmers.v1"], "classic", "while the choice in How to play is");
+  chooseSwimmers("models");
+  assert.deepEqual(s.data, {}, "and choosing the models again forgets it");
+  delete globalThis.localStorage;
 }
 assert.equal(SWIMMERS.length, 5, "five generic swimmers");
 assert.equal(new Set(SWIMMERS.map((s) => s.id)).size, 5);
