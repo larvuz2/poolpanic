@@ -31,6 +31,8 @@ for (const level of levels) {
     );
     assert.ok(!s.fish && !s.rescue && !s.closed, `Level ${level}: no incident left open at closing`);
     assert.ok(!s.people.some((p) => p.status === "injured"), `Level ${level}: nobody left lying on the deck`);
+    if ((config.chaos || []).some((c) => c.kinds.includes("karen") && c.kinds.length === 1))
+      assert.equal(s.stats.calmed, 1, `Level ${level} (seed ${seed}): the coach calms Karen down`);
     pro.push(s.score);
     flips += s.stats.flips || 0;
     const reactive = new CoachBot(level, seed, { proactive: false }).run();

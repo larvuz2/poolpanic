@@ -130,6 +130,7 @@ const INCIDENT_ICONS = {
   fish: { icon: "🐟", label: "Fish Kid" },
   dog: { icon: "🐶", label: "Loose Dog" },
   carl: { icon: "💣", label: "Cannonball Carl" },
+  karen: { icon: "😡", label: "Karen" },
   outage: { icon: "⚡", label: "Power outage" },
 };
 const TWIST_LABELS = {

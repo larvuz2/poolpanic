@@ -2433,6 +2433,43 @@ button.bubble:focus-visible .face {
   width: 46px;
   height: 6px;
 }
+/* Hold-to-act progress: a ring that fills clockwise (Karen's calm-down). */
+.bubble .ring {
+  --fill: 0deg;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle closest-side, #143d49 0 66%, transparent 68%),
+    conic-gradient(#ffd24d var(--fill), #5b2b24 0);
+  box-shadow: 0 2px 6px #12202a66;
+  margin-bottom: 2px;
+}
+.bubble .ring[hidden] {
+  display: none;
+}
+.bubble .ring b {
+  font: 800 13px/1 var(--display);
+  color: #fff4dc;
+}
+.bubble .ring:not(.holding) {
+  animation: ring-nudge 0.9s ease-in-out infinite;
+}
+.bubble .ring:not(.holding) b {
+  color: #ffd24d;
+}
+@keyframes ring-nudge {
+  50% {
+    transform: scale(1.12);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bubble .ring:not(.holding) {
+    animation: none;
+  }
+}
 .bubble.visitor-tag.urgent .face {
   background: #d9533f;
   border-color: #ffe3a1;

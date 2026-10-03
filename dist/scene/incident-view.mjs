@@ -3,6 +3,7 @@
 import { THREE, COLORS } from "./kit.mjs";
 import { character, dogObject } from "./actors.mjs";
 import { CARL_TUNING } from "../incidents/carl.mjs";
+import { karenObject, poseKaren, annoyPose, calmPose, Scribbles, KAREN_RADIUS } from "./karen-view.mjs";
 import { guidanceState } from "../guidance.mjs";
 import {
   fishObject,
@@ -75,6 +76,27 @@ export class IncidentView {
     this.dizzyGeo = new THREE.OctahedronGeometry(0.075, 0);
     this.dizzyMat = new THREE.MeshBasicMaterial({ color: 0xffe066 });
     if (w.venue.trampoline) this.buildSplashZone(w.venue.trampoline);
+    // Karen: the red words that spit out of her head, and the circle on the floor where she annoys people.
+    this.scribbles = new Scribbles(w.scene);
+    this.karenField = new THREE.Group();
+    const glow = w.decal(w.glowMap, KAREN_RADIUS * 2.3, KAREN_RADIUS * 2.3, 0xff3b30, 0, true);
+    glow.rotation.x = -Math.PI / 2;
+    const edge = new THREE.Mesh(
+      new THREE.RingGeometry(KAREN_RADIUS - 0.07, KAREN_RADIUS, 64),
+      new THREE.MeshBasicMaterial({
+        color: 0xff4a3a,
+        transparent: true,
+        opacity: 0.4,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    );
+    edge.rotation.x = -Math.PI / 2;
+    this.karenField.add(glow, edge);
+    this.karenField.visible = false;
+    this.karenField.position.y = 0.045;
+    this.karenField.userData = { glow, edge };
+    w.scene.add(this.karenField);
   }
   // Orange-and-white floats and a landing target mark the part of the lane the trampoline lands in.
   buildSplashZone(tr) {
@@ -144,6 +166,7 @@ export class IncidentView {
   sync(sim, time, dt) {
     const w = this.w;
     this.syncVisitors(sim, time, dt);
+    this.syncKaren(sim, time, dt);
     this.syncFish(sim, time);
     this.syncPuddles(sim);
     this.syncOutage(sim, time, dt);
@@ -224,8 +247,9 @@ export class IncidentView {
   }
 
   // ------------------------------------------------------------------------------------------------------
-  syncVisitors(sim, time) {
-    const alive = new Set();
+  syncVisitors(sim, time, dt = 0.016) {
+    const alive = new Set(),
+      reduced = this.w.reducedMotion.matches;
     for (const v of sim.visitors || []) {
       alive.add(v.id);
       let g = this.visitors.get(v.id);
@@ -235,7 +259,12 @@ export class IncidentView {
         g = null;
       }
       if (!g) {
-        g = v.kind === "dog" ? dogObject(this.w) : character(this.w, v);
+        g =
+          v.kind === "dog"
+            ? dogObject(this.w)
+            : v.kind === "karen"
+              ? karenObject(this.w, v)
+              : character(this.w, v);
         g.userData.visitorKind = v.kind;
         // Clicking a visitor walks the coach over (or acts, when already in reach).
         g.userData.hit.userData = { kind: "visitor", id: v.id };
@@ -246,6 +275,9 @@ export class IncidentView {
       if (v.kind === "kid") this.poseKid(sim, v, g, time);
       else if (v.kind === "dog") this.poseDog(sim, v, g, time);
       else if (v.kind === "carl") this.poseCarl(sim, v, g, time);
+      else if (v.kind === "karen") poseKaren(sim, v, g, time, dt, reduced);
+      // Anyone near Karen covers their ears (she herself, and the dog, do not).
+      if (v.kind === "kid" || v.kind === "carl") annoyPose(g.userData, v.karenAnnoyed > 0, time, reduced);
     }
     for (const [id, g] of this.visitors) if (!alive.has(id)) this.dropVisitor(id, g);
   }
@@ -257,6 +289,23 @@ export class IncidentView {
   // A new shift starts with an empty deck.
   clearVisitors() {
     for (const [id, g] of [...this.visitors]) this.dropVisitor(id, g);
+    this.scribbles.clear();
+  }
+  // Karen's circle of influence on the floor and the scribbles above her head, while she is loud.
+  syncKaren(sim, time, dt) {
+    const k = sim.karen,
+      v = k && sim.visitor(k.id),
+      loud = !!v && ["marching", "ranting"].includes(v.status),
+      reduced = this.w.reducedMotion.matches;
+    this.karenField.visible = loud;
+    if (loud) {
+      const pulse = reduced ? 0.5 : 0.5 + 0.5 * Math.sin(time * 6);
+      this.karenField.position.set(v.x, 0.045, v.z);
+      this.karenField.userData.glow.material.opacity = 0.2 + pulse * 0.12 + (k.calming ? 0.1 : 0);
+      this.karenField.userData.edge.material.opacity = 0.32 + pulse * 0.3;
+      this.karenField.scale.setScalar(1 + (reduced ? 0 : pulse * 0.025));
+    }
+    this.scribbles.update(dt, loud, v?.x ?? 0, 2.0, v?.z ?? 0, reduced);
   }
   poseKid(sim, v, g, time) {
     const u = g.userData,
@@ -652,6 +701,7 @@ export class IncidentView {
       cu.carry.position.set(0.28, 1.2, 0.42);
       cu.arms[1].rotation.set(-1.35, 0, 0);
     }
+    if (c.calming && !c.swimming) calmPose(cu, time);
     if (c.busy) {
       const heal = c.busy.kind === "heal";
       cu.arms.forEach((a, i) => a.rotation.set(-1.35 + Math.sin(time * 14 + i * Math.PI) * 0.3, 0, 0));

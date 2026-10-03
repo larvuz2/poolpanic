@@ -44,7 +44,10 @@ export const SHIFTS = [
     thresholds: [1800, 2900, 3800],
     finChance: 0.55,
     intro: "dog",
-    chaos: [{ kinds: ["dog"], window: [40, 65] }],
+    chaos: [
+      { kinds: ["dog"], window: [34, 52] },
+      { kinds: ["karen"], window: [74, 94] },
+    ],
   },
   {
     name: "Aqua hour",
@@ -395,6 +398,8 @@ export class PoolSimulation extends ChaosController {
       totalWait: 0,
       totalHappiness: 0,
       vips: 0,
+      annoyed: 0,
+      calmed: 0,
     };
     this.schedule = this.director();
     this.planChaos();
@@ -967,6 +972,7 @@ export class PoolSimulation extends ChaosController {
       if (waitingInWater(this, p) || (this.rescue && p.status === "enter")) continue;
       if (
         this.tickDeckTrip(p, dt) ||
+        this.tickAnnoyed(p, dt) ||
         this.tickRecovery(p, dt) ||
         this.tickWaterExit(p, dt) ||
         this.tickEvacuation(p, dt) ||

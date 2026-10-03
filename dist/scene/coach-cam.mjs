@@ -442,6 +442,13 @@ export class CoachCam {
     } else if (busy?.kind === "breaker") {
       targets[1].set(0.1, -0.04 + Math.sin(time * 11) * 0.05, -0.64);
       rots[1].set(0.9, 0, -0.3);
+    } else if (c.calming) {
+      // Calming Karen down: both palms out in front, patting the air up and down.
+      const pat = Math.sin(time * 5.5) * motion;
+      targets[0].set(-0.15, -0.02 + pat * 0.09, -0.62);
+      targets[1].set(0.15, -0.02 + pat * 0.09, -0.62);
+      rots[0].set(-0.15, -0.15, 0.1);
+      rots[1].set(-0.15, 0.15, -0.1);
     }
     if (c.swimming) {
       // Breaststroke, or one-handed while the other hand holds the ring or net.

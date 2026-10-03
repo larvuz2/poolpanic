@@ -1,5 +1,8 @@
+import { AUDIO_FILES } from "./audio-files.mjs";
+
 export class PoolAudio {
   constructor() {
+    this.buffers = new Map();
     this.ctx = null;
     this.enabled = true;
     this.step = 0;
@@ -55,6 +58,44 @@ export class PoolAudio {
     f.connect(g);
     g.connect(this.master);
     s.start(t);
+  }
+  // A recorded sound from audio-files.mjs, loaded once. Resolves to false when there is none (or it will not
+  // load), so the caller can fall back to the synthesised placeholder.
+  async playFile(key) {
+    const urls = AUDIO_FILES[key] || [];
+    if (!this.ctx || !this.enabled || !urls.length) return false;
+    const url = new URL(urls[Math.floor(Math.random() * urls.length)], import.meta.url).href;
+    try {
+      if (!this.buffers.has(url))
+        this.buffers.set(
+          url,
+          fetch(url)
+            .then((r) => r.arrayBuffer())
+            .then((data) => this.ctx.decodeAudioData(data)),
+        );
+      const source = this.ctx.createBufferSource();
+      source.buffer = await this.buffers.get(url);
+      source.connect(this.master);
+      source.start();
+      return true;
+    } catch {
+      this.buffers.delete(url);
+      AUDIO_FILES[key] = urls.filter((u) => new URL(u, import.meta.url).href !== url);
+      return false;
+    }
+  }
+  // Placeholder for Karen's voice: a little burst of nasal syllables, each at its own pitch, going up at the end
+  // like a question. Swapped for recordings as soon as audio-files.mjs lists some.
+  karenBabble(t = this.ctx.currentTime) {
+    const syllables = 3 + Math.floor(Math.random() * 3),
+      base = 210 + Math.random() * 70;
+    for (let i = 0; i < syllables; i++) {
+      const at = t + i * 0.13,
+        pitch = base * (0.85 + Math.random() * 0.45) * (i === syllables - 1 ? 1.25 : 1);
+      this.tone(pitch, at, 0.11, 0.07, "sawtooth", pitch * (0.8 + Math.random() * 0.5));
+      this.tone(pitch * 2.02, at, 0.08, 0.025, "square");
+      this.noise(at, 0.04, 0.03, 2500);
+    }
   }
   schedule() {
     if (!this.ctx || !this.playing || !this.enabled) {
@@ -152,6 +193,18 @@ export class PoolAudio {
     } else if (type === "red-card") {
       [2400, 2600, 2400, 2600, 2400].forEach((f, i) => this.tone(f, t + i * 0.05, 0.06, 0.07, "sine"));
       this.tone(2500, t + 0.3, 0.35, 0.08, "sine");
+    } else if (type === "karen-voice") {
+      this.playFile("karen").then((played) => played || this.karenBabble());
+    } else if (type === "karen-arrive") {
+      // A stomp, and an indignant "HELLO?!".
+      this.tone(90, t, 0.18, 0.2, "sine", 50);
+      this.tone(380, t + 0.05, 0.28, 0.1, "sawtooth", 520);
+      this.tone(380 * 1.5, t + 0.05, 0.2, 0.04, "square", 700);
+    } else if (type === "karen-calmed") {
+      // A long sigh down, then a small relieved chime.
+      this.noise(t, 0.7, 0.07, 700);
+      this.tone(330, t, 0.7, 0.1, "triangle", 150);
+      [659, 784, 988].forEach((f, i) => this.tone(f, t + 0.55 + i * 0.09, 0.2, 0.1, "sine"));
     } else if (type === "carl-windup") {
       this.tone(160, t, 0.5, 0.12, "sawtooth", 420);
     } else if (type === "carl-jump") {
@@ -297,6 +350,12 @@ export class PoolAudio {
             this.tone(420, at + d, 0.1, 0.16, "square", 620);
             this.noise(at + d, 0.07, 0.07, 900);
           }),
+        karen: () => {
+          [0, 1, 2].forEach((i) =>
+            this.tone(520 - i * 70, at + i * 0.17, 0.2, 0.12, "sawtooth", 360 - i * 50),
+          );
+          this.noise(at + 0.5, 0.15, 0.06, 2800);
+        },
         carl: () => {
           this.tone(1800, at, 0.3, 0.07, "sine", 2400);
           this.tone(160, at + 0.05, 0.45, 0.12, "sawtooth", 420);
