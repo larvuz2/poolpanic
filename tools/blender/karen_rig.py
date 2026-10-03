@@ -1,9 +1,9 @@
 """Rig and animate Karen (the complaining visitor) from an image-to-3D mesh.
-    tools/blender/run.sh tools/blender/karen_rig.py -- raw.glb out.glb [--tris 18000] [--tex 1024] [--height 1.8]
+    tools/blender/run.sh tools/blender/karen_rig.py -- raw.glb out.glb [--tris N] [--tex 1536] [--height 1.8]
         [--debug DIR]   (renders the armature over the mesh and a few poses into DIR, for checking the fit)
 
-The mesh is a T-pose character facing the front (Blender -Y), as Hunyuan, Tripo and Meshy produce. Steps: join the
-pieces, decimate, scale to `--height` metres with the feet at the origin, shrink the texture, fit a 19-bone armature
+The mesh is a T-pose character facing the front (Blender -Y), as Hunyuan, Tripo and Meshy produce (Karen's is Meshy 7). Steps: join the
+pieces, decimate if asked, scale to `--height` metres with the feet at the origin, shrink the texture, fit a 19-bone armature
 by body proportions measured from the source image (`KAREN` below), automatic weights, then five clips:
 
     Idle       loops   impatient foot tap, one hand on the hip, breathing
@@ -25,28 +25,28 @@ from mathutils import Matrix, Vector  # noqa: E402
 
 # Fractions of the body's height (z) and width (x, y) for this particular body, read off the front view.
 KAREN = {
-    "hip": 0.405,
+    "hip": 0.40,
     "spine": 0.47,
     "chest": 0.55,
-    "chest_top": 0.625,
-    "neck": 0.672,
+    "chest_top": 0.64,
+    "neck": 0.70,
     "head_top": 1.0,
-    "hip_x": 0.058,
-    "knee": 0.205,
+    "hip_x": 0.075,
+    "knee": 0.20,
     "ankle": 0.058,
     "toe": 0.075,  # how far the foot reaches forward
     "clav_x": 0.022,
-    "shoulder_x": 0.098,
-    "shoulder_z": 0.640,
-    "elbow_x": 0.262,
-    "wrist_x": 0.368,
-    "hand_x": 0.47,
+    "shoulder_x": 0.10,
+    "shoulder_z": 0.652,
+    "elbow_x": 0.26,
+    "wrist_x": 0.36,
+    "hand_x": 0.456,
 }
 FPS = 24  # the Anim Bench artifact reads clips as 24 frames a second
 
 args = common.script_args()
-tris = common.option(args, "--tris", 18000, int)
-tex_size = common.option(args, "--tex", 1024, int)
+tris = common.option(args, "--tris", 0, int)  # 0 keeps the mesh as it is (Meshy gives 30k clean triangles)
+tex_size = common.option(args, "--tex", 1536, int)
 height = common.option(args, "--height", 1.8, float)
 debug = common.option(args, "--debug")
 src, dst = args[0], args[1]
@@ -171,7 +171,7 @@ def skin(mesh, arm):
     # The arms proper (out from the body, below the hair): only arm bones may move them, fading in over a few
     # centimetres so that no seam shows where the rule starts.
     zr = pts[:, 2] / H
-    outer = ramp(np.abs(pts[:, 0]) / H, 0.10, 0.17) * ramp(zr, 0.555, 0.585) * (1 - ramp(zr, 0.68, 0.70))
+    outer = ramp(np.abs(pts[:, 0]) / H, 0.10, 0.17) * ramp(zr, 0.585, 0.615) * (1 - ramp(zr, 0.71, 0.73))
     for i, n in enumerate(names):
         if n.endswith(".L"):
             d[pts[:, 0] < -0.02 * H, i] = 1e6
@@ -182,15 +182,47 @@ def skin(mesh, arm):
         if n.split(".")[0] not in arm_part:
             w[:, i] *= 1 - outer
     w /= w.sum(axis=1, keepdims=True)
-    edges = np.array([e.vertices[:] for e in mesh.data.edges])
+
+    # Limbs skin by how far along the limb a vertex is, not by its distance from the bone: a thin arm next to a thick
+    # bone radius otherwise gets a different blend on each of its vertices, and streaks when it bends. The arms run along
+    # x in the T-pose and the legs along z; each bone owns a stretch, with a soft join at the elbow, wrist, knee and ankle.
+    def chain(v, bones, joins):
+        steps = [ramp(v, j - hw, j + hw) for j, hw in joins]
+        out = np.zeros((len(v), len(names)))
+        for k, bone in enumerate(bones):
+            before = steps[k - 1] if k else 1.0
+            after = steps[k] if k < len(steps) else 0.0
+            out[:, names.index(bone)] = before - after if k else 1.0 - steps[0]
+            if k:
+                out[:, names.index(bone)] = steps[k - 1] - (steps[k] if k < len(steps) else 0.0)
+        return out
+
+    left = pts[:, 0] > 0
+    ax = np.abs(pts[:, 0]) / H
+    leg_zone = (1 - ramp(zr, 0.30, 0.38)) * (1 - ramp(ax, 0.12, 0.15))
+    for side, mask in ((".L", left), (".R", ~left)):
+        arm_w = chain(ax, ["shoulder" + side, "upper_arm" + side, "forearm" + side, "hand" + side], [(0.10, 0.03), (0.26, 0.035), (0.36, 0.02)])
+        leg_w = chain(0.40 - zr, ["thigh" + side, "shin" + side, "foot" + side], [(0.20, 0.04), (0.34, 0.02)])
+        k_arm = (outer * mask)[:, None]
+        k_leg = (leg_zone * mask)[:, None]
+        w = w * (1 - k_arm) + arm_w * k_arm
+        w = w * (1 - k_leg) + leg_w * k_leg
+    w /= w.sum(axis=1, keepdims=True)
+    # Smoothing works on welded points: the glTF importer leaves a vertex at every UV seam as two vertices at one spot,
+    # and averaging them with different neighbours would give the two halves different weights: a crack along the seam.
+    _, first, gid = np.unique(np.round(pts / 1e-5).astype(np.int64), axis=0, return_index=True, return_inverse=True)
+    gid = gid.ravel()
+    wg = w[first]
+    edges = gid[np.array([e.vertices[:] for e in mesh.data.edges])]
     for _ in range(SMOOTH):
-        total = w.copy()
-        count = np.ones((len(pts), 1))
-        np.add.at(total, edges[:, 0], w[edges[:, 1]])
-        np.add.at(total, edges[:, 1], w[edges[:, 0]])
+        total = wg.copy()
+        count = np.ones((len(first), 1))
+        np.add.at(total, edges[:, 0], wg[edges[:, 1]])
+        np.add.at(total, edges[:, 1], wg[edges[:, 0]])
         np.add.at(count, edges[:, 0], 1)
         np.add.at(count, edges[:, 1], 1)
-        w = 0.5 * w + 0.5 * total / count
+        wg = 0.5 * wg + 0.5 * total / count
+    w = wg[gid]
     keep = np.argsort(-w, axis=1)[:, :4]
     out = np.zeros_like(w)
     rows = np.arange(len(pts))[:, None]
@@ -298,8 +330,9 @@ def side_sign(side):
 
 
 # Arm shapes as (upper arm, forearm) directions in the chest frame, for the left arm; the right mirrors in x.
+OUT = float(os.environ.get("KAREN_OUT", "0.8"))  # sideways part of a hanging arm (0.8 is about 53 degrees from the body: her bag is wider than her hip)
 SHAPES = {
-    "down": (unit(0.30, 0.0, -0.95), unit(0.20, -0.30, -0.93)),
+    "down": (unit(OUT, 0.05, -0.7), unit(OUT, -0.30, -0.78)),  # arms hang well out from the body: her bag fills the space beside her hip
     "hip": (unit(0.55, 0.10, -0.83), unit(-0.30, -0.18, -0.94)),  # elbow out, hand on the hip
     "up": (unit(0.56, -0.30, 0.78), unit(0.12, -0.22, 0.97)),  # hand up by the ear, ready to wag
     "point": (unit(0.12, -0.92, 0.38), unit(0.05, -0.97, 0.24)),
@@ -392,10 +425,12 @@ def walk(t):
     legs(ph, amp=0.55, bend=0.85)
     for side, p0 in (("L", math.pi), ("R", 0.0)):  # arms swing against the legs
         s = math.sin(ph + p0)
-        a = 0.42 * s
+        bagside = side == "R"  # the arm beside her bag swings less, and its elbow stays out
+        a = (0.2 if bagside else 0.42) * s
         s_ = side_sign(side)
-        up = unit(s_ * 0.34, -math.sin(a), -math.cos(a))
-        fore = unit(s_ * 0.2, -math.sin(a + 0.8 + 0.3 * s), -math.cos(a + 0.8 + 0.3 * s))
+        up = unit(s_ * OUT, -math.sin(a), -math.cos(a))
+        bend = (0.35 + 0.1 * s) if bagside else (0.8 + 0.3 * s)
+        fore = unit(s_ * OUT, -math.sin(a + bend), -math.cos(a + bend))
         rig.aim("upper_arm." + side, up)
         rig.aim("forearm." + side, fore)
     rig.hips_offset = Vector((0.012 * math.sin(ph), 0, -0.028 * abs(math.cos(ph)) + 0.01))
@@ -419,7 +454,10 @@ def complain(t):
     shoulders(shrug=0.9 * shrug)
     stand_legs(tap=0.0, shift=left - right)
     for side, w in (("L", left), ("R", right)):
-        shape = {"up": w, "hip": (1 - w) * (1 - shrug), "down": (1 - w) * shrug}
+        # (her right arm never goes to the hip: her bag hangs there)
+        rest = "hip" if side == "L" else "down"
+        shape = {"up": w, rest: (1 - w) * (1 - shrug)}
+        shape["down"] = shape.get("down", 0.0) + (1 - w) * shrug
         arm_pose(side, shape, wag=wag * w)
     rig.hips_offset = Vector((0.01 * (left - right), 0, -0.01 * abs(wag) * (left + right)))
 
