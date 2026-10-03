@@ -14,6 +14,7 @@ import { attachCoachModel, dropCoachModel, planIntro, introAt, activeChoice } fr
 import { attachSwimmerModel, dropSwimmerModel, setQueasy } from "./scene/swimmer-models.mjs";
 import { finsObject, lifeRingObject, skimmerObject, pooObject, bucket } from "./scene/props.mjs";
 import { IncidentView } from "./scene/incident-view.mjs";
+import { annoyPose } from "./scene/karen-view.mjs";
 import { readTuning } from "./tuning.mjs";
 import { CoachCam, COACH_CAM } from "./scene/coach-cam.mjs";
 import { waitingInWater, heldInWater } from "./rescue.mjs";
@@ -930,6 +931,13 @@ export class PoolWorld extends SceneKit {
       u.puppet.arms = u.puppet.legs = true;
     }
     this.incidentView.pose(sim, p, g, time);
+    // Karen is near: hands over the ears, hunched, head shaking, until she has gone (a model's arms are the classic arms' while
+    // they are up: the puppet).
+    if (
+      annoyPose(u, !swim && p.status !== "swim" && p.karenAnnoyed > 0, time, this.reducedMotion.matches) >
+      0.001
+    )
+      u.puppet.arms = true;
     if (!swim && p.status !== "swim") this.slipPose(u, p.slipTime, 0.65);
     if (p.status === "swim" && p.actualSpeed > 0.3 && Math.random() < 0.04)
       this.splash(p.x, -0.16, p.z, 2, true);

@@ -48,6 +48,13 @@ export const STINGS = {
     how: "Dogs steal gear and shake puddles everywhere. Carry the treats close and {name} follows you to a door.",
     tone: "warning",
   },
+  karen: {
+    icon: "😡",
+    title: "KAREN IS HERE!",
+    verb: "Run to her · hold E to calm her down",
+    how: "Karen marches at you complaining, and everyone she passes gets annoyed and loses points. Reach her and HOLD E until the ring fills; let go and it drains.",
+    tone: "warning",
+  },
   carl: {
     icon: "💣",
     fallback: { name: "Carl" }, // (the incident names the man who does it: Carl or the leopard man)
@@ -138,6 +145,7 @@ export const SAVES = {
   "fish-returned": { stamp: "HAPPY KID!", tier: 1 },
   "dog-out": { stamp: "GOOD DOG!", tier: 2 },
   "red-card": { stamp: "RED CARD!", tier: 2 },
+  karen: { stamp: "CALMED DOWN!", tier: 2 },
   breaker: { stamp: "SAVE!", tier: 2 },
   lights: { stamp: "LIGHTS ON!", tier: 1 },
   landing: { stamp: "STUCK IT!", tier: 1 },

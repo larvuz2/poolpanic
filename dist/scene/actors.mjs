@@ -9,6 +9,7 @@ const VISITOR_LOOKS = {
   coach: { suit: 0xf2bc40 },
   kid: { suit: 0x7cc46a, scale: 0.64 },
   carl: { suit: 0xd9534a, scale: 1.14 },
+  karen: { suit: 0xf2607f },
 };
 
 export function character(w, p) {
@@ -19,18 +20,21 @@ export function character(w, p) {
     isKid = p.type === "kid",
     isCarl = p.type === "carl" || !!p.carl,
     isDaredevil = p.type === "daredevil",
+    isKaren = p.type === "karen", // the stand-in for her model (scene/karen-view.mjs)
     isVip = !!p.vip;
   const info = TYPES[p.type] || VISITOR_LOOKS[p.type] || { color: "#f5c652" };
-  const skin = p.queasy ? 0xc0c996 : SKINS[(p.skin || 0) % 5];
+  const skin = p.queasy ? 0xc0c996 : isKaren ? 0xe99a3a : SKINS[(p.skin || 0) % 5];
   const suit = isCoach
     ? 0xf2bc40
     : isKid
       ? 0x7cc46a
-      : isCarl && !TYPES[p.type]
-        ? 0xd9534a
-        : isVip
-          ? 0xf2b632
-          : new THREE.Color(info.color);
+      : isKaren
+        ? 0xf2607f
+        : isCarl && !TYPES[p.type]
+          ? 0xd9534a
+          : isVip
+            ? 0xf2b632
+            : new THREE.Color(info.color);
   const suitMat = w.mat(suit, { roughness: 0.55 });
   const bodyScale = isCarl ? [1.42, 1.22, 1.3] : [1.08, 1.24, 0.8];
   const body = w.ball(0.38, suitMat, 0, 0.76, 0, root, bodyScale);
@@ -55,7 +59,7 @@ export function character(w, p) {
     root,
     isKid ? [1.12, 1.16, 1.08] : [1, 1.08, 0.96],
   );
-  const capColor = isCoach ? COLORS.navy : isKid ? 0xe0513f : isCarl ? skin : suit;
+  const capColor = isCoach ? COLORS.navy : isKid ? 0xe0513f : isCarl ? skin : isKaren ? 0xe7b865 : suit;
   const cap = w.ball(
     0.343,
     w.mat(capColor, { roughness: isCarl ? 0.78 : 0.4 }),
@@ -67,7 +71,11 @@ export function character(w, p) {
   );
   if (isCoach) w.box(0.55, 0.06, 0.23, COLORS.navy, 0, 1.63, 0.26, 0.04, root);
   else if (isKid) w.box(0.5, 0.06, 0.26, 0xe0513f, 0, 1.64, -0.3, 0.04, root);
-  else if (!isCarl) {
+  else if (isKaren) {
+    // Sunglasses pushed up on the hair.
+    for (const x of [-0.14, 0.14]) w.box(0.2, 0.1, 0.05, 0x3d1318, x, 1.66, 0.2, 0.03, root);
+    w.box(0.1, 0.03, 0.04, 0x6c1a22, 0, 1.67, 0.2, 0.01, root);
+  } else if (!isCarl) {
     w.box(0.64, 0.12, 0.16, 0x194c61, 0, 1.47, 0.26, 0.05, root);
     for (const x of [-0.15, 0.15]) w.box(0.2, 0.092, 0.04, 0xbfe8db, x, 1.47, 0.355, 0.03, root);
   }
@@ -104,6 +112,9 @@ export function character(w, p) {
     cape.rotation.x = 0.16;
   }
   for (const x of [-0.34, 0.34]) w.ball(0.077, skin, x, head.position.y + 0.01, 0, root);
+  if (isKaren)
+    for (const x of [-0.36, 0.36])
+      w.torus(0.07, 0.015, 0xf2b632, root, Math.PI * 2, 6, 14).position.set(x, 1.34, 0);
   if (isCoach) {
     for (const x of [-0.105, 0.105]) w.ball(0.035, COLORS.navy, x, 1.45, 0.3, root);
     w.rod([-0.16, 1.1, 0.24], [0, 0.88, 0.31], 0.018, COLORS.navy, root);
@@ -111,6 +122,14 @@ export function character(w, p) {
   } else if (isCarl) {
     for (const x of [-0.1, 0.1]) w.ball(0.034, 0x1d2a30, x, 1.56, 0.31, root);
     w.box(0.36, 0.07, 0.07, 0x4a2f1e, 0, 1.43, 0.33, 0.03, root);
+  } else if (isKaren) {
+    // Big angry eyes under heavy brows, and a frown.
+    for (const x of [-0.11, 0.11]) {
+      w.ball(0.07, 0xffffff, x, 1.46, 0.28, root, [1, 1, 0.5]);
+      w.ball(0.03, 0x1d2a30, x * 0.9, 1.46, 0.335, root);
+      w.box(0.15, 0.035, 0.04, 0x5a2a16, x, 1.55, 0.31, 0.01, root).rotation.z = x < 0 ? -0.4 : 0.4;
+    }
+    w.box(0.14, 0.035, 0.03, 0x9d3a2f, 0, 1.29, 0.321, 0.01, root);
   } else w.box(0.12, 0.035, 0.03, 0x9d5f48, 0, 1.3, 0.321, 0.01, root);
   if (isKid) for (const x of [-0.11, 0.11]) w.ball(0.045, 0x1d2a30, x, 1.46, 0.33, root);
   const arms = [];
@@ -127,7 +146,15 @@ export function character(w, p) {
     const leg = new THREE.Group();
     leg.position.set(x, 0.45, 0);
     root.add(leg);
-    w.ball(0.12, isCoach ? COLORS.navy : isKid ? 0x2c6f9a : skin, 0, -0.2, 0, leg, [1, 2.2, 1]);
+    w.ball(
+      0.12,
+      isCoach ? COLORS.navy : isKid ? 0x2c6f9a : isKaren ? 0xf4ecda : skin,
+      0,
+      -0.2,
+      0,
+      leg,
+      [1, 2.2, 1],
+    );
     w.ball(0.135, isCoach ? 0xfff4d9 : skin, 0, -0.4, 0.07, leg, [0.9, 0.6, 1.45]);
     legs.push(leg);
   }

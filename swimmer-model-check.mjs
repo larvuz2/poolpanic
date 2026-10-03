@@ -363,6 +363,25 @@ for (const [id, g] of world.people) {
   assert.ok(disc.opacity > 0.3, "and it can be seen");
 }
 {
+  // Karen is near: a model covers its ears with its arms (the classic arms' pose, copied onto its bones for as long as they are
+  // up: the puppet), and goes back to its clip when she has gone.
+  const p = sim.people.find((q) => q.status !== "swim" && world.people.get(q.id)?.userData.rig);
+  assert.ok(p, "someone is out of the water");
+  const u = world.people.get(p.id).userData;
+  p.karenAnnoyed = 5;
+  for (let i = 0; i < 30; i++) world.sync(sim, (t += 1 / 60), 1 / 60);
+  assert.ok(
+    u.annoy > 0.5 && u.puppet.arms && u.rig.weights.arms > 0.5,
+    "near Karen a swimmer covers the ears",
+  );
+  p.karenAnnoyed = 0;
+  for (let i = 0; i < 90; i++) world.sync(sim, (t += 1 / 60), 1 / 60);
+  assert.ok(
+    !u.puppet.arms && u.annoy < 0.01 && u.rig.weights.arms < 0.05,
+    "and goes back to the clip when she has gone",
+  );
+}
+{
   // Fins stay a swimmer's own, a VIP keeps the crown and sash, a daredevil the star and cape.
   const [first] = world.people.values();
   assert.ok(first.userData.root.children.includes(first.userData.f), "the fins are still there to show");
@@ -779,6 +798,13 @@ assert.equal(lookFor({ figure: "carl" }), null, "so none is drawn");
   }
   assert.equal(u.rig.current, "run", "and runs to the next spot");
   assert.equal(u.root.scale.x, 1 - 0.15 * 0, "at his own size");
+  // Karen is near: his arms go to his ears, and back to the clip when she has gone.
+  v.karenAnnoyed = 3;
+  sync(30);
+  assert.ok(u.annoy > 0.5 && u.puppet.arms, "near Karen he covers his ears");
+  v.karenAnnoyed = 0;
+  sync(90);
+  assert.ok(!u.puppet.arms && u.annoy < 0.01, "and runs on when she has gone");
   // A broken model is let go: the classic Carl takes over, drawn at his own size.
   const quiet = console.error;
   console.error = () => {};
@@ -995,6 +1021,12 @@ assert.equal(lookFor({ figure: "carl" }), null, "so none is drawn");
     sync();
   }
   assert.equal(u.rig.current, "carryRun", "he runs in with the bucket at his own pace");
+  v.karenAnnoyed = 3;
+  sync(30);
+  assert.ok(u.annoy > 0.5 && u.puppet.arms, "near Karen his hands go to his ears");
+  v.karenAnnoyed = 0;
+  sync(90);
+  assert.ok(!u.puppet.arms && u.annoy < 0.01, "and back to the bucket when she has gone");
   Object.assign(v, { status: "dumping", dumpTime: 0.5 });
   sync(2);
   assert.equal(u.rig.current, "dump", "he tips it out");

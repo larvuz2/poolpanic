@@ -6,6 +6,7 @@ import { CARL_TUNING } from "../incidents/carl.mjs";
 import { attachSwimmerModel, dropSwimmerModel } from "./swimmer-models.mjs";
 import { swimModel } from "./fish-model.mjs";
 import { figurePose } from "./figure-pose.mjs";
+import { karenObject, poseKaren, annoyPose, calmPose, Scribbles, KAREN_RADIUS } from "./karen-view.mjs";
 import { guidanceState } from "../guidance.mjs";
 import {
   fishObject,
@@ -78,6 +79,27 @@ export class IncidentView {
     this.dizzyGeo = new THREE.OctahedronGeometry(0.075, 0);
     this.dizzyMat = new THREE.MeshBasicMaterial({ color: 0xffe066 });
     if (w.venue.trampoline) this.buildSplashZone(w.venue.trampoline);
+    // Karen: the red words that spit out of her head, and the circle on the floor where she annoys people.
+    this.scribbles = new Scribbles(w.scene);
+    this.karenField = new THREE.Group();
+    const glow = w.decal(w.glowMap, KAREN_RADIUS * 2.3, KAREN_RADIUS * 2.3, 0xff3b30, 0, true);
+    glow.rotation.x = -Math.PI / 2;
+    const edge = new THREE.Mesh(
+      new THREE.RingGeometry(KAREN_RADIUS - 0.07, KAREN_RADIUS, 64),
+      new THREE.MeshBasicMaterial({
+        color: 0xff4a3a,
+        transparent: true,
+        opacity: 0.4,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    );
+    edge.rotation.x = -Math.PI / 2;
+    this.karenField.add(glow, edge);
+    this.karenField.visible = false;
+    this.karenField.position.y = 0.045;
+    this.karenField.userData = { glow, edge };
+    w.scene.add(this.karenField);
   }
   // Orange-and-white floats and a landing target mark the part of the lane the trampoline lands in.
   buildSplashZone(tr) {
@@ -147,6 +169,7 @@ export class IncidentView {
   sync(sim, time, dt) {
     const w = this.w;
     this.syncVisitors(sim, time, dt);
+    this.syncKaren(sim, time, dt);
     this.syncFish(sim, time);
     this.syncPuddles(sim);
     this.syncOutage(sim, time, dt);
@@ -228,7 +251,8 @@ export class IncidentView {
 
   // ------------------------------------------------------------------------------------------------------
   syncVisitors(sim, time, dt = 0.016) {
-    const alive = new Set();
+    const alive = new Set(),
+      reduced = this.w.reducedMotion.matches;
     for (const v of sim.visitors || []) {
       alive.add(v.id);
       let g = this.visitors.get(v.id);
@@ -238,7 +262,12 @@ export class IncidentView {
         g = null;
       }
       if (!g) {
-        g = v.kind === "dog" ? dogObject(this.w) : character(this.w, v);
+        g =
+          v.kind === "dog"
+            ? dogObject(this.w)
+            : v.kind === "karen"
+              ? karenObject(this.w, v)
+              : character(this.w, v);
         g.userData.visitorKind = v.kind;
         // The cannonball man is a model (Carl or the leopard man, swimmer-models.mjs) when it is loaded, and so is the fish kid
         // (with his bucket); else the classic ones.
@@ -255,9 +284,17 @@ export class IncidentView {
         this.visitors.set(v.id, g);
         this.w.scene.add(g);
       }
-      if (v.kind === "kid") this.poseKid(sim, v, g, time, dt);
+      // Anyone near Karen covers their ears (she herself, and the dog, do not). A model is posed with the rest of him, in
+      // `poseKidFigure` and `poseFigure`, since his arms are set by the clip and copied from the classic ones only while they are up.
+      const annoy =
+        v.kind === "kid" || v.kind === "carl"
+          ? () => annoyPose(g.userData, v.karenAnnoyed > 0, time, reduced)
+          : null;
+      if (v.kind === "kid") this.poseKid(sim, v, g, time, dt, annoy);
       else if (v.kind === "dog") this.poseDog(sim, v, g, time);
-      else if (v.kind === "carl") this.poseCarl(sim, v, g, time, dt);
+      else if (v.kind === "carl") this.poseCarl(sim, v, g, time, dt, annoy);
+      else if (v.kind === "karen") poseKaren(sim, v, g, time, dt, reduced);
+      if (annoy && !g.userData.rig) annoy();
     }
     for (const [id, g] of this.visitors) if (!alive.has(id)) this.dropVisitor(id, g);
   }
@@ -270,8 +307,25 @@ export class IncidentView {
   // A new shift starts with an empty deck.
   clearVisitors() {
     for (const [id, g] of [...this.visitors]) this.dropVisitor(id, g);
+    this.scribbles.clear();
   }
-  poseKid(sim, v, g, time, dt = 0.016) {
+  // Karen's circle of influence on the floor and the scribbles above her head, while she is loud.
+  syncKaren(sim, time, dt) {
+    const k = sim.karen,
+      v = k && sim.visitor(k.id),
+      loud = !!v && ["marching", "ranting"].includes(v.status),
+      reduced = this.w.reducedMotion.matches;
+    this.karenField.visible = loud;
+    if (loud) {
+      const pulse = reduced ? 0.5 : 0.5 + 0.5 * Math.sin(time * 6);
+      this.karenField.position.set(v.x, 0.045, v.z);
+      this.karenField.userData.glow.material.opacity = 0.2 + pulse * 0.12 + (k.calming ? 0.1 : 0);
+      this.karenField.userData.edge.material.opacity = 0.32 + pulse * 0.3;
+      this.karenField.scale.setScalar(1 + (reduced ? 0 : pulse * 0.025));
+    }
+    this.scribbles.update(dt, loud, v?.x ?? 0, 2.0, v?.z ?? 0, reduced);
+  }
+  poseKid(sim, v, g, time, dt = 0.016, annoy = null) {
     const u = g.userData,
       reduced = this.w.reducedMotion.matches;
     g.position.set(v.x, 0, v.z);
@@ -320,13 +374,13 @@ export class IncidentView {
       u.root.position.y += reduced ? 0 : Math.abs(Math.sin(time * 8)) * 0.18;
     }
     if (v.status === "sulking") u.root.rotation.x = 0.18;
-    if (model) this.poseKidFigure(v, g, time, dt);
+    if (model) this.poseKidFigure(v, g, time, dt, annoy);
   }
   // The fish kid as a model (swimmer-models.mjs): the carrying clips while he has the fish, BucketDump while he tips it out (the
   // clip's time follows how far the dump has got: the bucket is out at the end of it, when the simulation lets the fish go: it is
   // not seen in the bucket, only in the pool), and the empty bucket on the deck beside him when he cries, with the classic arms
   // over his face (the puppet).
-  poseKidFigure(v, g, time, dt) {
+  poseKidFigure(v, g, time, dt, annoy = null) {
     const u = g.userData,
       reduced = this.w.reducedMotion.matches,
       crying = v.status === "crying",
@@ -353,6 +407,7 @@ export class IncidentView {
     if (was && dt > 0) u.footSpeed = Math.hypot(v.x - was.x, v.z - was.z) / dt;
     u.puppet.arms = crying;
     u.puppet.legs = false;
+    if (annoy?.() > 0.001) u.puppet.arms = true;
     try {
       u.rig.update(dt, {
         speed: u.footSpeed || 0,
@@ -419,7 +474,7 @@ export class IncidentView {
       }
     }
   }
-  poseCarl(sim, v, g, time, dt = 0.016) {
+  poseCarl(sim, v, g, time, dt = 0.016, annoy = null) {
     const u = g.userData,
       reduced = this.w.reducedMotion.matches;
     g.position.set(v.x, 0, v.z);
@@ -489,12 +544,12 @@ export class IncidentView {
         u.legs[0].rotation.x = reduced ? 0 : Math.max(0, Math.sin(time * 9)) * -0.25;
         break;
     }
-    if (u.rig) this.poseFigure(v, g, dt);
+    if (u.rig) this.poseFigure(v, g, dt, annoy);
   }
   // The cannonball man as a model (see figure-pose.mjs): over the classic poses above, which stay under it (the climb's arms
   // and legs are copied onto the model from them). His clip comes from where the simulation has him; the body settles onto its
   // front in the water and stands up again to climb out, as a swimmer's does.
-  poseFigure(v, g, dt) {
+  poseFigure(v, g, dt, annoy = null) {
     const u = g.userData,
       pose = figurePose(v),
       fit = u.fit || 1,
@@ -513,6 +568,7 @@ export class IncidentView {
     u.root.scale.setScalar(1 - 0.15 * lie);
     u.shadow.visible = lie === 0 && v.status !== "flying";
     u.puppet.arms = u.puppet.legs = !!pose.puppet;
+    if (annoy?.() > 0.001) u.puppet.arms = true;
     // How fast he covers the ground, from where he is drawn (a hit-stop, with no time passing, keeps the last speed).
     const was = u.lastAt;
     u.lastAt = { x: at.x, z: at.z };
@@ -762,6 +818,7 @@ export class IncidentView {
       cu.carry.position.set(0.28, 1.2, 0.42);
       cu.arms[1].rotation.set(-1.35, 0, 0);
     }
+    if (c.calming && !c.swimming) calmPose(cu, time);
     if (c.busy) {
       const heal = c.busy.kind === "heal";
       cu.arms.forEach((a, i) => a.rotation.set(-1.35 + Math.sin(time * 14 + i * Math.PI) * 0.3, 0, 0));

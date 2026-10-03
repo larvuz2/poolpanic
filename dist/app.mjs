@@ -1436,23 +1436,25 @@ function updateUI() {
                     ? "The lights are flickering…"
                     : sim.fish?.stage === "approach"
                       ? "Is that kid carrying a FISH?"
-                      : sim.carl
-                        ? sim.carl.name + " is loose. Brace for splash."
-                        : sim.dog && sim.dog.stage !== "leaving"
-                          ? "There’s a dog on the deck!"
-                          : sim.get(sim.jumper)?.jumpStage === "waiting"
-                            ? "A daredevil is waiting on the tower."
-                            : sim.laneClosed() >= 0
-                              ? "Lane " + (sim.laneClosed() + 1) + " is closed · wet floor."
-                              : chaos > 3
-                                ? "Keep calm. Mostly calm."
-                                : chaos > 0
-                                  ? "Someone needs a little love."
-                                  : sim.streak >= 3
-                                    ? "Now we’re in the swim of it."
-                                    : count > 3
-                                      ? "The deck is getting crowded."
-                                      : "Looking good, coach.";
+                      : sim.karen && !["calmed", "leaving"].includes(sim.visitor(sim.karen.id)?.status)
+                        ? "Karen is complaining. Everyone is annoyed."
+                        : sim.carl
+                          ? sim.carl.name + " is loose. Brace for splash."
+                          : sim.dog && sim.dog.stage !== "leaving"
+                            ? "There’s a dog on the deck!"
+                            : sim.get(sim.jumper)?.jumpStage === "waiting"
+                              ? "A daredevil is waiting on the tower."
+                              : sim.laneClosed() >= 0
+                                ? "Lane " + (sim.laneClosed() + 1) + " is closed · wet floor."
+                                : chaos > 3
+                                  ? "Keep calm. Mostly calm."
+                                  : chaos > 0
+                                    ? "Someone needs a little love."
+                                    : sim.streak >= 3
+                                      ? "Now we’re in the swim of it."
+                                      : count > 3
+                                        ? "The deck is getting crowded."
+                                        : "Looking good, coach.";
   $("hint").textContent =
     sim.incidentHint() ||
     (sim.coach.carry === "skimmer"
@@ -1704,7 +1706,7 @@ function updateBubbles() {
       b = document.createElement("div");
       b.className = "bubble visitor-tag";
       b.innerHTML =
-        '<div class="face"><span class="type-icon"></span><span class="type-label"></span></div><div class="hp"><i></i></div>';
+        '<div class="ring" hidden><b></b></div><div class="face"><span class="type-icon"></span><span class="type-label"></span></div><div class="hp"><i></i></div>';
       $("world-labels").appendChild(b);
       bubbles.set(v.id, b);
     }
@@ -1713,6 +1715,14 @@ function updateBubbles() {
     b.classList.toggle("urgent", !!tag.urgent);
     b.querySelector(".type-icon").textContent = tag.icon;
     b.querySelector(".type-label").textContent = tag.label || "";
+    // A circular progress ring (hold E to calm Karen): filled in degrees through a CSS variable.
+    const ring = b.querySelector(".ring");
+    ring.hidden = tag.ring === undefined;
+    if (tag.ring !== undefined) {
+      ring.style.setProperty("--fill", Math.round(tag.ring * 360) + "deg");
+      ring.classList.toggle("holding", tag.ring > 0.02);
+      ring.firstElementChild.textContent = tag.ring > 0.02 ? Math.round(tag.ring * 100) + "%" : "E";
+    }
     const meter = b.querySelector(".hp");
     meter.hidden = tag.meter === undefined;
     if (tag.meter !== undefined) {
@@ -1765,6 +1775,8 @@ const NOTABLE = new Set([
   "cramp-alarm",
   "stomach-warning",
   "vip",
+  "karen-arrive",
+  "karen-calmed",
 ]);
 function events() {
   const batch = sim.events.splice(0),
@@ -1819,7 +1831,9 @@ function events() {
         queueKey = "";
       } else if (e.type === "fish-caught") {
         world.splash(e.x, -0.1, e.z, 18);
-      } else if (e.type === "cannonball") {
+      } else if (e.type === "karen-arrive") world.kick(0.15);
+      else if (e.type === "karen-calmed") world.sparkle(e.x, e.z);
+      else if (e.type === "cannonball") {
         world.bigSplash(e.x, e.z, 1.6);
         world.incidentView.ripple(e.x, e.z);
         world.kick(0.75);
@@ -2144,6 +2158,8 @@ function bind() {
       act("interact · " + (sim.coach.carry || "empty-handed"));
       sim.interact();
     },
+    // E held (or the touch button pressed): Karen's calm-down fills while it is.
+    onHold: (on) => sim.setHold?.(on),
     onPause: () => {
       if (mode === "playing" || mode === "countdown") pause();
       else if (mode === "paused") resume();
@@ -2222,6 +2238,15 @@ function bind() {
     act("interact (touch) · " + (sim.coach.carry || "empty-handed"));
     sim.interact();
   };
+  // Touch: holding the button counts as holding E (a tap alone starts a calm-down that carries on by itself).
+  for (const id of ["touch-interact", "assist"]) {
+    const button = $(id);
+    button.addEventListener("pointerdown", () => {
+      if (mode === "playing") sim.setHold?.(true);
+    });
+    for (const name of ["pointerup", "pointercancel", "pointerleave"])
+      button.addEventListener(name, () => sim.setHold?.(false));
+  }
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       audio.playing = false;
