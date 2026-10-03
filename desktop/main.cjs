@@ -2,7 +2,18 @@
 // Pool Panic as a desktop app: one window showing the game (../dist, or a copy of it in ./game once packaged) from a privileged
 // app://game/ address, Steam through steamworks.js when the Steam client is there, and the player's progress mirrored to a
 // plain file that Steam Cloud can sync. Nothing here changes how the game plays: with no Steam it is the same game in a window.
-const { app, BrowserWindow, Menu, ipcMain, net, protocol, screen, session, shell } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  dialog,
+  ipcMain,
+  net,
+  protocol,
+  screen,
+  session,
+  shell,
+} = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
@@ -148,9 +159,22 @@ function createWindow() {
       win.webContents.toggleDevTools();
     }
   });
+  // A window that dies is reloaded, so the game's own crash dialog can say what happened; one that keeps dying is left alone.
+  const gone = [];
   win.webContents.on("render-process-gone", (_event, details) => {
     log("The game's window process is gone:", details.reason);
-    if (details.reason !== "clean-exit" && win && !win.isDestroyed()) win.webContents.reload(); // the game's crash dialog says what happened
+    if (details.reason === "clean-exit" || !win || win.isDestroyed()) return;
+    const now = Date.now();
+    gone.push(now);
+    while (gone.length && now - gone[0] > 60000) gone.shift();
+    if (gone.length <= 3) win.webContents.reload();
+    else {
+      log("It keeps stopping: not reloading it again.");
+      dialog.showErrorBox(
+        "Pool Panic",
+        `The game's window keeps stopping (${details.reason}). Please start the game again; if it repeats, send the game's log (Help, then Open the game log).`,
+      );
+    }
   });
   if (DEV)
     win.webContents.on("console-message", (event, ...legacy) => {
