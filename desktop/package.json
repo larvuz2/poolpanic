@@ -1,0 +1,25 @@
+{
+  "name": "pool-panic-desktop",
+  "productName": "Pool Panic",
+  "version": "0.1.0",
+  "description": "Pool Panic as a desktop app for Steam: the game in a window, Steamworks when Steam is running.",
+  "private": true,
+  "license": "UNLICENSED",
+  "author": "Pool Panic",
+  "main": "main.cjs",
+  "scripts": {
+    "prepare:game": "node scripts/prepare-game.mjs",
+    "start": "electron .",
+    "start:software-gl": "POOLPANIC_SOFTWARE_GL=1 electron .",
+    "pack:win": "npm run prepare:game && electron-builder --win --x64 --dir",
+    "pack:mac": "npm run prepare:game && electron-builder --mac --x64 --arm64 --dir",
+    "pack:linux": "npm run prepare:game && electron-builder --linux --x64 --dir"
+  },
+  "dependencies": {
+    "steamworks.js": "0.4.0"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3"
+  }
+}
