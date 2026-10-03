@@ -2,7 +2,7 @@
 
 > A playful 3D swimming-pool management game: three lanes, then five, endless little disasters, one more shift.
 
-This README is the project brief and agent onboarding guide. It combines the creator's direction with the implemented prototype as inspected on September 26, 2026, updated on September 27, 2026 for the chaos incidents, the Splash Park (then called the Riviera Splash Resort) and levels 11–15, and on September 29, 2026 for the campaign map, chunks and acts, mid-shift twists, drills and bookings, and again for levels 16–20, the Sunset Lagoon and Grand Gala Arena, VIP guests, the storm twist and the Coach Cam environments, and on October 3, 2026 for Karen. Read it before changing the game. Descriptions marked as current refer to the code; proposed possibilities are not commitments or implemented features.
+This README is the project brief and agent onboarding guide. It combines the creator's direction with the implemented prototype as inspected on September 26, 2026, updated on September 27, 2026 for the chaos incidents, the Splash Park (then called the Riviera Splash Resort) and levels 11–15, and on September 29, 2026 for the campaign map, chunks and acts, mid-shift twists, drills and bookings, and again for levels 16–20, the Sunset Lagoon and Grand Gala Arena, VIP guests, the storm twist and the Coach Cam environments, on October 3, 2026 for Karen, and again that day for the goal of a Steam release, the desktop app, the achievements and the incident catalogue. Read it before changing the game. Descriptions marked as current refer to the code; proposed possibilities are not commitments or implemented features.
 
 ## Vision and player fantasy
 
@@ -20,6 +20,26 @@ The core promise is: **easy to understand, satisfying to move through, increasin
 - **Playful feedback:** slips, angry emojis, bobbing swimmers, hinged doors, sounds, glows, and panic music explain state through the world.
 - **Gentle onboarding:** the first swimmer and lane targets teach selection through shared visual cues. The opening shift is short and forgiving.
 - **Continuity:** swimmers move through doors, around the deck, into water, out to benches, and back. Avoid teleportation and walking across the pool surface.
+
+## The goal: a paid game on Steam
+
+The game is being made to be **sold on Steam**, with great graphics and lighting in the end. The creator wants it to earn money, so every decision is weighed against two questions: *does this make a player want one more shift?* and *would a stranger who paid for it be happy with it?* The first release is **single player**; multiplayer and anything online are not part of it.
+
+The work goes in four stages, in this order, and the order is deliberate:
+
+| Stage | What it is | State |
+| --- | --- | --- |
+| **1. The game** | Systems, mechanics, characters, incidents, and the loop that makes people play "one more shift". It has to work **perfectly** before anything is polished | **Now.** This is where the time goes |
+| **2. Steam readiness** | The desktop app, Steam calls, achievements, cloud saves, controller support, a settings screen, a build pipeline | Started: see [The desktop app and Steam](#the-desktop-app-and-steam) |
+| **3. The look** | Lighting, textures, the art pass ("pimping out") | **Last, on purpose.** It must not change how the game plays, so nothing here is worth doing while the game is still changing |
+| **4. Launch** | Store page, trailer, wishlists, demo, review, release | The store page can start long before stage 3 ends |
+
+What follows from that for anyone working on the game:
+
+- **Spend effort on stage 1 first.** Do not polish lighting, textures or models unless asked; do make systems, incidents and the loop right, and make sure nothing crashes.
+- **The game must be spontaneous.** The same level played twice should not play the same: a level 1 may bring one small incident or none, and which one changes every time. Levels and maps still decide what *can* happen. How a shift picks incidents today, the full list, and the plan for a director that draws them are in [`docs/incidents.md`](docs/incidents.md); the creator ranks the incidents before that is built.
+- **Stay a browser game too.** The same `dist/` runs in a browser (the free demo, the itch.io page, a friend's iPad) and in the desktop app. Nothing in the simulation or the scenes may depend on Steam; the Steam calls live behind `dist/platform.mjs` and do nothing without it.
+- **Know what only the creator can do.** The Steamworks account, the app fee, the app and depot ids, the store page and prices, and rights to the generated art are all theirs (`desktop/steam/checklist.md` has the whole road).
 
 ## Project locations and repository relationship
 
@@ -471,7 +491,7 @@ Respect reduced motion: use steady selection cues, remove dash streaks/lean and 
 
 ## Technical architecture
 
-Self-contained static browser game using ES modules, locally included **Three.js 0.170.0**, and procedural Web Audio. There is no build pipeline or backend requirement. `package.json` only holds development scripts (`npm start`, `npm test`, `npm run format`) and two dev dependencies: Prettier and `@napi-rs/canvas` for the CPU scene check. Google Fonts are optional with local fallbacks. Three.js and RoundedBoxGeometry license information is in `dist/assets/THREE-LICENSE.txt`.
+Self-contained static browser game using ES modules, locally included **Three.js 0.170.0**, and procedural Web Audio. There is no build pipeline or backend requirement for the game itself. `package.json` only holds development scripts (`npm start`, `npm test`, `npm run format`) and two dev dependencies: Prettier and `@napi-rs/canvas` for the CPU scene check. The desktop app for Steam is a separate package in `desktop/` with its own `package.json` (Electron, electron-builder, steamworks.js); nothing in `dist/` imports it. The fonts (Barlow Condensed and DM Sans, SIL Open Font License) are bundled in `dist/assets/fonts/` and declared in `dist/style.css`, so the game asks the network for nothing once its own files have arrived (it used to `@import` Google Fonts, which blocks the first paint when the connection is poor). Three.js and RoundedBoxGeometry license information is in `dist/assets/THREE-LICENSE.txt`.
 
 | File | Responsibility |
 | --- | --- |
@@ -507,10 +527,13 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/map.mjs` | The map's DOM layer: buttons, tags, coach, clouds and reveal, driven by the campaign state |
 | `dist/audio.mjs`, `dist/audio-files.mjs` | Procedural music and effects; the list of recorded sounds that replace placeholders (Karen's voice) |
 | `dist/tuning.mjs`, `dist/bisect.mjs` | The URL switches for isolating a crash, and the crash hunt's plan and state (pure); the scripted runs themselves are in `dist/app.mjs` |
+| `dist/platform.mjs`, `dist/achievements.mjs` | The game's side of Steam: a bridge to the desktop app that does nothing in a browser (achievements, rich presence, quit), and the fifteen achievements as pure rules (what earns each, kept on the device, told to Steam when it is there) |
+| `desktop/` | The Steam build: an Electron window around `dist/`, the Steam calls, the progress file for Steam Cloud, packing and SteamPipe scripts, and the notes for Steamworks. Its own README says how to run and build it |
+| `docs/incidents.md` | Every incident, how a shift picks them today, the level-by-level table and the proposed director |
 | `dist/story.mjs`, `dist/cinematic.mjs` | The Ocean Fund's rules and the intro and ending scenes as data (pure), and the small full-screen cinematic player |
 | `dist/crashlog.mjs`, `crashlog-hooks.mjs` | The crash log: breadcrumbs, errors, reports and GitHub issue links (pure), and its browser wiring (window errors, console, visibility, WebGL loss, Web Locks) |
 | `dist/version.mjs`, `stamp-version.mjs` | The build's identity (`dev` locally, the commit on Netlify) and the script that stamps it |
-| `dist/assets/` | Bundled Three.js, rounded-box helper, the glTF loader with its two helpers, license, `models/karen.glb` and `audio/`; `coach-panic.glb` for Coach Panic, the five `swimmer-*.glb`, the cannonball men's `carl.glb` and `leopard-man.glb`, the fish kid's `fish-kid.glb` and the fish, `fish.glb` |
+| `dist/assets/` | Bundled Three.js, rounded-box helper, the glTF loader with its two helpers, license, `fonts/` (the five font files and their licence), `models/karen.glb` and `audio/`; `coach-panic.glb` for Coach Panic, the five `swimmer-*.glb`, the cannonball men's `carl.glb` and `leopard-man.glb`, the fish kid's `fish-kid.glb` and the fish, `fish.glb` |
 | `*-check.mjs`, `check-bot.mjs`, `check-helpers.mjs` | Deterministic regression and CPU scene checks; the coach bot and helpers they share |
 | `artifacts/game-progress.md` | Historical sprint notes; some pending statements are historical, not current status |
 | `artifacts/final-evidence.md` | Latest gameplay sprint verification record |
@@ -541,14 +564,16 @@ The game keeps a black box of its own (`dist/crashlog.mjs`, wired to the browser
 - **Which build.** `dist/version.mjs` says `dev` from a checkout. Netlify runs `node stamp-version.mjs` before the checks (see `netlify.toml`), which writes the commit, deploy context and branch into it, so a report names the exact build.
 - **Reading one.** A report is Markdown: the build, device (user agent, viewport, pixel ratio, GPU, cores, memory), the game's state, each error with its stack and the game state at the time, and the newest breadcrumbs. `?debug` exposes `window.__pool.crashlog` for QA; `crashlog-check.mjs` drives the whole thing with a fake browser.
 
-**Isolating a crash on a device.** A report says where the game stopped; these URL switches say why, by taking one suspect out at a time (add them to the address, e.g. `?nosound&dpr=1`; `dist/tuning.mjs` lists them): `nosound` (the audio never starts), `dpr=N` (cap the pixel ratio at N instead of 1.7), `noshadow` (no shadow maps), `noparticles` (no splashes, sparkles, bursts or confetti), `nohands` (no first-person hands layer), `nohall` (the indoor hall and roof stay hidden), `nolights` (no point or spot lights), `nopoints` (no glow points), `noaa` (no antialiasing), `overview` (the overview camera whatever the setting), and `safe` (all of them but `dpr` and `overview`). The switches show up in a report's `Page:` line.
+**Isolating a crash on a device.** A report says where the game stopped; these URL switches say why, by taking one suspect out at a time (add them to the address, e.g. `?nosound&dpr=1`; `dist/tuning.mjs` lists them): `nosound` (the audio never starts), `dpr=N` (cap the pixel ratio at N instead of 1.7), `noshadow` (no shadow maps), `noparticles` (no splashes, sparkles, bursts or confetti), `nohands` (no first-person hands layer), `nohall` (the indoor hall and roof stay hidden), `nolights` (no point or spot lights), `nopoints` (no glow points), `noaa` (no antialiasing), `nomodels` (no character model is fetched or drawn: the classic coach, swimmers, kid, Carl, fish and Karen, for this page only, where `?coach=classic` and `?swimmers=classic` are remembered), `overview` (the overview camera whatever the setting), and `safe` (all of them but `dpr` and `overview`). The switches show up in a report's `Page:` line.
 
 Two scripted runs make a crash easy to hunt on the device itself. Both play level 10 in the Coach Cam with the player idle (Carl's cannonball, then the fish kid) and show a banner on top:
 
 - `?trial` plays it once with whatever switches the address carries (`?trial&noshadow`) and says whether the page survived.
-- `?bisect` runs the whole plan in `dist/bisect.mjs` (`?bisect=hands` runs the hands plan below), one switch per test (everything on, then each suspect off, then all off), reloading between tests. The state lives in storage, so a test whose page dies is counted as a crash by the next page; open the same address again after a crash and it carries on. At the end it lists the results with a verdict ("the crash went away with: …") and a **Copy results** button. `?bisect=reset` starts over.
+- `?bisect` runs the whole plan in `dist/bisect.mjs` (`?bisect=hands` runs the hands plan below), one switch per test (everything on, the character models off, then each other suspect off, then all off), reloading between tests. The state lives in storage, so a test whose page dies is counted as a crash by the next page; open the same address again after a crash and it carries on. At the end it lists the results with a verdict ("the crash went away with: …") and a **Copy results** button. `?bisect=reset` starts over.
 
 **The hands crash (Safari).** The crash hunt found that the Coach Cam's first-person hands layer crashed an iPad's Safari about 45 seconds into every Coach Cam shift, whatever was happening (with the hands off, or in the overview, nothing crashed; the earlier suspects made no difference). It is a second render pass (`CoachCam.render`: clear the depth, draw the arms and the held item with their own camera and lights), and no GL object is created per frame in it, so the cause is on the device. Until it is understood, Safari's engine (every browser on an iPhone or iPad) plays the Coach Cam without the hands (`isWebKit` in `dist/tuning.mjs`, a toast says so); `?hands` turns them back on. `?bisect=hands` runs a second plan that looks inside the layer, one change per test: no depth clear (`handsnodepth`), no shared reflections (`handsnoenv`), no lights of its own (`handsnotorch`), unlit colours (`handsbasic`), and drawn in the room's own pass (`handsinline`: the hands become children of the room camera, scaled to give the same picture, with no second render at all).
+
+**A second iPad report (October 3, 2026), not understood yet.** The game "broke" when opened in Safari on an iPad, with no report to read, and it has not been reproduced: there is no WebKit where the game is developed, only Chromium. What was checked instead: the merged build (Karen, the character models, the fish) plays 26 incident cases in Chromium without a page error, in the overview and the Coach Cam, in all four venues; the graphics and script memory it uses (the models add about 35 MB of textures and geometry) is far below what an iPad allows; and the source uses nothing newer than iPadOS 15.4 supports. Two changes were made on suspicion and cost nothing: the fonts are bundled (the Google Fonts `@import` could hold up the first paint when the network was slow or out), and `nomodels` was added to the hunt so it can rule the character models in or out. To find the cause the game needs a report from the device: **Copy report** in the crash dialog if it appears, else the **Copy results** of `?bisect` (open the game's address with `?bisect` on the end and let it run; it reloads itself between tests and carries on after a crash), and the iPad's iPadOS version.
 
 ### The story and the Ocean Fund
 
@@ -559,6 +584,16 @@ Coach Panic wants to take Marina to the ocean and has to earn the trip. The very
 - **Placeholders.** `dist/story.mjs` holds the rules and every scene as plain data (a backdrop plus emoji layers and speech bubbles), and `dist/cinematic.mjs` plays them, so real art and character models can replace them later without touching the rules. What was seen and earned is kept in `localStorage` (`pool-panic.story.v1`). `?debug` sessions skip the intro.
 - **Checked by** `story-check.mjs`: pay, sanitised saves, the no-farming rule, Marina's texts once each, well-formed scenes, and the player's next, skip, keys and auto-advance.
 
+### The desktop app and Steam
+
+`desktop/` is the Steam build: the same `dist/` in an Electron window (Chromium inside, so no browser quirks), served from the player's disk with no network. `desktop/README.md` says how to run it (`cd desktop && npm install && npm start`), pack it (`npm run pack:win`, `pack:mac`, `pack:linux`, each on its own system, as a folder Steam can patch file by file) and upload it with SteamCMD; `desktop/steam/checklist.md` is the whole road to a release, including what only the creator can do on Valve's side; `desktop/steam/achievements.md` is what to type into Steamworks for the achievements.
+
+- **Not a fork.** Nothing in the simulation or the scenes knows about it. The game talks to the desktop app through `dist/platform.mjs` (`window.desktop`, which only exists there; every call is a no-op in a browser), and the Steam calls sit behind `desktop/steam.cjs`, a wrapper that cannot throw: no Steam client, no native module or an unknown achievement all end in "no", and the game plays the same without Steam.
+- **Saves.** The game keeps progress in the browser's storage, which no cloud can sync. In the desktop app the preload script copies the player's keys (records, story, settings, achievements; never the crash log) to `saves/progress.json` when they change (written atomically, the previous file kept as `progress.previous.json`) and puts them back before the game starts. The file wins, so a newer one from Steam Cloud is used. The Auto-Cloud settings are in `desktop/README.md`.
+- **Achievements.** `dist/achievements.mjs` holds fifteen, earned from the saves the simulation already reports (rescues, the fish, the dog, Carl, Karen, the breaker, first aid) and from stars and the Ocean Fund. They are kept on the device and shown as a toast in any browser; in the desktop app each is also unlocked in Steam. Steamworks needs each name entered by hand (`desktop/steam/achievements.md`).
+- **The window.** Esc is the game's pause, which has a **Quit to desktop** button in the desktop app; F11 or Alt+Enter toggles full screen. The page has no Node (`sandbox`, `contextIsolation`), can reach only `app://game/`, links leave only to GitHub and Steam, and its Content-Security-Policy allows nothing from the network.
+- **Verified here:** the packaged Linux app starts, plays a shift, writes the progress file and, with the browser's storage deleted, restores from it; the real `steamworks.js` loads and falls back with no Steam client; the wrapper against a fake `steamworks.js`; `desktop-check.mjs` and `achievements-check.mjs` (no Electron needed). **Not verified** (it needs a machine with Steam): the overlay, a real unlock, Cloud, the Steam Deck, the Windows and macOS builds. `desktop/steam.config.json` uses Valve's test app 480 (Spacewar) until the game has an app id of its own.
+
 ### Deploy on Netlify
 
 `netlify.toml` holds every setting, so connecting the repository once is all it takes:
@@ -567,7 +602,7 @@ Coach Panic wants to take Marina to the ocean and has to earn the trip. The very
 2. Keep `main` as the production branch. Netlify reads the build command (`npm test`), the publish directory (`dist`) and the Node version (22) from `netlify.toml`, so leave the build fields in the UI as they are.
 3. Deploy. From then on every push to `main` redeploys automatically, and every pull request gets its own deploy preview link.
 
-There is nothing to bundle: the build step only runs the regression checks (about 30 seconds). If a check fails, that deploy fails and the previous version stays live. To publish without the checks, set `command = ""` in `netlify.toml`. The config also serves `.mjs` files with a JavaScript MIME type (the game loads as native ES modules) and adds `nosniff` and referrer-policy headers.
+There is nothing to bundle: the build step only runs the regression checks (about two minutes). If a check fails, that deploy fails and the previous version stays live. To publish without the checks, set `command = ""` in `netlify.toml`. The config also serves `.mjs` files with a JavaScript MIME type (the game loads as native ES modules) and adds `nosniff` and referrer-policy headers.
 
 ### Media generation (fal)
 
@@ -603,7 +638,9 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node map-check.mjs` | The map's layout and art: ten levels on four islands per act, no two buttons overlapping at any scale in the wide or the tall drawing, well-formed SVG with per-act ids, night moon, and each shift's preview icons |
 | `node interplay-check.mjs` | Incidents colliding: goggles vs the fish net, early fish return, kid during a rescue, cramps mid-flip, second crash ring, healed victims rejoining, breaker race |
 | `node moments-check.mjs` | Incident moments: every incident and save reported through real game flows, loud-alert targets and ranking, first sightings, sting queueing, slow motion and hit-stop timing, banner fuses, edge arrows (and behind-you), the camera nudge |
-| `node hunt-check.mjs` | The crash hunt: the URL switches, the plan, surviving the crashes it hunts (a test left running counts as a crash), verdicts, damaged saves |
+| `node hunt-check.mjs` | The crash hunt: the URL switches (`nomodels` included), the plan, surviving the crashes it hunts (a test left running counts as a crash), verdicts, damaged saves |
+| `node achievements-check.mjs` | The fifteen achievements: what earns each, the saves that map to them, kept once and remembered, unknown names from a newer save ignored, every one named in `desktop/steam/achievements.md`, and the game's bridge doing nothing in a browser and passing calls on in the desktop app (a call that throws included) |
+| `node desktop-check.mjs` | The desktop app without Electron: which file an `app://game/` address means (climbs, encoded slashes, backslashes, NUL bytes, other hosts and schemes refused), file types, what the save file may hold (the crash log never), which links may leave, where a window may reappear, the Steam wrapper against a fake `steamworks.js` (no module, no Steam, unknown names, a throwing call), and the settings that keep the window locked down and an upload from going live by itself |
 | `node story-check.mjs` | The story: pay and payouts, sanitised saves, a fund that cannot be farmed, Marina's texts, well-formed scenes, the cinematic player against a fake dialog |
 | `node crashlog-check.mjs` | The crash log: breadcrumbs and errors kept and capped, repeats counted, one storage key per launch, a page that vanished mid-shift told from the background, a closed page and another tab, reports and issue links that fit, a full or broken storage, and the browser wiring against a fake browser |
 | `node karen-check.mjs` | Karen: on level 4's plan, through a locker door to the coach, follows and stays off the water, annoys each person once (they stop, resume after), hold-E ring fills and drains, planted coach, latched click-to-calm, +100/+50, leaves and the influence ends, swimmers generated identically, and on screen: scribbles, her circle, hands over ears, the coach's pat |
@@ -651,10 +688,14 @@ A frame issues roughly 320–520 draw calls in every venue and view (the Lagoon 
 
 The Karen update (October 3, 2026: the incident, her rigged model, the annoyed and calming animations) is covered by `karen-check.mjs` and the extended `season-check.mjs` and `scene-check.mjs`. It was also driven through headless Chromium with software WebGL (ad-hoc Playwright scripts, not in the repository): Karen walking, ranting, pointing, being calmed and leaving in the overview, the progress ring filling, a queued swimmer with hands over their ears seen close up from the Coach Cam, the coach's patting hands in the Coach Cam, and no page errors. Her model loads from `dist/assets/models/karen.glb`; real GPU performance with it (30,000 triangles, a 19-bone skin), real devices and the placeholder voice (never listened to) are unchecked.
 
+The Steam and desktop update (October 3, 2026) is covered by `achievements-check.mjs`, `desktop-check.mjs` and the extended `hunt-check.mjs`, `coach-model-check.mjs` and `swimmer-model-check.mjs` (the `nomodels` switch). The desktop app was also run, not only checked: in a Linux machine with no graphics card (software drawing, a virtual screen) both from the source folder and as the packed folder, it started, showed the game with its own fonts, played a shift, wrote `saves/progress.json`, and, after the browser's storage was deleted, restored from the file; with no Steam client it fell back to "playing without it". The Steam overlay, a real achievement unlock, Cloud, the Steam Deck and the Windows and macOS builds need a machine with Steam and are unverified. The iPad crash is unverified too (see the second iPad report above).
+
 ## Direction already established by the creator
 
 These decisions reflect iterative feedback and should survive future work:
 
+- The game is for a paid release on Steam, single player first, with the look (lighting, textures) done last. Until then the work is the game's systems, mechanics, characters and a loop that makes people want one more shift (see [The goal: a paid game on Steam](#the-goal-a-paid-game-on-steam)).
+- Incidents should be spontaneous: different on every play of a level, some limited to some venues. The creator ranks the catalogue in `docs/incidents.md` before the draw is rebuilt.
 - Keep the pool horizontal, the camera close, and the experience game-like rather than a website surrounding a small game.
 - Integrate locker rooms into the room boundaries; keep clear, audible door arrivals and practical routes.
 - Start the coach at the middle of the near deck; keep waiting swimmers at the left starting-block end.
@@ -676,9 +717,9 @@ Earlier notes sometimes describe superseded behavior: three levels instead of th
 
 The implemented prototype is single-player, with twenty finite shifts across four venues (drawn on a two-act campaign map), five swimmer types plus VIP guests, three or five lanes, local progression, equipment errands, chemistry, deck/lane collisions, cramps, lost goggles, stomach emergencies, four chaos incidents, five mid-shift twists (one of them a storm) and the resort trampoline.
 
-Levels beyond twenty, further venues, families, multiplayer, accounts, network leaderboards and other expansions are **outside the current prototype**, not promised features; the map has no slot for a third act. No monetization model, release platform beyond the browser, or expanded production roadmap has been established in this brief.
+Levels beyond twenty, further venues, families, multiplayer, accounts and network leaderboards are **outside the current prototype**, not promised features; the map has no slot for a third act. The release target is **Steam, single player first, as a paid game** (see [The goal](#the-goal-a-paid-game-on-steam)); the price, the launch date, a demo and any platform beyond Steam and the browser have not been decided, and those are the creator's to set.
 
-Future design should deepen readable interactions and the one-more-shift feeling. Add an incident only when its warning, response, recovery, timing, and interaction with existing incidents are understandable. Do not introduce an incident-frequency formula or expand scope based on guesses about past conversations.
+Future design should deepen readable interactions and the one-more-shift feeling. Add an incident only when its warning, response, recovery, timing, and interaction with existing incidents are understandable. The incident-frequency question has an agreed direction (spontaneous draws, in `docs/incidents.md`) but no formula yet: it follows the creator's ranking, so do not invent one or expand scope based on guesses about past conversations.
 
 ## Working agreement for future agents
 
@@ -692,6 +733,8 @@ Future design should deepen readable interactions and the one-more-shift feeling
 8. Verify the concrete risk with relevant existing checks; for visual changes, distinguish CPU evidence from an actual browser pass.
 9. Update this README when behavior or vision changes. Record what changed and any material verification limits.
 10. Be explicit about where changes were saved: Site source and GitHub are separate unless a synchronization workflow is deliberately established.
+11. Know the stage (see [The goal](#the-goal-a-paid-game-on-steam)): systems and the loop come first, the look comes last. Keep `dist/` free of anything that needs Steam or Electron; the desktop app and the Steam calls live in `desktop/` and behind `dist/platform.mjs`.
+12. Read `CLAUDE.md` for how the creator works with agents, and keep it true when the way of working changes.
 
 ### Prior implementation references
 
