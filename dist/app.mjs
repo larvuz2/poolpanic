@@ -32,6 +32,7 @@ import {
   loadFigure,
   swimmerModelsReady,
 } from "./scene/swimmer-models.mjs";
+import { loadFishModel } from "./scene/fish-model.mjs";
 import { cannonballMan } from "./incidents/carl.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
@@ -746,6 +747,7 @@ function loadCannonballMan(s) {
 function loadFishKid(s) {
   if (activeSwimmerChoice() !== "models" || !s.config.chaos?.some((e) => e.kinds.includes("fish"))) return;
   loadFigure("kid");
+  loadFishModel(); // (and the fish he lets go: scene/fish-model.mjs)
 }
 // Begin the shift the map has selected: a level (with a booking from Splash Park on) or a chunk's drill.
 function start(bookingId = null) {

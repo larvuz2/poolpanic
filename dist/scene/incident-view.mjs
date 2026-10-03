@@ -4,6 +4,7 @@ import { THREE, COLORS } from "./kit.mjs";
 import { character, dogObject } from "./actors.mjs";
 import { CARL_TUNING } from "../incidents/carl.mjs";
 import { attachSwimmerModel, dropSwimmerModel } from "./swimmer-models.mjs";
+import { swimModel } from "./fish-model.mjs";
 import { figurePose } from "./figure-pose.mjs";
 import { guidanceState } from "../guidance.mjs";
 import {
@@ -322,8 +323,9 @@ export class IncidentView {
     if (model) this.poseKidFigure(v, g, time, dt);
   }
   // The fish kid as a model (swimmer-models.mjs): the carrying clips while he has the fish, BucketDump while he tips it out (the
-  // clip's time follows how far the dump has got: the bucket is out at the end of it, when the simulation lets the fish go), and
-  // the empty bucket on the deck beside him when he cries, with the classic arms over his face (the puppet).
+  // clip's time follows how far the dump has got: the bucket is out at the end of it, when the simulation lets the fish go: it is
+  // not seen in the bucket, only in the pool), and the empty bucket on the deck beside him when he cries, with the classic arms
+  // over his face (the puppet).
   poseKidFigure(v, g, time, dt) {
     const u = g.userData,
       reduced = this.w.reducedMotion.matches,
@@ -344,14 +346,6 @@ export class IncidentView {
         bucket.quaternion.identity();
         bucket.scale.setScalar(1);
         u.bucketHolder = holder;
-      }
-      if (u.fish) {
-        u.fish.visible = !!v.hasFish;
-        // Tipped out, the fish slides up the bucket's tilted mouth.
-        const out = dumping ? 1 - Math.max(0, v.dumpTime) : 0;
-        u.fish.position.y = u.fishY + out * out * 0.3;
-        const tail = u.fish.getObjectByName("fish-tail");
-        if (tail) tail.rotation.y = reduced ? 0 : Math.sin(time * 12) * 0.5;
       }
     }
     const was = u.lastAt;
@@ -634,6 +628,8 @@ export class IncidentView {
     const speed = Math.hypot(f.vx, f.vz);
     if (tail) tail.rotation.y = reduced ? 0 : Math.sin(time * (8 + speed * 5)) * (0.35 + speed * 0.08);
     if (body) body.rotation.y = reduced ? 0 : Math.sin(time * (8 + speed * 5) + 1) * 0.08;
+    // (A fish with the model swims in its vertex shader: the wave runs at the tail's rate and swings as far as its speed asks.)
+    swimModel(this.fish, reduced ? 0 : time * (8 + speed * 5), reduced ? 0 : 0.09 + speed * 0.015);
     this.fishShadow.position.set(f.x, -1.31, f.z);
     this.fishShadow.rotation.z = -(f.heading || 0);
     if (f.burst > 0 && time - this.lastDart > 0.25) {

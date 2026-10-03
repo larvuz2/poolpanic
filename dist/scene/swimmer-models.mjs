@@ -586,11 +586,10 @@ export function attachSwimmerModel(group, p, choice = activeSwimmerChoice()) {
   return u.rig;
 }
 // The fish kid's bucket is in his file, a mesh (`Bucket`) under `BucketMount`, a node of his skeleton, a child of the chest bone,
-// that the carrying clips move, so it goes where his hands go (and shows the same in Anim Bench). The classic bucket is hidden
-// and the fish moves into the model's. `u.bucketModel` is the bucket (its origin is on its base) and `u.bucketHeight` how tall
-// it is. A file with no bucket in it leaves the classic one.
-// How far up the bucket's middle the fish's middle sits: its nose and shoulders stand out of the mouth.
-export const FISH_IN = 0.05;
+// that the carrying clips move, so it goes where his hands go (and shows the same in Anim Bench). The classic bucket (and the
+// classic fish in it) is hidden: there is no fish in the model's bucket, the fish is not seen until it is out, in the pool.
+// `u.bucketModel` is the bucket (its origin is on its base) and `u.bucketHeight` how tall it is. A file with no bucket in it
+// leaves the classic one.
 function attachBucket(u, model, look) {
   const bucket = model.getObjectByName("Bucket");
   if (!bucket) return;
@@ -598,16 +597,6 @@ function attachBucket(u, model, look) {
   u.bucketModel = bucket;
   u.bucketHeight = bucket.userData.height || look.bucket.height;
   u.kidBucket.visible = false;
-  u.fish = u.kidBucket.getObjectByName("bucket-fish");
-  if (u.fish) {
-    u.fishWas = u.fish.parent;
-    u.fishScale = u.fish.scale.x;
-    u.fishY = u.bucketHeight / 2 + FISH_IN;
-    bucket.add(u.fish);
-    u.fish.position.set(0, u.fishY, 0);
-    u.fish.rotation.set(-Math.PI / 2 + 0.3, 0, 0);
-    u.fish.scale.setScalar(0.4);
-  }
 }
 // A queasy swimmer's skin goes green in the classic look; on a model the whole body takes a green tint instead (a tinted
 // copy of each material, made once per model).
@@ -642,14 +631,7 @@ export function dropSwimmerModel(group) {
   u.rig?.mixer.stopAllAction();
   if (u.bucketModel) {
     u.bucketHolder?.removeFromParent(); // (the bucket on the deck, after the dump)
-    u.bucketHolder = null;
-    if (u.fish && u.fishWas) {
-      u.fishWas.add(u.fish);
-      u.fish.position.set(0, 0.5, 0.02);
-      u.fish.rotation.set(-Math.PI / 2 + 0.3, 0, 0);
-      u.fish.scale.setScalar(u.fishScale);
-    }
-    u.bucketModel = u.fish = u.fishWas = null;
+    u.bucketHolder = u.bucketModel = null;
   }
   u.model.traverse((o) => o.isSkinnedMesh && o.skeleton.dispose());
   u.root.remove(u.model);

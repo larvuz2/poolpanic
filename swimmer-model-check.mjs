@@ -982,7 +982,11 @@ assert.equal(lookFor({ figure: "carl" }), null, "so none is drawn");
   );
   assert.equal(u.bucketHeight, 0.28, "it is as tall as the file says");
   assert.ok(u.kidBucket.visible === false, "the classic bucket is hidden");
-  assert.ok(u.fish && u.fish.parent === u.bucketModel && u.fish.visible, "the fish rides in it");
+  assert.ok(
+    !u.bucketModel.getObjectByName("bucket-fish"),
+    "and there is no fish in it: it is seen only once it is out",
+  );
+  assert.ok(!world.incidentView.fish.visible, "not in the pool either, while he has it");
   assert.equal(u.root.scale.x, 1, "as tall as he is");
   v.hold = 0;
   v.status = "walking";
@@ -998,16 +1002,19 @@ assert.equal(lookFor({ figure: "carl" }), null, "so none is drawn");
     Math.abs(u.rig.actions.dump.time - 0.5 * kid.dumpEnd) < 0.02,
     "half way through the clip at half way",
   );
-  assert.ok(u.fish.position.y > 0.05, "and the fish slides up its mouth");
+  assert.ok(
+    !world.incidentView.fish.visible,
+    "and the fish is not seen while the bucket is tipping: it is out at the end",
+  );
   Object.assign(v, { status: "crying", hasFish: false, dumpTime: 0 });
   sync(2);
   assert.ok(
     u.bucketHolder && u.bucketModel.parent === u.bucketHolder && u.bucketHolder.parent === u.root,
     "crying, the empty bucket is on the deck beside him, out of the mount",
   );
-  assert.ok(!u.fish.visible && u.puppet.arms, "the fish is gone and his hands are at his face");
+  assert.ok(u.puppet.arms, "his hands are at his face");
   assert.notEqual(u.rig.current, "carry", "and he is not carrying anything");
-  // A broken model is let go: the classic kid takes over, the fish back in its own bucket.
+  // A broken model is let go: the classic kid takes over, with his own bucket.
   const quiet = console.error;
   console.error = () => {};
   u.rig.update = () => {
@@ -1016,8 +1023,8 @@ assert.equal(lookFor({ figure: "carl" }), null, "so none is drawn");
   sync(1);
   console.error = quiet;
   assert.equal(u.rig, null, "the broken model is let go");
-  assert.ok(u.kidBucket.getObjectByName("bucket-fish"), "the fish is back in the classic bucket");
-  assert.ok(Math.abs(u.kidBucket.getObjectByName("bucket-fish").scale.x - 1) < 1e-9 || true);
+  sync(1);
+  assert.ok(u.kidBucket.visible && !u.bucketModel, "the classic bucket is his again");
   s8.visitors = [];
   sync(1);
   assert.ok(!world.incidentView.visitors.has(v.id), "gone from the scene");
