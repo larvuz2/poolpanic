@@ -3,6 +3,7 @@
 // game, where a saved window may reappear, the Steam wrapper against a fake steamworks.js (it can never stop the game), and the
 // settings that keep the window locked down and the uploads from going live by accident. Electron itself is not needed to run this.
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -490,6 +491,24 @@ function readdirRecursive(dir) {
   );
 }
 
+// ---- every script parses ---------------------------------------------------------------------------------------------------------
+// Electron is not here to start the app, so at least a slipped brace in main.cjs or preload.cjs cannot get through.
+{
+  const parses = (file) => {
+    try {
+      execFileSync(process.execPath, ["--check", file], { stdio: "pipe" });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const broken = join(mkdtempSync(join(tmpdir(), "pp-parse-")), "broken.cjs");
+  writeFileSync(broken, "if (true) {\n  console.log(1);\n");
+  assert.equal(parses(broken), false, "the check can tell a script that does not parse");
+  for (const file of ["main.cjs", "preload.cjs", "lib.cjs", "steam.cjs", "scripts/prepare-game.mjs"])
+    assert.ok(parses("desktop/" + file), `desktop/${file} parses`);
+}
+
 console.log(
-  "Desktop checks passed: files served only from the game's folder with the right types, the progress mirror (player keys only, damaged files refused), links and windows, the Steam wrapper against a fake steamworks.js (it never stops the game), and the locked-down window and upload settings.",
+  "Desktop checks passed: files served only from the game's folder with the right types, the progress mirror (player keys only, damaged files refused), links and windows, the Steam wrapper against a fake steamworks.js (it never stops the game), the locked-down window and upload settings, and every desktop script parsing.",
 );
