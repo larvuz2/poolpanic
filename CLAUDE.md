@@ -22,6 +22,20 @@ What only the creator can do (do not pretend to do it, and remind them when it b
 the app and depot ids, the store page, the price, written proof that the AI tools used allow commercial use, the Steam AI disclosure.
 `desktop/steam/checklist.md` is the whole road.
 
+## How we test: web first, desktop at milestones
+
+- **Web first, every change.** Each push to a pull request branch gets a Netlify deploy preview at a stable address
+  (`https://deploy-preview-<PR number>--poolpanic.netlify.app/`; `/version.mjs` on it names the commit it is serving), and the creator plays
+  it on the iPad's Safari, the strictest browser the game has to run in. The desktop app shows the same `dist/`, so the game itself is tested
+  on the web. A deploy that fails keeps the last good preview up. After a merge to `main` the public site updates.
+- **Desktop at milestones, not every change.** `desktop/` only wraps `dist/` (a window, a saves file, the Steam calls). It gets a real test on
+  a machine with Steam when something only it does has changed: the first Steam build, controller and Steam Deck support, the settings screen,
+  saves and cloud, new achievements, and before trailer and screenshot capture and each release candidate. Until then `desktop-check.mjs` and
+  `achievements-check.mjs` keep the bridge from rotting.
+- **The suite is the gate on Netlify** (`npm test` runs in the deploy build, so one failing check fails the preview). A check must not depend on
+  anything git does not track: a build machine adds files of its own (one broke `desktop-check` this way, from a `.toml` in `dist/`), and a
+  clean clone will not show it. Read the Netlify log (the PR comment links it) before guessing.
+
 ## How the creator works with you
 
 - Messages are often **voice dictated** from a phone or iPad: read for intent (a "Netflix" for "Steam", a sentence that restarts). Do the thing,
