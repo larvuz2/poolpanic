@@ -113,6 +113,11 @@ const DEVICE = /^[A-Z2-7]{8}$/;
   assert.match(payload.headline, /^frame:sim: TypeError: Cannot read/);
   assert.ok(payload.headline.length <= 200);
   assert.match(payload.report, /# Pool Panic crash report/);
+  assert.match(
+    payload.report,
+    /\*\*Device code:\*\* K7Q2M5XA/,
+    "the report says which device sent it, as a pasted one does",
+  );
   assert.match(payload.report, /stranded cramp victims #1 Coco/);
   assert.equal(payload.session, log.session);
   assert.ok(JSON.stringify(payload).length < REPORT_LIMITS.body);

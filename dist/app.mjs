@@ -719,7 +719,9 @@ async function shareCrash(how) {
     showSent(session, sendProblem(result));
     return;
   }
-  const copied = await copyText(crashlog.report(crashOn));
+  const copied = await copyText(
+    crashlog.report(crashOn, { device: reportsOpen() ? reportPrefs.device : "" }),
+  );
   crashlog.mark(crashOn.id, "reported");
   if (how === "issue") {
     // The link carries a shortened report; the whole one is on the clipboard for the issue's text box.
@@ -2158,6 +2160,11 @@ function bind() {
     savePrefs(crashStorage, reportPrefs);
   };
   $("crash-copy").onclick = () => shareCrash("copy");
+  $("crash-code-copy").onclick = async () => {
+    const button = $("crash-code-copy");
+    button.textContent = (await copyText(reportPrefs.device)) ? "Copied ✓" : "Copy failed";
+    setTimeout(() => (button.textContent = "Copy code"), 1800);
+  };
   $("crash-issue").onclick = () => shareCrash("issue");
   $("crash-dismiss").onclick = () => {
     if (crashOn && !$("crash-dialog").classList.contains("live")) crashlog.mark(crashOn.id, "dismissed");

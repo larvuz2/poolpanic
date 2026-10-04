@@ -453,6 +453,18 @@ assert.equal(typeof BUILD.commit, "string");
   ])
     assert.ok(text.includes(want), "The report says " + want);
   assert.ok(text.length < 12000, "A report is short enough to paste (" + text.length + ")");
+  // The device code it is sent under is in a pasted report too, and an empty fact in an error's game state is not listed.
+  assert.ok(!text.includes("Device code"), "no code unless one is given");
+  assert.match(log.report(log.session, { device: "K7Q2M5XA" }), /\*\*Device code:\*\* K7Q2M5XA/);
+  log.setState({ booking: "", active: "" });
+  log.error("frame:empty", boom("an error with empty facts"));
+  const gameLines = log
+    .report()
+    .split("\n")
+    .filter((l) => l.startsWith("   game:"));
+  assert.ok(gameLines.length > 0);
+  for (const line of gameLines)
+    assert.ok(!/(: |, )[a-zA-Z]+ (,|$)/.test(line), "no empty facts in an error's game state: " + line);
   // What a dialog shows: where the game was, the top of the stack and the last few things that happened.
   const preview = log.preview();
   assert.match(

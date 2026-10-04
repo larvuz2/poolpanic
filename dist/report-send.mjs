@@ -58,7 +58,7 @@ export function reportPayload(log, session, device) {
     device,
     id: session.id,
     headline: String(log.headline(session)).slice(0, 200),
-    report: log.report(session),
+    report: log.report(session, { device }),
     session,
   };
   // (the service counts bytes, not characters: an arrow or a × in the report is three of them)

@@ -401,7 +401,8 @@ export class CrashLog {
   }
 
   // The full report, as Markdown that reads fine as plain text too.
-  report(s = this.latest(), { crumbs = LIMITS.crumbs, stackLines = 14 } = {}) {
+  // `device`: the device code the report is sent under (report-send.mjs), so a report that is only copied and pasted still says it.
+  report(s = this.latest(), { crumbs = LIMITS.crumbs, stackLines = 14, device = "" } = {}) {
     if (!s) return "Pool Panic crash report\n\nNothing has been recorded yet.";
     const b = s.build || {},
       env = s.env || {},
@@ -417,6 +418,8 @@ export class CrashLog {
         (b.built ? " · built " + b.built : ""),
     );
     lines.push("- **When:** " + when + " · session ran " + Math.round(ran / 1000) + " s");
+    if (device)
+      lines.push("- **Device code:** " + device + " (the reports this device has sent are found by it)");
     lines.push(
       "- **Device:** " +
         [
@@ -481,6 +484,7 @@ export class CrashLog {
             ")",
         );
         const game = Object.entries(e.state || {})
+          .filter(([, v]) => v !== "")
           .map(([k, v]) => k + " " + v)
           .join(", ");
         if (game) lines.push("   game: " + game);
