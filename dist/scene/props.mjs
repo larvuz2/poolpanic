@@ -2,6 +2,7 @@
 // proxies agree. Each builder adds to the world scene and registers labels/clickables where needed.
 import { THREE, COLORS } from "./kit.mjs";
 import { woodTexture } from "./textures.mjs";
+import { dressFish } from "./fish-model.mjs";
 
 export function woodMaterial(w, base = "#d7a064", seed = 9) {
   const key = "wood:" + base + seed;
@@ -460,6 +461,7 @@ export function fishObject(w, scale = 1) {
   const dorsal = w.box(0.04, 0.2, 0.34, 0xf49a52, 0, 0.3, -0.02, 0.02, body);
   dorsal.rotation.x = -0.3;
   g.scale.setScalar(scale);
+  dressFish(g); // (the model, when it is loaded: scene/fish-model.mjs; this koi stays under it)
   return g;
 }
 

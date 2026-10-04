@@ -3,6 +3,9 @@
 import { THREE, COLORS } from "./kit.mjs";
 import { character, dogObject } from "./actors.mjs";
 import { CARL_TUNING } from "../incidents/carl.mjs";
+import { attachSwimmerModel, dropSwimmerModel } from "./swimmer-models.mjs";
+import { swimModel } from "./fish-model.mjs";
+import { figurePose } from "./figure-pose.mjs";
 import { karenObject, poseKaren, annoyPose, calmPose, Scribbles, KAREN_RADIUS } from "./karen-view.mjs";
 import { guidanceState } from "../guidance.mjs";
 import {
@@ -266,23 +269,38 @@ export class IncidentView {
               ? karenObject(this.w, v)
               : character(this.w, v);
         g.userData.visitorKind = v.kind;
+        // The cannonball man is a model (Carl or the leopard man, swimmer-models.mjs) when it is loaded, and so is the fish kid
+        // (with his bucket); else the classic ones.
+        if (v.kind === "carl" || v.kind === "kid")
+          try {
+            attachSwimmerModel(g, v.kind === "kid" ? { ...v, figure: "kid" } : v);
+          } catch (error) {
+            console.error(error);
+            dropSwimmerModel(g);
+          }
         // Clicking a visitor walks the coach over (or acts, when already in reach).
         g.userData.hit.userData = { kind: "visitor", id: v.id };
         if (!this.w.clickables.includes(g.userData.hit)) this.w.clickables.push(g.userData.hit);
         this.visitors.set(v.id, g);
         this.w.scene.add(g);
       }
-      if (v.kind === "kid") this.poseKid(sim, v, g, time);
+      // Anyone near Karen covers their ears (she herself, and the dog, do not). A model is posed with the rest of him, in
+      // `poseKidFigure` and `poseFigure`, since his arms are set by the clip and copied from the classic ones only while they are up.
+      const annoy =
+        v.kind === "kid" || v.kind === "carl"
+          ? () => annoyPose(g.userData, v.karenAnnoyed > 0, time, reduced)
+          : null;
+      if (v.kind === "kid") this.poseKid(sim, v, g, time, dt, annoy);
       else if (v.kind === "dog") this.poseDog(sim, v, g, time);
-      else if (v.kind === "carl") this.poseCarl(sim, v, g, time);
+      else if (v.kind === "carl") this.poseCarl(sim, v, g, time, dt, annoy);
       else if (v.kind === "karen") poseKaren(sim, v, g, time, dt, reduced);
-      // Anyone near Karen covers their ears (she herself, and the dog, do not).
-      if (v.kind === "kid" || v.kind === "carl") annoyPose(g.userData, v.karenAnnoyed > 0, time, reduced);
+      if (annoy && !g.userData.rig) annoy();
     }
     for (const [id, g] of this.visitors) if (!alive.has(id)) this.dropVisitor(id, g);
   }
   dropVisitor(id, g) {
     this.w.clickables = this.w.clickables.filter((x) => x !== g.userData.hit);
+    dropSwimmerModel(g); // (a cannonball man's model gives its skeleton back; nothing for the others)
     g.removeFromParent();
     this.visitors.delete(id);
   }
@@ -307,7 +325,7 @@ export class IncidentView {
     }
     this.scribbles.update(dt, loud, v?.x ?? 0, 2.0, v?.z ?? 0, reduced);
   }
-  poseKid(sim, v, g, time) {
+  poseKid(sim, v, g, time, dt = 0.016, annoy = null) {
     const u = g.userData,
       reduced = this.w.reducedMotion.matches;
     g.position.set(v.x, 0, v.z);
@@ -327,30 +345,81 @@ export class IncidentView {
         v.hasFish ? (i ? -0.35 : 0.35) : 0,
       ),
     );
+    const model = !!u.rig;
     const bucket = u.kidBucket;
-    bucket.visible = v.hasFish || v.status === "crying";
-    bucket.rotation.set(0, 0, 0);
-    const fish = bucket.getObjectByName("bucket-fish");
-    fish.visible = v.hasFish;
-    const tail = fish.getObjectByName("fish-tail");
-    if (tail) tail.rotation.y = reduced ? 0 : Math.sin(time * 12) * 0.5;
-    if (v.status === "dumping") {
-      const t = 1 - Math.max(0, v.dumpTime) / 1;
-      bucket.rotation.x = t * 1.9;
-      u.root.rotation.x = t * 0.25;
+    if (!model) {
+      bucket.visible = v.hasFish || v.status === "crying";
+      bucket.rotation.set(0, 0, 0);
+      const fish = bucket.getObjectByName("bucket-fish");
+      fish.visible = v.hasFish;
+      const tail = fish.getObjectByName("fish-tail");
+      if (tail) tail.rotation.y = reduced ? 0 : Math.sin(time * 12) * 0.5;
+      if (v.status === "dumping") {
+        const t = 1 - Math.max(0, v.dumpTime) / 1;
+        bucket.rotation.x = t * 1.9;
+        u.root.rotation.x = t * 0.25;
+      }
     }
     if (v.status === "crying") {
-      bucket.position.set(0.35, 0.18, 0.35);
-      bucket.rotation.set(0, 0, 1.3);
+      if (!model) {
+        bucket.position.set(0.35, 0.18, 0.35);
+        bucket.rotation.set(0, 0, 1.3);
+      }
       u.arms.forEach((a, i) => a.rotation.set(-2.2, 0, i ? 0.55 : -0.55));
       u.root.position.y = reduced ? 0 : Math.abs(Math.sin(time * 9)) * 0.03;
       u.root.rotation.z = reduced ? 0 : Math.sin(time * 14) * 0.04;
-    } else bucket.position.set(0, 0.85, 0.42);
+    } else if (!model) bucket.position.set(0, 0.85, 0.42);
     if (v.status === "happy") {
       u.arms.forEach((a, i) => a.rotation.set(-1.25, 0, i ? -0.35 : 0.35));
       u.root.position.y += reduced ? 0 : Math.abs(Math.sin(time * 8)) * 0.18;
     }
     if (v.status === "sulking") u.root.rotation.x = 0.18;
+    if (model) this.poseKidFigure(v, g, time, dt, annoy);
+  }
+  // The fish kid as a model (swimmer-models.mjs): the carrying clips while he has the fish, BucketDump while he tips it out (the
+  // clip's time follows how far the dump has got: the bucket is out at the end of it, when the simulation lets the fish go: it is
+  // not seen in the bucket, only in the pool), and the empty bucket on the deck beside him when he cries, with the classic arms
+  // over his face (the puppet).
+  poseKidFigure(v, g, time, dt, annoy = null) {
+    const u = g.userData,
+      reduced = this.w.reducedMotion.matches,
+      crying = v.status === "crying",
+      dumping = v.status === "dumping";
+    if (!crying) u.root.position.y = v.status === "happy" ? u.root.position.y : 0; // (the clips bob him)
+    const bucket = u.bucketModel;
+    if (bucket) {
+      bucket.visible = !!v.hasFish || dumping || crying;
+      if (crying && !u.bucketHolder) {
+        // The empty bucket on the deck beside him, on its side: out of his hands (and the mount), into a holder of its own.
+        const holder = new THREE.Group();
+        holder.position.set(0.35, 0.13, 0.35);
+        holder.rotation.set(0, 0, 1.3);
+        u.root.add(holder);
+        holder.add(bucket);
+        bucket.position.set(0, -u.bucketHeight / 2, 0);
+        bucket.quaternion.identity();
+        bucket.scale.setScalar(1);
+        u.bucketHolder = holder;
+      }
+    }
+    const was = u.lastAt;
+    u.lastAt = { x: v.x, z: v.z };
+    if (was && dt > 0) u.footSpeed = Math.hypot(v.x - was.x, v.z - was.z) / dt;
+    u.puppet.arms = crying;
+    u.puppet.legs = false;
+    if (annoy?.() > 0.001) u.puppet.arms = true;
+    try {
+      u.rig.update(dt, {
+        speed: u.footSpeed || 0,
+        carry: !!v.hasFish && !!bucket,
+        dump: dumping ? (1 - Math.max(0, v.dumpTime) / 1) * u.look.dumpEnd : null,
+        puppet: u.puppet,
+        classic: u,
+      });
+    } catch (error) {
+      console.error(error); // the classic kid from here on
+      dropSwimmerModel(g);
+    }
   }
 
   poseDog(sim, v, g, time) {
@@ -405,7 +474,7 @@ export class IncidentView {
       }
     }
   }
-  poseCarl(sim, v, g, time) {
+  poseCarl(sim, v, g, time, dt = 0.016, annoy = null) {
     const u = g.userData,
       reduced = this.w.reducedMotion.matches;
     g.position.set(v.x, 0, v.z);
@@ -474,6 +543,49 @@ export class IncidentView {
         u.arms.forEach((a, i) => a.rotation.set(-1.2, 0, i ? 0.9 : -0.9));
         u.legs[0].rotation.x = reduced ? 0 : Math.max(0, Math.sin(time * 9)) * -0.25;
         break;
+    }
+    if (u.rig) this.poseFigure(v, g, dt, annoy);
+  }
+  // The cannonball man as a model (see figure-pose.mjs): over the classic poses above, which stay under it (the climb's arms
+  // and legs are copied onto the model from them). His clip comes from where the simulation has him; the body settles onto its
+  // front in the water and stands up again to climb out, as a swimmer's does.
+  poseFigure(v, g, dt, annoy = null) {
+    const u = g.userData,
+      pose = figurePose(v),
+      fit = u.fit || 1,
+      lie = pose.lie || 0;
+    const at = pose.at === "edge" && v.edge ? v.edge : v;
+    g.position.set(at.x, -0.39 * lie, at.z);
+    // He turns round to where he is going, not at once (the simulation turns him to face the wall as the swim back begins).
+    const yaw = v.angle || 0;
+    u.yaw =
+      u.yaw === undefined
+        ? yaw
+        : u.yaw + Math.atan2(Math.sin(yaw - u.yaw), Math.cos(yaw - u.yaw)) * Math.min(1, dt * 10);
+    g.rotation.y = u.yaw;
+    u.root.rotation.set((Math.PI / 2) * lie, 0, 0);
+    u.root.position.set(0, 0.27 * lie, -0.65 * fit * lie);
+    u.root.scale.setScalar(1 - 0.15 * lie);
+    u.shadow.visible = lie === 0 && v.status !== "flying";
+    u.puppet.arms = u.puppet.legs = !!pose.puppet;
+    if (annoy?.() > 0.001) u.puppet.arms = true;
+    // How fast he covers the ground, from where he is drawn (a hit-stop, with no time passing, keeps the last speed).
+    const was = u.lastAt;
+    u.lastAt = { x: at.x, z: at.z };
+    if (was && dt > 0) u.footSpeed = Math.hypot(at.x - was.x, at.z - was.z) / dt;
+    try {
+      u.rig.update(dt, {
+        speed: pose.swim || pose.jump != null ? 0 : u.footSpeed || 0,
+        swim: !!pose.swim,
+        stroke: pose.stroke ?? 1,
+        jump: pose.jump ?? null,
+        puppet: u.puppet,
+        classic: u,
+      });
+    } catch (error) {
+      // A failing model must not stop the shift: this is the classic Carl from here on.
+      console.error(error);
+      dropSwimmerModel(g);
     }
   }
   syncPuddles(sim) {
@@ -572,6 +684,8 @@ export class IncidentView {
     const speed = Math.hypot(f.vx, f.vz);
     if (tail) tail.rotation.y = reduced ? 0 : Math.sin(time * (8 + speed * 5)) * (0.35 + speed * 0.08);
     if (body) body.rotation.y = reduced ? 0 : Math.sin(time * (8 + speed * 5) + 1) * 0.08;
+    // (A fish with the model swims in its vertex shader: the wave runs at the tail's rate and swings as far as its speed asks.)
+    swimModel(this.fish, reduced ? 0 : time * (8 + speed * 5), reduced ? 0 : 0.09 + speed * 0.015);
     this.fishShadow.position.set(f.x, -1.31, f.z);
     this.fishShadow.rotation.z = -(f.heading || 0);
     if (f.burst > 0 && time - this.lastDart > 0.25) {
@@ -593,10 +707,11 @@ export class IncidentView {
         arc = Math.sin(t * Math.PI);
       g.position.y = -0.39 * (1 - t) + arc * 1.1;
       u.root.rotation.set((Math.PI / 2) * (1 - t) - arc * 0.4, 0, 0);
-      u.root.position.set(0, 0.27 * (1 - t), -0.65 * (1 - t));
+      u.root.position.set(0, 0.27 * (1 - t), -0.65 * (1 - t) * (u.fit || 1));
       u.root.scale.setScalar(u.baseScale || 1);
       u.arms.forEach((a, i) => a.rotation.set(-2.6, 0, i ? -0.5 : 0.5));
       u.legs.forEach((l, i) => (l.rotation.x = Math.sin(t * Math.PI * 2 + i) * 0.6));
+      u.puppet.arms = u.puppet.legs = true;
       u.shadow.visible = false;
     }
   }
@@ -606,6 +721,7 @@ export class IncidentView {
       stage = p.jumpStage,
       motion = this.w.reducedMotion.matches ? 0 : 1;
     if (!tr || !stage || stage === "toStairs") return;
+    u.puppet.arms = u.puppet.legs = true; // every stunt is a pose of its own
     const y = p.y || 0,
       { arms, legs } = u;
     g.position.y = y;
@@ -653,7 +769,7 @@ export class IncidentView {
       const t = p.jumpT || 0,
         e = t * t * (3 - 2 * t),
         theta = Math.PI * 3 * e,
-        h = 0.85,
+        h = u.hipsY ?? 0.85, // the flips turn about the hips
         tuck = Math.sin(Math.min(1, Math.max(0, (t - 0.12) / 0.7)) * Math.PI);
       u.root.rotation.x = theta;
       u.root.position.set(0, h * (1 - Math.cos(theta)), -h * Math.sin(theta));
@@ -668,8 +784,9 @@ export class IncidentView {
       b = sim.coach.busy,
       sit = p.healing && b?.kind === "heal" ? Math.min(1, b.t / b.duration) : 0,
       theta = -Math.PI / 2 + sit * 1.1,
-      h = 0.45;
+      h = u.hipsY ?? 0.45;
     g.position.y = 0;
+    u.puppet.arms = u.puppet.legs = true;
     if (p.path?.length) {
       // Limping clear of the edge, one hand on the sore head.
       const k = time * 6 * motion;
@@ -680,7 +797,7 @@ export class IncidentView {
       return;
     }
     u.root.rotation.set(theta, 0, Math.sin(time * 1.7 + u.phase) * 0.05 * motion * (1 - sit));
-    u.root.position.set(0, h * (1 - Math.cos(theta)) - 0.15, -h * Math.sin(theta));
+    u.root.position.set(0, h * (1 - Math.cos(theta)) - (h - (u.depth ?? 0.3)), -h * Math.sin(theta));
     u.legs.forEach(
       (l, i) =>
         (l.rotation.x = -Math.PI / 2 - theta + (i ? Math.sin(time * 3 + u.phase) * 0.12 * motion : 0)),

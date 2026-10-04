@@ -1,0 +1,226 @@
+<title>Pool Panic Anim Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: the 3D stage on the left, one control column on the right (stacked on narrow screens).
+     Palette: graphite ground, the coach's whistle orange as the only accent; green and amber appear only as check results. */
+  :root {
+    --bg: #12151a;
+    --panel: #181c23;
+    --raise: #20252e;
+    --line: #2b313c;
+    --fg: #e8ebf1;
+    --muted: #8d96a6;
+    --accent: #ff6a3d;
+    --accent-ink: #1b0c06;
+    --ok: #3ec690;
+    --warn: #f0b84a;
+    --stage: #171b21;
+    --font: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #e9ecf1; --panel: #f6f7f9; --raise: #ffffff; --line: #d4d9e1; --fg: #171b22; --muted: #596273;
+      --accent: #d8461a; --accent-ink: #ffffff; --ok: #12805a; --warn: #8f6100; --stage: #e3e7ed;
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #e9ecf1; --panel: #f6f7f9; --raise: #ffffff; --line: #d4d9e1; --fg: #171b22; --muted: #596273;
+    --accent: #d8461a; --accent-ink: #ffffff; --ok: #12805a; --warn: #8f6100; --stage: #e3e7ed;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font); overflow: hidden; }
+  button, select, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  #app { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 344px; }
+  .stage { position: relative; min-width: 0; min-height: 0; background: var(--stage); overflow: hidden; }
+  #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .hud { position: absolute; left: 16px; right: 16px; display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; pointer-events: none; text-shadow: 0 1px 2px color-mix(in srgb, var(--stage) 70%, transparent); }
+  .hud-top { top: 14px; }
+  .hud-top b { font-weight: 600; font-size: 16px; }
+  .hud-top span { color: var(--muted); font-size: 12px; }
+  .hud-bottom { bottom: 14px; font-size: 13px; white-space: pre; gap: 0; }
+  .hud-bottom em { font-style: normal; color: var(--accent); }
+  .drop { position: absolute; inset: 12px; display: grid; place-items: center; border: 2px dashed var(--accent); border-radius: 10px; background: color-mix(in srgb, var(--stage) 80%, transparent); font-weight: 500; pointer-events: none; }
+  /* A premium character carries its name over its head, on a gold plate with a star: the way the game will mark the guests that matter. */
+  .tag { position: absolute; left: 0; top: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 14px 6px; border-radius: 10px; pointer-events: none; white-space: nowrap;
+    background: linear-gradient(160deg, #ffe08a, #f2a93b); color: #2b1a00; box-shadow: 0 3px 10px rgb(0 0 0 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.55); will-change: transform; }
+  .tag::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px; background: #f2a93b; transform: translateX(-50%) rotate(45deg); border-radius: 0 0 3px 0; z-index: -1; }
+  .tag-kind { font-size: 9.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; line-height: 1.2; }
+  .tag-star { font-size: 11px; letter-spacing: 0; }
+  .tag-name { font-size: 15px; font-weight: 600; line-height: 1.2; letter-spacing: -0.005em; }
+  .note { position: absolute; left: 16px; right: 16px; top: 52px; max-width: 560px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: 6px; background: var(--raise); font-size: 13px; }
+  .note.error { border-left-color: var(--accent); }
+
+  .panel { min-height: 0; overflow: auto; background: var(--panel); border-left: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 20px; }
+  .brand h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+  section { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  h2 { margin: 0; display: flex; justify-content: space-between; align-items: baseline; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+  h2 .hint { font-weight: 400; letter-spacing: 0.02em; text-transform: none; }
+
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row.tight { gap: 6px; }
+  select, .btn, .chip { min-height: 34px; border: 1px solid var(--line); border-radius: 6px; background: var(--raise); padding: 0 11px; cursor: pointer; }
+  select { flex: 1 1 140px; min-width: 0; }
+  .btn:hover, .chip:hover, select:hover { border-color: var(--muted); }
+  .chip { font-size: 13px; }
+  .chip[aria-pressed="true"], .seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .seg { display: flex; }
+  .seg button { flex: 1; min-height: 34px; border: 1px solid var(--line); background: var(--raise); cursor: pointer; font-family: var(--mono); font-size: 12px; }
+  .seg button + button { margin-left: -1px; }
+  .seg button:first-child { border-radius: 6px 0 0 6px; }
+  .seg button:last-child { border-radius: 0 6px 6px 0; }
+  .icon { width: 40px; padding: 0; display: grid; place-items: center; }
+  .icon svg { width: 18px; height: 18px; fill: currentColor; }
+  .icon.primary { width: 56px; background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+  details.more summary { cursor: pointer; color: var(--muted); font-size: 12px; padding: 2px 0; }
+  details.more[open] summary { margin-bottom: 8px; }
+  dl.stats { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 14px; font-size: 12px; }
+  dl.stats dt { color: var(--muted); }
+  dl.stats dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .muted { color: var(--muted); font-size: 12px; }
+
+  ul.clips { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .clip { width: 100%; text-align: left; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--raise); cursor: pointer; }
+  .clip:hover { border-color: var(--muted); }
+  .clip[aria-current="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+  .clip .key { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .clip .name { font-weight: 600; overflow-wrap: anywhere; }
+  .clip .meta { grid-column: 2 / 4; font-family: var(--mono); font-size: 11px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 10px; }
+  .badge { font-family: var(--mono); font-size: 10.5px; padding: 1px 6px; border-radius: 4px; border: 1px solid currentColor; white-space: nowrap; }
+  .badge.ok { color: var(--ok); }
+  .badge.warn { color: var(--warn); }
+
+  input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; min-height: 28px; }
+  .field { display: grid; grid-template-columns: 88px minmax(0, 1fr) 54px; gap: 8px; align-items: center; font-size: 12px; }
+  .field output { font-family: var(--mono); text-align: right; font-size: 12px; }
+  .swatches { display: flex; gap: 6px; }
+  .swatch { width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer; padding: 0; }
+  .swatch[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .swatch.auto { background: linear-gradient(135deg, #171b21 50%, #e3e7ed 50%); }
+  .foot { color: var(--muted); font-size: 11.5px; line-height: 1.6; padding-bottom: 6px; }
+  kbd { font-family: var(--mono); font-size: 11px; padding: 0 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--raise); }
+
+  @media (max-width: 780px) {
+    #app { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 46%) minmax(0, 1fr); }
+    .panel { border-left: 0; border-top: 1px solid var(--line); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div id="app">
+  <main class="stage" id="stage">
+    <canvas id="gl" aria-label="3D preview: drag to orbit, scroll or pinch to zoom"></canvas>
+    <div class="hud hud-top"><b id="hud-char">Loading…</b><span class="mono" id="hud-stats"></span></div>
+    <div class="hud hud-bottom mono"><em id="hud-name"></em><span id="hud-rest"></span></div>
+    <div class="tag" id="tag" hidden aria-hidden="true"><span class="tag-kind"><span class="tag-star">★</span> Premium</span><span class="tag-name" id="tag-name"></span></div>
+    <div class="note" id="note" role="status" hidden></div>
+    <div class="drop" id="drop" hidden>Drop a .glb to preview it here</div>
+  </main>
+
+  <aside class="panel" aria-label="Controls">
+    <header class="brand">
+      <h1>Anim Bench</h1>
+      <p>Pool Panic · internal preview tool</p>
+    </header>
+
+    <section aria-labelledby="h-char">
+      <h2 id="h-char">Character</h2>
+      <div class="row">
+        <select id="char" aria-label="Character"></select>
+        <button class="btn" id="open" type="button">Open .glb</button>
+        <input type="file" id="file" accept=".glb,model/gltf-binary" hidden>
+      </div>
+      <details class="more">
+        <summary>Model details</summary>
+        <dl class="stats" id="stats"></dl>
+      </details>
+    </section>
+
+    <section aria-labelledby="h-clips">
+      <h2 id="h-clips">Clips <span class="hint">keys 1 to 9</span></h2>
+      <ul class="clips" id="clips"></ul>
+    </section>
+
+    <section aria-labelledby="h-play">
+      <h2 id="h-play">Playback</h2>
+      <div class="row">
+        <button class="btn icon" id="prev" type="button" aria-label="Previous frame" title="Previous frame (left arrow)"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+        <button class="btn icon primary" id="play" type="button" aria-label="Pause" title="Play or pause (space)"></button>
+        <button class="btn icon" id="next" type="button" aria-label="Next frame" title="Next frame (right arrow)"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5l11 7-11 7z"/></svg></button>
+        <span class="mono muted" id="frame-readout" style="margin-left:auto"></span>
+      </div>
+      <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Scrub through the clip">
+      <div class="seg" id="speed" role="group" aria-label="Speed">
+        <button type="button" data-speed="0.25">0.25×</button>
+        <button type="button" data-speed="0.5">0.5×</button>
+        <button type="button" data-speed="1" aria-pressed="true">1×</button>
+        <button type="button" data-speed="2">2×</button>
+      </div>
+      <div class="row tight">
+        <button class="chip" type="button" id="once" aria-pressed="false">Play once</button>
+        <button class="chip" type="button" id="cycle" aria-pressed="false" title="Play every clip in turn, at least 3 seconds each">Cycle clips</button>
+      </div>
+      <label class="field"><span>Blend</span><input type="range" id="blend" min="0" max="0.6" step="0.05" value="0.25"><output id="blend-out" for="blend">0.25 s</output></label>
+    </section>
+
+    <section aria-labelledby="h-view">
+      <h2 id="h-view">View</h2>
+      <div class="row tight" id="cams" role="group" aria-label="Camera">
+        <button class="chip" type="button" data-az="0">Front</button>
+        <button class="chip" type="button" data-az="-35">¾ right</button>
+        <button class="chip" type="button" data-az="35">¾ left</button>
+        <button class="chip" type="button" data-az="90">Side</button>
+        <button class="chip" type="button" data-az="180">Back</button>
+      </div>
+      <div class="swatches" id="backdrops" role="group" aria-label="Backdrop">
+        <button class="swatch auto" type="button" data-bd="auto" aria-label="Backdrop follows the theme" title="Follow theme" aria-pressed="true"></button>
+        <button class="swatch" type="button" data-bd="dark" style="background:#171b21" aria-label="Dark backdrop" title="Dark"></button>
+        <button class="swatch" type="button" data-bd="mid" style="background:#59606b" aria-label="Grey backdrop" title="Grey"></button>
+        <button class="swatch" type="button" data-bd="light" style="background:#dfe3ea" aria-label="Light backdrop" title="Light"></button>
+        <button class="swatch" type="button" data-bd="green" style="background:#14a84a" aria-label="Green backdrop" title="Green"></button>
+      </div>
+      <div class="row tight">
+        <button class="chip" type="button" id="t-shadow" aria-pressed="true">Shadow</button>
+        <button class="chip" type="button" id="t-wire" aria-pressed="false">Wireframe</button>
+        <button class="chip" type="button" id="t-bones" aria-pressed="false">Skeleton</button>
+        <button class="chip" type="button" id="t-spin" aria-pressed="false">Turntable</button>
+      </div>
+      <label class="field"><span>Ground</span><input type="range" id="ground" min="0" max="3" step="0.05" value="0"><output id="ground-out" for="ground">0.00 m/s</output></label>
+      <div class="row tight"><button class="chip" type="button" id="match" hidden></button><span class="muted" id="match-note"></span></div>
+    </section>
+
+    <p class="foot"><kbd>Space</kbd> play or pause · <kbd>←</kbd> <kbd>→</kbd> frame · <kbd>↑</kbd> <kbd>↓</kbd> clip · <kbd>[</kbd> <kbd>]</kbd> speed. Drop a .glb anywhere to preview it without publishing.</p>
+  </aside>
+</div>
+<script>
+  // If the app never starts (a blocked script or file), say so on the page instead of leaving "Loading…".
+  (function () {
+    function say(text) {
+      var box = document.getElementById("note");
+      if (!box) return;
+      box.hidden = false;
+      box.classList.add("error");
+      box.textContent = text;
+    }
+    // A script that fails to load fires "error" on its element; it does not bubble, but capturing on window sees it.
+    window.addEventListener("error", function (e) {
+      if (e.target && e.target.tagName === "SCRIPT") say("Could not load " + (e.target.getAttribute("src") || "a script") + ", so the viewer cannot start.");
+    }, true);
+    setTimeout(function () {
+      if (!document.documentElement.dataset.ready && document.getElementById("note").hidden) say("The viewer has not started yet. If this stays, the page could not load viewer.js or its files.");
+    }, 12000);
+  })();
+</script>
+<script type="module" src="viewer.js"></script>

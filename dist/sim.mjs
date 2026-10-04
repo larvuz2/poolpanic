@@ -1,5 +1,5 @@
 import { prepareDeck, resolveDeck, deckHeading } from "./deck-physics.mjs";
-import { waitingInWater } from "./rescue.mjs";
+import { waitingInWater, heldInWater } from "./rescue.mjs";
 import { ChaosController } from "./chaos.mjs";
 import { ENTRY, VENUES, createCoach } from "./spatial.mjs";
 import { BOOKINGS, applyBooking } from "./bookings.mjs";
@@ -968,8 +968,10 @@ export class PoolSimulation extends ChaosController {
     this.updateCoach(dt);
     this.updateSanitation(dt);
     this.updateChaos(dt);
+    const crowd = this.crowdPanic();
     for (const p of this.people) {
-      if (waitingInWater(this, p) || (this.rescue && p.status === "enter")) continue;
+      if (waitingInWater(this, p) || heldInWater(this, p, crowd) || (this.rescue && p.status === "enter"))
+        continue;
       if (
         this.tickDeckTrip(p, dt) ||
         this.tickAnnoyed(p, dt) ||
@@ -1078,7 +1080,7 @@ export class PoolSimulation extends ChaosController {
     }
   }
   updateLane(i, dt) {
-    if (this.rescue) return;
+    if (this.rescue || this.crowdPanic()) return;
     const swimmers = this.lanePeople(i);
     if (!swimmers.length) return;
     const n = swimmers.length,

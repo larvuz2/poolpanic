@@ -13,9 +13,52 @@ preview they can check on any device and exports the glTF.
 2. **Run a script.** `tools/blender/run.sh tools/blender/SCRIPT.py -- args`.
    - `inspect_model.py -- model.glb`: what is in a model.
    - `humanoid_rig.py -- in.glb out.glb --walk`: armature fitted to the mesh, auto weights, looping walk clip, GLB out.
-   - `turntable.py -- model.glb out_dir --animation Walk`: `still.png` and `turntable.mp4`.
-3. **Check before handing over.** Inspect the rigged file (one weight group per bone, the clip present) and look at the
-   turntable still and a frame of the walk; send the user the PNG/MP4 from the scratchpad or an artifact.
+   - `turntable.py -- model.glb out_dir --animation Walk`: `still.png` and `turntable.mp4`. With `--static --angle 35`
+     the camera stays still and the clip loops (what a person wants when judging an animation).
+   - `polish_walk.py -- in.glb out.glb`: a Mixamo-style walk (Meshy, Tripo) gets a seamless loop and arms that hang close
+     to the body and swing opposite the legs, and is named `Walk`. Run it before `game_export.py`.
+   - `idle_clips.py -- in.glb out.glb`: adds `IdleScan` (head turns left/right, alert) and `IdleScratch` (the same, then a
+     head scratch) to the file, next to the walk. Every bone is keyed so clip switches in the game never leave a bone behind.
+   - `merge_clips.py -- base.glb out.glb more.glb`: add the clips of other GLBs (same rig) to a character.
+   - `rig_from_template.py -- body.glb rigged.glb`: a T-pose biped (Meshy, Tripo) gets Coach Panic's own 24-bone skeleton,
+     fitted to its body, with skin weights and no clips. Use it instead of `humanoid_rig.py` or Meshy's rigging for any
+     human-shaped character, because the Coach's animations then retarget onto it by bone name. Shorts can fool the
+     crotch landmark: `--set y_crotch=0.70` (metres). Details: "More characters on the same skeleton" in
+     `tools/blender/README.md`.
+   - `retarget_clips.py -- rigged.glb out.glb`: the Coach's clips (Run, Walk, IdleScan, IdleScratch) onto such a character:
+     rotation keys copied by bone name, the hips' travel scaled by the ratio of hip heights, nothing else changed. List
+     the clips as `"retargeted"` in `tools/viewer/characters.json`; `node rig-check.mjs` compares them with the Coach's.
+   - `ground_clips.py -- in.glb out.glb`: lifts the hips of each clip so the lowest point of the mesh rests on the floor, not
+     under it (a retargeted or Meshy walk often sinks 5 to 8 cm). Rewrites only those position keys; idles are untouched.
+     Run it last, on every character with clips; `node rig-check.mjs` fails a clip that is off the floor.
+   - `character_clips.py -- in.glb out.glb --character NAME`: a character's own looping clips (e.g. Marco's impatient
+     `WaitWatch`), authored as keys in its `CLIPS` table: IK arms (wrist target + elbow direction), planted-foot legs, head
+     look-at. List them as `"own"` in `characters.json`; run `ground_clips.py` after it. `--character shared` is the table
+     of clips every character gets (Panic: a hop on the spot with the hands up; Swim: a freestyle crawl, made standing and
+     played lying down), authored once on the Coach. A clip played lying on the front is `"prone": true` in `characters.json`.
+   - `transplant_clips.py SOURCE.glb TARGET.glb OUT.glb --only Panic`: plain Python, no Blender. Adds clips of one GLB to a
+     finished character on the same skeleton without touching its mesh, textures or other clips (rotations by bone name,
+     hips travel x the hip-height ratio; extra bones of the target, such as Carl's belly bones, stay at rest). Use it for a clip
+     added to characters that are already built; then `ground_clips.py --only Panic`, list it as `"retargeted"` and run `node rig-check.mjs`.
+   - A round character (Carl: a belly wider than the shoulders): `belly_bones.py` (Blender) adds BellyUpper/BellyMid/BellyLower to
+     a character on the Coach's skeleton and weights the front of the belly to them; then, all plain Python (numpy, scipy),
+     `belly_jiggle.py in.glb out.glb` keys the belly's motion into every clip (springs: it lags, bounces, breathes),
+     `clear_limbs.py in.glb out.glb` turns the arms out of the belly and cuts the knees' bend where a shin would go into it
+     (the torso is measured as a volume, `skinpose.Volume`), and `cannonball_clip.py in.glb out.glb` adds Carl's own one-shot
+     `Cannonball` (poses from `posing.py`; not grounded). List the belly bones as `"extraBones"`, the arm and knee limits as
+     `"adjusted"` and the clip as `"water"` in `characters.json`; `node rig-check.mjs` knows all three. Order and numbers:
+     "A character with a belly (Carl)" in `tools/blender/README.md`. `ground_clips.py --only` leaves the Cannonball alone.
+   - `fix_mouth.py -- in.glb out.glb --box x0,x1,z0,z1,y_max --paint`: takes a mouth Meshy invented off a character that has
+     none (relaxes the lip groove, renews the normals, paints the texture with the skin round it). Run it on the raw mesh,
+     before `game_export.py`; the header says how to pick the box.
+   - `smooth_joints.py -- in.glb out.glb`: extra rings and smooth weights at knees and elbows, so deep bends (a run) do
+     not tear the mesh. Run it before `game_export.py`.
+   - `game_export.py -- in.glb out.glb --tex 1024`: shrink textures, keep every clip, print triangles, clips and size.
+3. **Check before handing over.** Inspect the rigged file (one weight group per bone, the clip present), then preview it
+   on the web instead of recording a video: copy the GLB into `tools/viewer/models/`, list it in
+   `tools/viewer/characters.json`, run `tools/viewer/build.sh` and update the Anim Bench artifact (`tools/viewer/README.md`
+   has the exact publish call and the URL). It shows every clip with scrub, speed, loop and pop checks and ground speed.
+   A still from `turntable.py` is fine for a quick look; send the GLB itself when the user wants the file.
 4. **Limits.** CPU only: rigging, weights, keyframes, previews and glTF export are fine; heavy Cycles renders and
    sculpting are not. Mixamo clips and AI auto-rig APIs (Tripo, Meshy on fal) are the shortcut for a plain rigged
    character; use this for custom bones, fixes and own animation.

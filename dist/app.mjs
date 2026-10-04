@@ -24,6 +24,16 @@ import { LevelMap } from "./map.mjs";
 import { guidanceState, cuePulse } from "./guidance.mjs";
 import { PoolSimulation, TYPES, SHIFTS, loopPosition, swimmerLook } from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
+import { activeChoice, chooseCoach, loadCoachModel, coachModelReady } from "./scene/coach-model.mjs";
+import {
+  activeSwimmerChoice,
+  chooseSwimmers,
+  loadSwimmerModels,
+  loadFigure,
+  swimmerModelsReady,
+} from "./scene/swimmer-models.mjs";
+import { loadFishModel } from "./scene/fish-model.mjs";
+import { cannonballMan } from "./incidents/carl.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
 import { MomentDirector, edgeArrow } from "./moments.mjs";
@@ -31,6 +41,8 @@ import { installCrashLog, describeGpu } from "./crashlog-hooks.mjs";
 import { BUILD } from "./version.mjs";
 import { playCinematic } from "./cinematic.mjs";
 import { readTuning, isWebKit } from "./tuning.mjs";
+import { Achievements } from "./achievements.mjs";
+import { isDesktop, quitGame, richPresence, unlockAchievement } from "./platform.mjs";
 import * as hunts from "./bisect.mjs";
 import {
   STORY,
@@ -378,6 +390,24 @@ function saveStory() {
     localStorage.setItem(STORY.storageKey, JSON.stringify(story));
   } catch {}
 }
+// Achievements (achievements.mjs): kept on the device, shown as a toast, and told to Steam when the game runs in the desktop app.
+let achieved = [];
+try {
+  achieved = JSON.parse(localStorage.getItem("pool-panic.achievements.v1") || "[]");
+} catch {}
+const achievements = new Achievements({
+  unlocked: achieved,
+  remember: (list) => {
+    try {
+      localStorage.setItem("pool-panic.achievements.v1", JSON.stringify(list));
+    } catch {}
+  },
+  announce: (a) => {
+    toast("🏆 " + a.name + " · " + a.text);
+    unlockAchievement(a.id);
+  },
+});
+achievements.replay(unlockAchievement); // (those earned before Steam was there; nothing in a browser)
 function renderFund(bump = false) {
   $("fund-now").textContent = money(Math.min(fundOf(story), STORY.goal));
   $("fund-goal").textContent = "/ " + money(STORY.goal);
@@ -725,6 +755,20 @@ function renderLaneControls(venue) {
       : "");
   $("lane-controls").classList.toggle("five-lanes", venue.lanes.length > 3);
 }
+// ?cannonball=carl or ?cannonball=leopard puts that man in every Cannonball incident, whatever the level (to look at him).
+const forcedMan = ["carl", "leopard"].includes(params.get("cannonball")) ? params.get("cannonball") : null;
+// A shift with a Cannonball incident has its cannonball man (Carl or the leopard man, by the level) as a model: it is fetched
+// while the shift begins, long before the incident, and the classic Carl plays if it is not there in time.
+function loadCannonballMan(s) {
+  if (activeSwimmerChoice() !== "models" || !s.config.chaos?.some((e) => e.kinds.includes("carl"))) return;
+  loadFigure(cannonballMan(s.config, s.level).id);
+}
+// The same for the fish kid and his bucket (about 1.5 MB): a shift that can have the fish incident fetches them as it begins.
+function loadFishKid(s) {
+  if (activeSwimmerChoice() !== "models" || !s.config.chaos?.some((e) => e.kinds.includes("fish"))) return;
+  loadFigure("kid");
+  loadFishModel(); // (and the fish he lets go: scene/fish-model.mjs)
+}
 // Begin the shift the map has selected: a level (with a booking from Splash Park on) or a chunk's drill.
 function start(bookingId = null) {
   audio.panic = false;
@@ -737,11 +781,18 @@ function start(bookingId = null) {
   const drill = selected.kind === "drill" ? DRILLS[selected.id] : null;
   activeBooking = drill ? null : bookingId;
   runSeed = Date.now();
+  const man = forcedMan && { cannonball: forcedMan };
   sim = drill
-    ? new PoolSimulation(drill.tier, runSeed, { config: drill.config, drill: drill.id })
-    : new PoolSimulation(level, runSeed, { booking: activeBooking });
+    ? new PoolSimulation(drill.tier, runSeed, { config: { ...drill.config, ...man }, drill: drill.id })
+    : new PoolSimulation(level, runSeed, {
+        booking: activeBooking,
+        ...(man && { config: { ...SHIFTS[level - 1], ...man } }),
+      });
   syncVenue(sim);
   world.resetActors();
+  loadCannonballMan(sim);
+  loadFishKid(sim);
+  richPresence(drill ? "Drill · " + drill.name : "Level " + level + " · " + sim.config.name);
   sim.start({ countdown: true });
   mode = "countdown";
   snagged = false;
@@ -863,7 +914,7 @@ function updatePanel() {
       zone = zoneOfLevel(level),
       status = zoneStatus(records, zone, progressFlags),
       best = records.bests[level - 1] || 0,
-      notes = shiftHighlights(shift);
+      notes = shiftHighlights(shift, level);
     num.textContent = two(level);
     $("selected-shift-name").textContent = shift.name;
     $("selected-shift-meta").textContent = `${formatTime(shift.duration)} · ${shift.total} SWIMMERS`;
@@ -884,10 +935,12 @@ function requestStart() {
     offer = shift ? offerBookings(level, 0, shift) : [];
   if (!offer.length) return start();
   $("booking-shift").textContent = shift.name.toUpperCase();
+  // (A booking that brings the cannonball man brings the one this level has.)
+  const noted = (b) => b.note.replace("Cannonball Carl", "Cannonball " + cannonballMan(shift, level).name);
   $("booking-cards").innerHTML = offer
     .map(
       (b) =>
-        `<button class="booking-card${b.id === "regular" ? " regular" : ""}" data-booking="${b.id}" aria-label="${b.name}, payout ×${b.payout}. ${b.note}"><span class="b-icon" aria-hidden="true">${b.icon}</span><strong>${b.name}</strong><span class="b-pay">×${b.payout}<small>PAYOUT</small></span><span class="b-note">${b.note}</span><span class="b-trouble" aria-hidden="true">${b.trouble.join(" ")}</span></button>`,
+        `<button class="booking-card${b.id === "regular" ? " regular" : ""}" data-booking="${b.id}" aria-label="${b.name}, payout ×${b.payout}. ${noted(b)}"><span class="b-icon" aria-hidden="true">${b.icon}</span><strong>${b.name}</strong><span class="b-pay">×${b.payout}<small>PAYOUT</small></span><span class="b-note">${noted(b)}</span><span class="b-trouble" aria-hidden="true">${b.trouble.join(" ")}</span></button>`,
     )
     .join("");
   $("booking-dialog").showModal();
@@ -1009,6 +1062,13 @@ function finish() {
     newBest = drill ? recordDrill(records, drill.id, r.score) : recordResult(records, played, r.score),
     after = zone && zoneStatus(records, zone, progressFlags);
   saveRecords();
+  achievements.shift({
+    stars: r.stars,
+    drill: !!drill,
+    levelStars: (n) => starsFor(n, records.bests[n - 1] || 0),
+    levels: SHIFTS.length,
+  });
+  richPresence("Looking at the results");
   // A chunk just cleared wakes the next area: the map plays its reveal, and this dialog's main button goes there.
   const chunkDone = !!zone && !before.complete && after.complete,
     next = chunkDone ? ZONES[zone.order + 1] : null,
@@ -1044,7 +1104,10 @@ function finish() {
     drill ? "drill:" + drill.id : String(played),
     shiftPay(r.stars, booked ? booked.payout : 1),
   );
-  if (pay.reached) story.ending = true;
+  if (pay.reached) {
+    story.ending = true;
+    achievements.fund();
+  }
   if (pay.gained || pay.reached) saveStory();
   showFundResult(pay, booked);
   renderFund(pay.gained > 0);
@@ -1109,7 +1172,8 @@ function finish() {
       : st.blackouts
         ? "When the lights flicker, sprint to the fuse box. A quick reset stops the blackout."
         : st.cannonballs > 1
-          ? "Carl hits the deck running. Meet him before the edge and show him the red card."
+          ? cannonballMan(sim.config, sim.level).name +
+            " hits the deck running. Meet him before the edge and show him the red card."
           : r.collisions > 2
             ? "Traffic was your biggest troublemaker. Pair similar speeds and keep aqua out of fast lanes."
             : r.lost > 3
@@ -1406,7 +1470,7 @@ function updateUI() {
                       : sim.karen && !["calmed", "leaving"].includes(sim.visitor(sim.karen.id)?.status)
                         ? "Karen is complaining. Everyone is annoyed."
                         : sim.carl
-                          ? "Carl is loose. Brace for splash."
+                          ? sim.carl.name + " is loose. Brace for splash."
                           : sim.dog && sim.dog.stage !== "leaving"
                             ? "There’s a dog on the deck!"
                             : sim.get(sim.jumper)?.jumpStage === "waiting"
@@ -1756,6 +1820,7 @@ function events() {
       if (NOTABLE.has(e.type))
         crashlog.crumb("event", e.type + (e.kind ? " " + e.kind : "") + (e.name ? " " + e.name : ""));
       else if (e.type === "save") crashlog.crumb("save", String(e.kind));
+      if (e.type === "save") achievements.save(e.kind);
       if (e.type === "countdown") {
         $("countdown-number").textContent = e.value;
         if (!reducedMotion.matches)
@@ -1989,6 +2054,10 @@ function bind() {
   };
   $("pause").onclick = pause;
   $("resume").onclick = resume;
+  if (isDesktop()) {
+    $("quit-game").hidden = false; // (a window needs a way out that is not the keyboard)
+    $("quit-game").onclick = quitGame;
+  }
   $("restart").onclick = () => start(activeBooking);
   $("crash-copy").onclick = () => shareCrash("copy");
   $("crash-issue").onclick = () => shareCrash("issue");
@@ -2025,6 +2094,61 @@ function bind() {
   };
   $("watch-ending").onclick = () => playStory("ending");
   $("help-log").onclick = () => showCrash(crashlog.troubled()[0] || crashlog.latest());
+  // Coach Panic or the classic coach (kept for going back). The choice is remembered on this device.
+  const coachButton = () => {
+    $("help-coach").textContent =
+      activeChoice() === "classic" ? "Switch to Coach Panic" : "Switch to the classic coach";
+  };
+  coachButton();
+  $("help-coach").onclick = async () => {
+    const next = activeChoice() === "classic" ? "panic" : "classic";
+    chooseCoach(next);
+    if (next === "panic") await loadCoachModel();
+    world.swapCoach(next);
+    crashlog.crumb(
+      "coach",
+      "switched to " + next + (next === "panic" && !coachModelReady() ? " (model missing)" : ""),
+    );
+    coachButton();
+    toast(
+      next === "panic" && !coachModelReady()
+        ? "Coach Panic could not load."
+        : next === "panic"
+          ? "Coach Panic is back."
+          : "The classic coach is back.",
+    );
+  };
+  // The five swimmer characters or the classic swimmers (kept for going back). Remembered on this device; everyone on the
+  // deck is built again, so the change shows at once.
+  const swimmerButton = () => {
+    $("help-swimmers").textContent =
+      activeSwimmerChoice() === "classic"
+        ? "Switch to the swimmer characters"
+        : "Switch to the classic swimmers";
+  };
+  swimmerButton();
+  $("help-swimmers").onclick = async () => {
+    const next = activeSwimmerChoice() === "classic" ? "models" : "classic";
+    chooseSwimmers(next);
+    if (next === "models") {
+      await loadSwimmerModels();
+      loadCannonballMan(sim);
+      loadFishKid(sim);
+    }
+    world.swapSwimmers();
+    crashlog.crumb(
+      "swimmers",
+      "switched to " + next + (next === "models" && !swimmerModelsReady() ? " (models missing)" : ""),
+    );
+    swimmerButton();
+    toast(
+      next === "models" && !swimmerModelsReady()
+        ? "The swimmer characters could not load."
+        : next === "models"
+          ? "The swimmer characters are back."
+          : "The classic swimmers are back.",
+    );
+  };
   $("help").onclick = showHelp;
   document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = closeHelp));
   $("help-dialog").addEventListener("cancel", (e) => {
@@ -2176,6 +2300,31 @@ function bind() {
   document.addEventListener("keydown", unlockMusic, { capture: true });
 }
 try {
+  // The crash hunt's character-models test (?nomodels): classic characters for this page only, nothing remembered.
+  if (tuning.has("nomodels")) {
+    chooseCoach("classic", false);
+    chooseSwimmers("classic", false);
+  }
+  // Coach Panic's model and the five swimmers' are fetched first, together (a few seconds at most; without them the classic
+  // coach and swimmers play, and a swimmer model that arrives later is used from the next swimmer on).
+  const began = performance.now();
+  const fetching = [];
+  if (activeChoice() === "panic") fetching.push(loadCoachModel());
+  if (activeSwimmerChoice() === "models") fetching.push(loadSwimmerModels());
+  if (fetching.length) {
+    await Promise.race([Promise.all(fetching), new Promise((resolve) => setTimeout(resolve, 6000))]);
+    const took = Math.round(performance.now() - began) + " ms";
+    if (activeChoice() === "panic")
+      crashlog.crumb(
+        "coach",
+        (coachModelReady() ? "Coach Panic loaded in " : "Coach Panic not ready after ") + took,
+      );
+    if (activeSwimmerChoice() === "models")
+      crashlog.crumb(
+        "swimmers",
+        (swimmerModelsReady() ? "swimmer models loaded in " : "swimmer models not ready after ") + took,
+      );
+  }
   world = new PoolWorld($("world"), pick);
   sim = makeDemo();
   bind();

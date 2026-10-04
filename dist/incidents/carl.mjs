@@ -2,6 +2,9 @@
 // (E) before his first jump and he sheepishly joins the queue as a normal customer. Miss him and the splash
 // sends a wave across the pool: nearby swimmers stall, some lose goggles onto the deck, and the edge floods
 // with slippery puddles. He climbs out and runs to another spot to go again, until you catch him on deck.
+// The cannonball man is Carl or the leopard man, one of them for a whole level (`cannonballMan`): the levels take turns, Carl
+// on the even ones. While he is in the water (from the splash until he is out on the deck again) the crowd panics: the swimmers
+// in the pool stop where they are, and the swimmers and everyone waiting on the deck hop with their hands up.
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -20,6 +23,15 @@ export const CARL_TUNING = {
   penalty: 60,
 };
 const T = CARL_TUNING;
+// The leopard man's name is a placeholder.
+export const CANNONBALL_MEN = {
+  carl: { id: "carl", name: "Carl" },
+  leopard: { id: "leopard", name: "Leopard Man" },
+};
+// The level's own `cannonball` ("carl" or "leopard") when its config has one (a drill or a booking can), else by the level: the
+// even levels have Carl, who comes first (his level is 6), and the odd ones the leopard man.
+export const cannonballMan = (config, level) =>
+  CANNONBALL_MEN[config?.cannonball] || (level % 2 === 0 ? CANNONBALL_MEN.carl : CANNONBALL_MEN.leopard);
 const CATCHABLE = ["walking", "windup", "charge", "running", "waiting"];
 
 export const CannonballCarl = {
@@ -29,15 +41,31 @@ export const CannonballCarl = {
   },
   isActive: (sim) => !!sim.carl,
   panic: (sim) => !!sim.carl && sim.carl.cannonballs > 0 && sim.carl.stage !== "done",
+  // Whether the whole crowd is panicking: swimmers in the pool stop and everyone idle hops (see ChaosController.crowdPanic).
+  crowdPanic: (sim) => !!sim.carl?.inWater,
   start(sim) {
+    const man = cannonballMan(sim.config, sim.level);
     const spot = pickLaunchSpot(sim, null);
-    const v = sim.spawnVisitor("carl", { systemKey: "carl", name: "Carl", spot, hold: 0.3 });
+    const v = sim.spawnVisitor("carl", {
+      systemKey: "carl",
+      name: man.name,
+      figure: man.id,
+      spot,
+      hold: 0.3,
+    });
     v.path.push(...sim.venue.route(v.path[0], spot));
-    sim.carl = { stage: "approach", id: v.id, cannonballs: 0 };
+    sim.carl = {
+      stage: "approach",
+      id: v.id,
+      cannonballs: 0,
+      figure: man.id,
+      name: man.name,
+      inWater: false,
+    };
     sim.emit("chaos", { kind: "carl" });
-    sim.incident("carl", v, { id: v.id, name: "Carl" });
+    sim.incident("carl", v, { id: v.id, name: man.name });
     sim.emit("toast", {
-      text: "💣 Carl is yelling CANNONBALL! Red-card him (E) before he reaches the edge.",
+      text: `💣 ${man.name} is yelling CANNONBALL! Red-card him (E) before he reaches the edge.`,
       warning: true,
     });
   },
@@ -122,6 +150,7 @@ export const CannonballCarl = {
         v.x = v.from.x + (v.deck.x - v.from.x) * t;
         v.z = v.from.z + (v.deck.z - v.from.z) * t;
         if (v.timer === 0) {
+          k.inWater = false; // out on the deck: the crowd stops panicking
           v.spot = pickLaunchSpot(sim, v);
           v.status = "running";
           v.path = sim.venue.route(v, v.spot);
@@ -144,7 +173,7 @@ export const CannonballCarl = {
     if (!v || !CATCHABLE.includes(v.status) || distance(c, v) > T.reach) return;
     options.push({
       kind: "red-card",
-      label: k.cannonballs ? "🟥 Red card! Carl is benched" : "🟥 Red card! No cannonballs",
+      label: k.cannonballs ? `🟥 Red card! ${k.name} is benched` : "🟥 Red card! No cannonballs",
       x: v.x,
       z: v.z,
       rank: -310 + distance(c, v),
@@ -159,7 +188,7 @@ export const CannonballCarl = {
     alerts.push({
       kind: "carl",
       icon: "🟥",
-      label: "Carl",
+      label: k.name,
       x: v.x,
       z: v.z,
       y: 2.1,
@@ -174,8 +203,8 @@ export const CannonballCarl = {
     if (!v || !["entering", ...CATCHABLE, "flying", "floating", "swimming", "climbing"].includes(v.status))
       return "";
     if (["flying", "floating", "swimming", "climbing"].includes(v.status))
-      return "Catch Carl when he climbs out · E";
-    return k.cannonballs ? "💣 Catch Carl on the deck · E" : "💣 Red-card Carl before the edge · E";
+      return `Catch ${k.name} when he climbs out · E`;
+    return k.cannonballs ? `💣 Catch ${k.name} on the deck · E` : `💣 Red-card ${k.name} before the edge · E`;
   },
   panel(sim) {
     const k = sim.carl;
@@ -184,7 +213,7 @@ export const CannonballCarl = {
     if (!v || ["carded", "leaving", "joining"].includes(v.status)) return null;
     return {
       icon: "💣",
-      title: k.cannonballs ? `CANNONBALL CARL ×${k.cannonballs}` : "CANNONBALL INCOMING!",
+      title: k.cannonballs ? `CANNONBALL ${k.name.toUpperCase()} ×${k.cannonballs}` : "CANNONBALL INCOMING!",
       task: CannonballCarl.hint(sim),
       // Before the first cannonball: how much of his run to the edge is left.
       timer: k.cannonballs
@@ -197,11 +226,11 @@ export const CannonballCarl = {
   tag(sim, v) {
     const k = sim.carl;
     if (!k || v.kind !== "carl") return null;
-    if (["carded", "leaving"].includes(v.status)) return { icon: "🟥😤", label: "Carl" };
-    if (v.status === "windup" || v.status === "charge") return { icon: "💣‼️", label: "Carl", urgent: true };
+    if (["carded", "leaving"].includes(v.status)) return { icon: "🟥😤", label: k.name };
+    if (v.status === "windup" || v.status === "charge") return { icon: "💣‼️", label: k.name, urgent: true };
     if (["flying", "floating", "swimming", "climbing"].includes(v.status))
-      return { icon: "💦😂", label: "Carl" };
-    return { icon: "💣", label: "Carl", urgent: true, meter: approachMeter(v) };
+      return { icon: "💦😂", label: k.name };
+    return { icon: "💣", label: k.name, urgent: true, meter: approachMeter(v) };
   },
 };
 
@@ -242,6 +271,7 @@ function cannonball(sim, k, v) {
   const P = sim.venue.pool;
   k.cannonballs++;
   k.stage = "loose";
+  k.inWater = true; // until he climbs out: the swimmers stop and panic, and so does everyone waiting on the deck
   v.status = "floating";
   v.timer = T.float;
   sim.score -= T.penalty;
@@ -293,16 +323,17 @@ function redCard(sim, k, v) {
     sim.score += 100;
     sim.stats.prevented++;
     sim.emit("points", { x: v.x, z: v.z, value: 100 });
-    sim.save("red-card", v, 100, { name: "Carl" });
-    sim.emit("toast", { text: "Red card! Carl sheepishly joins the queue. +100" });
+    sim.save("red-card", v, 100, { name: k.name });
+    sim.emit("toast", { text: `Red card! ${k.name} sheepishly joins the queue. +100` });
     // Draw Carl's customer traits from the chaos stream so later arrivals match a chaos-free shift.
     sim.random = () => sim.chaosRandom();
     const p = sim.spawn({ type: "intermediate", sick: false });
     delete sim.random;
     const slot = { x: p.x, z: p.z };
     Object.assign(p, {
-      name: "Carl",
+      name: k.name,
       carl: true,
+      figure: k.figure,
       needsFins: false,
       midFins: false,
       crampAt: Infinity,
@@ -320,8 +351,8 @@ function redCard(sim, k, v) {
   } else {
     sim.score += 150;
     sim.emit("points", { x: v.x, z: v.z, value: 150 });
-    sim.save("red-card", v, 150, { name: "Carl" });
-    sim.emit("toast", { text: "Red card! Carl is benched for the day. +150" });
+    sim.save("red-card", v, 150, { name: k.name });
+    sim.emit("toast", { text: `Red card! ${k.name} is benched for the day. +150` });
     sim.sendVisitorHome(v, "carded");
     k.stage = "done";
   }

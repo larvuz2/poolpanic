@@ -57,9 +57,10 @@ export const STINGS = {
   },
   carl: {
     icon: "💣",
-    title: "CANNONBALL CARL!",
-    verb: "Red-card Carl before the edge · E",
-    how: "Every cannonball soaks the lanes and scatters goggles. Catch Carl on the deck and press E.",
+    fallback: { name: "Carl" }, // (the incident names the man who does it: Carl or the leopard man)
+    title: "CANNONBALL {name}!",
+    verb: "Red-card {name} before the edge · E",
+    how: "Every cannonball soaks the lanes, scatters goggles and sends the crowd into a panic. Catch {name} on the deck and press E.",
     tone: "warning",
   },
   flicker: {
@@ -189,14 +190,15 @@ export class MomentDirector {
       this.seen.add(e.kind);
       this.remember([...this.seen]);
     }
+    const named = { ...style.fallback, ...e };
     const sting = {
       kind: e.kind,
       first,
       icon: style.icon,
       tone: style.tone,
-      title: fill(style.title, e).toUpperCase(),
-      verb: fill(style.verb, e),
-      how: first ? fill(style.how, e) : "",
+      title: fill(style.title, named).toUpperCase(),
+      verb: fill(style.verb, named),
+      how: first ? fill(style.how, named) : "",
       x: e.x,
       z: e.z,
       duration: first ? T.firstSting : T.sting,

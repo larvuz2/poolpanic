@@ -7,6 +7,14 @@ export const waitingInWater = (s, p) =>
   !p.rescueRecover &&
   (p.status === "swim" || p.status === "switch" || (p.status === "exit" && p.exitPhase === "water"));
 
+// While the crowd panics (a cannonball man is in the pool, see ChaosController.crowdPanic) the swimmers in the water are held
+// where they are: the lanes stand still without costing anyone happiness, as in a rescue. `crowd` is the answer to
+// crowdPanic() when the caller has it already.
+export const heldInWater = (s, p, crowd = s.crowdPanic?.()) =>
+  !!crowd &&
+  !waitingInWater(s, p) &&
+  (p.status === "swim" || p.status === "switch" || (p.status === "exit" && p.exitPhase === "water"));
+
 export class RescueController extends SanitationController {
   constructor(venue) {
     super();

@@ -172,6 +172,15 @@ assert.match(cloud(200), /<ellipse/);
     "Splash Park has daredevils",
   );
   assert.ok(level(10).length >= 5, "The finale has a lot in store");
+  // The cannonball incident is named for the man the level has (Carl on the even levels, the leopard man on the odd ones).
+  const carlLabel = (n) => shiftHighlights(SHIFTS[n - 1], n).find((h) => h.icon === "💣")?.label;
+  assert.equal(carlLabel(6), "Cannonball Carl");
+  assert.equal(carlLabel(9), "Cannonball Leopard Man");
+  assert.equal(
+    level(9).find((h) => h.icon === "💣").label,
+    "Cannonball Carl",
+    "(Carl, when the level is not given)",
+  );
 }
 console.log(
   "Map checks passed: two acts of ten levels drawn on four islands each, wide and tall; no two buttons overlap at any scale the map is drawn at; the SVG is well formed with per-act ids and a drifting sky; night chunks get a moon; and every shift previews what is in store.",

@@ -1,3 +1,9 @@
 node_modules/
 .DS_Store
 __pycache__/
+tools/viewer/.build/
+# The desktop (Steam) app: its dependencies, the copy of the game it packs, and what packing and uploading produce
+desktop/node_modules/
+desktop/game/
+desktop/out/
+desktop/steam/output/

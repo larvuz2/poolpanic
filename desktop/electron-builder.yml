@@ -1,0 +1,44 @@
+# Steam wants the app as a folder of files (a depot), not an installer: every target here is "dir". Build each platform on its own
+# machine (or in CI): `npm run pack:win`, `pack:mac`, `pack:linux`. The output goes to out/, which steam/app_build.vdf uploads.
+appId: com.poolpanic.game
+productName: Pool Panic
+executableName: PoolPanic
+copyright: Pool Panic
+directories:
+  output: out
+  buildResources: build
+# Plain files, not an archive: steamworks.js's native module and the game's models load as they are, and Steam sends only the
+# files that changed when the game is updated.
+asar: false
+npmRebuild: false
+files:
+  - main.cjs
+  - preload.cjs
+  - lib.cjs
+  - steam.cjs
+  - steam.config.json
+  - package.json
+  - game/**/*
+  - node_modules/steamworks.js/**/*
+win:
+  target:
+    - target: dir
+      arch: x64
+  icon: build/icon.png
+mac:
+  target:
+    - target: dir
+      arch:
+        - x64
+        - arm64
+  category: public.app-category.games
+  icon: build/icon.png
+  # No signing here: Steam does not need it on the Mac either (Steam launches the app itself), but Apple's notarisation will if the
+  # game is ever sold outside Steam.
+  identity: null
+linux:
+  target:
+    - target: dir
+      arch: x64
+  category: Game
+  icon: build/icon.png

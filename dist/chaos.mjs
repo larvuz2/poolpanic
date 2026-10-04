@@ -130,6 +130,12 @@ export class ChaosController extends RescueController {
   chaosPanic() {
     return !!this.cleanup || !!this.rescue || this.systems.some((s) => s.panic?.(this));
   }
+  // The whole crowd panics on the spot (a cannonball man is in the pool): the swimmers in the water stop where they are, with
+  // nothing lost, and the swimmers and everyone waiting on the deck hop with their hands up until it is over. Pure presentation
+  // for everyone but the swimmers in the water, who are held (heldInWater in rescue.mjs).
+  crowdPanic() {
+    return this.systems.some((s) => s.crowdPanic?.(this));
+  }
 
   // ------------------------------------------------------------------------------------------------------
   // Visitors: characters who are not customers. They walk through the locker doors like everyone else.
@@ -531,7 +537,7 @@ export class ChaosController extends RescueController {
       v,
       v.kind === "kid"
         ? "Catch the kid before the edge and press E!"
-        : "Walk up to Carl and press E to red-card him!",
+        : `Walk up to ${v.name || "Carl"} and press E to red-card him!`,
     );
   }
   tendInjured(id) {
