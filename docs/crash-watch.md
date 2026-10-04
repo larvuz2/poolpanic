@@ -33,17 +33,20 @@ diary shows).
 
 ## One run
 
-1. **The repo.** The session's working directory is a checkout, and the command in step 3 brings it up to date. The reader and this file are on
-   `origin/main` once the playtest pull request has merged, and until then on `origin/claude/gracious-goldberg-i7ov3z`: the command takes
-   whichever has `tools/crash-triage.mjs` (main first) as a detached checkout, for reading (`-f` throws away what a run that died halfway left:
-   no edit is ever left behind on it). If git says the history is shallow, `git fetch --unshallow`. A fresh container has no `node_modules`:
-   `npm install` once before prettier or the suite (the reader itself needs nothing installed).
+1. **The repo.** The command in step 3 reads from a clone of its own, `/tmp/crash-watch`, which it makes when it is missing: a container that was
+   recreated at the wake may not have the session's own checkout ready yet (the first runs in recreated containers failed there), and a clone
+   of a public repo needs no credentials. The reader and this file are on `origin/main` once the playtest pull request has merged, and until
+   then on `origin/claude/gracious-goldberg-i7ov3z`: the command takes whichever has `tools/crash-triage.mjs` (main first) as a detached
+   checkout, for reading (`-f` throws away what a run that died halfway left: no edit is ever left behind on it). A fix is made in the
+   session's own working directory instead (`git fetch origin` there first): that is the checkout with the push credentials. A fresh container
+   has no `node_modules`: `npm install` once, where the fix is made, before prettier or the suite (the reader itself needs nothing installed).
 2. **The log** is the open issue "Crash triage log" (#22). Its body and the comments of the repo's owner (`larvuz2`) are the record: every token
    on a line that starts `handled:` is something that has been dealt with. Nobody else's comment counts. The reader reads the log itself
    (`--issue 22`, next step); a run reads it by hand only when the reader says it could not.
-3. **The reader**, with the repo brought up to date first, in one command:
+3. **The reader**, with its clone brought up to date first, in one command (the brackets keep the shell where it was). If it fails in a container
+   that has only just started, wait a minute (`sleep 60`) and run it once more:
    ```
-   git fetch -q origin && { git checkout -q -f --detach origin/main && test -f tools/crash-triage.mjs || git checkout -q -f --detach origin/claude/gracious-goldberg-i7ov3z; } && NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt node --no-warnings tools/crash-triage.mjs CODE --issue 22 --out /tmp/crash-reports
+   ( R=/tmp/crash-watch; { test -d $R/.git || git clone -q https://github.com/larvuz2/poolpanic $R; } && cd $R && git fetch -q origin && { git checkout -q -f --detach origin/main && test -f tools/crash-triage.mjs || git checkout -q -f --detach origin/claude/gracious-goldberg-i7ov3z; } && NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt node --no-warnings tools/crash-triage.mjs CODE --issue 22 --out /tmp/crash-reports )
    ```
    (the proxy variables are what Node needs in the agent sandbox; TLS checking is never switched off). It prints `Log: issue #22 … read; N tokens
    already handled.` and a digest: `NOTHING NEW.`, or each new launch (`NEW 1. muu6aara97:c · CRASH …`) with its build, what the game was
