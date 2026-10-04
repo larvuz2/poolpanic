@@ -1,7 +1,7 @@
 // The crash-report sink (netlify/functions/report.mjs): what a POST must carry to be kept, how a report is read back (a device's list,
 // one report as markdown or JSON, the newest one, the admin list), the replace-on-the-same-id rule, the 40 kept per device, the size
-// limit counted in bytes however the body arrives, the per-device and site-wide rate limits, that nothing but the user-agent of the
-// sender is stored, and that every failure (a store that throws included) answers with JSON instead of throwing. The Blobs store is
+// limit counted in bytes however the body arrives, the per-device and site-wide rate limits (a report sent again, as a playtest does, on a
+// budget of its own), that nothing but the user-agent of the sender is stored, and that every failure (a store that throws included) answers with JSON instead of throwing. The Blobs store is
 // faked in memory; nothing here touches the network. It also fails when the deploy would not build the function: the functions folder
 // missing from netlify.toml, or @netlify/blobs missing from package.json and its lock file.
 import assert from "node:assert/strict";
@@ -376,12 +376,12 @@ async function asMarkdown(res) {
   const longest = await asJson(await w.post(good({ id: "a".repeat(24) })), 200);
   assert.equal(JSON.parse(w.store.data.get(longest.key)).id, "a".repeat(24));
   const big = await asJson(
-    await w.post(good({ id: "bigone01", headline: "h".repeat(300), report: "r".repeat(200000) })),
+    await w.post(good({ id: "bigone01", headline: "h".repeat(300), report: "r".repeat(250000) })),
     200,
   );
   const kept = JSON.parse(w.store.data.get(big.key));
   assert.equal(kept.headline.length, 200, "the headline is clipped to 200 characters");
-  assert.equal(kept.report.length, 160000, "the report is clipped to 160000 characters");
+  assert.equal(kept.report.length, 240000, "the report is clipped to 240000 characters");
 }
 
 // ---- the size limit, counted in bytes ---------------------------------------------------------------------------------------------
@@ -445,11 +445,11 @@ async function asMarkdown(res) {
   assert.equal(w.store.data.size, 0);
 }
 
-// ---- rate limits: twenty an hour for a device -------------------------------------------------------------------------------------
+// ---- rate limits: forty an hour for a device --------------------------------------------------------------------------------------
 {
   const w = world();
   const t0 = w.clock;
-  for (let i = 1; i <= 20; i++) {
+  for (let i = 1; i <= 40; i++) {
     w.clock = t0 + i * 1000;
     await asJson(await w.post(good({ id: `rate${String(i).padStart(4, "0")}` })), 200);
   }
@@ -458,13 +458,13 @@ async function asMarkdown(res) {
   assert.match(answer.error, /this device/);
   assert.equal(
     refused.headers.get("retry-after"),
-    "3581",
-    "when the oldest of the twenty leaves the hour, in seconds",
+    "3561",
+    "when the oldest of the forty leaves the hour, in seconds",
   );
-  assert.equal(w.keys().length, 20, "the refused report was not stored");
+  assert.equal(w.keys().length, 40, "the refused report was not stored");
   assert.deepEqual(
     JSON.parse(w.store.data.get("meta/rate/2026100403")),
-    { count: 20 },
+    { count: 40 },
     "and was not counted",
   );
 
@@ -473,13 +473,44 @@ async function asMarkdown(res) {
   await asJson(await w.post(good({ device: "ABCDEFGH" })), 200); // another device is not held back
   assert.equal(
     (await asJson(await w.get(`?device=${DEVICE}`), 200)).reports.length,
-    20,
+    40,
     "reading is never limited",
   );
   assert.equal((await asJson(await w.post(good({ id: "onemore1" })), 429)).ok, false, "still full");
 
   w.clock += HOUR;
   await asJson(await w.post(good({ id: "onemore1" })), 200);
+}
+
+// ---- rate limits: a log sent again and again (a playtest) has a budget of its own ------------------------------------------------
+{
+  const w = world();
+  await asJson(await w.post(good({ id: "live0001", report: "first" })), 200);
+  assert.deepEqual(JSON.parse(w.store.data.get("meta/rate/2026100403")), { count: 1 });
+  // Replacing it is not a new report: it does not count against the 400 an hour for new ones.
+  for (let i = 0; i < 5; i++) await asJson(await w.post(good({ id: "live0001", report: "again " + i })), 200);
+  assert.deepEqual(
+    JSON.parse(w.store.data.get("meta/rate/2026100403")),
+    { count: 1, updates: 5 },
+    "new ones and replacements are counted apart",
+  );
+  assert.equal(w.keys(`r/${DEVICE}/`).length, 1, "and the stored data does not grow with them");
+  assert.match(
+    JSON.parse(w.store.data.get(w.keys(`r/${DEVICE}/`)[0])).report,
+    /again 4/,
+    "the newest copy is the one kept",
+  );
+  // A new report after replacements keeps both counts.
+  await asJson(await w.post(good({ id: "live0002" })), 200);
+  assert.deepEqual(JSON.parse(w.store.data.get("meta/rate/2026100403")), { count: 2, updates: 5 });
+  // 2400 replacements an hour, then no more: new reports are not held back by them.
+  w.store.data.set("meta/rate/2026100403", JSON.stringify({ count: 2, updates: 2399 }));
+  await asJson(await w.post(good({ id: "live0001", report: "the last" })), 200);
+  const refused = await w.post(good({ id: "live0001", report: "one too many" }));
+  assert.match((await asJson(refused, 429)).error, /too many reports/);
+  assert.equal(refused.headers.get("retry-after"), "1800");
+  await asJson(await w.post(good({ id: "live0003" })), 200);
+  assert.deepEqual(JSON.parse(w.store.data.get("meta/rate/2026100403")), { count: 3, updates: 2400 });
 }
 
 // ---- rate limits: four hundred an hour for the whole site -------------------------------------------------------------------------
@@ -789,5 +820,5 @@ async function asMarkdown(res) {
 }
 
 console.log(
-  "Report checks passed: validation of a posted report, what is kept (the user-agent and nothing else about the sender), the list, markdown, JSON and newest reads, replace on the same id, 40 kept per device, 413 counted in bytes without a content-length, the per-device and site-wide rate limits, the admin list, a failing store as a JSON 500, and the functions folder and package the deploy needs.",
+  "Report checks passed: validation of a posted report, what is kept (the user-agent and nothing else about the sender), the list, markdown, JSON and newest reads, replace on the same id, 40 kept per device, 413 counted in bytes without a content-length, the per-device and site-wide rate limits (a report sent again, as a playtest does, on a budget of its own), the admin list, a failing store as a JSON 500, and the functions folder and package the deploy needs.",
 );

@@ -43,6 +43,25 @@ export const CannonballCarl = {
   panic: (sim) => !!sim.carl && sim.carl.cannonballs > 0 && sim.carl.stage !== "done",
   // Whether the whole crowd is panicking: swimmers in the pool stop and everyone idle hops (see ChaosController.crowdPanic).
   crowdPanic: (sim) => !!sim.carl?.inWater,
+  // For the shift's diary (trace.mjs): `describe` is where the incident stands, in words that change only when its stage does (a line is
+  // written each time it changes, and a stage that lasts too long is said to be waiting); `detail` is what moves, for the periodic pulse.
+  describe(sim) {
+    const k = sim.carl;
+    if (!k) return "";
+    return (
+      "stage " +
+      k.stage +
+      " · " +
+      (sim.visitor(k.id)?.status ?? "gone") +
+      (k.inWater ? " · in the water" : "") +
+      " · cannonballs " +
+      k.cannonballs
+    );
+  },
+  detail(sim) {
+    const k = sim.carl;
+    return k && { at: sim.visitor(k.id) };
+  },
   start(sim) {
     const man = cannonballMan(sim.config, sim.level);
     const spot = pickLaunchSpot(sim, null);

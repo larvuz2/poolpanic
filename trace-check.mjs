@@ -275,6 +275,266 @@ function rescue(withTracer = true) {
   assert.equal(footprint({}).nodes, 0);
 }
 
+// 9) Where each incident stands: a line each time its stage changes (every step of it when the diary is verbose), the visitor's part of
+// it included, so a stuck incident can be read as a story. An incident left to itself runs its course in the lines.
+{
+  const run = (kind, verbose, level = 12, seed = 4242, seconds = 40) => {
+    const lines = [],
+      tracer = new Tracer((k, t) => lines.push({ kind: k, text: t }), { verbose }),
+      s = new PoolSimulation(level, seed);
+    s.schedule = [];
+    s.chaosPlan = [];
+    s.start();
+    for (let f = 0; f < 60 * seconds && s.status === "playing"; f++) {
+      if (f === 120) assert.ok(s.triggerChaos(kind), kind + " starts");
+      s.tick(1 / 60);
+      tracer.look(s);
+      s.events.length = 0;
+    }
+    return { lines, s, tracer };
+  };
+  const stages = (lines, key) =>
+    lines
+      .filter((l) => l.kind === "incident" && l.text.includes(" " + key + ": "))
+      .map((l) => l.text.split(key + ": ")[1]);
+  const fish = run("fish", false);
+  assert.deepEqual(
+    stages(fish.lines, "fish"),
+    ["stage approach · kid entering · net wall", "stage loose · kid crying · net wall · pool closed"],
+    "an idle coach: the kid arrives, the fish is loose and the pool closes",
+  );
+  assert.ok(fish.lines.some((l) => l.kind === "incident" && /^t\d+s pool closed$/.test(l.text)));
+  const fishVerbose = run("fish", true);
+  assert.deepEqual(
+    stages(fishVerbose.lines, "fish").map((x) => x.replace(/ · net.*/, "")),
+    [
+      "stage approach · kid entering",
+      "stage approach · kid walking",
+      "stage approach · kid dumping",
+      "stage loose · kid crying",
+    ],
+    "every step of the kid's walk when the diary is verbose",
+  );
+  for (const [kind, parts] of [
+    [
+      "dog",
+      [
+        /^stage loose · dog entering$/,
+        /^stage loose · dog sniff$/,
+        /^stage loose · dog steal$/,
+        /^stage loose · dog carry · carrying \w+$/,
+      ],
+    ],
+    ["karen", [/^stage approach · entering$/, /^stage approach · marching$/, /^stage ranting · ranting$/]],
+    ["outage", [/^stage flicker · flashlight rack$/, /^stage dark · flashlight rack$/]],
+    [
+      "carl",
+      [
+        /^stage approach · entering · cannonballs 0$/,
+        /^stage approach · walking · cannonballs 0$/,
+        /^stage approach · windup · cannonballs 0$/,
+      ],
+    ],
+  ]) {
+    const got = stages(run(kind, true, 12, 4242, 60).lines, kind);
+    let at = -1;
+    for (const part of parts) {
+      const next = got.findIndex((x, i) => i > at && part.test(x));
+      assert.ok(next > at, `${kind}: ${part} in order in ${JSON.stringify(got)}`);
+      at = next;
+    }
+    assert.ok(
+      !got.some((x) => /\[object|undefined|NaN/.test(x)),
+      kind + " says nothing odd: " + got.join(" | "),
+    );
+  }
+  const quietCarl = stages(run("carl", false, 12, 4242, 60).lines, "carl");
+  assert.ok(
+    quietCarl.length >= 2 && quietCarl.length < stages(run("carl", true, 12, 4242, 60).lines, "carl").length,
+    "the short report keeps only the stages",
+  );
+  // An incident whose describe throws costs the diary that line only, never a throw.
+  {
+    const lines = [],
+      tracer = new Tracer((k, t) => lines.push(k + " " + t)),
+      s = new PoolSimulation(12, 1);
+    s.schedule = [];
+    s.chaosPlan = [];
+    s.start();
+    s.triggerChaos("dog");
+    const dog = s.system("dog"),
+      describe = dog.describe;
+    dog.describe = () => {
+      throw new Error("describe broke");
+    };
+    try {
+      for (let f = 0; f < 60; f++) {
+        s.tick(1 / 60);
+        assert.doesNotThrow(() => tracer.look(s));
+      }
+    } finally {
+      dog.describe = describe;
+    }
+    assert.ok(
+      lines.some((l) => /incident t\d+s running: dog/.test(l)),
+      "the running line is still written",
+    );
+  }
+}
+
+// 10) A stage that goes on and on is said to be waiting, at 25 s and again each time that doubles, in the shift's own time (a pause is
+// not counted); a change of stage starts the count over; what an incident or a rescue already explains is not said a second time.
+{
+  const lines = [],
+    tracer = new Tracer((k, t) => lines.push(k + " " + t)),
+    s = new PoolSimulation(12, 4242);
+  s.schedule = [];
+  s.chaosPlan = [];
+  s.start();
+  s.triggerChaos("fish");
+  const waits = () => lines.filter((l) => l.startsWith("waiting "));
+  let first = null;
+  for (let f = 0; f < 60 * 100; f++) {
+    s.tick(1 / 60);
+    tracer.look(s);
+    s.events.length = 0;
+    if (!first && waits().length) first = s.arrivalTime;
+  }
+  const said = waits().filter((l) => /fish: /.test(l));
+  assert.equal(said.length, 2, "twice in what is left of 100 s: " + waits().join(" | "));
+  assert.match(
+    said[0],
+    /^waiting t\d+s fish: stage loose · kid crying · net wall · pool closed has been like this for 25 s \(coach deck @-?[\d.]+,-?[\d.]+\)$/,
+  );
+  assert.match(said[1], /for 50 s/);
+  assert.ok(
+    !waits().some((l) => /the pool is closed/.test(l)),
+    "the closed pool is the fish's doing: said once",
+  );
+  // The pause: no time passes, so nothing is waited through.
+  const paused = new Tracer((k, t) => lines.push(k + " " + t));
+  const before = lines.length;
+  const sp = new PoolSimulation(12, 4242);
+  sp.schedule = [];
+  sp.chaosPlan = [];
+  sp.start();
+  sp.triggerChaos("fish");
+  for (let f = 0; f < 60 * 22; f++) {
+    sp.tick(1 / 60);
+    paused.look(sp);
+  }
+  sp.status = "paused";
+  for (let f = 0; f < 60 * 60; f++) {
+    sp.tick(1 / 60);
+    paused.look(sp);
+  }
+  assert.equal(
+    lines.slice(before).filter((l) => l.startsWith("waiting ")).length,
+    0,
+    "a minute of pause is not waiting",
+  );
+  // A change starts the count over: the fish netted, "returning" waits its own 25 s.
+  const sc = new PoolSimulation(12, 4242);
+  sc.schedule = [];
+  sc.chaosPlan = [];
+  sc.start();
+  const own = [],
+    tracer2 = new Tracer((k, t) => own.push(k + " " + t));
+  sc.triggerChaos("fish");
+  for (let f = 0; f < 60 * 40; f++) {
+    sc.tick(1 / 60);
+    tracer2.look(sc);
+  }
+  assert.ok(
+    own.some((l) => l.startsWith("waiting ")),
+    "it has been waiting",
+  );
+  sc.fish.stage = "returning"; // (as when the fish is netted)
+  const marker = own.length;
+  for (let f = 0; f < 60 * 20; f++) {
+    sc.tick(1 / 60);
+    tracer2.look(sc);
+  }
+  assert.equal(
+    own.slice(marker).filter((l) => l.startsWith("waiting ")).length,
+    0,
+    "a new stage has not waited yet",
+  );
+  assert.ok(
+    own.slice(marker).some((l) => /fish: stage returning/.test(l)),
+    "and says what it is in now",
+  );
+}
+
+// 11) The pool closing and reopening, the lane out of service, the storm, and the gear that moves (the net on its hook or in somebody's hands).
+{
+  const lines = [],
+    tracer = new Tracer((k, t) => lines.push(k + " " + t)),
+    s = new PoolSimulation(12, 4242);
+  s.schedule = [];
+  s.chaosPlan = [];
+  s.start();
+  const look = () => {
+    s.tick(1 / 60);
+    tracer.look(s);
+  };
+  look();
+  s.laneClosure = 2;
+  look();
+  s.storm = { start: 0, ramp: 10, next: 1 };
+  look();
+  s.laneClosure = -1;
+  s.storm = null;
+  look();
+  s.fishNet.state = "coach";
+  look();
+  s.fishNet.state = "wall";
+  look();
+  s.closed = 1;
+  look();
+  s.closed = 0;
+  look();
+  const text = lines.join("\n");
+  assert.match(text, /incident t0s twist: lane 3 out of service\n/);
+  assert.match(text, /twist: lane 3 out of service, storm\n/);
+  assert.match(text, /twist over\n/);
+  assert.match(text, /gear t0s fishNet: wall → coach\n/);
+  assert.match(text, /gear t0s fishNet: coach → wall\n/);
+  assert.match(text, /incident t0s pool closed\n/);
+  assert.match(text, /incident t0s pool reopened$/);
+}
+
+// 12) The plan and the pulse: what the shift has in store, and where everything is, in one line each.
+{
+  const tracer = new Tracer(() => {}),
+    s = new PoolSimulation(10, 777);
+  s.start();
+  assert.match(tracer.plan(s), /^plan: (\w+@\d+s)(, \w+@\d+s)*$/);
+  assert.ok(tracer.plan(s).includes("twist@"), "twists are in the plan");
+  const plain = new PoolSimulation(1, 5);
+  plain.start();
+  assert.equal(tracer.plan(plain), "plan: no incidents");
+  s.schedule = [];
+  s.chaosPlan = [];
+  for (let f = 0; f < 60 * 5; f++) s.tick(1 / 60);
+  assert.match(tracer.pulse(s), /^t[45]s score -?\d+ · coach deck @-?[\d.]+,-?[\d.]+/);
+  s.triggerChaos("fish");
+  s.triggerChaos("outage");
+  for (let f = 0; f < 60 * 2; f++) s.tick(1 / 60);
+  const pulse = tracer.pulse(s);
+  assert.match(pulse, /fish stamina 8 fish @-?[\d.]+,-?[\d.]+ kid @-?[\d.]+,-?[\d.]+/);
+  assert.ok(pulse.length <= 240, "short enough for a line of the log: " + pulse.length);
+  assert.ok(!/NaN|undefined|\[object/.test(pulse), pulse);
+  s.coach.carry = "fishnet";
+  assert.match(tracer.pulse(s), /coach deck carrying fishnet @/);
+  // Looking and pulsing change nothing.
+  const same = snapshot(s);
+  tracer.look(s);
+  tracer.pulse(s);
+  tracer.plan(s);
+  assert.equal(snapshot(s), same);
+}
+
 console.log(
-  "Trace checks passed: a cramp rescue reads as a story in the log (cramp, ring, dive, swim, handoff, climb, bench), an ordinary shift stays quiet, looking changes nothing, events say what they carry, and the scene's footprint counts shared geometry once.",
+  "Trace checks passed: a cramp rescue reads as a story in the log (cramp, ring, dive, swim, handoff, climb, bench), an ordinary shift stays quiet, looking changes nothing, events say what they carry, a running incident reads as a story (a line per stage, every step when verbose, never a throw), a stage that goes on is said to be waiting at 25 s and 50 s (a pause is not waiting), the pool, the lane, the storm and the gear that move, the shift's plan and the pulse, and the scene's footprint counts shared geometry once.",
 );

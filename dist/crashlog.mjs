@@ -16,6 +16,8 @@ export const LIMITS = {
   sessions: 8, // sessions kept on the device
   crumbs: 400, // breadcrumbs per session: the shift's diary (trace.mjs) writes a line for every change that matters
   errors: 12, // distinct errors per session
+  flags: 24, // problems the player flagged (playtest), each with the trail around it
+  replays: 3, // recorded shifts kept in a session (replay.mjs)
   crumb: 240, // characters per breadcrumb
   message: 320, // characters per error message
   stack: 1800, // characters per stack
@@ -51,6 +53,26 @@ const flat = (object) => {
 const seconds = (ms) => (ms / 1000).toFixed(1);
 // In the middle of a shift: the only time a page that vanished counts as a crash.
 const PLAYING = ["playing", "countdown", "paused"];
+// The game's state as one line (the report's "Game" line, and each flagged problem's).
+const gameLine = (st = {}) =>
+  (st.level ? "level " + st.level + (st.shift ? ' "' + st.shift + '"' : "") : "menu") +
+  [
+    st.venue,
+    st.lighting,
+    st.view,
+    st.mode,
+    st.time !== undefined && "shift " + st.time + " s",
+    st.score !== undefined && "score " + st.score,
+    st.active && "active: " + st.active,
+    st.rescue && "rescue " + st.rescue,
+    st.coach && "coach " + st.coach,
+    st.crowd && "crowd: " + st.crowd,
+    st.booking && "booking " + st.booking,
+    st.seed && "seed " + st.seed,
+  ]
+    .filter(Boolean)
+    .map((x) => " · " + x)
+    .join("");
 
 export class CrashLog {
   constructor({
@@ -63,6 +85,9 @@ export class CrashLog {
     this.now = now;
     this.schedule = schedule;
     this.key = key;
+    this.limits = { ...LIMITS }; // the budget: a playtest asks for a longer diary (setLimits)
+    this.rev = 0; // goes up with everything worth sending again (a line of the diary, an error, a flag), not with the state's refresh
+    this.onNewError = null; // called with the record of an error this session has not had before
     this.sessions = []; // everything on the device, oldest first (this launch's session last)
     this.session = null;
     this.suspects = []; // earlier sessions that may have ended badly, until `settle` knows
@@ -126,11 +151,61 @@ export class CrashLog {
       at = this.now() - s.t0,
       last = s.crumbs[s.crumbs.length - 1];
     s.lastAt = this.now();
+    if (kind !== "perf") this.rev++; // (the numbers every few seconds alone are not worth sending again)
     if (last && last[1] === kind && last[2] === line) {
       last[3] = (last[3] || 1) + 1; // the same thing again: count it instead of repeating it
       last[0] = at;
     } else s.crumbs.push([at, clip(kind, 24), line, 1]);
-    if (s.crumbs.length > LIMITS.crumbs) s.crumbs.splice(0, s.crumbs.length - LIMITS.crumbs);
+    if (s.crumbs.length > this.limits.crumbs) s.crumbs.splice(0, s.crumbs.length - this.limits.crumbs);
+    this.touch();
+  }
+
+  // A different budget for this log (a playtest keeps a longer diary): any of the limits above.
+  setLimits(patch = {}) {
+    for (const [k, v] of Object.entries(patch))
+      if (k in LIMITS && Number.isFinite(v) && v > 0) this.limits[k] = v;
+  }
+
+  // The player flagged a problem. The diary is a ring and moves on, so the flag keeps what was around it whole: the game's state at that
+  // moment and the last lines of the trail. Returns the record.
+  flag(note, { kind = "", trail = 14 } = {}) {
+    const s = this.session;
+    if (!s) return null;
+    const record = {
+      at: this.now() - s.t0,
+      kind: clip(kind, 24),
+      note: clip(note, 400),
+      state: { ...s.state },
+      trail: s.crumbs
+        .slice(-trail)
+        .map(([t, k, text, n]) =>
+          clip("+" + seconds(t) + " s  " + k + " " + text + (n > 1 ? " ×" + n : ""), 140),
+        ),
+    };
+    (s.flags ||= []).push(record);
+    if (s.flags.length > this.limits.flags) s.flags.splice(0, s.flags.length - this.limits.flags);
+    this.crumb("flag", (kind ? "[" + kind + "] " : "") + (note || "(no note)"));
+    this.flush(true);
+    return record;
+  }
+
+  // What the playtest has covered (playtest.mjs's Coverage): `lines` are its report lines, `data` the structured form.
+  setPlaytest({ lines = [], data = null } = {}) {
+    const s = this.session;
+    if (!s) return;
+    s.playtest = { lines: lines.slice(0, 60).map((l) => clip(l, 400)), data };
+    this.rev++;
+    this.touch();
+  }
+
+  // A structured record kept with the session (a recorded shift, replay.mjs): `list` names where it goes, and only the newest few stay.
+  // The record is kept by reference, so what the recorder adds to it later is written with the next flush.
+  attach(list, record) {
+    const s = this.session;
+    if (!s || !record) return;
+    const items = (s[list] ||= []);
+    if (!items.includes(record)) items.push(record);
+    if (items.length > this.limits.replays) items.splice(0, items.length - this.limits.replays);
     this.touch();
   }
 
@@ -181,13 +256,19 @@ export class CrashLog {
         extra: flat(extra),
       };
       s.errors.push(record);
-      if (s.errors.length > LIMITS.errors) s.errors.splice(0, s.errors.length - LIMITS.errors);
+      if (s.errors.length > this.limits.errors) s.errors.splice(0, s.errors.length - this.limits.errors);
       this.crumb("error", src + ": " + name + ": " + message);
     }
     // A new kind of error is written at once (the page may be about to die). The same one again waits for the next
     // scheduled write, so an error that comes back every frame is counted instead of written sixty times a second.
+    this.rev++;
     if (known) this.touch();
-    else this.flush(true);
+    else {
+      this.flush(true);
+      try {
+        this.onNewError?.(record);
+      } catch {}
+    }
     return record;
   }
 
@@ -276,7 +357,7 @@ export class CrashLog {
   }
   // Keep the newest sessions; the ones that went wrong outlive the clean ones.
   prune() {
-    while (this.sessions.length > LIMITS.sessions) {
+    while (this.sessions.length > this.limits.sessions) {
       const i = this.sessions.findIndex((s) => s !== this.session && !s.errors.length && !s.crash);
       const [gone] = this.sessions.splice(i >= 0 ? i : 0, 1);
       try {
@@ -303,7 +384,7 @@ export class CrashLog {
     if (!this.storage) return;
     let text = JSON.stringify(s);
     // Too much for the device: forget the oldest breadcrumbs first.
-    for (let guard = 0; text.length > LIMITS.bytes && s.crumbs.length && guard < 20; guard++) {
+    for (let guard = 0; text.length > this.limits.bytes && s.crumbs.length && guard < 20; guard++) {
       s.crumbs.splice(0, Math.max(1, Math.ceil(s.crumbs.length / 4)));
       text = JSON.stringify(s);
     }
@@ -322,15 +403,20 @@ export class CrashLog {
   latest() {
     return this.session || this.sessions[this.sessions.length - 1] || null;
   }
-  // Earlier sessions that went wrong and were not reported, sent or set aside.
+  // Earlier sessions that went wrong (or had a problem flagged in a playtest) and were not reported, sent or set aside.
   pending() {
     return this.sessions.filter(
-      (s) => s !== this.session && (s.errors.length || s.crash) && !s.reported && !s.dismissed && !s.sent,
+      (s) =>
+        s !== this.session &&
+        (s.errors.length || s.crash || s.flags?.length) &&
+        !s.reported &&
+        !s.dismissed &&
+        !s.sent,
     );
   }
   // Every session that went wrong (this one included), newest first.
   troubled() {
-    return this.sessions.filter((s) => s.errors.length || s.crash).reverse();
+    return this.sessions.filter((s) => s.errors.length || s.crash || s.flags?.length).reverse();
   }
   // `what`: "reported" (copied, or opened as an issue), "sent" (to the developer: `info` says when and from which device code) or
   // "dismissed" (set aside).
@@ -362,10 +448,23 @@ export class CrashLog {
   headline(s = this.latest(), { latest = false } = {}) {
     if (!s) return "Nothing has gone wrong.";
     const e = latest ? s.errors[s.errors.length - 1] : s.errors[0];
-    if (e) return e.src + ": " + e.name + ": " + e.message;
+    // A playtest's reports are told apart in a list by where the game was and what the player flagged.
+    const flags = s.flags?.length
+      ? " · " +
+        s.flags.length +
+        " flagged: " +
+        clip(s.flags[s.flags.length - 1].note || s.flags[s.flags.length - 1].kind || "no note", 60)
+      : "";
+    const prefix = s.playtest
+      ? "Playtest " + (s.state?.level ? "L" + s.state.level : "menu") + flags + " · "
+      : "";
+    if (e) return prefix + e.src + ": " + e.name + ": " + e.message;
     if (s.crash === "unclean")
-      return "The page ended in the middle of a shift without closing (a tab crash, running out of memory, or a forced close).";
-    return "No errors were recorded.";
+      return (
+        prefix +
+        "The page ended in the middle of a shift without closing (a tab crash, running out of memory, or a forced close)."
+      );
+    return prefix ? prefix + "no errors" : "No errors were recorded.";
   }
 
   // What a dialog shows before anyone copies anything: where the game was, the error's first stack frames and the
@@ -402,8 +501,9 @@ export class CrashLog {
 
   // The full report, as Markdown that reads fine as plain text too.
   // `device`: the device code the report is sent under (report-send.mjs), so a report that is only copied and pasted still says it.
-  report(s = this.latest(), { crumbs = LIMITS.crumbs, stackLines = 14, device = "" } = {}) {
+  report(s = this.latest(), { crumbs = this.limits.crumbs, stackLines = 14, device = "", replay = 0 } = {}) {
     if (!s) return "Pool Panic crash report\n\nNothing has been recorded yet.";
+    const replays = replay > 0 ? (s.replays || []).slice(-replay) : [];
     const b = s.build || {},
       env = s.env || {},
       st = s.state || {},
@@ -439,31 +539,30 @@ export class CrashLog {
           .join(" · "),
     );
     if (s.page) lines.push("- **Page:** `" + s.page + "`");
-    lines.push(
-      "- **Game:** " +
-        (st.level ? "level " + st.level + (st.shift ? ' "' + st.shift + '"' : "") : "menu") +
-        [
-          st.venue,
-          st.lighting,
-          st.view,
-          st.mode,
-          st.time !== undefined && "shift " + st.time + " s",
-          st.score !== undefined && "score " + st.score,
-          st.active && "active: " + st.active,
-          st.rescue && "rescue " + st.rescue,
-          st.coach && "coach " + st.coach,
-          st.crowd && "crowd: " + st.crowd,
-          st.booking && "booking " + st.booking,
-          st.seed && "seed " + st.seed,
-        ]
-          .filter(Boolean)
-          .map((x) => " · " + x)
-          .join(""),
-    );
+    lines.push("- **Game:** " + gameLine(st));
     if (s.crash === "unclean")
       lines.push("- **Ended:** without closing (tab crash, out of memory, freeze or forced close)");
     else if (s.open === false) lines.push("- **Ended:** closed normally");
     lines.push("");
+    if (s.flags?.length) {
+      lines.push("## Flagged by the player", "");
+      s.flags.forEach((f, i) => {
+        lines.push(
+          i +
+            1 +
+            ". +" +
+            seconds(f.at) +
+            " s" +
+            (f.kind ? " [" + f.kind + "]" : "") +
+            " " +
+            JSON.stringify(f.note || "(no note)"),
+        );
+        if (f.state && Object.keys(f.state).length) lines.push("   game: " + gameLine(f.state));
+        if (f.trail?.length) lines.push("   ```", ...f.trail.map((l) => "   " + l), "   ```");
+      });
+      lines.push("");
+    }
+    if (s.playtest?.lines?.length) lines.push("## Playtest so far", "", ...s.playtest.lines, "");
     if (s.errors.length) {
       lines.push("## Errors", "");
       s.errors.forEach((e, i) => {
@@ -520,6 +619,22 @@ export class CrashLog {
         );
       lines.push("```");
     }
+    // Recorded shifts (replay.mjs), newest last: the whole record on one line, for tools to read, not people.
+    for (const r of replays)
+      lines.push(
+        "",
+        "## Replay: level " +
+          (r.level ?? "?") +
+          " seed " +
+          r.seed +
+          " (" +
+          (r.inputs?.length ?? 0) +
+          " inputs)",
+        "",
+        "```json",
+        JSON.stringify(r),
+        "```",
+      );
     return lines.join("\n");
   }
 

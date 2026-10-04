@@ -26,6 +26,23 @@ export const LooseDog = {
   },
   isActive: (sim) => !!sim.dog,
   panic: (sim) => !!sim.dog && sim.dog.stage !== "leaving",
+  // For the shift's diary (trace.mjs): `describe` is where the incident stands, in words that change only when its stage does (a line is
+  // written each time it changes, and a stage that lasts too long is said to be waiting); `detail` is what moves, for the periodic pulse.
+  describe(sim) {
+    const d = sim.dog;
+    if (!d) return "";
+    return (
+      "stage " +
+      d.stage +
+      " · dog " +
+      (sim.visitor(d.id)?.status ?? "gone") +
+      (d.carry ? " · carrying " + (d.carry.type || "something") : "")
+    );
+  },
+  detail(sim) {
+    const d = sim.dog;
+    return d && { at: sim.visitor(d.id), swims: d.swims, lost: d.lost };
+  },
   start(sim) {
     const v = sim.spawnVisitor("dog", {
       systemKey: "dog",

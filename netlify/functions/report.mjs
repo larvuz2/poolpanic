@@ -19,11 +19,12 @@ export const config = { path: "/api/report" };
 
 const MAX_BODY = 262144; // bytes a POST may carry
 const MAX_HEADLINE = 200; // characters kept
-const MAX_REPORT = 160000; // characters of markdown kept
+const MAX_REPORT = 240000; // characters of markdown kept (the game never sends more bytes than that in all)
 const MAX_UA = 200; // characters of user-agent kept
 const KEEP = 40; // reports kept per device: the oldest go first
-const PER_DEVICE = 20; // reports a device may add per hour
-const PER_HOUR = 400; // POSTs the whole site takes per hour
+const PER_DEVICE = 40; // reports a device may add per hour: as many as it keeps, so a device whose game crashes on every launch is heard 40 times
+const PER_HOUR = 400; // new reports the whole site takes per hour
+const UPDATES_PER_HOUR = 2400; // POSTs per hour that only replace a report the device already has (a playtest sends its log again every few seconds)
 const ADMIN_LIST = 60; // reports the admin list shows
 const HOUR = 3600 * 1000;
 const ALLOW = "GET, POST, OPTIONS";
@@ -130,28 +131,41 @@ async function receive(request, db, at, log) {
     return fail(400, "report must be a non-empty string");
   if (body.session != null && !isObject(body.session)) return fail(400, "session must be an object");
 
-  // A device may add 20 reports an hour, counted from the times in its own keys. A report sent again under an id the device already
-  // has replaces that one instead of adding to the pile, so it is not counted twice.
+  // A device may add 40 reports an hour, counted from the times in its own keys. A report sent again under an id the device already
+  // has replaces that one instead of adding to the pile, so it is not counted as a new one: a playtest sends its log again every few
+  // seconds, and the stored data does not grow with it.
   const known = await reportsOf(db, device);
+  const update = known.some((r) => r.id === id);
   const recent = known.filter((r) => r.id !== id && r.at > at - HOUR);
-  if (recent.length >= PER_DEVICE)
+  if (!update && recent.length >= PER_DEVICE)
     return fail(
       429,
       "too many reports from this device, try again later",
       retryAfter(recent[0].at + HOUR - at),
     );
 
-  // The whole site takes 400 POSTs an hour: one small counter per UTC hour (yyyymmddhh). Only POSTs that get this far are counted.
+  // The whole site takes 400 new reports and 2400 replacements an hour: one small counter per UTC hour (yyyymmddhh). Only POSTs that
+  // get this far are counted.
   const counterKey = `meta/rate/${new Date(at).toISOString().slice(0, 13).replace(/\D/g, "")}`;
   const counter = await db.get(counterKey, { type: "json" });
-  const used = Number(counter?.count) || 0;
-  if (used >= PER_HOUR)
+  const used = Number(counter?.count) || 0,
+    updatesUsed = Number(counter?.updates) || 0;
+  if (update ? updatesUsed >= UPDATES_PER_HOUR : used >= PER_HOUR)
     return fail(
       429,
       "too many reports, try again later",
       retryAfter((Math.floor(at / HOUR) + 1) * HOUR - at),
     );
-  await db.set(counterKey, JSON.stringify({ count: used + 1 }));
+  await db.set(
+    counterKey,
+    JSON.stringify(
+      update
+        ? { count: used, updates: updatesUsed + 1 }
+        : updatesUsed
+          ? { count: used + 1, updates: updatesUsed }
+          : { count: used + 1 },
+    ),
+  );
   if (counter == null) {
     // The first POST of the hour: the counters of earlier hours are of no use any more.
     const { blobs } = await db.list({ prefix: "meta/rate/" });

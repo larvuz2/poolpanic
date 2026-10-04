@@ -137,3 +137,12 @@ leave the pool; incidents the creator wants that do not exist yet are listed as 
 - Is Karen a level-4 teaching incident only, or a roaming one for the rest of the game? (Her model and calming loop are built.)
 - Cramps, tummy trouble and goggles are already random per swimmer. Should the director also control their *rate*, so a calm shift is calm?
 - Do the twists belong in the same budget, or stay as the "this level's flavour"?
+
+## 5. Watching an incident in the log (playtest mode)
+
+An incident that gets stuck is the hardest bug to describe from a device, so every incident can be read in the crash log (README, "Playtest mode"):
+
+- **`describe(sim)`** on the incident module returns where it stands as a short sentence that changes only when its stage does (`stage loose · kid crying · net wall · pool closed`). The diary writes a line each time it changes, and says it is `waiting` when the same sentence has lasted 25 s of the shift's own clock. **`detail(sim)`** returns what moves (positions, the fish's stamina, Karen's calm) for the periodic `pulse` line. **A new incident must have both.**
+- The gear that can end up somewhere else (the fish net, the flashlight, the medical kit), the pool closing, a lane out of service and the storm are written whatever the incident.
+- The 🐞 panel's "Make an incident happen now" starts a cramp rescue, the fish kid, the dog, Carl, Karen or the power cut in any level (`triggerChaos`, `startCramp`), and its "Seen so far" lists which of the incident kinds above the playtest has met (`INCIDENT_KINDS` in `dist/playtest.mjs`: add a new kind there).
+- A shift can be replayed exactly from a report (`node tools/replay.mjs report.md --diary`): the level, the seed and the player's inputs decide everything, so the incident's whole story can be read again, stopped at a second (`--until`) and looked into.

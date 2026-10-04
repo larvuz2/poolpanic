@@ -51,20 +51,33 @@ export function savePrefs(storage, prefs) {
 export const canSend = ({ desktop = false, protocol = "" } = {}) => !desktop && /^https?:$/.test(protocol);
 
 // What is posted for a session: its report (Markdown, so it reads as it is) and the raw session next to it, unless that would be
-// too big for the service (then the report alone).
-export function reportPayload(log, session, device) {
+// too big for the service (then the report alone, and if even that is too big, a report with fewer of the oldest breadcrumbs and no
+// recorded shifts). `slim` is for the log sent again and again during a playtest: the report carries all of it, so the raw session
+// comes without its breadcrumbs and recordings.
+const bytes = (text) =>
+  typeof TextEncoder === "function" ? new TextEncoder().encode(text).length : text.length * 3; // (the service counts bytes, not characters: an arrow or a × is three of them)
+export const slimSession = (session) => ({
+  ...session,
+  crumbs: session.crumbs.slice(-30),
+  replays: undefined,
+  playtest: session.playtest && { data: session.playtest.data },
+});
+export function reportPayload(log, session, device, { slim = false } = {}) {
   const payload = {
     v: 1,
     device,
     id: session.id,
     headline: String(log.headline(session)).slice(0, 200),
-    report: log.report(session, { device }),
-    session,
+    report: log.report(session, { device, replay: 1 }),
+    session: slim ? slimSession(session) : session,
   };
-  // (the service counts bytes, not characters: an arrow or a × in the report is three of them)
-  const bytes = (text) =>
-    typeof TextEncoder === "function" ? new TextEncoder().encode(text).length : text.length * 3;
   if (bytes(JSON.stringify(payload)) > REPORT_LIMITS.body) payload.session = null;
+  // Still too big: the oldest breadcrumbs go first (half of them each time), and the recorded shift after the first try.
+  let crumbs = session.crumbs.length;
+  for (let pass = 0; bytes(JSON.stringify(payload)) > REPORT_LIMITS.body && crumbs > 20; pass++) {
+    crumbs = Math.floor(crumbs / 2);
+    payload.report = log.report(session, { device, crumbs, replay: pass === 0 ? 1 : 0 });
+  }
   return payload;
 }
 
@@ -87,7 +100,14 @@ export async function sendReport(
       body = await response.json();
     } catch {}
     if (response.ok && body?.ok) return { ok: true, status: response.status };
-    return { ok: false, status: response.status, error: body?.error || "HTTP " + response.status };
+    // (a service that is asking for quiet says for how long, in seconds)
+    const wait = Number(response.headers?.get?.("retry-after"));
+    return {
+      ok: false,
+      status: response.status,
+      error: body?.error || "HTTP " + response.status,
+      ...(wait > 0 && { retryAfter: wait }),
+    };
   } catch (e) {
     return { ok: false, status: 0, error: e?.name === "AbortError" ? "timed out" : "no connection" };
   } finally {
