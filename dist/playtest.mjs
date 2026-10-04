@@ -192,6 +192,18 @@ const SKIP = new Set([
   "handoff",
   "lane-switch",
   "ended",
+  // the steps of an incident that its own lines already tell (the cannonball man's run, the kid's dodge, the fish's darts, the dog's
+  // sniffing, Karen's arrival, the alarm of a cramp, the launch off the trampoline)
+  "carl-windup",
+  "carl-charge",
+  "carl-jump",
+  "kid-dodge",
+  "fish-dart",
+  "dog-notice",
+  "dog-shake",
+  "karen-arrive",
+  "cramp-alarm",
+  "trampoline-launch",
 ]);
 const bump = (table, key, by = 1) => {
   table[key] = (table[key] || 0) + by;

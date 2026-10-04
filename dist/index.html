@@ -432,6 +432,13 @@
         <h2 id="playtest-title">Something wrong?</h2>
         <p id="playtest-where" class="playtest-where"></p>
         <p id="playtest-live" class="playtest-live"></p>
+        <p class="playtest-codeline">
+          Device code <b id="playtest-code" class="crash-code"></b>
+          <button id="playtest-code-copy" class="text-btn inline" type="button">Copy code</button>
+        </p>
+        <p class="playtest-hint">
+          Send it to the developer once: the log of this device is read by it, while you play.
+        </p>
         <div id="playtest-reasons" class="playtest-chips" role="group" aria-label="What kind of problem">
           <button type="button" data-reason="stuck">Stuck or frozen</button>
           <button type="button" data-reason="wrong">Looks wrong</button>
@@ -452,11 +459,6 @@
         <div id="playtest-triggers" class="playtest-chips"></div>
         <h3>Seen so far</h3>
         <p id="playtest-seen" class="playtest-seen"></p>
-        <p class="crash-note">
-          Device code <b id="playtest-code" class="crash-code"></b>
-          <button id="playtest-code-copy" class="text-btn inline" type="button">Copy code</button>: the
-          developer reads this device's log by it, while you play.
-        </p>
         <button id="playtest-send" class="secondary">Send the log now</button
         ><button id="playtest-copy" class="secondary">Copy the report</button
         ><button id="playtest-reset" class="text-btn">Start the playtest notes over</button

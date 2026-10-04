@@ -4690,3 +4690,14 @@ body:not(.menu) .fund-pill {
     top: 170px;
   }
 }
+.playtest-modal .playtest-codeline {
+  font-size: 15px;
+  margin-top: 8px;
+}
+.playtest-modal .playtest-codeline .crash-code {
+  font-size: 22px;
+}
+.playtest-modal .playtest-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
