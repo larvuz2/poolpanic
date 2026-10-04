@@ -1101,6 +1101,7 @@ export class PoolWorld extends SceneKit {
           speed: Math.hypot(c.vx || 0, c.vz || 0),
           intro,
           prone: !!(c.swimming || c.waterTransition),
+          ring: c.carry === "lifering",
           busy: !!c.busy,
         });
       } catch (error) {

@@ -4225,6 +4225,33 @@ body.menu .brand small {
   font-size: 11px;
   color: var(--muted);
 }
+.crash-modal .crash-sent {
+  font-weight: 700;
+  color: var(--mint);
+}
+.crash-modal .crash-sent.bad {
+  color: var(--yellow);
+}
+.crash-auto {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0 2px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.crash-auto input {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  accent-color: var(--mint);
+}
+.crash-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.12em;
+  color: var(--yellow);
+  user-select: all;
+}
 .crash-modal .primary,
 .crash-modal .secondary {
   width: 100%;

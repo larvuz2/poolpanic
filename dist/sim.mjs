@@ -907,7 +907,15 @@ export class PoolSimulation extends ChaosController {
         Math.abs(z) < P.keepOutZ
       ) {
         if (Math.abs(entity.x) >= P.keepOutX) x = Math.sign(entity.x) * P.keepOutX;
-        else z = Math.sign(entity.z) * P.keepOutZ;
+        else if (Math.abs(entity.z) >= P.keepOutZ || entity.status !== "recovering")
+          z = Math.sign(entity.z) * P.keepOutZ;
+        else if (Math.abs(x) < P.deckX && Math.abs(z) < P.deckZ) {
+          // A swimmer walking to the bench after a rescue, pushed a little way into the box's margin (outside the water, inside the
+          // box) by the coach, who climbed out on that very side and may stand in the way: not thrown across the pool to its
+          // end (they were: sent back 4.5 m again and again, never reaching the bench), only kept out of the water itself.
+          x = entity.x;
+          z = entity.z;
+        }
       }
       entity.x = x;
       entity.z = z;

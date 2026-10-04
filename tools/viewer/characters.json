@@ -4,13 +4,16 @@
       "id": "coach-panic",
       "name": "Coach Panic",
       "file": "../../dist/assets/coach-panic.glb",
-      "note": "Meshy 7 mesh, 24-bone Meshy rig. Walk and Run from Meshy's clips via polish_walk.py, idles from idle_clips.py, feet put on the floor by ground_clips.py. Panic (jumping without a pause, hands and arms up) and Swim (a freestyle crawl, made standing and played lying on the front, as the game lays a swimmer down) from character_clips.py --character shared, added to the file by transplant_clips.py.",
+      "note": "Meshy 7 mesh, 24-bone Meshy rig. Walk and Run from Meshy's clips via polish_walk.py, idles from idle_clips.py, feet put on the floor by ground_clips.py. Panic (jumping without a pause, hands and arms up) and Swim (a freestyle crawl, made standing and played lying on the front, as the game lays a swimmer down) from character_clips.py --character shared, added to the file by transplant_clips.py. SwimRing (his own, from character_clips.py --character coach: the arms held still out ahead of him round the life ring, only the legs kick) is what the game plays when he swims holding the ring.",
       "clips": {
         "Run": {
           "pop": true,
           "why": "the knee swings about 42 degrees a frame in a fast run"
         },
         "Swim": {
+          "prone": true
+        },
+        "SwimRing": {
           "prone": true
         }
       }

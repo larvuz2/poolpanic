@@ -43,7 +43,10 @@ the app and depot ids, the store page, the price, written proof that the AI tool
 - They think in the game's terms (levels, incidents, characters, the map) and want to *see* and *rank* things: a contact sheet, a poster, an
   interactive page to rank or choose (Artifacts work well). Deliver files to them directly (a file card), not as a path.
 - They test on an **iPad in Safari**. Safari has crashed the game before (see the README's crash hunt). There is no WebKit where you work, only
-  Chromium, so say what you could not verify on the device and ask for a report (**Copy report** in the crash dialog, or `?bisect`).
+  Chromium, so say what you could not verify on the device and ask for a report. The crash dialog's **Send report** puts it where you can read it:
+  ask for the **device code** shown in that dialog (eight characters, once: it names every report that device sends, and the creator can read it
+  out or type it) and fetch `https://poolpanic.netlify.app/api/report?device=<code>&latest=1` (add `&id=<launch id>` for another, or leave
+  `latest` out for the list; a deploy preview has the same address under its own host). **Copy report** and `?bisect` still work without it.
 - Be honest about verification: say what was run and what was only checked by CPU, and never present a programmatic check as a visual or listening
   pass. The README's verification paragraphs are the model.
 - Do not open a pull request unless asked; push only to the branch you were given.
@@ -59,6 +62,9 @@ the app and depot ids, the store page, the price, written proof that the AI tool
   warning, a prevention window, a comic failure with a cost, a physical recovery. Add one only when all four are understandable.
 - Characters have a classic (balls and boxes) fallback that plays when a model has not loaded; keep it working. `?nomodels` turns every model off
   for a page (crash hunting).
+- **The coach swimming with the life ring plays SwimRing, never Swim or Run**: both arms held out still ahead of him round the ring, only the legs
+  kick. It is the coach's alone and only while he holds the ring in the water (the dive included); the creator asked for this and wants it
+  remembered (`CoachRig.update`, `coach-model-check.mjs`, `rig-check.mjs`).
 - Save keys live in `localStorage` under `pool-panic.*`; the desktop app mirrors them to a file. A new key that should survive must be added to
   `SAVE_KEYS` in `desktop/lib.cjs`; the crash log's keys must never be.
 - Fonts are bundled (`dist/assets/fonts/`). The game must not need the network once its files have loaded.
@@ -79,7 +85,7 @@ the app and depot ids, the store page, the price, written proof that the AI tool
 | Every incident, how a shift picks them, the level table, the director proposal | `docs/incidents.md` |
 | The road to a Steam release, the build and upload, the achievements list | `desktop/README.md`, `desktop/steam/` |
 | The character pipeline (Blender rigs, clips, grounding) | `tools/blender/README.md`, `tools/viewer/` (Anim Bench) |
-| A crash on a device | the README's "Crash log", `dist/crashlog.mjs`, `?bisect` |
+| A crash on a device | the README's "Crash log", `dist/crashlog.mjs`, `dist/trace.mjs` (the shift's diary), `?bisect` |
 
 ## Keeping this file true
 

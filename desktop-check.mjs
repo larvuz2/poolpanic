@@ -117,6 +117,7 @@ function trackedGameFiles() {
     "pool-panic.achievements.v1": '["RESCUE"]',
     "pool-panic.crashlog.v1": "a device's black box: not a player's progress",
     "pool-panic.hunt.v1": "a crash hunt's state",
+    "pool-panic.reports.v1": '{"device":"K7Q2M5XA","auto":true}', // the device code and whether reports go by themselves
     "something.else": "x",
     "pool-panic.map.v1": 7, // not a string
     "pool-panic.seen.v1": "x".repeat(300 * 1024), // too big to be the game's
@@ -134,7 +135,7 @@ function trackedGameFiles() {
   assert.equal(back.savedAt, 1234);
   assert.equal(back.keys["pool-panic.records.v1"], '{"unlocked":5}', "what was written is what comes back");
   for (const key of lib.SAVE_KEYS) assert.match(key, /^pool-panic\.[a-z]+\.v1$/, key);
-  assert.ok(!lib.SAVE_KEYS.some((k) => /crashlog|hunt/.test(k)), "no device state in the mirror");
+  assert.ok(!lib.SAVE_KEYS.some((k) => /crashlog|hunt|reports/.test(k)), "no device state in the mirror");
   // The game's own keys are the ones mirrored: each is in the game's source.
   const sources = [
     "dist/app.mjs",

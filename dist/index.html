@@ -396,11 +396,23 @@
         <h2 id="crash-title">The game had a problem last time.</h2>
         <p id="crash-summary"></p>
         <pre id="crash-detail" class="crash-detail" tabindex="0"></pre>
+        <p id="crash-sent" class="crash-sent" hidden></p>
         <p class="crash-note">
-          Nothing is sent by itself. The report lists this device, the error and the last things that
-          happened; copy it, or open it as a GitHub issue, and it can be read later.
+          A report lists this device, the error and the last things that happened in the game: no name, no
+          account, nothing about you. It is sent only when you tap Send (or every time, if you leave the box
+          ticked). You can also copy it, or open it as a GitHub issue.
         </p>
-        <button id="crash-copy" class="primary">Copy report</button
+        <label id="crash-auto-row" class="crash-auto"
+          ><input type="checkbox" id="crash-auto" checked /> Send crash reports by themselves from now
+          on</label
+        >
+        <p id="crash-device" class="crash-note">
+          Device code <b id="crash-device-code" class="crash-code"></b>
+          <button id="crash-code-copy" class="text-btn inline" type="button">Copy code</button>: it names the
+          reports this device sends, so they can be found.
+        </p>
+        <button id="crash-send" class="primary">Send report</button
+        ><button id="crash-copy" class="secondary">Copy report</button
         ><button id="crash-issue" class="secondary">Report on GitHub ↗</button
         ><button id="crash-restart" class="secondary live-only">Restart this shift</button
         ><button id="crash-map" class="secondary live-only">Back to the map</button

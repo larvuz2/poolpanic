@@ -1,5 +1,6 @@
 // Coach Panic in the game (scene/coach-model.mjs): which coach is chosen, the walk in while the countdown runs, the rules
-// that pick the clip, and swapping the model in and out of the scene (with stand-ins for the model and its clips).
+// that pick the clip (SwimRing, with the arms held out round the life ring, whenever he swims with it), and swapping the model in and
+// out of the scene (with stand-ins for the model and its clips).
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import * as THREE from "./dist/assets/three.module.js";
@@ -136,6 +137,7 @@ function fakeRig() {
     walk: action("walk"),
     run: action("run"),
     swim: action("swim"),
+    swimRing: action("swimRing"),
   };
   const mixer = {
     advanced: 0,
@@ -182,6 +184,55 @@ function fakeRig() {
   delete rig.actions.swim;
   rig.update(1 / 60, { speed: 0, prone: true });
   assert.equal(rig.current, "run", "without a Swim clip the swim is the run");
+}
+{
+  // Swimming with the life ring is SwimRing, and only that: the arms stay out ahead of him round the ring and only the legs kick.
+  // The crawl's arms would be windmilling round it.
+  const { rig, actions, mixer } = fakeRig();
+  rig.update(1 / 60, { speed: 0, prone: true, ring: true });
+  assert.equal(rig.current, "swimRing", "holding the ring in the water, even floating still");
+  for (let i = 0; i < 40; i++) rig.update(1 / 60, { speed: 0, prone: true, ring: true });
+  assert.ok(
+    Math.abs(actions.swimRing.rate - 0.85) < 0.03,
+    `a gentle kick when he floats (${actions.swimRing.rate})`,
+  );
+  for (let i = 0; i < 40; i++) rig.update(1 / 60, { speed: 4.2, prone: true, ring: true });
+  assert.equal(
+    rig.current,
+    "swimRing",
+    "and still when he swims at his fastest: never the crawl, never the run",
+  );
+  assert.ok(
+    Math.abs(actions.swimRing.rate - 1.3) < 0.03,
+    `the legs kick faster as he swims faster (${actions.swimRing.rate})`,
+  );
+  for (let i = 0; i < 40; i++) rig.update(1 / 60, { speed: 12, prone: true, ring: true });
+  assert.ok(actions.swimRing.rate <= 1.3 + 1e-9, "…up to a limit");
+  assert.ok(!actions.swim.playing && !actions.run.playing, "the crawl and the run are not playing under it");
+  // Handing the ring over: the clips he always had take over again (the run while he moves, the crawl while he floats).
+  rig.update(1 / 60, { speed: 2, prone: true, ring: false });
+  assert.equal(rig.current, "run", "without the ring the old rules are back");
+  rig.update(1 / 60, { speed: 0, prone: true, ring: false });
+  assert.equal(rig.current, "swim", "…and floating without it is the crawl");
+  // On the deck with the ring he runs and stands as ever: SwimRing is for the water.
+  for (const speed of [0, 5]) {
+    rig.update(1 / 60, { speed, prone: false, ring: true });
+    assert.equal(rig.current, speed ? "run" : "idle", "on the deck the ring changes nothing");
+  }
+  // Into the water with it: straight to SwimRing.
+  rig.update(1 / 60, { speed: 3, prone: true, ring: true });
+  assert.equal(rig.current, "swimRing");
+  assert.ok(mixer.advanced > 0);
+}
+{
+  // A file without SwimRing swims with the crawl, as before.
+  const { rig } = fakeRig();
+  delete rig.actions.swimRing;
+  rig.update(1 / 60, { speed: 0, prone: true, ring: true });
+  assert.equal(rig.current, "swim", "without a SwimRing clip the ring is carried with the crawl");
+  delete rig.actions.swim;
+  rig.update(1 / 60, { speed: 0, prone: true, ring: true });
+  assert.equal(rig.current, "run", "…and with the run when the file has no crawl either");
 }
 {
   // Standing long enough brings a head scratch; a job in hand or moving does not.
@@ -275,6 +326,27 @@ sim.coach.carry = null;
 sim.coach.swimming = true;
 world.sync(sim, (t += 1 / 60), 1 / 60);
 assert.equal(u.rig.current, "swim", "swimming plays the crawl");
+// With the life ring in the water, and only then, it is SwimRing; carrying anything else, or nothing, it is the crawl.
+sim.coach.carry = "lifering";
+world.sync(sim, (t += 1 / 60), 1 / 60);
+assert.equal(u.rig.current, "swimRing", "swimming with the life ring plays SwimRing");
+sim.coach.swimming = false;
+sim.coach.waterTransition = { kind: "dive", from: { x: 0, z: 0 }, to: { x: 1, z: 0 }, t: 0.2 };
+world.sync(sim, (t += 1 / 60), 1 / 60);
+assert.equal(u.rig.current, "swimRing", "…in the dive into the water too");
+sim.coach.waterTransition = null;
+sim.coach.swimming = true;
+sim.coach.carry = "fishnet";
+world.sync(sim, (t += 1 / 60), 1 / 60);
+assert.equal(u.rig.current, "swim", "the fish net is not the ring: the crawl");
+sim.coach.carry = "lifering";
+sim.coach.swimming = false;
+world.sync(sim, (t += 1 / 60), 1 / 60);
+assert.notEqual(u.rig.current, "swimRing", "the ring on the deck is not SwimRing");
+sim.coach.carry = null;
+sim.coach.swimming = true;
+world.sync(sim, (t += 1 / 60), 1 / 60);
+assert.equal(u.rig.current, "swim", "the ring handed over, he crawls to the edge");
 sim.coach.swimming = false;
 sim.coach.slipTime = 0.5;
 world.sync(sim, (t += 1 / 60), 1 / 60);
@@ -294,5 +366,5 @@ assert.ok(
 );
 
 console.log(
-  "Coach model checks passed: the choice is remembered, a walk in on every level ending on the spawn point, the clip rules, the swap in the scene, and a model that breaks is dropped.",
+  "Coach model checks passed: the choice is remembered, a walk in on every level ending on the spawn point, the clip rules (SwimRing whenever he swims with the life ring, and only then), the swap in the scene, and a model that breaks is dropped.",
 );

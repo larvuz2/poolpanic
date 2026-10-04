@@ -1,20 +1,34 @@
 // Coach Panic in the game: the Meshy character (assets/coach-panic.glb) standing in for the coach that actors.mjs
 // builds from balls and boxes. The classic coach is still built, and still posed, but hidden, so one switch brings it
 // back (?coach=classic, or the button in How to play). The clips: IdleScan and IdleScratch (standing still), Walk (the
-// few steps into the start of a shift), Run (every other movement on foot) and Swim (the freestyle crawl, made standing
-// and played on his front in the water). Rules, in short:
+// few steps into the start of a shift), Run (every other movement on foot), Swim (the freestyle crawl, made standing
+// and played on his front in the water) and SwimRing (the same on his front, but holding the life ring ahead of him: the
+// arms stay still, forward, and only the legs kick). Rules, in short:
 //   - a shift's countdown: Walk, from a few steps behind the spawn point to exactly the spawn point as it reaches zero;
+//   - swimming with the life ring: SwimRing, whether he is moving or not and in the dive too, and only then: the crawl's
+//     arms would be windmilling round the ring (Swim, if the file has no SwimRing);
 //   - moving: Run, played faster or slower with the coach's speed so the feet keep up with the floor;
 //   - swimming: Swim (Run, if the file has no Swim);
 //   - standing: IdleScan, with an IdleScratch now and then.
 import { THREE } from "./kit.mjs";
 
 export const COACH_KEY = "pool-panic.coach.v1";
-export const CLIPS = { idle: "IdleScan", scratch: "IdleScratch", walk: "Walk", run: "Run", swim: "Swim" };
+export const CLIPS = {
+  idle: "IdleScan",
+  scratch: "IdleScratch",
+  walk: "Walk",
+  run: "Run",
+  swim: "Swim",
+  swimRing: "SwimRing",
+};
 const REQUIRED = ["idle", "scratch", "walk", "run"];
 // The speed each clip covers without the feet sliding (Anim Bench's ground estimate), in world units per second.
 export const RUN_SPEED = 3.85;
 export const WALK_SPEED = 1.21;
+// The clips whose playing rate follows the coach's speed.
+const PACED = new Set(["run", "walk", "swim", "swimRing"]);
+// How fast he swims with the ring, for the kick: the swim speed of the rescue (spatial.mjs).
+const RING_SWIM_SPEED = 4.2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // "panic" (the default) or "classic". ?coach=classic or ?coach=panic chooses and is remembered on this device.
@@ -107,15 +121,16 @@ export class CoachRig {
     next.reset();
     next.enabled = true;
     next.setEffectiveWeight(1);
-    next.setEffectiveTimeScale(name === "run" || name === "walk" || name === "swim" ? this.rate : 1);
+    next.setEffectiveTimeScale(PACED.has(name) ? this.rate : 1);
     next.play();
     if (previous && fade > 0) next.crossFadeFrom(previous, fade, false);
     else if (previous) previous.stop();
     this.current = name;
   }
   // dt: seconds of world time (zero in a hit-stop). speed: the coach's speed. intro: {rate} while the shift's countdown
-  // walks him in. prone: swimming (the clip is played on his front, in the water). busy: a timed job in hand.
-  update(dt, { speed = 0, intro = null, prone = false, busy = false } = {}) {
+  // walks him in. prone: swimming (the clip is played on his front, in the water). ring: he holds the life ring.
+  // busy: a timed job in hand.
+  update(dt, { speed = 0, intro = null, prone = false, ring = false, busy = false } = {}) {
     let want;
     let rate = 1;
     if (intro) {
@@ -124,7 +139,11 @@ export class CoachRig {
       this.moving = false;
     } else {
       this.moving = speed > (this.moving ? 0.35 : 0.9);
-      if (this.moving) {
+      if (prone && ring && this.actions.swimRing) {
+        // The ring floats ahead of him and his arms hold it there, still; the legs kick a little faster as he swims faster.
+        want = "swimRing";
+        rate = 0.85 + 0.45 * clamp(speed / RING_SWIM_SPEED, 0, 1);
+      } else if (this.moving) {
         want = "run";
         rate = clamp(speed / RUN_SPEED, 0.6, 2.1);
       } else if (prone) {
@@ -147,11 +166,10 @@ export class CoachRig {
       this.idleFor = 0;
       this.scratchAfter = CoachRig.scratchDelay();
     }
-    this.to(want, want === "run" || want === "swim" ? 0.12 : 0.22);
+    this.to(want, want === "run" || want === "swim" || want === "swimRing" ? 0.12 : 0.22);
     // The playing rate follows the coach's speed smoothly; the other clips play as they are.
     this.rate += (rate - this.rate) * Math.min(1, dt * 14);
-    if (this.current === "run" || this.current === "walk" || this.current === "swim")
-      this.actions[this.current].setEffectiveTimeScale(this.rate);
+    if (PACED.has(this.current)) this.actions[this.current].setEffectiveTimeScale(this.rate);
     this.mixer.update(dt);
   }
 }
