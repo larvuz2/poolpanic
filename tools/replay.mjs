@@ -16,7 +16,9 @@ import { pathToFileURL } from "node:url";
 import { PoolSimulation, SHIFTS } from "../dist/sim.mjs";
 import { DRILLS } from "../dist/drills.mjs";
 import { Tracer, describeEvent, isNoisy } from "../dist/trace.mjs";
-import { stateHash } from "../dist/replay.mjs";
+import { stateHash, apply } from "../dist/replay.mjs";
+
+export { apply };
 
 // The simulation as the game's start() makes it.
 export function makeSim(record) {
@@ -33,18 +35,6 @@ export function makeSim(record) {
     booking: record.booking || null,
     ...(man && { config: { ...SHIFTS[record.level - 1], ...man } }),
   });
-}
-
-// One recorded input applied to a simulation.
-export function apply(sim, entry, record) {
-  const [, name, ...args] = entry;
-  if (name === "m") return sim.setMovement(...record.vecs[args[0]]);
-  if (name === "look") {
-    sim.coach.lookAngle = args[0];
-    return;
-  }
-  if (typeof sim[name] !== "function") throw new Error("this build's simulation has no input " + name);
-  return sim[name](...args);
 }
 
 // Play `record` through. `until` is a tick count to stop at. `onTick(sim, tick)` is called after every tick (the events of the tick are

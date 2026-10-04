@@ -4,7 +4,7 @@
 // from the record after it has been through JSON as the crash log would send it.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -335,6 +335,31 @@ const viaJson = (record) => JSON.parse(JSON.stringify(record));
   assert.doesNotThrow(() => fresh.sim.jump(), "an input whose recording failed is still an input");
   assert.match(fresh.record.broken, /the log broke/);
   recorder.log = log;
+}
+
+// 10) The shift the crash hunt plays on the device (dist/hunt/lunch-rush.json: the level 2 shift that ended an iPad's page, as the recorder kept
+// it) is a record this build can still play through, with every input given. (A balance change may move the simulation off the recording's
+// hashes, and then the hunt plays a shift like it, not the same: that is said here, not failed on.) `apply` is the one the game itself uses.
+{
+  const text = readFileSync(new URL("./dist/hunt/lunch-rush.json", import.meta.url), "utf8"),
+    [record] = readRecords(text);
+  assert.equal(record.level, 2);
+  assert.ok(record.inputs.length > 30 && record.ticks > 2400, "a real shift, played for more than 40 s");
+  assert.ok(record.seed > 0 && !record.truncated && !record.broken, "a whole recording");
+  const given = [];
+  const result = replay(record, { onTick: (sim) => given.push(sim.status) });
+  assert.equal(result.ticks, record.ticks, "played through to the last recorded tick");
+  assert.ok(
+    ["playing", "countdown"].includes(result.sim.status),
+    "and still being played at it, not ended by it",
+  );
+  assert.equal(typeof apply, "function");
+  if (result.drift)
+    console.log(
+      "(Note: the hunt's recorded shift has drifted from its recording at tick " +
+        result.drift.tick +
+        ": the simulation has changed since it was made. The hunt plays a shift like it, not the same one.)",
+    );
 }
 
 console.log(

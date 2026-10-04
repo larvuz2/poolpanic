@@ -39,6 +39,19 @@ export const INPUTS = [
 ];
 export const REPLAY_LIMITS = { inputs: 4000, vectors: 200, checkEvery: 300 };
 
+// One recorded input applied to a simulation (tools/replay.mjs plays a whole record with it, and so does the crash hunt's shift plan
+// on the device itself, through the game's own frame loop).
+export function apply(sim, entry, record) {
+  const [, name, ...args] = entry;
+  if (name === "m") return sim.setMovement(...record.vecs[args[0]]);
+  if (name === "look") {
+    sim.coach.lookAngle = args[0];
+    return;
+  }
+  if (typeof sim[name] !== "function") throw new Error("this build's simulation has no input " + name);
+  return sim[name](...args);
+}
+
 // A hash of what matters in the simulation: the score, the clocks, the coach, everybody's place. Any drift shows in it quickly.
 export function stateHash(sim) {
   let h = 2166136261;

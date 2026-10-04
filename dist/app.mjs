@@ -51,7 +51,7 @@ import {
   LiveSender,
   Coverage,
 } from "./playtest.mjs";
-import { Recorder } from "./replay.mjs";
+import { Recorder, apply as applyInput } from "./replay.mjs";
 import { BUILD } from "./version.mjs";
 import { playCinematic } from "./cinematic.mjs";
 import { readTuning, isWebKit } from "./tuning.mjs";
@@ -81,7 +81,8 @@ try {
 // The switches for isolating a crash (tuning.mjs) and the crash hunt that runs them one at a time (bisect.mjs). The
 // hunt's state is read first: a test left running by the last page means that page died in it.
 const params = new URLSearchParams(location.search);
-const hunt = params.get("bisect") === "hands" ? hunts.hands : hunts.main; // ?bisect=hands looks inside the hands layer
+// ?bisect=hands looks inside the hands layer, ?bisect=shift plays plain shifts in the overview (the crash about 45 s into a shift)
+const hunt = { hands: hunts.hands, shift: hunts.shift }[params.get("bisect")] || hunts.main;
 let huntState = null;
 if (params.has("bisect")) {
   if (params.get("bisect") === "reset" || params.has("reset")) {
@@ -512,11 +513,44 @@ function showFundResult(pay, booked) {
 // ?trial plays one scripted shift (level 10 in the Coach Cam: Carl's cannonball, then the fish kid) with whatever
 // switches the address carries; ?bisect runs the whole plan, one switch per test, reloading between tests and
 // counting a test that never finished as a crash. Both leave the player idle: the incidents are the point.
-const TRIAL_CAP = +params.get("trialsecs") || 100; // seconds of real time before a trial gives up waiting
+// `?trial=shift` and `?bisect=shift` play a plain shift instead, in the overview with no incident of its own: the recorded level 2
+// that crashed an iPad (below), or with `?bot` a level 3 played by a bot. The crash they hunt came about 45 s after the go,
+// whatever the level was and whatever was happening.
+const plainTrial = params.get("trial") === "shift" || hunt === hunts.shift;
+const TRIAL_CAP = +params.get("trialsecs") || 100; // seconds the page may be seen before a trial gives up waiting
 // The hands crash came about 45 s into a Coach Cam shift, whatever was happening, so a hunt's test plays on until it is
-// well past that (with the cap always the last word).
-const TRIAL_MIN = huntStep ? Math.min(70, TRIAL_CAP - 5) : 0;
+// well past that (with the cap always the last word); a plain shift plays 56 s from the go (the recorded level 2 lasts 60), or 75 s
+// of the bot's level 3, a long way past 43 to 46. (`trialplay=N` shortens the play to N seconds, for rehearsing the hunt where the
+// game runs slowly.)
+const TRIAL_MIN = plainTrial
+  ? Math.min(+params.get("trialplay") || (params.has("bot") ? 75 : 56), TRIAL_CAP - 5)
+  : huntStep
+    ? Math.min(70, TRIAL_CAP - 5)
+    : 0;
 let trial = null;
+let awake = null; // the screen wake lock a trial holds, so an iPad left alone does not go to sleep in the middle of a test
+let awakeWord = "";
+async function keepAwake() {
+  if (awake || awakeWord === "asking") return;
+  if (!navigator.wakeLock) {
+    if (!awakeWord) crashlog.crumb("hunt", "this browser cannot keep the screen awake");
+    awakeWord = "none";
+    return;
+  }
+  awakeWord = "asking";
+  try {
+    awake = await navigator.wakeLock.request("screen");
+    awake.addEventListener?.("release", () => (awake = null));
+    if (awakeWord !== "kept") crashlog.crumb("hunt", "the screen is kept awake");
+    awakeWord = "kept";
+  } catch (e) {
+    awakeWord = "refused";
+    crashlog.crumb("hunt", "could not keep the screen awake: " + String(e?.message || e).slice(0, 80));
+  }
+}
+document.addEventListener("visibilitychange", () => {
+  if (trial && !document.hidden) keepAwake();
+});
 function huntOverlay(html, { buttons = "" } = {}) {
   const box = $("hunt");
   box.hidden = false;
@@ -530,6 +564,13 @@ function huntLabel() {
 function showHuntResults() {
   const { lines, verdict } = hunt.summary(huntState),
     device = crashlog.session?.env?.ua || "";
+  // (In the diary too, for whoever reads the log from afar: a crumb is short, so the verdict is a second one.)
+  crashlog.crumb(
+    "hunt",
+    (hunt.finished(huntState) ? "done: " : "so far: ") + lines.map((l) => l.id + " " + l.outcome).join(", "),
+  );
+  crashlog.crumb("hunt", verdict);
+  live?.dirty("urgent");
   huntOverlay(
     `<strong>Crash hunt: ${hunt.finished(huntState) ? "done" : "results so far"}</strong><ul>` +
       lines.map((l) => `<li class="${l.outcome}"><span>${l.label}</span><b>${l.outcome}</b></li>`).join("") +
@@ -548,28 +589,126 @@ function showHuntResults() {
     location.href = location.pathname;
   };
 }
-function startTrial() {
+// The shift that ended an iPad's page 44.0 s after the go (hunt/lunch-rush.json: a level 2 played on 4 October 2026, as the recorder
+// kept it). A plain trial plays it again input for input (the simulation is seeded and fixed-step, so it is the same shift every
+// time, in every test), through the game's own frame loop. `?bot` plays a level 3 with a bot instead, and so does a page that
+// cannot fetch the recording.
+let replayRun = null; // {record, next, ticks} while a recorded shift is being fed to the simulation
+let nextSeed = 0; // the seed the next shift starts with (a replayed one; else the clock decides)
+async function loadHuntShift() {
+  try {
+    const r = await fetch(new URL("./hunt/lunch-rush.json", import.meta.url));
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const record = await r.json();
+    if (!Number.isInteger(record.level) || !Array.isArray(record.inputs)) throw new Error("not a recording");
+    return record;
+  } catch (e) {
+    crashlog.crumb("hunt", "no recorded shift (" + String(e?.message || e).slice(0, 60) + "): a bot plays");
+    return null;
+  }
+}
+// The inputs that come before this tick, given as the player gave them; one that cannot be given ends the replay, not the shift.
+function feedReplay() {
+  const run = replayRun;
+  try {
+    while (run.next < run.record.inputs.length && run.record.inputs[run.next][0] <= run.ticks)
+      applyInput(sim, run.record.inputs[run.next++], run.record);
+  } catch (e) {
+    crashlog.error("hunt:replay", e);
+    replayRun = null;
+    return;
+  }
+  run.ticks++;
+}
+async function startTrial() {
   settings.coachCam = !tuning.has("overview"); // the trial's own choice, never saved
   $("coach-cam").checked = settings.coachCam;
-  level = 10;
+  const record = plainTrial && !params.has("bot") ? await loadHuntShift() : null;
+  level = record ? record.level : plainTrial ? 3 : 10;
   selected = { kind: "level", level };
-  start(null);
-  trial = { phase: "carl", at: 0, began: performance.now() };
+  nextSeed = record ? record.seed : plainTrial ? 138 : 0; // (138: a level 3 the bot plays for 75 s with no pool closed and swimmers in the water)
+  start(record?.booking || null);
+  replayRun = record ? { record, next: 0, ticks: 0 } : null;
+  const now = performance.now();
+  // `seen` is the time the page has been in front of someone, `played` the part of it the shift has been running (from the go).
+  trial = { phase: plainTrial ? "plain" : "carl", at: 0, began: now, last: now, seen: 0, played: 0 };
   huntOverlay(
-    `<strong>${huntLabel()}</strong><p>Leave this tab open and do nothing. If the page closes or reloads, open the link again.</p>`,
+    `<strong>${huntLabel()}</strong><p>${
+      plainTrial
+        ? "Leave the iPad awake with this tab in front and do nothing: " +
+          (record ? "a recorded shift plays back" : "a bot plays the shift") +
+          ". It goes on to the next test by itself, even after a crash."
+        : "Leave this tab open and do nothing. If the page closes or reloads, open the link again."
+    }</p>`,
   );
-  crashlog.crumb("hunt", huntLabel());
+  const switches = tuning.describe();
+  crashlog.crumb(
+    "hunt",
+    huntLabel() +
+      (switches.length ? " · switches: " + switches.join(" + ") : "") +
+      (plainTrial
+        ? record
+          ? " · replaying level " +
+            record.level +
+            " seed " +
+            record.seed +
+            " (" +
+            record.inputs.length +
+            " inputs)"
+          : " · bot, level 3"
+        : ""),
+  );
   if (huntStep) {
     hunt.begin(huntState);
     hunt.save(crashStorage, huntState);
   }
+  keepAwake();
   trial.timer = setInterval(trialTick, 250);
+}
+// The player of a plain trial: every so often it sends the swimmer who has waited longest to the emptiest lane that will have
+// them (a lane that is closed, in its splash zone or full says no, and the next is tried), as a player does with two taps. The
+// crash this hunts came in shifts that were played, with swimmers in the water, and in a shift nobody plays nobody swims.
+function botPlay() {
+  if (sim.status !== "playing") return;
+  const waiting = sim.people.find((p) => p.status === "queue" && p.type !== "daredevil");
+  if (!waiting) return;
+  sim.select(waiting.id);
+  const lanes = sim.lanes.map((_, i) => i).sort((a, b) => sim.occupancy(a) - sim.occupancy(b));
+  for (const lane of lanes) if (sim.assign(lane)) return;
 }
 function trialTick() {
   if (!trial) return;
-  if (mode === "results" || sim.status === "ended" || performance.now() - trial.began > TRIAL_CAP * 1000)
-    return endTrial();
+  // Time counts only while the page is in front (a locked iPad is not a test), and played only while the shift runs.
+  const now = performance.now(),
+    gap = Math.min(1000, now - trial.last);
+  trial.last = now;
+  if (!document.hidden) {
+    trial.seen += gap;
+    if (mode === "playing") trial.played += gap;
+  }
+  const enough = trial.played >= TRIAL_MIN * 1000;
+  // A page that dies cannot say when, so a hunt's log goes out about every 8 s (the "busy" pace) and not every 20: the last word
+  // from a crashed test then says within a few seconds how far it got.
+  if (live && now - (trial.sent || 0) > 4000) {
+    trial.sent = now;
+    live.dirty("busy");
+  }
+  if (mode === "results" || sim.status === "ended") return endTrial(!plainTrial || enough);
+  if (trial.seen > TRIAL_CAP * 1000) return endTrial(!plainTrial || enough);
+  // The page pauses the shift when it is hidden; nobody is there to press play when it comes back.
+  if (mode === "paused" && !document.hidden) return resume();
   if (mode !== "playing") return;
+  if (plainTrial) {
+    if (!replayRun && now - (trial.botAt || 0) > 700) {
+      trial.botAt = now;
+      try {
+        botPlay();
+      } catch (e) {
+        crashlog.error("hunt:bot", e);
+      }
+    }
+    return enough && endTrial();
+  }
   const quiet = sim.time - trial.at > 6 && !sim.activeSystems().length;
   if (trial.phase === "carl" && sim.time >= 2 && sim.triggerChaos("carl")) {
     trial.phase = "carl-run";
@@ -579,22 +718,29 @@ function trialTick() {
     trial.phase = "fish-run";
     trial.at = sim.time;
     crashlog.crumb("hunt", "fish kid");
-  } else if (trial.phase === "fish-run" && quiet && performance.now() - trial.began > TRIAL_MIN * 1000)
-    endTrial();
+  } else if (trial.phase === "fish-run" && quiet && trial.seen > TRIAL_MIN * 1000) endTrial();
 }
-function endTrial() {
+// `played` is false when the test could not be played through (the page was hidden or paused for the whole of the cap).
+function endTrial(played = true) {
   clearInterval(trial.timer);
   trial = null;
-  crashlog.crumb("hunt", "survived");
+  replayRun = null;
+  awake?.release?.().catch?.(() => {});
+  awake = null;
+  const label = huntLabel();
+  crashlog.crumb("hunt", played ? "survived" : "not played through");
   if (huntStep) {
-    hunt.pass(huntState);
+    (played ? hunt.pass : hunt.skip)(huntState);
     hunt.save(crashStorage, huntState);
-    huntOverlay(`<strong>${huntLabel()}</strong><p>Survived. Next test…</p>`);
+    huntOverlay(
+      `<strong>${label}</strong><p>${played ? "Survived. Next test…" : "Could not be played through. Next test…"}</p>`,
+    );
     setTimeout(() => location.reload(), 900);
   } else {
-    huntOverlay(`<strong>${huntLabel()}</strong><p>Survived: no crash in this trial.</p>`, {
-      buttons: `<button id="hunt-stop" class="secondary">Close</button>`,
-    });
+    huntOverlay(
+      `<strong>${label}</strong><p>${played ? "Survived: no crash in this trial." : "Not played through."}</p>`,
+      { buttons: `<button id="hunt-stop" class="secondary">Close</button>` },
+    );
     $("hunt-stop").onclick = () => ($("hunt").hidden = true);
   }
 }
@@ -902,8 +1048,28 @@ function triggerBlocker(key) {
   const system = sim.system(key);
   return system ? sim.chaosBlocker(system, true) : "not in this build";
 }
-function triggerNow(key) {
-  if (triggerBlocker(key)) return;
+// The models a shift that plans the incident fetches as it begins (loadCannonballMan, loadFishKid below): a forced incident
+// fetches them first, or the tester would see the classic Carl and kid where a player sees the models.
+function incidentModels(key) {
+  if (activeSwimmerChoice() !== "models") return [];
+  if (key === "carl") return [loadFigure(cannonballMan(sim.config, sim.level).id)];
+  if (key === "fish") return [loadFigure("kid"), loadFishModel()];
+  return [];
+}
+let ptTriggering = false;
+async function triggerNow(key) {
+  if (ptTriggering || triggerBlocker(key)) return;
+  const fetching = incidentModels(key);
+  if (fetching.length) {
+    // (the shift waits behind the panel, which says so; a slow connection does not hold it for more than a few seconds)
+    ptTriggering = true;
+    toast("Playtest: fetching the models…");
+    try {
+      await Promise.race([Promise.all(fetching), new Promise((resolve) => setTimeout(resolve, 6000))]);
+    } catch {}
+    ptTriggering = false;
+    if (triggerBlocker(key)) return; // (the panel was closed, or the shift ended, while they came)
+  }
   closePlaytest(); // the shift runs again first: an incident starts in a running shift
   let ok = false;
   try {
@@ -966,6 +1132,7 @@ function renderPlaytestStatus() {
         .map((x) => x.key)
         .join(", ")
     : "";
+  $("playtest-map").hidden = !ptPaused;
   $("playtest-where").textContent = ptPaused
     ? "Level " +
       sim.level +
@@ -1051,6 +1218,16 @@ function bindPlaytest() {
       x.setAttribute("aria-pressed", String(x === b));
   };
   $("playtest-flag").onclick = flagProblem;
+  // Out of the shift behind the panel and onto the map (what the pause dialog has no button for): the shift stops where it is.
+  $("playtest-map").onclick = () => {
+    crashlog.crumb(
+      "playtest",
+      "back to the map from the panel" + (ptPaused ? " · t" + Math.round(sim.time) + "s" : ""),
+    );
+    clearInterval(ptTimer);
+    ptPaused = false;
+    returnMenu();
+  };
   $("playtest-triggers").onclick = (e) => {
     const b = e.target.closest("button[data-trigger]");
     if (b && !b.disabled) triggerNow(b.dataset.trigger);
@@ -1232,7 +1409,8 @@ function start(bookingId = null) {
   document.querySelectorAll("dialog[open]").forEach((d) => d.close());
   const drill = selected.kind === "drill" ? DRILLS[selected.id] : null;
   activeBooking = drill ? null : bookingId;
-  runSeed = Date.now();
+  runSeed = nextSeed || Date.now();
+  nextSeed = 0;
   const man = forcedMan && { cannonball: forcedMan };
   sim = drill
     ? new PoolSimulation(drill.tier, runSeed, { config: { ...drill.config, ...man }, drill: drill.id })
@@ -2416,10 +2594,13 @@ function frame(t) {
         sim.coach.lookAngle = world.coachCam.yaw;
         recorder?.look(sim.coach.lookAngle);
       }
-      const movement = moveVector();
-      sim.setMovement(movement.x, movement.z);
+      if (!replayRun) {
+        const movement = moveVector();
+        sim.setMovement(movement.x, movement.z);
+      }
       accumulator = Math.min(0.12, accumulator + dt * speed);
       while (accumulator >= 1 / 60) {
+        if (replayRun) feedReplay();
         sim.tick(1 / 60);
         accumulator -= 1 / 60;
       }
@@ -2444,12 +2625,15 @@ function frame(t) {
     }
   }
   if (!covered) {
-    stage("scene", () => {
-      world.sync(sim, viewClock, dt * speed, dt);
-      if (world.incidentView.consumeLightning()) audio.effect("thunder");
-    });
-    stage("render", () => world.render());
-    stage("tags", updateBubbles);
+    // (The crash hunt's two last suspects: `nosync` leaves the 3D scene alone, neither updated nor drawn, `norender` updates it
+    // and draws nothing. The simulation, the page and the sound go on in both.)
+    if (!tuning.has("nosync"))
+      stage("scene", () => {
+        world.sync(sim, viewClock, dt * speed, dt);
+        if (world.incidentView.consumeLightning()) audio.effect("thunder");
+      });
+    if (!tuning.has("nosync") && !tuning.has("norender")) stage("render", () => world.render());
+    if (!tuning.has("nosync")) stage("tags", updateBubbles);
   }
   stage("context", updateContext);
   stage("alert", updateAlert);

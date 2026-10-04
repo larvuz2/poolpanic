@@ -1,5 +1,16 @@
 import { AUDIO_FILES } from "./audio-files.mjs";
 
+const HISS_SECONDS = 3; // the longest burst of noise is 1.4 s
+// Every sound is a little chain of nodes that is over a moment after it starts, and the music alone makes about 70 of them a
+// second. A chain is let go of when its source ends (Safari holds on to a finished one that is still connected, and the page
+// had been dying about 45 s into a shift: whether this is why is not known).
+const release = (...nodes) => {
+  for (const node of nodes)
+    try {
+      node.disconnect();
+    } catch {}
+};
+
 export class PoolAudio {
   constructor() {
     this.buffers = new Map();
@@ -39,25 +50,38 @@ export class PoolAudio {
     g.gain.exponentialRampToValueAtTime(0.001, time + duration);
     o.connect(g);
     g.connect(this.master);
+    o.onended = () => release(o, g);
     o.start(time);
     o.stop(time + duration + 0.03);
   }
+  // White noise for every hiss, tick and thump, made once (the music asked for a new buffer nine times a second).
+  hissBuffer() {
+    if (!this.hiss) {
+      const rate = this.ctx.sampleRate,
+        b = this.ctx.createBuffer(1, Math.floor(rate * HISS_SECONDS), rate),
+        d = b.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      this.hiss = b;
+    }
+    return this.hiss;
+  }
+  // A burst of it from a random place, fading out over its length.
   noise(t, duration, vol = 0.06, freq = 1400) {
     if (!this.ctx || !this.enabled) return;
-    const b = this.ctx.createBuffer(1, this.ctx.sampleRate * duration, this.ctx.sampleRate);
-    const d = b.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
-    const s = this.ctx.createBufferSource(),
+    const hiss = this.hissBuffer(),
+      s = this.ctx.createBufferSource(),
       g = this.ctx.createGain(),
       f = this.ctx.createBiquadFilter();
-    s.buffer = b;
+    s.buffer = hiss;
     f.type = "highpass";
     f.frequency.value = freq;
-    g.gain.value = vol;
+    g.gain.setValueAtTime(vol, t);
+    g.gain.linearRampToValueAtTime(0, t + duration);
     s.connect(f);
     f.connect(g);
     g.connect(this.master);
-    s.start(t);
+    s.onended = () => release(s, f, g);
+    s.start(t, Math.random() * Math.max(0, hiss.duration - duration), duration);
   }
   // A recorded sound from audio-files.mjs, loaded once. Resolves to false when there is none (or it will not
   // load), so the caller can fall back to the synthesised placeholder.
@@ -76,6 +100,7 @@ export class PoolAudio {
       const source = this.ctx.createBufferSource();
       source.buffer = await this.buffers.get(url);
       source.connect(this.master);
+      source.onended = () => release(source);
       source.start();
       return true;
     } catch {
@@ -416,6 +441,7 @@ export class PoolAudio {
     s.connect(f);
     f.connect(g);
     g.connect(this.master);
+    s.onended = () => release(s, f, g);
     s.start(t);
     for (let i = 0; i < (big ? 12 : 6); i++)
       this.noise(t + 0.05 + Math.random() * length * 0.7, 0.03, 0.08, 2600);

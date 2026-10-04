@@ -4579,6 +4579,9 @@ body:not(.menu) .fund-pill {
 .hunt li.ok b {
   color: var(--mint);
 }
+.hunt li.unclear b {
+  color: var(--yellow);
+}
 .hunt li.waiting {
   opacity: 0.55;
 }
