@@ -1,7 +1,7 @@
 """Add a character's own clips (what the person does while waiting to be assigned to a lane) to a rigged humanoid:
     tools/blender/run.sh tools/blender/character_clips.py -- in.glb out.glb --character marco [--only WaitWatch]
 (`--character shared` is the clips every character gets, made on Coach Panic: Panic and Swim. transplant_clips.py then
-moves them to the others.)
+moves them to the others. `--character coach` is the clip only Coach Panic has: SwimRing, swimming with the life ring.)
 The clips of the file stay, the new ones are added under their own names, and each one loops (its last frame is its
 first again). The legs stay planted: the feet are held where they stand, and the knees bend to follow the hips. Every bone
 is keyed in every frame, like the other clips, so switching clips never leaves a bone behind.
@@ -163,11 +163,40 @@ def swim_clip():
     return {"frames": frames, "breath": 0.0, **keys}  # (the hips stay where they are: no breathing on top)
 
 
+def swim_ring_clip():
+    """SwimRing: Coach Panic swimming with the life ring, which floats ahead of him and which he holds at the very front. Made
+    standing, like every clip: the game lays him on his front, so "up the body" is ahead of him in the water. The arms are held
+    straight up the body (a little bent, the hands a little apart, on the ring) and do not move at all: every key of both arms
+    is the same. The body does not roll and the head looks ahead over the ring; only the legs kick, in the Swim's six-beat
+    flutter (three kicks a leg to each cycle)."""
+    frames = 24
+    tau = 2 * math.pi
+    bend = 0.035  # metres: how much shorter a leg is at its most bent
+    kick = 0.13  # metres: how far a foot goes forward and back of where it hangs
+    hold = {"space": "chest", "tgt": (0.10, -0.03, 0.99), "pole": (1.0, 0.25, 0.0), "twist": 0}
+    keys = {name: [] for name in ("hips_turn", "spine", "head", "armL", "armR", "footL", "footR")}
+    for f in range(frames + 1):
+        w = tau * (f % frames) / frames
+        keys["hips_turn"].append((f, (0.0, 0.0, 0.0)))
+        keys["spine"].append((f, (0.0, 0.0, 0.0)))
+        keys["head"].append((f, (0.0, -22.0, 0.0)))  # a negative pitch looks up: ahead, over the ring, when he lies on his front
+        keys["armL"].append((f, hold))
+        keys["armR"].append((f, hold))
+        for side in ("L", "R"):
+            theta = 3 * w + (0.0 if side == "L" else math.pi)
+            keys["foot" + side].append((f, (kick * math.sin(theta), 0.0, bend * (0.5 + 0.5 * math.sin(theta + 0.8)))))
+    return {"frames": frames, "breath": 0.0, **keys}  # (the hips stay where they are: no breathing on top)
+
+
 CLIPS = {
     # What every character does, made on the Coach and moved to the others (transplant_clips.py).
     "shared": {
         "Panic": panic_clip(),
         "Swim": swim_clip(),
+    },
+    # What only Coach Panic does.
+    "coach": {
+        "SwimRing": swim_ring_clip(),
     },
     "marco": {
         # Impatient, waiting to be given a lane: a long look at his watch, a sigh, looking around for whoever is coming, the
