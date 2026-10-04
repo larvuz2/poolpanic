@@ -211,6 +211,49 @@ function fixture(level = 3) {
     "A naturally triggered rescue still leaves time to serve customers in level two",
   );
 }
+// A swimmer walking to the bench is never thrown back along the pool. The coach climbs out of the water on that very side, and a
+// collision pushes the swimmer into the margin of the pool's keep-out box; the walk's guard against stepping into the water used to
+// send such a swimmer 4.5 m back to the end of the pool every time, again and again for as long as the coach stood there. The coach
+// stands in the way of the whole walk here: the swimmer gets by, never moves faster than a walk, never steps into the water, and rests.
+{
+  for (const level of [3, 12]) {
+    const { s, p } = fixture(level);
+    const P = s.venue.pool;
+    assert.equal(s.startCramp(p), true);
+    tick(s, 30);
+    const c = s.coach;
+    Object.assign(c, { swimming: true, y: -0.39, x: p.x - 0.5, z: p.z, carry: "lifering", carryOwner: 0 });
+    s.lifeRings[0].state = "coach";
+    for (let f = 0; f < 120 && s.lifeRing.state !== "victim"; f++) s.tick(1 / 60);
+    assert.equal(s.lifeRing.state, "victim", "the ring is handed over");
+    for (let f = 0; f < 600 && p.exitPhase !== "deck"; f++) s.tick(1 / 60);
+    assert.equal(p.exitPhase, "deck", "the swimmer is out on the deck");
+    // The coach is out too, standing in the corridor the swimmer walks to the bench by, a little way along it, and does not move.
+    const stand = { x: Math.sign(s.venue.rescue.bench.x) * (P.corridorX - 0.1), z: p.z > 0 ? 3.9 : -3.9 };
+    Object.assign(c, { swimming: false, waterTransition: null, y: 0, vx: 0, vz: 0, carry: null, ...stand });
+    let last = { x: p.x, z: p.z },
+      worst = 0;
+    for (let f = 0; f < 60 * 30 && p.recoveryStage !== "resting"; f++) {
+      Object.assign(c, stand);
+      s.tick(1 / 60);
+      worst = Math.max(worst, Math.hypot(p.x - last.x, p.z - last.z));
+      last = { x: p.x, z: p.z };
+      assert.ok(
+        !(Math.abs(p.x) < P.deckX && Math.abs(p.z) < P.deckZ),
+        `level ${level}: the swimmer walks into the water at ${p.x.toFixed(2)}, ${p.z.toFixed(2)}`,
+      );
+    }
+    assert.ok(
+      worst < 0.15,
+      `level ${level}: the swimmer jumped ${worst.toFixed(2)} m in one tick (a walk is 0.05)`,
+    );
+    assert.equal(
+      p.recoveryStage,
+      "resting",
+      `level ${level}: the swimmer gets by the coach and rests on the bench`,
+    );
+  }
+}
 console.log(
-  "Rescue checks passed: level gating, natural mid-pool onset, frozen lanes, mandatory ring/dive, real keyboard travel and swimming, automatic handoff, exit-only resumption, four-second seated recovery, original workout, physical ring collection/return, pause, and no swimming outside rescues.",
+  "Rescue checks passed: level gating, natural mid-pool onset, frozen lanes, mandatory ring/dive, real keyboard travel and swimming, automatic handoff, exit-only resumption, four-second seated recovery, original workout, physical ring collection/return, a swimmer walking to the bench past a coach standing in the way (never thrown back along the pool), pause, and no swimming outside rescues.",
 );
