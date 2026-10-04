@@ -51,8 +51,9 @@ diary shows).
    nothing should cost a few cents.
 5. **Look into each new launch**, newest first, by what it is:
    - **KNOWN** (the digest says so): a tab killed 38 to 55 s after the go with no error is the 45-second crash that is being hunted. Do not
-     investigate it again; it is only counted. (`KNOWN` in `tools/crash-triage.mjs` is that window. When the cause has been found and fixed it
-     must change: a crash inside the window is then a new one.)
+     investigate it again; it is only counted: one line in the run's comment (how many, which levels, how long into the shift) and its token on
+     the `handled:` line, so that the next hour does not meet it again. (`KNOWN` in `tools/crash-triage.mjs` is that window. When the cause has
+     been found and fixed it must change: a crash inside the window is then a new one.)
    - **ERROR**: a JavaScript error with a stack. Replay the shift (`node tools/replay.mjs <saved report> --diary --pulse`; add `--until SECONDS`
      to stop just before the error) and read what the simulation and the scene were doing. Find the cause in the code, not a guess.
    - **STUCK** or **FLAG**: an incident that sat in one state for 50 s or more, or something the player flagged. Replay with `--diary` and read
