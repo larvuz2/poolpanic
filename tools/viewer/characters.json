@@ -417,6 +417,21 @@
         "CarryWalk",
         "WaitFidget"
       ]
+    },
+    {
+      "id": "karen",
+      "name": "Karen",
+      "file": "../../dist/assets/models/karen.glb",
+      "note": "The incident character of level 4 onward: a woman in a pink tank top with sunglasses and a big bag, 1.8 m (the game draws her at 0.97). Meshy 7 mesh from the character art (T-pose, 30,000 tris, one 1,536 px JPEG texture), rigged by karen_rig.py on its own 19-bone humanoid skeleton (humanoid_rig.py: not Coach Panic's), limbs skinned by how far along them a vertex is. Five clips of her own: Idle, Walk (a furious march), Complain (left arm up and waving, then the right), Point (right arm out, jabbing: at the pool, then at a random spot) and Defeated (once: a slump and a sigh, as she is calmed). Her arms hang about 50 degrees out from her body because her bag is wider than her hip; her soles lie flat on the floor (karen_bagcheck.py and karen_feetcheck.py measure both). The game plays them from scene/karen-view.mjs.",
+      "clips": {
+        "Complain": {
+          "pop": true,
+          "why": "the waving forearm swings about 49 degrees a frame: she flaps her hand at the coach"
+        },
+        "Defeated": {
+          "open": true
+        }
+      }
     }
   ]
 }
