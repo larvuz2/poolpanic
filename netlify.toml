@@ -11,6 +11,12 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# The one function the site has: the crash-report sink the game posts its crash log to (netlify/functions/report.mjs,
+# served at /api/report, stored in Netlify Blobs). Netlify bundles it with the @netlify/blobs package from
+# package.json; the game itself stays unbundled.
+[functions]
+  directory = "netlify/functions"
+
 # The game loads as native ES modules, which browsers only run when served with a JavaScript MIME type.
 [[headers]]
   for = "/*.mjs"

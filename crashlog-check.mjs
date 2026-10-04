@@ -50,9 +50,10 @@ assert.equal(typeof BUILD.commit, "string");
     ["start", "incident", "view"],
   );
   assert.equal(trail[1][3], 2, "A repeat is counted, not repeated");
-  for (let i = 0; i < 250; i++) log.crumb("tick", "step " + i);
+  const steps = LIMITS.crumbs + 150;
+  for (let i = 0; i < steps; i++) log.crumb("tick", "step " + i);
   assert.equal(log.session.crumbs.length, LIMITS.crumbs, "The ring holds " + LIMITS.crumbs);
-  assert.equal(log.session.crumbs.at(-1)[2], "step 249", "…and keeps the newest");
+  assert.equal(log.session.crumbs.at(-1)[2], "step " + (steps - 1), "…and keeps the newest");
   log.crumb("long", "x".repeat(1000));
   assert.ok(log.session.crumbs.at(-1)[2].length <= LIMITS.crumb, "A crumb is clipped");
   // State: small flat facts only.
@@ -146,6 +147,25 @@ assert.equal(typeof BUILD.commit, "string");
   c.settle(new Set());
   assert.equal(c.pending().length, 0, "…on any later launch");
   assert.equal(c.troubled().length, 1, "…but it is still in the log");
+  // Sent to the developer is the same, and remembers where it went.
+  const f = fresh(memory(), now);
+  f.start();
+  f.error("window", boom());
+  f.close();
+  const g = fresh(f.storage, now);
+  g.start();
+  g.settle(new Set());
+  assert.equal(g.pending().length, 1);
+  assert.equal(g.mark(f.session.id, "sent", { device: "K7Q2M5XA", automatic: true, junk: { a: 1 } }), true);
+  assert.equal(g.pending().length, 0, "Sent: not offered again");
+  const sentRecord = fresh(f.storage, now)
+    .readAll()
+    .find((x) => x.id === f.session.id);
+  assert.equal(sentRecord.sent.device, "K7Q2M5XA", "…and the session says where it went, on the device");
+  assert.equal(sentRecord.sent.automatic, true);
+  assert.equal(sentRecord.sent.junk, undefined, "…in small flat facts only");
+  assert.ok(sentRecord.sent.at > 0);
+  assert.equal(g.mark("nope", "sent"), false);
   // Set aside is the same.
   const d = fresh(memory(), now);
   d.start();
@@ -379,6 +399,9 @@ assert.equal(typeof BUILD.commit, "string");
       dpr: 2.6,
       touch: true,
       gpu: "Adreno (TM) 740",
+      canvas: "1030×2287",
+      maxTexture: 8192,
+      webgl2: false,
       cores: 8,
       memory: 4,
     },
@@ -394,6 +417,9 @@ assert.equal(typeof BUILD.commit, "string");
     time: 62,
     score: 1200,
     active: "fish",
+    rescue: "stranded cramp",
+    coach: "swimming carrying lifering @-4.2,0.6",
+    crowd: "swim 6, queue 3, exit 1",
     seed: 1790000000123,
   });
   for (let i = 0; i < 60; i++) {
@@ -412,6 +438,13 @@ assert.equal(typeof BUILD.commit, "string");
     "club",
     "Coach Cam".toLowerCase() === "" ? "" : "coach",
     "active: fish",
+    "rescue stranded cramp",
+    "coach swimming carrying lifering @-4.2,0.6",
+    "crowd: swim 6, queue 3, exit 1",
+    "canvas 1030×2287",
+    "WebGL 1",
+    "max texture 8192",
+    "## Timeline",
     "seed 1790000000123",
     "frame:alert",
     "TypeError",

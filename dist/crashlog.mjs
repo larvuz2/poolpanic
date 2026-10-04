@@ -1,7 +1,8 @@
 // The crash log: a small black box for the game. It keeps a ring of breadcrumbs (what the game and the player were
 // doing), records every error and the other things that pass for a crash (a frame that threw, a lost GPU context, a
 // tab that died without closing), and keeps all of it on the device so the next launch can offer a report.
-// Nothing leaves the device by itself: the player copies the report or opens the prefilled GitHub issue.
+// Nothing leaves the device by itself: the player copies the report, opens the prefilled GitHub issue or sends it to the developer
+// (report-send.mjs, only when they say so or have switched automatic sending on).
 // Pure module (no DOM, no globals): storage, clock and scheduler are passed in, so the checks can drive it.
 // The browser wiring (window errors, console, visibility, WebGL, tab locks) is in crashlog-hooks.mjs.
 //
@@ -13,12 +14,12 @@ export const ISSUE_URL = "https://github.com/larvuz2/poolpanic/issues/new";
 
 export const LIMITS = {
   sessions: 8, // sessions kept on the device
-  crumbs: 100, // breadcrumbs per session
+  crumbs: 400, // breadcrumbs per session: the shift's diary (trace.mjs) writes a line for every change that matters
   errors: 12, // distinct errors per session
-  crumb: 180, // characters per breadcrumb
+  crumb: 240, // characters per breadcrumb
   message: 320, // characters per error message
   stack: 1800, // characters per stack
-  bytes: 40000, // one session, stored
+  bytes: 90000, // one session, stored
   issueUrl: 6800, // longest prefilled issue link
   stale: 45000, // a session this quiet is gone when nothing better tells us (ms)
 };
@@ -321,20 +322,23 @@ export class CrashLog {
   latest() {
     return this.session || this.sessions[this.sessions.length - 1] || null;
   }
-  // Earlier sessions that went wrong and were not reported or set aside.
+  // Earlier sessions that went wrong and were not reported, sent or set aside.
   pending() {
     return this.sessions.filter(
-      (s) => s !== this.session && (s.errors.length || s.crash) && !s.reported && !s.dismissed,
+      (s) => s !== this.session && (s.errors.length || s.crash) && !s.reported && !s.dismissed && !s.sent,
     );
   }
   // Every session that went wrong (this one included), newest first.
   troubled() {
     return this.sessions.filter((s) => s.errors.length || s.crash).reverse();
   }
-  mark(id, what = "reported") {
+  // `what`: "reported" (copied, or opened as an issue), "sent" (to the developer: `info` says when and from which device code) or
+  // "dismissed" (set aside).
+  mark(id, what = "reported", info = null) {
     const s = this.sessions.find((x) => x.id === id);
     if (!s) return false;
-    s[what === "reported" ? "reported" : "dismissed"] = true;
+    if (what === "sent") s.sent = { at: this.now(), ...flat(info) };
+    else s[what === "reported" ? "reported" : "dismissed"] = true;
     this.write(s);
     return true;
   }
@@ -387,7 +391,7 @@ export class CrashLog {
         lines.push("  " + l.trim());
     } else if (s.crash === "unclean")
       lines.push("", "The page ended in the middle of a shift without closing.");
-    const trail = s.crumbs.filter((c) => c[1] !== "perf").slice(-8);
+    const trail = s.crumbs.filter((c) => c[1] !== "perf").slice(-12);
     if (trail.length) {
       lines.push("", "Last things that happened:");
       for (const [at, kind, text, n] of trail)
@@ -421,6 +425,9 @@ export class CrashLog {
           env.dpr && env.dpr + "× pixels",
           env.touch ? "touch" : "",
           env.gpu && "GPU " + env.gpu,
+          env.canvas && "canvas " + env.canvas,
+          env.webgl2 === false && "WebGL 1",
+          env.maxTexture && "max texture " + env.maxTexture,
           env.cores && env.cores + " cores",
           env.memory && env.memory + " GB",
           env.reduced ? "reduced motion" : "",
@@ -440,6 +447,9 @@ export class CrashLog {
           st.time !== undefined && "shift " + st.time + " s",
           st.score !== undefined && "score " + st.score,
           st.active && "active: " + st.active,
+          st.rescue && "rescue " + st.rescue,
+          st.coach && "coach " + st.coach,
+          st.crowd && "crowd: " + st.crowd,
           st.booking && "booking " + st.booking,
           st.seed && "seed " + st.seed,
         ]
@@ -495,7 +505,11 @@ export class CrashLog {
     }
     const trail = s.crumbs.slice(-crumbs);
     if (trail.length) {
-      lines.push("## Breadcrumbs (newest last)", "", "```");
+      lines.push(
+        "## Timeline (newest last; +seconds since the page opened, tNN is the shift's own clock)",
+        "",
+        "```",
+      );
       for (const [at, kind, text, n] of trail)
         lines.push(
           "+" + seconds(at).padStart(6) + " s  " + kind.padEnd(9) + " " + text + (n > 1 ? " ×" + n : ""),

@@ -38,6 +38,9 @@ import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
 import { MomentDirector, edgeArrow } from "./moments.mjs";
 import { installCrashLog, describeGpu } from "./crashlog-hooks.mjs";
+import { Tracer, describeEvent, isNoisy, crowdSummary } from "./trace.mjs";
+import { footprint } from "./scene/footprint.mjs";
+import { readPrefs, savePrefs, canSend, reportPayload, sendReport, sendProblem } from "./report-send.mjs";
 import { BUILD } from "./version.mjs";
 import { playCinematic } from "./cinematic.mjs";
 import { readTuning, isWebKit } from "./tuning.mjs";
@@ -59,7 +62,7 @@ const $ = (id) => document.getElementById(id),
   audio = new PoolAudio();
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 // The crash log starts first, so whatever goes wrong afterwards (even while the world is being built) is kept on the
-// device. Nothing is sent anywhere: see crashlog.mjs, and the crash dialog for how a report gets to us.
+// device. Nothing is sent unless the player says so: see crashlog.mjs, report-send.mjs and the crash dialog.
 let crashStorage = null;
 try {
   crashStorage = localStorage;
@@ -98,6 +101,19 @@ if (tuning.has("nosound")) {
 }
 const crashlog = installCrashLog({ build: BUILD, storage: crashStorage, motion: reducedMotion.matches });
 for (const e of window.__boot?.errors || []) crashlog.error("boot", e);
+// The shift's diary: what changed in the simulation, in plain words, after every frame (trace.mjs). A failing diary is switched off,
+// never the game.
+const tracer = new Tracer((kind, text) => crashlog.crumb(kind, text));
+let tracing = true;
+function trace() {
+  if (!tracing || !sim) return;
+  try {
+    tracer.look(sim);
+  } catch (e) {
+    tracing = false;
+    crashlog.error("trace", e);
+  }
+}
 let input,
   accumulator = 0,
   sim,
@@ -570,16 +586,31 @@ function logState() {
     time: sim.time,
     score: sim.score,
     active: (sim.activeSystems?.() || []).map((x) => x.key).join("+"),
+    rescue: sim.rescue ? sim.rescue.stage + " " + (sim.rescue.kind || "") : "",
+    coach: sim.coach
+      ? (sim.coach.swimming ? "swimming" : sim.coach.waterTransition?.kind || "deck") +
+        (sim.coach.carry ? " carrying " + sim.coach.carry : "") +
+        " @" +
+        Math.round(sim.coach.x * 10) / 10 +
+        "," +
+        Math.round(sim.coach.z * 10) / 10
+      : "",
+    crowd: crowdSummary(sim),
     booking: activeBooking || "",
     seed: mode === "menu" ? 0 : runSeed,
   });
 }
 // The player's deliberate actions go in the trail too: what they did just before something broke is often the clue.
 const act = (what) => crashlog.crumb("input", what);
-// A few numbers about how the GPU and the heap are doing, every ten seconds, so a crash report can show a trend.
+// A few numbers about how the GPU, the scene and the heap are doing, every ten seconds (and a moment after each save), so a crash
+// report can show a trend: a count that only climbs from shift to shift is a leak.
 function sampleLog() {
   const info = world?.renderer?.info,
     memory = performance.memory?.usedJSHeapSize;
+  let scene = {};
+  try {
+    scene = footprint(world?.scene, world?.coachCam?.scene);
+  } catch {}
   crashlog.perf({
     calls: info?.render.calls,
     tris: info && Math.round(info.render.triangles / 1000),
@@ -587,6 +618,18 @@ function sampleLog() {
     tex: info?.memory.textures,
     prog: info?.programs?.length,
     heapMB: memory && Math.round(memory / 1048576),
+    nodes: scene.nodes,
+    meshes: scene.meshes,
+    skinned: scene.skinned,
+    bones: scene.bones,
+    lights: scene.lights,
+    shadows: scene.shadows,
+    geoMB: scene.geoMB,
+    texMB: scene.texMB,
+    shadowMB: scene.shadowMB,
+    parts: world?.particles?.length,
+    people: sim?.people?.length,
+    dom: document.getElementsByTagName("*").length,
   });
 }
 async function copyText(text) {
@@ -607,13 +650,16 @@ async function copyText(text) {
     return false;
   }
 }
-// The crash dialog: what went wrong, and two ways to get the report to us (copy it, or open a prefilled GitHub
-// issue). `live` is a shift that just hit an error and is paused.
+// The crash dialog: what went wrong, and three ways to get the report to the developer: send it (report-send.mjs: once, or every time
+// if the box is left ticked), copy it, or open a prefilled GitHub issue. `live` is a shift that just hit an error and is paused.
+const reportPrefs = readPrefs(crashStorage);
+const reportsOpen = () => canSend({ desktop: isDesktop(), protocol: location.protocol });
 let crashOn = null;
 function showCrash(session, { live = false } = {}) {
   if (!session) return;
   crashOn = session;
   const dialog = $("crash-dialog"),
+    sendable = reportsOpen(),
     troubled = session.errors.length || session.crash;
   dialog.classList.toggle("live", live);
   $("crash-eyebrow").textContent = live ? "THE POOL HIT A SNAG" : troubled ? "CRASH REPORT" : "GAME LOG";
@@ -626,10 +672,53 @@ function showCrash(session, { live = false } = {}) {
   $("crash-detail").textContent = crashlog.preview(session, { latest: live });
   $("crash-copy").textContent = "Copy report";
   $("crash-issue").textContent = "Report on GitHub ↗";
+  for (const id of ["crash-send", "crash-auto-row", "crash-device"]) $(id).hidden = !sendable;
+  $("crash-device-code").textContent = reportPrefs.device;
+  $("crash-auto").checked = reportPrefs.auto !== false;
+  showSent(session);
   if (!dialog.open) dialog.showModal();
+  // A shift that just hit an error is sent at once when the player has said reports may go by themselves.
+  if (sendable && reportPrefs.auto === true && troubled && !session.sent) shareCrash("send");
+}
+function showSent(session, problem = "") {
+  const line = $("crash-sent");
+  line.hidden = !(session.sent || problem);
+  line.classList.toggle("bad", !!problem);
+  line.textContent = problem || "Sent ✓ Device code " + reportPrefs.device + ".";
+  $("crash-send").textContent = session.sent ? "Send again" : "Send report";
+}
+async function sendSession(session, automatic = false) {
+  crashlog.flush(true);
+  const result = await sendReport(reportPayload(crashlog, session, reportPrefs.device));
+  crashlog.crumb(
+    "report",
+    (automatic ? "automatic " : "") + "send " + (result.ok ? "ok" : "failed: " + result.error),
+  );
+  if (result.ok) crashlog.mark(session.id, "sent", { device: reportPrefs.device, automatic });
+  return result;
+}
+// Earlier sessions that went wrong go by themselves when the player has switched that on. One that cannot be sent stays pending, so
+// the dialog offers it as usual.
+async function sendPending() {
+  let sent = 0;
+  for (const session of crashlog.pending().slice(-3)) if ((await sendSession(session, true)).ok) sent++;
+  if (sent) toast(sent === 1 ? "The last crash report was sent." : sent + " crash reports were sent.");
 }
 async function shareCrash(how) {
   if (!crashOn) return;
+  if (how === "send") {
+    const session = crashOn,
+      button = $("crash-send");
+    // The box is the player's say: ticked when they send, every later report goes by itself.
+    reportPrefs.auto = $("crash-auto").checked;
+    savePrefs(crashStorage, reportPrefs);
+    button.disabled = true;
+    button.textContent = "Sending…";
+    const result = await sendSession(session);
+    button.disabled = false;
+    showSent(session, sendProblem(result));
+    return;
+  }
   const copied = await copyText(crashlog.report(crashOn));
   crashlog.mark(crashOn.id, "reported");
   if (how === "issue") {
@@ -790,6 +879,7 @@ function start(bookingId = null) {
       });
   syncVenue(sim);
   world.resetActors();
+  tracer.reset();
   loadCannonballMan(sim);
   loadFishKid(sim);
   richPresence(drill ? "Drill · " + drill.name : "Level " + level + " · " + sim.config.name);
@@ -1792,23 +1882,8 @@ function points(e) {
   $("world-labels").appendChild(el);
   setTimeout(() => el.remove(), 1750);
 }
-// What the crash log notes about the shift as it goes: the events that change how it is going, not every footstep.
-const NOTABLE = new Set([
-  "incident",
-  "catastrophe",
-  "blackout",
-  "cannonball",
-  "fish-dumped",
-  "fish-caught",
-  "crash",
-  "healed",
-  "rescue-safe",
-  "cramp-alarm",
-  "stomach-warning",
-  "vip",
-  "karen-arrive",
-  "karen-calmed",
-]);
+// What the crash log notes about the shift as it goes: every event but the endless ones (footsteps, splashes, points: trace.mjs
+// says which), with the small facts it carries; the diary of changes (trace.mjs) is written beside them.
 function events() {
   const batch = sim.events.splice(0),
     // A sting says what a new incident's warning toast would; a stamp carries the points of its save.
@@ -1817,9 +1892,8 @@ function events() {
   for (const e of batch) {
     // One event that goes wrong must not lose the rest of the batch (a lost "ended" would leave the shift open).
     try {
-      if (NOTABLE.has(e.type))
-        crashlog.crumb("event", e.type + (e.kind ? " " + e.kind : "") + (e.name ? " " + e.name : ""));
-      else if (e.type === "save") crashlog.crumb("save", String(e.kind));
+      if (e.type === "save") crashlog.crumb("save", describeEvent(e));
+      else if (!isNoisy(e)) crashlog.crumb("event", describeEvent(e));
       if (e.type === "save") achievements.save(e.kind);
       if (e.type === "countdown") {
         $("countdown-number").textContent = e.value;
@@ -1907,7 +1981,25 @@ function events() {
       crashlog.error("event:" + e.type, err);
     }
   }
+  // The moments a crash is likeliest to follow reach the disk at once (the page may be about to die), and the numbers are taken
+  // as they happen and again a few seconds later, so a jump in what the scene holds shows up next to what caused it.
+  if (batch.some((e) => MOMENTS.has(e.type))) {
+    crashlog.flush(true);
+    try {
+      sampleLog();
+      setTimeout(() => ["playing", "paused"].includes(mode) && sampleLog(), 3000);
+    } catch {}
+  }
 }
+const MOMENTS = new Set([
+  "save",
+  "incident",
+  "catastrophe",
+  "rescue-safe",
+  "crash",
+  "cannonball",
+  "blackout",
+]);
 // The map covers the pool in the menu, so once the first frames have warmed the 3D scene up nothing of it is
 // updated or drawn until a shift starts (moving speech bubbles under a full-screen map cost real frame time).
 let warmFrames = 3;
@@ -1953,6 +2045,7 @@ function frame(t) {
       }
     });
     if (!ok) return snag();
+    trace();
     stage("sting", () => showSting(moments.next(seconds())));
     stage("events", events);
   } else if (mode === "menu") {
@@ -2059,6 +2152,11 @@ function bind() {
     $("quit-game").onclick = quitGame;
   }
   $("restart").onclick = () => start(activeBooking);
+  $("crash-send").onclick = () => shareCrash("send");
+  $("crash-auto").onchange = () => {
+    reportPrefs.auto = $("crash-auto").checked;
+    savePrefs(crashStorage, reportPrefs);
+  };
   $("crash-copy").onclick = () => shareCrash("copy");
   $("crash-issue").onclick = () => shareCrash("issue");
   $("crash-dismiss").onclick = () => {
@@ -2338,7 +2436,14 @@ try {
   renderFund();
   if (huntState && hunt.finished(huntState)) showHuntResults();
   else if (huntStep || params.has("trial")) setTimeout(startTrial, 1500);
-  crashlog.setEnv({ gpu: describeGpu(world.renderer?.getContext?.()) });
+  // The GPU, and how big the drawing surface is (the likeliest thing to run a small device out of memory).
+  const surface = world.renderer?.domElement;
+  crashlog.setEnv({
+    gpu: describeGpu(world.renderer?.getContext?.()),
+    canvas: surface ? surface.width + "×" + surface.height : "",
+    maxTexture: world.renderer?.capabilities?.maxTextureSize,
+    webgl2: world.renderer?.capabilities?.isWebGL2,
+  });
   crashlog.crumb("boot", "ready in " + Math.round(performance.now()) + " ms");
   requestAnimationFrame(animate);
   // QA hook (?debug): drive the fixed-step simulation faster than real time for screenshots and repros.
@@ -2433,7 +2538,8 @@ try {
     });
   // A launch after a crash offers the report (`?log` opens the log any time, crash or not).
   const wantsLog = new URLSearchParams(location.search).has("log");
-  setTimeout(() => {
+  setTimeout(async () => {
+    if (reportsOpen() && reportPrefs.auto === true) await sendPending();
     if (mode !== "menu" || document.querySelector("dialog[open]") || testing) return;
     if (wantsLog) showCrash(crashlog.troubled()[0] || crashlog.latest());
     else if (crashlog.pending().length) showCrash(crashlog.pending().slice(-1)[0]);
