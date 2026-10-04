@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The reading half of the crash watch (docs/crash-watch.md): what have the creator's devices sent that nobody has looked at yet?
 //
-//   node tools/crash-triage.mjs CODE[,CODE…] [--handled "token token …"] [--host URL …] [--out DIR] [--json] [--limit 40]
+//   node tools/crash-triage.mjs CODE[,CODE…] [--issue N [--repo OWNER/NAME]] [--handled "token token …"] [--host URL …] [--out DIR] [--json] [--limit 40]
 //
 // For each device code it lists the launches the report service holds (netlify/functions/report.mjs), fetches them, and sorts each into
 //   crash   the page ended in the middle of a shift without closing (a tab crash, memory, a freeze)
@@ -11,19 +11,22 @@
 //   hunt    a test of the crash hunt (?bisect=shift): never looked at one by one, read together as one run
 //   clean   nothing the matter
 // A launch with something the matter has a token (`muu6aara97:c`, or `:e2`, `:w`, `:f1`, or several together: `:ce2`). A run that writes
-// the tokens it has dealt with into the log and hands them back (--handled) is not asked about them again; a launch that gains a problem
+// the tokens it has dealt with into the log and hands them back (--handled, or --issue N to read them from the log issue itself: every line
+// that starts `handled:` in its body and in the comments of the repo's owner) is not asked about them again; a launch that gains a problem
 // (an error, then a crash) has a new token and is looked at again. A hunt run is `hunt:<its first launch>:done` or `:partial` (quiet for
 // 30 minutes). What is new is printed in full: the build, what the game was doing, how long the shift had been played when the last word
 // came, the final seconds of the diary, whether it is the known 45-second crash, where the report is saved and how to replay its shift.
 //
 // Plain GETs only. In the agent sandbox Node needs NODE_USE_ENV_PROXY=1 and NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt (see
-// /root/.ccr/README.md); TLS checking is never switched off. Exit codes: 0 read (even when nothing is new), 2 bad usage, 3 nothing readable.
+// /root/.ccr/README.md); TLS checking is never switched off. Exit codes: 0 read (even when nothing is new), 2 bad usage, 3 nothing readable
+// (the report service, or the log when --issue was asked for: nothing is then called new, because what is handled is not known).
 import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const HOSTS = ["https://poolpanic.netlify.app"];
+export const LOG_REPO = "larvuz2/poolpanic";
 export const DEVICE = /^[A-Z2-7]{8}$/;
 // The crash that has been hunted since 4 October 2026: an iPad's tab killed 38 to 55 s after the go of a shift, with no error. When it has been
 // found and fixed this window must change (a crash inside it is then a new one): docs/crash-watch.md says so.
@@ -510,6 +513,45 @@ export function format(result, { replayCommand = "node tools/replay.mjs" } = {})
   return out.join("\n");
 }
 
+// ---- the log --------------------------------------------------------------------------------------------------------------------------
+
+// A token as the reader writes it: `muu6aara97:c`, `muu6aara97:e2`, `hunt:muu6aara97:done`. Anything else after `handled:` is prose.
+const TOKEN = /^[A-Za-z0-9]+(?::[A-Za-z0-9]+){1,2}$/;
+
+// The tokens a log names as dealt with: every word of a line that starts `handled:`, in the issue's body and in the comments written by the
+// repo's owner. Nobody else's words count: the issue is public, and a stranger's comment is neither a record nor an instruction.
+export function loggedTokens(items = [], owner = "") {
+  const tokens = new Set();
+  for (const item of items) {
+    if (!item || String(item.user?.login || "").toLowerCase() !== owner.toLowerCase()) continue;
+    for (const line of String(item.body || "").split(/\r?\n/)) {
+      const m = /^\s*handled:\s*(.*)$/i.exec(line);
+      if (m) for (const t of m[1].split(/[\s,]+/)) if (TOKEN.test(t)) tokens.add(t);
+    }
+  }
+  return [...tokens];
+}
+
+// The log issue's body and comments from GitHub's REST API (plain GETs; the agent sandbox's proxy lets them through with a high limit).
+export async function readLog({ repo = LOG_REPO, issue, fetch = globalThis.fetch }) {
+  const base = "https://api.github.com/repos/" + repo + "/issues/" + issue;
+  const get = async (url) => {
+    const res = await fetch(url, {
+      headers: { accept: "application/vnd.github+json", "user-agent": "pool-panic-crash-watch" },
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status + " from " + url.replace(/\?.*/, ""));
+    return JSON.parse(await res.text());
+  };
+  const items = [await get(base)];
+  for (let page = 1; page <= 10; page++) {
+    const batch = await get(base + "/comments?per_page=100&page=" + page);
+    if (!Array.isArray(batch)) throw new Error("not a list of comments");
+    items.push(...batch);
+    if (batch.length < 100) break;
+  }
+  return { items, owner: repo.split("/")[0], tokens: loggedTokens(items, repo.split("/")[0]) };
+}
+
 // ---- the command line -----------------------------------------------------------------------------------------------------------------
 
 export async function main(argv = process.argv.slice(2), env = process.env, log = console.log) {
@@ -532,6 +574,8 @@ export async function main(argv = process.argv.slice(2), env = process.env, log 
     ),
     outs = take("out"),
     limits = take("limit"),
+    issues = take("issue"),
+    repos = take("repo"),
     json = args.includes("--json");
   const devices = args
     .filter((a) => a !== "--json")
@@ -539,9 +583,42 @@ export async function main(argv = process.argv.slice(2), env = process.env, log 
     .filter(Boolean);
   if (!devices.length || devices.some((d) => !DEVICE.test(d))) {
     console.error(
-      'usage: node tools/crash-triage.mjs CODE[,CODE…] [--handled "token …"] [--host URL …] [--out DIR] [--json] [--limit N]\n(a device code is 8 characters, A to Z and 2 to 7)',
+      'usage: node tools/crash-triage.mjs CODE[,CODE…] [--issue N [--repo OWNER/NAME]] [--handled "token …"] [--host URL …] [--out DIR] [--json] [--limit N]\n(a device code is 8 characters, A to Z and 2 to 7)',
     );
     return 2;
+  }
+  if (issues.length && !/^[1-9]\d{0,6}$/.test(String(issues[0]))) {
+    console.error("--issue wants an issue number");
+    return 2;
+  }
+  if (issues.length) {
+    const repo = repos[0] || LOG_REPO;
+    try {
+      if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error("--repo wants OWNER/NAME");
+      const logged = await readLog({ repo, issue: issues[0] });
+      handled.push(...logged.tokens);
+      if (!json)
+        log(
+          "Log: issue #" +
+            issues[0] +
+            " of " +
+            repo +
+            " read; " +
+            logged.tokens.length +
+            " tokens already handled.",
+        );
+    } catch (e) {
+      log(
+        "COULD NOT READ THE LOG (issue #" +
+          issues[0] +
+          " of " +
+          repo +
+          "): " +
+          (e?.message || e) +
+          '.\nNothing has been looked at, because what is already handled is not known. Read the issue\'s comments with the GitHub tools and run again with --handled "<the tokens>".',
+      );
+      return 3;
+    }
   }
   const result = await triage({
     devices,

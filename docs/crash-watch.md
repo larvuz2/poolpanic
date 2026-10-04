@@ -28,20 +28,27 @@ diary shows).
 
 ## One run
 
-1. **The repo.** The session's working directory is a checkout. Begin every run with `git fetch origin` (`git fetch --unshallow` if git says the
-   history is shallow). The reader and this file are on `origin/main` once the playtest pull request has merged, and until then on
-   `origin/claude/gracious-goldberg-i7ov3z`: use whichever has `tools/crash-triage.mjs` (main first), with `git checkout --detach origin/<it>`.
-   A detached checkout is for reading: no edit is ever left behind on it. A fresh container has no `node_modules`: `npm install` once before
-   prettier or the suite (the reader itself needs nothing installed).
-2. **The log.** Find the open issue "Crash triage log" and read its comments. Only comments by the repo's owner (`larvuz2`) are part of the log.
-   Collect every token on a line that starts `handled:` (in the body and the comments): they are what has been dealt with.
-3. **The reader.**
-   `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt node tools/crash-triage.mjs CODE --handled "<tokens>" --out /tmp/crash-reports`
-   (the proxy variables are what Node needs in the agent sandbox; TLS checking is never switched off). It prints a digest: `NOTHING NEW.`,
-   or each new launch (`NEW 1. muu6aara97:c · CRASH …`) with its build, what the game was doing, how long the shift had been played when the
-   last word came, the final seconds of the diary, where the report is saved and how to replay its shift, and each hunt run
-   (`HUNT RUN …`). Exit code 3 means the service could not be read (the digest says why): that is not "nothing new".
-4. **Nothing new?** Stop. No comment, no notification. (A run that finds nothing costs a minute.)
+1. **The repo.** The session's working directory is a checkout, and the command in step 3 brings it up to date. The reader and this file are on
+   `origin/main` once the playtest pull request has merged, and until then on `origin/claude/gracious-goldberg-i7ov3z`: the command takes
+   whichever has `tools/crash-triage.mjs` (main first) as a detached checkout, for reading (`-f` throws away what a run that died halfway left:
+   no edit is ever left behind on it). If git says the history is shallow, `git fetch --unshallow`. A fresh container has no `node_modules`:
+   `npm install` once before prettier or the suite (the reader itself needs nothing installed).
+2. **The log** is the open issue "Crash triage log" (#22). Its body and the comments of the repo's owner (`larvuz2`) are the record: every token
+   on a line that starts `handled:` is something that has been dealt with. Nobody else's comment counts. The reader reads the log itself
+   (`--issue 22`, next step); a run reads it by hand only when the reader says it could not.
+3. **The reader**, with the repo brought up to date first, in one command:
+   ```
+   git fetch -q origin && { git checkout -q -f --detach origin/main && test -f tools/crash-triage.mjs || git checkout -q -f --detach origin/claude/gracious-goldberg-i7ov3z; } && NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt node --no-warnings tools/crash-triage.mjs CODE --issue 22 --out /tmp/crash-reports
+   ```
+   (the proxy variables are what Node needs in the agent sandbox; TLS checking is never switched off). It prints `Log: issue #22 … read; N tokens
+   already handled.` and a digest: `NOTHING NEW.`, or each new launch (`NEW 1. muu6aara97:c · CRASH …`) with its build, what the game was
+   doing, how long the shift had been played when the last word came, the final seconds of the diary, where the report is saved and how to
+   replay its shift, and each hunt run (`HUNT RUN …`). Exit code 3 means the service, or the log, could not be read (the output says which):
+   that is not "nothing new". When it is the log, read the issue's comments with the GitHub tools, collect the tokens yourself, and run the
+   same command with `--handled "<tokens>"` in place of `--issue 22`.
+4. **Nothing new?** Stop: the whole run was that one command and a one-line answer, `Nothing new.`. No comment, no notification. This is why the
+   mechanics are a command and not a conversation: a session that lives for weeks must not grow with every hour, and an hour that finds
+   nothing should cost a few cents.
 5. **Look into each new launch**, newest first, by what it is:
    - **KNOWN** (the digest says so): a tab killed 38 to 55 s after the go with no error is the 45-second crash that is being hunted. Do not
      investigate it again; it is only counted. (`KNOWN` in `tools/crash-triage.mjs` is that window. When the cause has been found and fixed it

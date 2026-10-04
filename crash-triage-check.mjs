@@ -16,6 +16,8 @@ import {
   format,
   main,
   label,
+  loggedTokens,
+  readLog,
   KNOWN,
   DEVICE,
 } from "./tools/crash-triage.mjs";
@@ -566,7 +568,135 @@ const run = (launches, extra = {}) =>
   }
 }
 
+// 8) The log: which tokens the log issue names as handled, whose words count, and the command line reading them from it.
+{
+  const OWNER = "larvuz2";
+  const item = (login, body) => ({ user: { login }, body });
+  assert.deepEqual(
+    loggedTokens(
+      [
+        item(OWNER, "The body: each comment ends with a line `handled: <tokens>`, here inside a sentence."),
+        item(OWNER, "First entry.\n\nhandled: aaa111bbb2:c aaa111bbb3:e2\n"),
+        item("LarvUz2", "Another.\r\nHandled: hunt:aaa111bbb4:done, aaa111bbb5:w\r\n"),
+        item("a-stranger", "handled: zzz999zzz9:c"),
+        item(OWNER, "4. **`handled:` tokens collected** (a numbered line is not a handled line): nope:c"),
+        item(OWNER, "handled: all of them, the five above"),
+        null,
+      ],
+      OWNER,
+    ),
+    ["aaa111bbb2:c", "aaa111bbb3:e2", "hunt:aaa111bbb4:done", "aaa111bbb5:w"],
+    "the owner's lines that start handled: and only their tokens; a stranger's words, a sentence and prose are not the log",
+  );
+
+  // GitHub's REST API as a fake: the issue, then its comments a hundred at a time.
+  const github = (comments, { status = 200 } = {}) => {
+    const calls = [];
+    const fetch = async (url, init) => {
+      calls.push({ url: String(url), init });
+      const u = new URL(url);
+      const answer = (body) => ({
+        ok: status < 300,
+        status,
+        text: async () => JSON.stringify(body),
+      });
+      if (status >= 300) return answer({ message: "no" });
+      const m = /^\/repos\/([^/]+\/[^/]+)\/issues\/(\d+)(\/comments)?$/.exec(u.pathname);
+      if (!m) return answer({ message: "Not Found" });
+      if (!m[3]) return answer(item(m[1].split("/")[0], "The body."));
+      const page = Number(u.searchParams.get("page")) || 1;
+      return answer(comments.slice((page - 1) * 100, page * 100));
+    };
+    return { fetch, calls };
+  };
+
+  // More than a hundred comments are read in pages, the issue's own body first.
+  const many = Array.from({ length: 101 }, (_, i) =>
+    item(OWNER, "handled: " + String(i).padStart(10, "a") + ":c"),
+  );
+  const paged = github(many);
+  const log = await readLog({ issue: 22, fetch: paged.fetch });
+  assert.equal(log.tokens.length, 101, "every page is read");
+  assert.equal(paged.calls.length, 3, "the issue, then two pages of comments");
+  assert.match(paged.calls[0].url, /^https:\/\/api\.github\.com\/repos\/larvuz2\/poolpanic\/issues\/22$/);
+  assert.ok(paged.calls[0].init.headers["user-agent"], "GitHub asks for a user agent");
+  await assert.rejects(() => readLog({ issue: 22, fetch: github([], { status: 403 }).fetch }), /HTTP 403/);
+
+  // The command line, with the log and the report service answering through the one fetch of the platform.
+  const launches = [launch({ go: 8, end: 52 }), launch({ how: "closed" })];
+  const service2 = service(launches);
+  const route = (comments, options) => {
+    const gh = github(comments, options);
+    return {
+      gh,
+      fetch: (url, init) =>
+        String(url).startsWith("https://api.github.com/") ? gh.fetch(url, init) : service2.fetch(url, init),
+    };
+  };
+  const real = globalThis.fetch;
+  const run = async (extra, comments, options) => {
+    const r = route(comments, options);
+    globalThis.fetch = r.fetch;
+    const lines = [];
+    const code = await main(
+      ["TEST2345", "--host", "https://one.test", "--out", join(tmp, "log"), ...extra],
+      {},
+      (x) => lines.push(x),
+    );
+    return { code, text: lines.join("\n"), gh: r.gh };
+  };
+  try {
+    const open = await run(["--issue", "22"], []);
+    assert.equal(open.code, 0);
+    assert.match(open.text, /^Log: issue #22 of larvuz2\/poolpanic read; 0 tokens already handled\./);
+    assert.match(open.text, /NEW 1\. \S+:c · CRASH/, "nothing in the log: the crash is new");
+
+    const dealt = await run(
+      ["--issue", "22"],
+      [item(OWNER, "Looked at.\n\nhandled: " + launches[0].id + ":c")],
+    );
+    assert.equal(dealt.code, 0);
+    assert.match(dealt.text, /read; 1 tokens already handled\./);
+    assert.match(dealt.text, /NOTHING NEW\./, "what the log names is not looked at again");
+
+    const stranger = await run(["--issue", "22"], [item("a-stranger", "handled: " + launches[0].id + ":c")]);
+    assert.match(stranger.text, /NEW 1\./, "a stranger cannot mark a crash as dealt with");
+
+    const both = await run(["--issue", "22", "--handled", launches[0].id + ":c"], []);
+    assert.match(
+      both.text,
+      /NOTHING NEW\./,
+      "tokens given on the command line and tokens from the log are added together",
+    );
+
+    const other = await run(["--issue", "7", "--repo", "someone/else"], []);
+    assert.match(other.gh.calls[0].url, /repos\/someone\/else\/issues\/7$/);
+    assert.match(other.text, /Log: issue #7 of someone\/else read/);
+
+    const json = await run(["--issue", "22", "--json"], [item(OWNER, "handled: " + launches[0].id + ":c")]);
+    assert.deepEqual(JSON.parse(json.text).attention, [], "the JSON stays JSON: the log line is left out");
+
+    const down = await run(["--issue", "22"], [], { status: 403 });
+    assert.equal(down.code, 3, "a log that cannot be read is nothing read");
+    assert.match(down.text, /COULD NOT READ THE LOG \(issue #22 of larvuz2\/poolpanic\): HTTP 403/);
+    assert.ok(!/NOTHING NEW|NEW 1\./.test(down.text), "…and never read as nothing new, nor everything new");
+
+    const err = console.error;
+    const said = [];
+    console.error = (x) => said.push(x);
+    try {
+      assert.equal(await main(["TEST2345", "--issue", "twenty"], {}, () => {}), 2);
+      assert.equal(await main(["TEST2345", "--issue", "22", "--repo", "no slash"], {}, () => {}), 3);
+    } finally {
+      console.error = err;
+    }
+    assert.match(said[0], /--issue wants an issue number/);
+  } finally {
+    globalThis.fetch = real;
+  }
+}
+
 rmSync(tmp, { recursive: true, force: true });
 console.log(
-  "Crash triage checks passed: a report made by the real crash log read as facts (the shift's level, how long it had been played when the last word came with the time hidden left out, the final seconds), the known 45-second crash told from a crash with an error or at another time, errors, flags and stuck incidents with tokens, a lost GPU as a note, tokens handed back so nothing is looked at twice (and a launch that gains a problem looked at again), a hunt read as one run with each test's outcome and the page's verdict, a failing service said and never read as nothing new, the digest naming a device by two characters, and the command line.",
+  "Crash triage checks passed: a report made by the real crash log read as facts (the shift's level, how long it had been played when the last word came with the time hidden left out, the final seconds), the known 45-second crash told from a crash with an error or at another time, errors, flags and stuck incidents with tokens, a lost GPU as a note, tokens handed back so nothing is looked at twice (and a launch that gains a problem looked at again), a hunt read as one run with each test's outcome and the page's verdict, a failing service said and never read as nothing new, the digest naming a device by two characters, the command line, and the log issue read for the tokens already handled (only the owner's lines that start handled:, read in pages, a stranger's words and a log that cannot be read never taken for a record).",
 );
