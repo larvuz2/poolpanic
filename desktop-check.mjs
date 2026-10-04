@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { extname, join } from "node:path";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
@@ -75,26 +75,38 @@ const read = (file) => readFileSync(file, "utf8");
   assert.equal(lib.mimeFor("dm-sans-variable.woff2"), "font/woff2");
   assert.equal(lib.mimeFor("KAREN.GLB"), "model/gltf-binary", "whatever the case");
   assert.equal(lib.mimeFor("mystery.bin"), "application/octet-stream");
-  // Every kind of file the game ships has a type.
-  const shipped = new Set();
-  for (const f of readdirRecursive("dist")) shipped.add(f.slice(f.lastIndexOf(".")).toLowerCase());
-  for (const ext of shipped)
-    if (![".md", ".txt"].includes(ext))
-      assert.notEqual(
-        lib.mimeFor("x" + ext),
-        "application/octet-stream",
-        `${ext} files are served as something`,
-      );
-}
-function readdirRecursive(dir) {
-  const out = [];
-  const { readdirSync, statSync } = require("node:fs");
-  for (const name of readdirSync(dir)) {
-    const path = join(dir, name);
-    if (statSync(path).isDirectory()) out.push(...readdirRecursive(path));
-    else out.push(path);
+  // Every kind of file the game ships has a type. What the game ships is what the repository tracks under dist/: a build machine can
+  // put files of its own in that folder (Netlify's build left a .toml there, which broke this check once), and they are not the
+  // game's. With no git (a source archive) there is nothing reliable to list, so only the fixed assertions above apply.
+  const files = trackedGameFiles();
+  if (files) {
+    const shipped = new Map();
+    for (const file of files) {
+      const ext = extname(file).toLowerCase();
+      shipped.set(ext, [...(shipped.get(ext) || []), file]);
+    }
+    assert.ok(shipped.has(".mjs") && shipped.has(".glb"), "the game's own files were found");
+    for (const [ext, of] of shipped)
+      if (ext && ![".md", ".txt"].includes(ext))
+        assert.notEqual(
+          lib.mimeFor("x" + ext),
+          "application/octet-stream",
+          `${ext} files are served as something (${of[0]})`,
+        );
   }
-  return out;
+}
+function trackedGameFiles() {
+  try {
+    const listed = execFileSync("git", ["ls-files", "dist"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .split("\n")
+      .filter(Boolean);
+    return listed.length ? listed : null;
+  } catch {
+    return null;
+  }
 }
 
 // ---- the save mirror ----------------------------------------------------------------------------------------------------------
