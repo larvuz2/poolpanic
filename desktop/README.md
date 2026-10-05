@@ -20,7 +20,7 @@ page that is replaced each time:
 | You have | Download | Then |
 | --- | --- | --- |
 | Windows | `PoolPanic-windows-x64.zip` | Unzip it (right-click, Extract All) and open `PoolPanic.exe` in the folder. Windows asks once ("Windows protected your PC"): **More info**, then **Run anyway**. |
-| A Mac with an Apple chip (2020 or later) | `PoolPanic-mac-apple-silicon.zip` | Unzip, move **Pool Panic** to Applications, open it. macOS says it cannot check the app: **System Settings, Privacy & Security, Open Anyway** (on an older macOS: right-click the app, Open). |
+| A Mac with an Apple chip (2020 or later) | `PoolPanic-mac-apple-silicon.zip` | Needs macOS 13 or newer. Unzip, move **PoolPanic** to Applications, open it. macOS says it cannot check the app: **System Settings, Privacy & Security, Open Anyway** (if that does not show, in Terminal: `xattr -dr com.apple.quarantine /Applications/PoolPanic.app`, then open it again). |
 | An older Mac with an Intel chip | `PoolPanic-mac-intel.zip` | The same. |
 | Linux, or a Steam Deck | `PoolPanic-linux-x64.zip` | Unzip, and in the folder run `./PoolPanic --no-sandbox`. |
 

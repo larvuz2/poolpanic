@@ -107,15 +107,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }} # through the environment, never pasted into the script
         run: |
           short="${GITHUB_SHA::7}"
           cat > notes.md <<NOTES
-          The newest desktop test build: **commit \`$short\`**, branch \`${{ github.ref_name }}\`, built $(date -u +'%Y-%m-%d %H:%M') UTC. It is replaced by the next push.
+          The newest desktop test build: **commit \`$short\`**, branch \`$REF_NAME\`, built $(date -u +'%Y-%m-%d %H:%M') UTC. It is replaced by the next push.
 
           | You have | Download | Then |
           | --- | --- | --- |
           | Windows | \`PoolPanic-windows-x64.zip\` | Unzip it, open \`PoolPanic.exe\`. Windows asks once ("Windows protected your PC"): **More info**, then **Run anyway**. |
-          | A Mac with an Apple chip (2020 or later) | \`PoolPanic-mac-apple-silicon.zip\` | Unzip, move **Pool Panic** to Applications, open it. macOS says it cannot check it: **System Settings, Privacy & Security, Open Anyway** (on older macOS: right-click the app, Open). |
+          | A Mac with an Apple chip (2020 or later) | \`PoolPanic-mac-apple-silicon.zip\` | Needs macOS 13 or newer. Unzip, move **PoolPanic** to Applications, open it. macOS says it cannot check it: **System Settings, Privacy & Security, Open Anyway** (if that does not show, in Terminal: \`xattr -dr com.apple.quarantine /Applications/PoolPanic.app\`, then open it again). |
           | An older, Intel Mac | \`PoolPanic-mac-intel.zip\` | The same. |
           | Linux (or a Steam Deck) | \`PoolPanic-linux-x64.zip\` | Unzip, and in the folder run \`./PoolPanic --no-sandbox\`. |
 
