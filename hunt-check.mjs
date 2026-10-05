@@ -130,6 +130,102 @@ const memory = () => {
   );
 }
 
+// 2d) Numbers from the hunt (`dpr=1`), and the shift plan: the overview, a plain shift, one part out per test, the first test again.
+{
+  const t = readTuning("", ["overview", "dpr=1"]);
+  assert.ok(t.has("dpr") && t.has("overview"), "A number's switch is on, whatever its number");
+  assert.equal(t.number("dpr", 1.7), 1);
+  assert.equal(readTuning("?dpr=1.25", ["dpr=1"]).number("dpr", 1.7), 1.25, "The address wins over the hunt");
+  assert.equal(readTuning("", ["dpr=zero"]).number("dpr", 1.7), 1.7, "Not a number, the default");
+  assert.deepEqual(t.describe().sort(), ["dpr=1", "overview"], "The diary says the numbers too");
+  assert.deepEqual(readTuning("?nosound").describe(), ["nosound"]);
+  assert.deepEqual(readTuning("?trial&noparticles&trialsecs=45&dpr=1").list().sort(), ["dpr", "noparticles"]);
+  assert.ok(readTuning("?norender").has("norender") && readTuning("?nosync").list().includes("nosync"));
+  assert.ok(!readTuning("?safe").has("norender") && !readTuning("?safe").has("nosync"), "safe still draws");
+
+  const plan = hunt.shift.PLAN,
+    known = new Set([...SAFE, "safe", "overview", "dpr", "norender", "nosync"]);
+  assert.equal(plan[0].id, "control");
+  assert.equal(plan.at(-1).again, "control", "The last test is the first again");
+  assert.deepEqual(plan.at(-1).flags, plan[0].flags);
+  for (const p of plan) {
+    assert.ok(p.flags.includes("overview"), p.id + " plays in the overview, where the crash was");
+    for (const f of p.flags) assert.ok(known.has(f.split("=")[0]), f);
+  }
+  for (const id of ["dpr1", "norender", "nosync", "nomodels", "noshadow", "noaa", "nohall"])
+    assert.ok(
+      plan.some((p) => p.id === id),
+      id,
+    );
+  assert.equal(new Set(plan.map((p) => p.id)).size, plan.length, "Unique ids");
+  assert.notEqual(hunt.shift.KEY, hunt.KEY);
+  assert.notEqual(hunt.shift.KEY, hunt.hands.KEY, "The three plans keep separate results");
+
+  // Every test that is not named dies (a crash saves nothing: the next page finds the test still running).
+  const play = (outcomes) => {
+    const store = memory();
+    let state = hunt.shift.resume(hunt.shift.load(store));
+    while (!hunt.shift.finished(state)) {
+      const step = hunt.shift.begin(state);
+      hunt.shift.save(store, state);
+      const outcome = outcomes[step.id] ?? "crashed";
+      if (outcome === "ok") hunt.shift.pass(state);
+      else if (outcome === "unclear") hunt.shift.skip(state);
+      hunt.shift.save(store, state);
+      state = hunt.shift.resume(hunt.shift.load(store));
+    }
+    return { state, ...hunt.shift.summary(state) };
+  };
+  const allOk = Object.fromEntries(plan.map((p) => [p.id, "ok"]));
+  let run = play({ dpr1: "ok" });
+  assert.equal(run.state.results.control, "crashed");
+  assert.equal(run.state.results.control2, "crashed");
+  assert.match(
+    run.verdict,
+    /went away with: Pixel ratio 1 \(a third of the pixels\)\. That is where to look\.$/,
+  );
+  assert.ok(!/again/.test(run.verdict), "Both controls crashed: nothing more to say");
+  // The two that split the crash into drawing and script say which side it is on.
+  run = play({ norender: "ok", dpr1: "ok" });
+  assert.match(run.verdict, /went away with: Pixel ratio 1 .*, 3D scene updated, never drawn\./);
+  run = play({ dpr1: "ok", control2: "ok" });
+  assert.match(
+    run.verdict,
+    /did not do what the first did/,
+    "A crash that came once and not twice is said so",
+  );
+  assert.ok(
+    !/Pixel ratio 1 \(a third of the pixels\), Everything on, again/.test(run.verdict),
+    "The repeat is no cure",
+  );
+  run = play({ control: "unclear", control2: "unclear", dpr1: "ok" });
+  assert.match(run.verdict, /control run could not be played through/);
+  run = play(allOk);
+  assert.match(run.verdict, /^Nothing crashed/);
+  run = play({ ...allOk, nomodels: "unclear" });
+  assert.match(
+    run.verdict,
+    /^Nothing crashed.* Not played through \(hidden or paused\): Character models off/,
+  );
+  assert.equal(run.lines.find((l) => l.id === "nomodels").outcome, "unclear");
+  assert.match(
+    hunt.shift.report(run.state, "iPad"),
+    /Character models off \(classic characters\) \(nomodels\): \*\*unclear\*\*/,
+  );
+  // Skipping a test that is not running changes nothing; a saved "unclear" survives a reload.
+  const idle = hunt.shift.fresh();
+  hunt.shift.skip(idle);
+  assert.equal(idle.step, 0);
+  const store = memory();
+  hunt.shift.save(store, {
+    v: 1,
+    step: 2,
+    running: false,
+    results: { control: "unclear", dpr1: "ok", nomodels: "weird" },
+  });
+  assert.deepEqual(hunt.shift.load(store).results, { control: "unclear", dpr1: "ok" });
+}
+
 // 3) A full run where every test survives.
 {
   const store = memory(),
@@ -199,5 +295,5 @@ const memory = () => {
 }
 
 console.log(
-  "Hunt checks passed: switches from the address and the hunt, the plan, surviving the crashes it hunts, verdicts, damaged saves.",
+  "Hunt checks passed: switches from the address and the hunt, the plans (the shift plan's numbers, its repeat and its unclear tests included), surviving the crashes it hunts, verdicts, damaged saves.",
 );

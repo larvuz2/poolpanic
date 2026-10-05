@@ -4579,10 +4579,128 @@ body:not(.menu) .fund-pill {
 .hunt li.ok b {
   color: var(--mint);
 }
+.hunt li.unclear b {
+  color: var(--yellow);
+}
 .hunt li.waiting {
   opacity: 0.55;
 }
 .hunt button {
   width: 100%;
   margin-top: 8px;
+}
+
+/* Playtest mode (?playtest): the bug button and its dialog. Only there while a playtest is on. */
+.playtest-modal {
+  max-width: 600px;
+}
+.playtest-modal h2 {
+  font-size: 24px;
+  color: var(--yellow);
+  margin: 4px 0 8px;
+}
+.playtest-modal h3 {
+  margin: 16px 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mint);
+}
+.playtest-modal p {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 2px 0;
+}
+.playtest-where {
+  color: var(--mint);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.playtest-live {
+  color: var(--muted);
+  font-size: 12px;
+}
+.playtest-live.bad {
+  color: var(--yellow);
+}
+.playtest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.playtest-chips button {
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid #5f9a98;
+  border-radius: 999px;
+  background: #153f4c;
+  color: var(--cream);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1.2;
+}
+.playtest-chips button[aria-pressed="true"] {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: #123846;
+}
+.playtest-chips button:disabled {
+  opacity: 0.5;
+}
+.playtest-chips small {
+  display: block;
+  font-weight: 500;
+  font-size: 10px;
+  opacity: 0.85;
+}
+#playtest-note {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 4px 0 8px;
+  padding: 10px 12px;
+  border: 1px solid #2c6a73;
+  border-radius: 8px;
+  background: #0b2d38;
+  color: var(--cream);
+  font-family: inherit;
+  font-size: 16px; /* (16 px: a smaller text box makes iOS Safari zoom the page in when it is focused) */
+  line-height: 1.4;
+  resize: vertical;
+}
+.playtest-seen {
+  font-size: 12px;
+}
+.playtest-seen .got {
+  color: var(--mint);
+}
+.playtest-seen .none {
+  color: var(--yellow);
+}
+.playtest-modal .primary,
+.playtest-modal .secondary {
+  width: 100%;
+  margin-top: 8px;
+}
+.playtest-modal .crash-note {
+  font-size: 11px;
+  color: var(--muted);
+}
+/* The bug button is a fifth button: on a tablet held upright the buttons make three rows, so the zoom buttons move down a row. */
+@media (min-width: 621px) and (max-width: 900px) {
+  body.playtest .view-controls {
+    top: 170px;
+  }
+}
+.playtest-modal .playtest-codeline {
+  font-size: 15px;
+  margin-top: 8px;
+}
+.playtest-modal .playtest-codeline .crash-code {
+  font-size: 22px;
+}
+.playtest-modal .playtest-hint {
+  font-size: 11px;
+  color: var(--muted);
 }

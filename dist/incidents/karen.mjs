@@ -51,6 +51,23 @@ export const Karen = {
     sim.karen = null;
   },
   isActive: (sim) => !!sim.karen,
+  // For the shift's diary (trace.mjs): `describe` is where the incident stands, in words that change only when its stage does (a line is
+  // written each time it changes, and a stage that lasts too long is said to be waiting); `detail` is what moves, for the periodic pulse.
+  describe(sim) {
+    const k = sim.karen;
+    if (!k) return "";
+    return (
+      "stage " +
+      k.stage +
+      " · " +
+      (sim.visitor(k.id)?.status ?? "gone") +
+      (k.calming ? " · being calmed" : "")
+    );
+  },
+  detail(sim) {
+    const k = sim.karen;
+    return k && { at: sim.visitor(k.id), calm: k.progress, annoyed: k.annoyed?.size };
+  },
   start(sim) {
     const v = sim.spawnVisitor("karen", { systemKey: "karen", name: "Karen", hold: 0.3 });
     v.path.push(...sim.venue.route(v.path[0], coachTarget(sim)));

@@ -41,6 +41,17 @@ import { installCrashLog, describeGpu } from "./crashlog-hooks.mjs";
 import { Tracer, describeEvent, isNoisy, crowdSummary } from "./trace.mjs";
 import { footprint } from "./scene/footprint.mjs";
 import { readPrefs, savePrefs, canSend, reportPayload, sendReport, sendProblem } from "./report-send.mjs";
+import {
+  PLAYTEST_LIMITS,
+  COVERAGE_KEY,
+  INCIDENT_KINDS,
+  playtestChoice,
+  readPlaytest,
+  savePlaytest,
+  LiveSender,
+  Coverage,
+} from "./playtest.mjs";
+import { Recorder, apply as applyInput } from "./replay.mjs";
 import { BUILD } from "./version.mjs";
 import { playCinematic } from "./cinematic.mjs";
 import { readTuning, isWebKit } from "./tuning.mjs";
@@ -70,7 +81,8 @@ try {
 // The switches for isolating a crash (tuning.mjs) and the crash hunt that runs them one at a time (bisect.mjs). The
 // hunt's state is read first: a test left running by the last page means that page died in it.
 const params = new URLSearchParams(location.search);
-const hunt = params.get("bisect") === "hands" ? hunts.hands : hunts.main; // ?bisect=hands looks inside the hands layer
+// ?bisect=hands looks inside the hands layer, ?bisect=shift plays plain shifts in the overview (the crash about 45 s into a shift)
+const hunt = { hands: hunts.hands, shift: hunts.shift }[params.get("bisect")] || hunts.main;
 let huntState = null;
 if (params.has("bisect")) {
   if (params.get("bisect") === "reset" || params.has("reset")) {
@@ -99,11 +111,20 @@ if (tuning.has("nosound")) {
   audio.enabled = false;
   audio.init = () => {};
 }
+// Playtest mode (playtest.mjs): `?playtest` switches it on for this device (and the device remembers), `?playtest=off` switches it off.
+// A playtest keeps a longer diary, sends it to the developer while the game runs, and has a button for flagging a problem.
+const playtestWord = playtestChoice(location.search, readPlaytest(crashStorage));
+if (playtestWord.said) savePlaytest(crashStorage, playtestWord.on);
+const playtest = playtestWord.on;
 const crashlog = installCrashLog({ build: BUILD, storage: crashStorage, motion: reducedMotion.matches });
+if (playtest) {
+  crashlog.setLimits(PLAYTEST_LIMITS);
+  crashlog.crumb("playtest", "on");
+}
 for (const e of window.__boot?.errors || []) crashlog.error("boot", e);
 // The shift's diary: what changed in the simulation, in plain words, after every frame (trace.mjs). A failing diary is switched off,
 // never the game.
-const tracer = new Tracer((kind, text) => crashlog.crumb(kind, text));
+const tracer = new Tracer((kind, text) => crashlog.crumb(kind, text), { verbose: playtest });
 let tracing = true;
 function trace() {
   if (!tracing || !sim) return;
@@ -114,6 +135,11 @@ function trace() {
     crashlog.error("trace", e);
   }
 }
+// The playtest's own state (see the playtest section below): what has been covered, the live sender, the recorder of the shift being played.
+let coverage = null,
+  live = null,
+  recorder = null,
+  playtestBroken = false;
 let input,
   accumulator = 0,
   sim,
@@ -180,7 +206,10 @@ function applyViewMode() {
   }
   input.lookMode = coach;
   document.body.classList.toggle("coach-cam", coach);
-  if (!coach) sim.coach.lookAngle = null;
+  if (!coach) {
+    sim.coach.lookAngle = null;
+    recorder?.look(null);
+  }
 }
 function releaseMouse() {
   if (document.pointerLockElement) document.exitPointerLock?.();
@@ -484,11 +513,44 @@ function showFundResult(pay, booked) {
 // ?trial plays one scripted shift (level 10 in the Coach Cam: Carl's cannonball, then the fish kid) with whatever
 // switches the address carries; ?bisect runs the whole plan, one switch per test, reloading between tests and
 // counting a test that never finished as a crash. Both leave the player idle: the incidents are the point.
-const TRIAL_CAP = +params.get("trialsecs") || 100; // seconds of real time before a trial gives up waiting
+// `?trial=shift` and `?bisect=shift` play a plain shift instead, in the overview with no incident of its own: the recorded level 2
+// that crashed an iPad (below), or with `?bot` a level 3 played by a bot. The crash they hunt came about 45 s after the go,
+// whatever the level was and whatever was happening.
+const plainTrial = params.get("trial") === "shift" || hunt === hunts.shift;
+const TRIAL_CAP = +params.get("trialsecs") || 100; // seconds the page may be seen before a trial gives up waiting
 // The hands crash came about 45 s into a Coach Cam shift, whatever was happening, so a hunt's test plays on until it is
-// well past that (with the cap always the last word).
-const TRIAL_MIN = huntStep ? Math.min(70, TRIAL_CAP - 5) : 0;
+// well past that (with the cap always the last word); a plain shift plays 56 s from the go (the recorded level 2 lasts 60), or 75 s
+// of the bot's level 3, a long way past 43 to 46. (`trialplay=N` shortens the play to N seconds, for rehearsing the hunt where the
+// game runs slowly.)
+const TRIAL_MIN = plainTrial
+  ? Math.min(+params.get("trialplay") || (params.has("bot") ? 75 : 56), TRIAL_CAP - 5)
+  : huntStep
+    ? Math.min(70, TRIAL_CAP - 5)
+    : 0;
 let trial = null;
+let awake = null; // the screen wake lock a trial holds, so an iPad left alone does not go to sleep in the middle of a test
+let awakeWord = "";
+async function keepAwake() {
+  if (awake || awakeWord === "asking") return;
+  if (!navigator.wakeLock) {
+    if (!awakeWord) crashlog.crumb("hunt", "this browser cannot keep the screen awake");
+    awakeWord = "none";
+    return;
+  }
+  awakeWord = "asking";
+  try {
+    awake = await navigator.wakeLock.request("screen");
+    awake.addEventListener?.("release", () => (awake = null));
+    if (awakeWord !== "kept") crashlog.crumb("hunt", "the screen is kept awake");
+    awakeWord = "kept";
+  } catch (e) {
+    awakeWord = "refused";
+    crashlog.crumb("hunt", "could not keep the screen awake: " + String(e?.message || e).slice(0, 80));
+  }
+}
+document.addEventListener("visibilitychange", () => {
+  if (trial && !document.hidden) keepAwake();
+});
 function huntOverlay(html, { buttons = "" } = {}) {
   const box = $("hunt");
   box.hidden = false;
@@ -502,6 +564,13 @@ function huntLabel() {
 function showHuntResults() {
   const { lines, verdict } = hunt.summary(huntState),
     device = crashlog.session?.env?.ua || "";
+  // (In the diary too, for whoever reads the log from afar: a crumb is short, so the verdict is a second one.)
+  crashlog.crumb(
+    "hunt",
+    (hunt.finished(huntState) ? "done: " : "so far: ") + lines.map((l) => l.id + " " + l.outcome).join(", "),
+  );
+  crashlog.crumb("hunt", verdict);
+  live?.dirty("urgent");
   huntOverlay(
     `<strong>Crash hunt: ${hunt.finished(huntState) ? "done" : "results so far"}</strong><ul>` +
       lines.map((l) => `<li class="${l.outcome}"><span>${l.label}</span><b>${l.outcome}</b></li>`).join("") +
@@ -520,28 +589,126 @@ function showHuntResults() {
     location.href = location.pathname;
   };
 }
-function startTrial() {
+// The shift that ended an iPad's page 44.0 s after the go (hunt/lunch-rush.json: a level 2 played on 4 October 2026, as the recorder
+// kept it). A plain trial plays it again input for input (the simulation is seeded and fixed-step, so it is the same shift every
+// time, in every test), through the game's own frame loop. `?bot` plays a level 3 with a bot instead, and so does a page that
+// cannot fetch the recording.
+let replayRun = null; // {record, next, ticks} while a recorded shift is being fed to the simulation
+let nextSeed = 0; // the seed the next shift starts with (a replayed one; else the clock decides)
+async function loadHuntShift() {
+  try {
+    const r = await fetch(new URL("./hunt/lunch-rush.json", import.meta.url));
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const record = await r.json();
+    if (!Number.isInteger(record.level) || !Array.isArray(record.inputs)) throw new Error("not a recording");
+    return record;
+  } catch (e) {
+    crashlog.crumb("hunt", "no recorded shift (" + String(e?.message || e).slice(0, 60) + "): a bot plays");
+    return null;
+  }
+}
+// The inputs that come before this tick, given as the player gave them; one that cannot be given ends the replay, not the shift.
+function feedReplay() {
+  const run = replayRun;
+  try {
+    while (run.next < run.record.inputs.length && run.record.inputs[run.next][0] <= run.ticks)
+      applyInput(sim, run.record.inputs[run.next++], run.record);
+  } catch (e) {
+    crashlog.error("hunt:replay", e);
+    replayRun = null;
+    return;
+  }
+  run.ticks++;
+}
+async function startTrial() {
   settings.coachCam = !tuning.has("overview"); // the trial's own choice, never saved
   $("coach-cam").checked = settings.coachCam;
-  level = 10;
+  const record = plainTrial && !params.has("bot") ? await loadHuntShift() : null;
+  level = record ? record.level : plainTrial ? 3 : 10;
   selected = { kind: "level", level };
-  start(null);
-  trial = { phase: "carl", at: 0, began: performance.now() };
+  nextSeed = record ? record.seed : plainTrial ? 138 : 0; // (138: a level 3 the bot plays for 75 s with no pool closed and swimmers in the water)
+  start(record?.booking || null);
+  replayRun = record ? { record, next: 0, ticks: 0 } : null;
+  const now = performance.now();
+  // `seen` is the time the page has been in front of someone, `played` the part of it the shift has been running (from the go).
+  trial = { phase: plainTrial ? "plain" : "carl", at: 0, began: now, last: now, seen: 0, played: 0 };
   huntOverlay(
-    `<strong>${huntLabel()}</strong><p>Leave this tab open and do nothing. If the page closes or reloads, open the link again.</p>`,
+    `<strong>${huntLabel()}</strong><p>${
+      plainTrial
+        ? "Leave the iPad awake with this tab in front and do nothing: " +
+          (record ? "a recorded shift plays back" : "a bot plays the shift") +
+          ". It goes on to the next test by itself, even after a crash."
+        : "Leave this tab open and do nothing. If the page closes or reloads, open the link again."
+    }</p>`,
   );
-  crashlog.crumb("hunt", huntLabel());
+  const switches = tuning.describe();
+  crashlog.crumb(
+    "hunt",
+    huntLabel() +
+      (switches.length ? " · switches: " + switches.join(" + ") : "") +
+      (plainTrial
+        ? record
+          ? " · replaying level " +
+            record.level +
+            " seed " +
+            record.seed +
+            " (" +
+            record.inputs.length +
+            " inputs)"
+          : " · bot, level 3"
+        : ""),
+  );
   if (huntStep) {
     hunt.begin(huntState);
     hunt.save(crashStorage, huntState);
   }
+  keepAwake();
   trial.timer = setInterval(trialTick, 250);
+}
+// The player of a plain trial: every so often it sends the swimmer who has waited longest to the emptiest lane that will have
+// them (a lane that is closed, in its splash zone or full says no, and the next is tried), as a player does with two taps. The
+// crash this hunts came in shifts that were played, with swimmers in the water, and in a shift nobody plays nobody swims.
+function botPlay() {
+  if (sim.status !== "playing") return;
+  const waiting = sim.people.find((p) => p.status === "queue" && p.type !== "daredevil");
+  if (!waiting) return;
+  sim.select(waiting.id);
+  const lanes = sim.lanes.map((_, i) => i).sort((a, b) => sim.occupancy(a) - sim.occupancy(b));
+  for (const lane of lanes) if (sim.assign(lane)) return;
 }
 function trialTick() {
   if (!trial) return;
-  if (mode === "results" || sim.status === "ended" || performance.now() - trial.began > TRIAL_CAP * 1000)
-    return endTrial();
+  // Time counts only while the page is in front (a locked iPad is not a test), and played only while the shift runs.
+  const now = performance.now(),
+    gap = Math.min(1000, now - trial.last);
+  trial.last = now;
+  if (!document.hidden) {
+    trial.seen += gap;
+    if (mode === "playing") trial.played += gap;
+  }
+  const enough = trial.played >= TRIAL_MIN * 1000;
+  // A page that dies cannot say when, so a hunt's log goes out about every 8 s (the "busy" pace) and not every 20: the last word
+  // from a crashed test then says within a few seconds how far it got.
+  if (live && now - (trial.sent || 0) > 4000) {
+    trial.sent = now;
+    live.dirty("busy");
+  }
+  if (mode === "results" || sim.status === "ended") return endTrial(!plainTrial || enough);
+  if (trial.seen > TRIAL_CAP * 1000) return endTrial(!plainTrial || enough);
+  // The page pauses the shift when it is hidden; nobody is there to press play when it comes back.
+  if (mode === "paused" && !document.hidden) return resume();
   if (mode !== "playing") return;
+  if (plainTrial) {
+    if (!replayRun && now - (trial.botAt || 0) > 700) {
+      trial.botAt = now;
+      try {
+        botPlay();
+      } catch (e) {
+        crashlog.error("hunt:bot", e);
+      }
+    }
+    return enough && endTrial();
+  }
   const quiet = sim.time - trial.at > 6 && !sim.activeSystems().length;
   if (trial.phase === "carl" && sim.time >= 2 && sim.triggerChaos("carl")) {
     trial.phase = "carl-run";
@@ -551,22 +718,29 @@ function trialTick() {
     trial.phase = "fish-run";
     trial.at = sim.time;
     crashlog.crumb("hunt", "fish kid");
-  } else if (trial.phase === "fish-run" && quiet && performance.now() - trial.began > TRIAL_MIN * 1000)
-    endTrial();
+  } else if (trial.phase === "fish-run" && quiet && trial.seen > TRIAL_MIN * 1000) endTrial();
 }
-function endTrial() {
+// `played` is false when the test could not be played through (the page was hidden or paused for the whole of the cap).
+function endTrial(played = true) {
   clearInterval(trial.timer);
   trial = null;
-  crashlog.crumb("hunt", "survived");
+  replayRun = null;
+  awake?.release?.().catch?.(() => {});
+  awake = null;
+  const label = huntLabel();
+  crashlog.crumb("hunt", played ? "survived" : "not played through");
   if (huntStep) {
-    hunt.pass(huntState);
+    (played ? hunt.pass : hunt.skip)(huntState);
     hunt.save(crashStorage, huntState);
-    huntOverlay(`<strong>${huntLabel()}</strong><p>Survived. Next test…</p>`);
+    huntOverlay(
+      `<strong>${label}</strong><p>${played ? "Survived. Next test…" : "Could not be played through. Next test…"}</p>`,
+    );
     setTimeout(() => location.reload(), 900);
   } else {
-    huntOverlay(`<strong>${huntLabel()}</strong><p>Survived: no crash in this trial.</p>`, {
-      buttons: `<button id="hunt-stop" class="secondary">Close</button>`,
-    });
+    huntOverlay(
+      `<strong>${label}</strong><p>${played ? "Survived: no crash in this trial." : "Not played through."}</p>`,
+      { buttons: `<button id="hunt-stop" class="secondary">Close</button>` },
+    );
     $("hunt-stop").onclick = () => ($("hunt").hidden = true);
   }
 }
@@ -654,13 +828,15 @@ async function copyText(text) {
 // if the box is left ticked), copy it, or open a prefilled GitHub issue. `live` is a shift that just hit an error and is paused.
 const reportPrefs = readPrefs(crashStorage);
 const reportsOpen = () => canSend({ desktop: isDesktop(), protocol: location.protocol });
+// A playtest sends by itself: whoever switched it on is the one who reads the log.
+const autoSend = () => reportPrefs.auto === true || playtest;
 let crashOn = null;
 function showCrash(session, { live = false } = {}) {
   if (!session) return;
   crashOn = session;
   const dialog = $("crash-dialog"),
     sendable = reportsOpen(),
-    troubled = session.errors.length || session.crash;
+    troubled = session.errors.length || session.crash || session.flags?.length;
   dialog.classList.toggle("live", live);
   $("crash-eyebrow").textContent = live ? "THE POOL HIT A SNAG" : troubled ? "CRASH REPORT" : "GAME LOG";
   $("crash-title").textContent = live
@@ -678,7 +854,7 @@ function showCrash(session, { live = false } = {}) {
   showSent(session);
   if (!dialog.open) dialog.showModal();
   // A shift that just hit an error is sent at once when the player has said reports may go by themselves.
-  if (sendable && reportPrefs.auto === true && troubled && !session.sent) shareCrash("send");
+  if (sendable && autoSend() && troubled && !session.sent) shareCrash("send");
 }
 function showSent(session, problem = "") {
   const line = $("crash-sent");
@@ -737,6 +913,368 @@ function closeCrash() {
   dialog.classList.remove("live");
   if (live && mode === "paused" && !$("pause-dialog").open) $("pause-dialog").showModal();
 }
+// ---- playtest ------------------------------------------------------------------------------------------------------------------
+// `?playtest` (playtest.mjs): a bug button for flagging a problem, the log sent to the developer while the game runs (so a page that dies
+// has left a recent copy, and the shift can be read as it is played), notes on what has been played and seen, a recorder that makes any
+// shift replayable (replay.mjs), and a way to make an incident happen. None of it exists for an ordinary player.
+const INCIDENT_NAMES = Object.keys(INCIDENT_KINDS);
+const TRIGGERS = [
+  ["cramp", "🛟 Cramp"],
+  ["fish", "🐟 Fish kid"],
+  ["dog", "🐶 Loose dog"],
+  ["carl", "💣 Cannonball man"],
+  ["karen", "😡 Karen"],
+  ["outage", "⚡ Power cut"],
+];
+let pulseClock = 0,
+  liveClock = 0,
+  liveRev = -1,
+  liveWorked = null,
+  coverageTimer = 0,
+  ptPaused = false,
+  ptResume = "playing",
+  ptReason = "other",
+  ptTimer = 0;
+if (playtest)
+  try {
+    let saved = null;
+    try {
+      saved = JSON.parse(crashStorage?.getItem(COVERAGE_KEY) || "null");
+    } catch {}
+    coverage = new Coverage(saved);
+    if (reportsOpen()) {
+      live = new LiveSender({ send: sendLive, now: () => performance.now() });
+      crashlog.onNewError = () => live.dirty("urgent");
+    }
+  } catch (e) {
+    playtestBroken = true;
+    crashlog.error("playtest", e);
+  }
+// What has been covered goes to the device (a playtest goes on over page loads) and into every report.
+function saveCoverage() {
+  if (!coverage) return;
+  try {
+    crashStorage?.setItem(COVERAGE_KEY, JSON.stringify(coverage.data));
+  } catch {}
+  crashlog.setPlaytest({ lines: coverage.lines(INCIDENT_NAMES), data: coverage.data });
+}
+const touchCoverage = () => {
+  if (!coverageTimer)
+    coverageTimer = setTimeout(() => {
+      coverageTimer = 0;
+      saveCoverage();
+    }, 1500);
+};
+// A shift begins: the recorder starts on its simulation and the coverage notes the level.
+function beginPlaytestShift(drill) {
+  if (playtestBroken) return;
+  try {
+    recorder = new Recorder(sim, {
+      level: sim.level,
+      seed: runSeed,
+      booking: activeBooking || "",
+      drill: drill?.id || "",
+      man: forcedMan || "",
+    });
+    crashlog.attach("replays", recorder.record);
+    coverage?.begin({
+      level: sim.level,
+      drill: drill?.id || "",
+      name: sim.config.name,
+      booking: activeBooking || "",
+    });
+    touchCoverage();
+  } catch (e) {
+    playtestBroken = true;
+    recorder = null;
+    crashlog.error("playtest", e);
+  }
+}
+// The log as the live copy sends it (playtest.mjs's LiveSender decides when). Nothing is written to the log for a send that worked, or the
+// log would change by being sent: only a change from working to not working, and back.
+async function sendLive() {
+  const session = crashlog.session;
+  crashlog.flush(true);
+  const result = await sendReport(reportPayload(crashlog, session, reportPrefs.device, { slim: true }));
+  if (result.ok !== liveWorked) {
+    liveWorked = result.ok;
+    crashlog.crumb("report", result.ok ? "live copy is going through" : "live copy failed: " + result.error);
+  }
+  return result;
+}
+// Every frame of a playtest: the pulse (where everything is, every few seconds, quicker while an incident runs) and the live copy.
+function playtestTick(dt) {
+  if (playtestBroken) return;
+  try {
+    const busy = !!(sim.activeSystems().length || sim.rescue);
+    if (mode === "playing") {
+      pulseClock += dt;
+      if (pulseClock > (busy ? 2.5 : 8)) {
+        pulseClock = 0;
+        crashlog.crumb("pulse", tracer.pulse(sim));
+      }
+    }
+    liveClock += dt;
+    if (live && liveClock > 1) {
+      liveClock = 0;
+      if (crashlog.rev !== liveRev) {
+        liveRev = crashlog.rev;
+        live.dirty(mode === "playing" && busy ? "busy" : "calm");
+      }
+      live.poll();
+    }
+  } catch (e) {
+    playtestBroken = true;
+    crashlog.error("playtest", e);
+  }
+}
+const crampCandidate = () =>
+  sim.level >= 2 && !sim.rescue && !sim.cleanup
+    ? sim.people.find(
+        (p) => p.status === "swim" && !p.problem && !p.sick && !p.crampDone && Math.abs(p.z) < 5.6,
+      )
+    : null;
+// Why a trigger is not offered right now, or "" when it is.
+function triggerBlocker(key) {
+  if (!ptPaused || ptResume !== "playing") return "start a shift";
+  if (key === "cramp")
+    return sim.level < 2
+      ? "from level 2"
+      : sim.rescue || sim.cleanup
+        ? "something is going on"
+        : crampCandidate()
+          ? ""
+          : "nobody is swimming";
+  const system = sim.system(key);
+  return system ? sim.chaosBlocker(system, true) : "not in this build";
+}
+// The models a shift that plans the incident fetches as it begins (loadCannonballMan, loadFishKid below): a forced incident
+// fetches them first, or the tester would see the classic Carl and kid where a player sees the models.
+function incidentModels(key) {
+  if (activeSwimmerChoice() !== "models") return [];
+  if (key === "carl") return [loadFigure(cannonballMan(sim.config, sim.level).id)];
+  if (key === "fish") return [loadFigure("kid"), loadFishModel()];
+  return [];
+}
+let ptTriggering = false;
+async function triggerNow(key) {
+  if (ptTriggering || triggerBlocker(key)) return;
+  const fetching = incidentModels(key);
+  if (fetching.length) {
+    // (the shift waits behind the panel, which says so; a slow connection does not hold it for more than a few seconds)
+    ptTriggering = true;
+    toast("Playtest: fetching the models…");
+    try {
+      await Promise.race([Promise.all(fetching), new Promise((resolve) => setTimeout(resolve, 6000))]);
+    } catch {}
+    ptTriggering = false;
+    if (triggerBlocker(key)) return; // (the panel was closed, or the shift ended, while they came)
+  }
+  closePlaytest(); // the shift runs again first: an incident starts in a running shift
+  let ok = false;
+  try {
+    if (key === "cramp") {
+      const p = crampCandidate();
+      ok = !!p && sim.startCramp(p);
+    } else ok = sim.triggerChaos(key);
+  } catch (e) {
+    crashlog.error("playtest:trigger", e);
+  }
+  crashlog.crumb(
+    "playtest",
+    "trigger " + key + (ok ? " ok" : " refused") + " · t" + Math.round(sim.time) + "s",
+  );
+  toast(ok ? "Playtest: " + key + " started." : "That cannot start right now.");
+}
+function showPlaytest() {
+  if ($("playtest-dialog").open) return;
+  releaseMouse();
+  ptPaused = ["playing", "countdown"].includes(mode);
+  if (ptPaused) {
+    ptResume = sim.status;
+    input.clear();
+    sim.clearInput();
+    accumulator = 0;
+    sim.status = "paused";
+    audio.playing = false;
+    mode = "playtest";
+  }
+  crashlog.crumb("playtest", "panel opened" + (ptPaused ? " · t" + Math.round(sim.time) + "s" : ""));
+  renderPlaytest();
+  $("playtest-dialog").showModal();
+  clearInterval(ptTimer);
+  ptTimer = setInterval(renderPlaytestStatus, 1000);
+}
+function closePlaytest() {
+  clearInterval(ptTimer);
+  if ($("playtest-dialog").open) $("playtest-dialog").close();
+  if (ptPaused) {
+    sim.status = ptResume;
+    mode = ptResume;
+    audio.playing = mode === "playing";
+  }
+  ptPaused = false;
+}
+function renderPlaytestStatus() {
+  const line = $("playtest-live");
+  if (live) {
+    line.textContent = live.describe();
+    line.classList.toggle("bad", live.failures > 0 || live.dead);
+  } else {
+    line.textContent = reportsOpen()
+      ? ""
+      : "Not sending: this page is not served from the site (the desktop app, or a file). The log stays on this device: copy the report below.";
+    line.classList.add("bad");
+  }
+  const active = ptPaused
+    ? sim
+        .activeSystems()
+        .map((x) => x.key)
+        .join(", ")
+    : "";
+  $("playtest-map").hidden = !ptPaused;
+  $("playtest-where").textContent = ptPaused
+    ? "Level " +
+      sim.level +
+      ' "' +
+      (sim.config?.name || "") +
+      '" · ' +
+      Math.round(sim.time) +
+      " s" +
+      (active ? " · " + active : "")
+    : "On the map (no shift running)";
+}
+function renderPlaytest() {
+  renderPlaytestStatus();
+  $("playtest-code").textContent = reportPrefs.device;
+  for (const b of $("playtest-reasons").querySelectorAll("button"))
+    b.setAttribute("aria-pressed", String(b.dataset.reason === ptReason));
+  const box = $("playtest-triggers");
+  box.replaceChildren();
+  for (const [key, label] of TRIGGERS) {
+    const why = triggerBlocker(key),
+      b = document.createElement("button");
+    b.type = "button";
+    b.dataset.trigger = key;
+    b.disabled = !!why;
+    b.textContent = label;
+    if (why) {
+      const small = document.createElement("small");
+      small.textContent = why;
+      b.append(small);
+    }
+    box.append(b);
+  }
+  const seen = $("playtest-seen"),
+    totals = coverage.totals().incidents,
+    finished = coverage.finished();
+  seen.replaceChildren();
+  const add = (cls, text) => {
+    const span = document.createElement("span");
+    span.className = cls;
+    span.textContent = text;
+    seen.append(span, document.createElement("br"));
+  };
+  add("got", "Levels finished: " + (finished.length ? finished.join(", ") : "none yet"));
+  add(
+    "got",
+    "Incidents seen: " +
+      (INCIDENT_NAMES.filter((k) => totals[k])
+        .map((k) => INCIDENT_KINDS[k] + (totals[k] > 1 ? " ×" + totals[k] : ""))
+        .join(", ") || "none yet"),
+  );
+  const missing = INCIDENT_NAMES.filter((k) => !totals[k]).map((k) => INCIDENT_KINDS[k]);
+  if (missing.length) add("none", "Not yet: " + missing.join(", "));
+}
+function flagProblem() {
+  const note = $("playtest-note").value.trim();
+  logState();
+  // (the shift waits behind the panel, but the flag is about the shift: its state says "playing", not "playtest")
+  crashlog.setState({ mode: ptPaused ? ptResume : mode });
+  if (ptPaused) crashlog.crumb("pulse", tracer.pulse(sim)); // where everything is, at the moment of the flag
+  crashlog.flag(note, { kind: ptReason });
+  coverage?.flag();
+  saveCoverage();
+  live?.dirty("urgent");
+  $("playtest-note").value = "";
+  closePlaytest();
+  toast("Flagged ✓ " + (live ? "It is on its way to the developer." : "It is in the log."));
+}
+function bindPlaytest() {
+  $("playtest").hidden = !playtest;
+  document.body.classList.toggle("playtest", playtest);
+  if (!playtest) return;
+  $("playtest").onclick = showPlaytest;
+  $("playtest-close").onclick = $("playtest-x").onclick = closePlaytest;
+  $("playtest-dialog").addEventListener("cancel", (e) => {
+    e.preventDefault();
+    closePlaytest();
+  });
+  $("playtest-reasons").onclick = (e) => {
+    const b = e.target.closest("button[data-reason]");
+    if (!b) return;
+    ptReason = b.dataset.reason;
+    for (const x of $("playtest-reasons").querySelectorAll("button"))
+      x.setAttribute("aria-pressed", String(x === b));
+  };
+  $("playtest-flag").onclick = flagProblem;
+  // Out of the shift behind the panel and onto the map (what the pause dialog has no button for): the shift stops where it is.
+  $("playtest-map").onclick = () => {
+    crashlog.crumb(
+      "playtest",
+      "back to the map from the panel" + (ptPaused ? " · t" + Math.round(sim.time) + "s" : ""),
+    );
+    clearInterval(ptTimer);
+    ptPaused = false;
+    returnMenu();
+  };
+  $("playtest-triggers").onclick = (e) => {
+    const b = e.target.closest("button[data-trigger]");
+    if (b && !b.disabled) triggerNow(b.dataset.trigger);
+  };
+  $("playtest-code-copy").onclick = async () => {
+    const button = $("playtest-code-copy");
+    button.textContent = (await copyText(reportPrefs.device)) ? "Copied ✓" : "Copy failed";
+    setTimeout(() => (button.textContent = "Copy code"), 1800);
+  };
+  $("playtest-send").onclick = async () => {
+    const button = $("playtest-send");
+    button.disabled = true;
+    live?.dirty("urgent");
+    await live?.flushNow();
+    button.disabled = false;
+    renderPlaytestStatus();
+  };
+  $("playtest-copy").onclick = async () => {
+    const button = $("playtest-copy");
+    button.textContent = (await copyText(
+      crashlog.report(crashlog.session, { device: reportPrefs.device, replay: 1 }),
+    ))
+      ? "Copied ✓"
+      : "Copy failed";
+    setTimeout(() => (button.textContent = "Copy the report"), 1800);
+  };
+  $("playtest-reset").onclick = () => {
+    coverage = new Coverage();
+    saveCoverage();
+    crashlog.crumb("playtest", "notes started over");
+    renderPlaytest();
+  };
+  $("playtest-off").onclick = () => {
+    savePlaytest(crashStorage, false);
+    const url = new URL(location.href);
+    url.searchParams.delete("playtest");
+    location.replace(url);
+  };
+  // The page going into the background: the newest copy goes now (a moment later, after the log has noted it). The page going away:
+  // at once, there may be no later.
+  document.addEventListener(
+    "visibilitychange",
+    () => document.hidden && setTimeout(() => live?.flushNow(), 0),
+  );
+  window.addEventListener("pagehide", () => live?.flushNow());
+}
+
 // Frames that threw, stage by stage: cosmetic stages (drawing, tags, alerts) are logged and skipped so the shift
 // goes on; the simulation, or a stage that fails for a second and a half straight, stops the shift with the report.
 const failing = {};
@@ -871,7 +1409,8 @@ function start(bookingId = null) {
   document.querySelectorAll("dialog[open]").forEach((d) => d.close());
   const drill = selected.kind === "drill" ? DRILLS[selected.id] : null;
   activeBooking = drill ? null : bookingId;
-  runSeed = Date.now();
+  runSeed = nextSeed || Date.now();
+  nextSeed = 0;
   const man = forcedMan && { cannonball: forcedMan };
   sim = drill
     ? new PoolSimulation(drill.tier, runSeed, { config: { ...drill.config, ...man }, drill: drill.id })
@@ -882,6 +1421,7 @@ function start(bookingId = null) {
   syncVenue(sim);
   world.resetActors();
   tracer.reset();
+  if (playtest) beginPlaytestShift(drill);
   loadCannonballMan(sim);
   loadFishKid(sim);
   richPresence(drill ? "Drill · " + drill.name : "Level " + level + " · " + sim.config.name);
@@ -917,6 +1457,10 @@ function start(bookingId = null) {
       runSeed +
       (activeBooking ? " · booking " + activeBooking : ""),
   );
+  try {
+    crashlog.crumb("plan", tracer.plan(sim));
+  } catch {}
+  live?.dirty("urgent");
 }
 function returnMenu() {
   releaseMouse();
@@ -1154,6 +1698,14 @@ function finish() {
     newBest = drill ? recordDrill(records, drill.id, r.score) : recordResult(records, played, r.score),
     after = zone && zoneStatus(records, zone, progressFlags);
   saveRecords();
+  if (coverage)
+    try {
+      coverage.finish({ score: r.score, stars: r.stars });
+      saveCoverage();
+      live?.dirty("urgent");
+    } catch (e) {
+      crashlog.error("playtest", e);
+    }
   achievements.shift({
     stars: r.stars,
     drill: !!drill,
@@ -1894,6 +2446,7 @@ function events() {
   for (const e of batch) {
     // One event that goes wrong must not lose the rest of the batch (a lost "ended" would leave the shift open).
     try {
+      coverage?.event(e);
       if (e.type === "save") crashlog.crumb("save", describeEvent(e));
       else if (!isNoisy(e)) crashlog.crumb("event", describeEvent(e));
       if (e.type === "save") achievements.save(e.kind);
@@ -1985,8 +2538,10 @@ function events() {
   }
   // The moments a crash is likeliest to follow reach the disk at once (the page may be about to die), and the numbers are taken
   // as they happen and again a few seconds later, so a jump in what the scene holds shows up next to what caused it.
+  if (coverage && batch.some((e) => !isNoisy(e) && e.type !== "toast")) touchCoverage();
   if (batch.some((e) => MOMENTS.has(e.type))) {
     crashlog.flush(true);
+    live?.dirty("urgent");
     try {
       sampleLog();
       setTimeout(() => ["playing", "paused"].includes(mode) && sampleLog(), 3000);
@@ -2037,11 +2592,15 @@ function frame(t) {
       if (world.viewMode === "coach") {
         world.coachCam.turn(input.turn(), dt);
         sim.coach.lookAngle = world.coachCam.yaw;
+        recorder?.look(sim.coach.lookAngle);
       }
-      const movement = moveVector();
-      sim.setMovement(movement.x, movement.z);
+      if (!replayRun) {
+        const movement = moveVector();
+        sim.setMovement(movement.x, movement.z);
+      }
       accumulator = Math.min(0.12, accumulator + dt * speed);
       while (accumulator >= 1 / 60) {
+        if (replayRun) feedReplay();
         sim.tick(1 / 60);
         accumulator -= 1 / 60;
       }
@@ -2066,12 +2625,15 @@ function frame(t) {
     }
   }
   if (!covered) {
-    stage("scene", () => {
-      world.sync(sim, viewClock, dt * speed, dt);
-      if (world.incidentView.consumeLightning()) audio.effect("thunder");
-    });
-    stage("render", () => world.render());
-    stage("tags", updateBubbles);
+    // (The crash hunt's two last suspects: `nosync` leaves the 3D scene alone, neither updated nor drawn, `norender` updates it
+    // and draws nothing. The simulation, the page and the sound go on in both.)
+    if (!tuning.has("nosync"))
+      stage("scene", () => {
+        world.sync(sim, viewClock, dt * speed, dt);
+        if (world.incidentView.consumeLightning()) audio.effect("thunder");
+      });
+    if (!tuning.has("nosync") && !tuning.has("norender")) stage("render", () => world.render());
+    if (!tuning.has("nosync")) stage("tags", updateBubbles);
   }
   stage("context", updateContext);
   stage("alert", updateAlert);
@@ -2089,10 +2651,11 @@ function frame(t) {
     logClock = 0;
     logState();
   }
-  if (perfClock > 10) {
+  if (perfClock > (playtest ? 5 : 10)) {
     perfClock = 0;
     sampleLog();
   }
+  if (playtest) playtestTick(dt);
 }
 function bind() {
   mapView = new LevelMap($("map"), {
@@ -2154,6 +2717,11 @@ function bind() {
     $("quit-game").onclick = quitGame;
   }
   $("restart").onclick = () => start(activeBooking);
+  try {
+    bindPlaytest();
+  } catch (e) {
+    crashlog.error("playtest", e);
+  }
   $("crash-send").onclick = () => shareCrash("send");
   $("crash-auto").onchange = () => {
     reportPrefs.auto = $("crash-auto").checked;
@@ -2441,6 +3009,13 @@ try {
   $("loading").hidden = true;
   if (window.__boot) window.__boot.ready = true;
   renderFund();
+  if (playtest)
+    toast(
+      "Playtest on · device code " +
+        reportPrefs.device +
+        (live ? " · the log is sent as you play" : " · not sending from here") +
+        " · 🐞 flags a problem",
+    );
   if (huntState && hunt.finished(huntState)) showHuntResults();
   else if (huntStep || params.has("trial")) setTimeout(startTrial, 1500);
   // The GPU, and how big the drawing surface is (the likeliest thing to run a small device out of memory).
@@ -2475,6 +3050,19 @@ try {
         return story;
       },
       playStory,
+      // The playtest's parts, for tests and repros.
+      get playtest() {
+        return {
+          on: playtest,
+          coverage,
+          live,
+          recorder,
+          open: showPlaytest,
+          close: closePlaytest,
+          flag: flagProblem,
+          trigger: triggerNow,
+        };
+      },
       play(n = level, booking = null) {
         level = n;
         selected = { kind: "level", level: n };
@@ -2546,7 +3134,7 @@ try {
   // A launch after a crash offers the report (`?log` opens the log any time, crash or not).
   const wantsLog = new URLSearchParams(location.search).has("log");
   setTimeout(async () => {
-    if (reportsOpen() && reportPrefs.auto === true) await sendPending();
+    if (reportsOpen() && autoSend()) await sendPending();
     if (mode !== "menu" || document.querySelector("dialog[open]") || testing) return;
     if (wantsLog) showCrash(crashlog.troubled()[0] || crashlog.latest());
     else if (crashlog.pending().length) showCrash(crashlog.pending().slice(-1)[0]);

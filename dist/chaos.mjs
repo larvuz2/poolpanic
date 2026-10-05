@@ -85,16 +85,26 @@ export class ChaosController extends RescueController {
   activeSystems() {
     return this.systems.filter((s) => s.isActive(this));
   }
+  // Why an incident cannot start now, in a few words ("" when it can): the shift's clock must be running, nothing else may be going
+  // on, and the level allows only so many at once. `ignoreStatus` leaves the clock out (the playtest panel asks while the shift waits
+  // behind its dialog).
+  chaosBlocker(system, ignoreStatus = false) {
+    if (!ignoreStatus && this.status !== "playing") return "the shift is not running";
+    if (system.isActive(this)) return "it is already going on";
+    if (this.rescue) return "a rescue is going on";
+    if (this.cleanup) return "a cleanup is going on";
+    if (this.closed) return "the pool is closed";
+    if (this.activeSystems().length >= (this.config.maxChaos || 1)) return "another incident is going on";
+    return system.canStart && !system.canStart(this) ? "not just now" : "";
+  }
   canStartChaos(system) {
-    if (this.status !== "playing" || system.isActive(this)) return false;
-    if (this.rescue || this.cleanup || this.closed) return false;
-    if (this.activeSystems().length >= (this.config.maxChaos || 1)) return false;
-    return system.canStart ? system.canStart(this) : true;
+    return !this.chaosBlocker(system);
   }
   // Debug/QA and checks can trigger an incident directly.
   triggerChaos(key) {
     const system = this.system(key);
-    if (!system || system.isActive(this)) return false;
+    // (the trampoline is a system with no start: its trouble comes from the daredevils, not from the plan)
+    if (!system || typeof system.start !== "function" || system.isActive(this)) return false;
     return system.start(this) !== false;
   }
   updateChaos(dt) {

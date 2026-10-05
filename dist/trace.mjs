@@ -11,6 +11,23 @@ const at = (e) => (Number.isFinite(e?.x) && Number.isFinite(e?.z) ? "@" + round(
 const interesting = (p) =>
   !!(p.problem || p.exitPhase || p.recoveryStage || (p.status && !ORDINARY.has(p.status)));
 const who = (p) => "#" + p.id + (p.name ? " " + p.name : "") + (p.type ? " (" + p.type + ")" : "");
+// A value from an incident's `detail` as the pulse says it: a number rounded, a thing with a place as that place, a word as it is.
+const show = (v) =>
+  v === undefined || v === null
+    ? "-"
+    : typeof v === "number"
+      ? String(Number.isFinite(v) ? round(v) : "?")
+      : typeof v === "object"
+        ? at(v) || "-"
+        : String(v);
+// Where the coach is and what he carries, as the diary says it.
+const coachWhere = (c) =>
+  c.waterTransition ? c.waterTransition.kind : c.swimming ? "swimming" : c.y > 0.5 ? "airborne" : "deck";
+// A state that has lasted this many seconds (of the shift's own time, so a pause does not count) is said to be waiting, and again each
+// time that doubles. What a stuck incident is stuck in is the most useful thing a diary can say.
+const WAIT_FIRST = 25;
+// Gear that has a place to hang and may end up somewhere else: where each piece is, whenever it moves.
+const GEAR = ["fishNet", "flashlight", "medkit"];
 
 // Events that happen all the time and say nothing about how the shift is going (the log is short: these would fill it).
 const NOISY = new Set([
@@ -66,9 +83,11 @@ export function crowdSummary(sim) {
 }
 
 export class Tracer {
-  // `note(kind, text)`: where the lines go (the crash log's crumb).
-  constructor(note) {
+  // `note(kind, text)`: where the lines go (the crash log's crumb). `verbose`: a line for every change in an incident's state, not just
+  // when its stage changes (a playtest wants every step of a cannonball man's run; an ordinary report would be mostly that).
+  constructor(note, { verbose = false } = {}) {
     this.note = note;
+    this.verbose = verbose;
     this.reset();
   }
   reset() {
@@ -79,6 +98,11 @@ export class Tracer {
     this.people = new Map();
     this.systems = [];
     this.cleanup = null;
+    this.stages = new Map(); // each running incident's last described state
+    this.gear = new Map();
+    this.closed = false;
+    this.twist = "";
+    this.waits = new Map(); // state -> {value, since, said}: what has been the same for how long
   }
   // Look at the simulation after a frame's ticks.
   look(sim) {
@@ -90,13 +114,7 @@ export class Tracer {
     // The coach: what he carries and where he is (on the deck, in the air, diving in, swimming, climbing out). His position
     // goes in the line, but a step along the deck is not a change.
     const c = sim.coach;
-    const where = c.waterTransition
-      ? c.waterTransition.kind
-      : c.swimming
-        ? "swimming"
-        : c.y > 0.5
-          ? "airborne"
-          : "deck";
+    const where = coachWhere(c);
     const holds = c.carry || "";
     if (where !== this.coach?.where || holds !== this.coach?.holds) {
       this.note("coach", t + where + (holds ? " carrying " + holds : "") + " " + at(c));
@@ -151,6 +169,62 @@ export class Tracer {
       this.note("incident", t + "cleanup " + (this.cleanup ?? "none") + " → " + (cleanup ?? "none"));
       this.cleanup = cleanup;
     }
+    // Where each running incident stands (its own `describe`), a line each time that changes.
+    const now = sim.arrivalTime ?? sim.time ?? 0,
+      seen = new Set();
+    const context = " (coach " + where + (holds ? " carrying " + holds : "") + " " + at(c) + ")";
+    const wait = (key, value, label) => {
+      seen.add(key);
+      const w = this.waits.get(key);
+      if (!w || w.value !== value) return void this.waits.set(key, { value, since: now, said: WAIT_FIRST });
+      if (now - w.since >= w.said) {
+        this.note(
+          "waiting",
+          t + label + " has been like this for " + Math.round(now - w.since) + " s" + context,
+        );
+        w.said *= 2;
+      }
+    };
+    for (const system of systems) {
+      let state = "";
+      try {
+        state = system.describe?.(sim) || "";
+      } catch {}
+      // (the first part of the state, up to the first "·", is the incident's stage: that alone is news in a short report)
+      const key = this.verbose ? state : state.split(" · ")[0];
+      if (state && key !== this.stages.get(system.key)) {
+        this.note("incident", t + system.key + ": " + state);
+        this.stages.set(system.key, key);
+      }
+      if (state) wait("incident:" + system.key, state, system.key + ": " + state);
+    }
+    for (const key of [...this.stages.keys()])
+      if (!systems.some((s) => s.key === key)) this.stages.delete(key);
+    if (rescueKey) wait("rescue", rescueKey, "rescue " + r.stage + " " + (r.kind || ""));
+    if (cleanup) wait("cleanup", cleanup, "cleanup " + cleanup);
+    // (a closed pool that an incident or a rescue explains is not said again on its own)
+    if (sim.closed && !cleanup && !r && !systems.length) wait("closed", "closed", "the pool is closed");
+    // The pool closed and reopened, a lane out of service, the storm, the fish net on its hook or in somebody's hands.
+    const closed = !!sim.closed;
+    if (closed !== this.closed) {
+      this.note("incident", t + (closed ? "pool closed" : "pool reopened"));
+      this.closed = closed;
+    }
+    const twist =
+      (sim.laneClosure >= 0 ? "lane " + (sim.laneClosure + 1) + " out of service" : "") +
+      (sim.storm ? (sim.laneClosure >= 0 ? ", " : "") + "storm" : "");
+    if (twist !== this.twist) {
+      this.note("incident", t + (twist ? "twist: " + twist : "twist over"));
+      this.twist = twist;
+    }
+    for (const name of GEAR) {
+      const state = sim[name]?.state;
+      if (state === undefined) continue;
+      const was = this.gear.get(name);
+      if (was !== undefined && was !== state) this.note("gear", t + name + ": " + was + " → " + state);
+      this.gear.set(name, state);
+    }
+    for (const key of this.waits.keys()) if (!seen.has(key)) this.waits.delete(key);
     // Swimmers: everybody in trouble, and everybody on an odd status, line by line; the ordinary comings and goings are not.
     const people = sim.people || [];
     for (const p of people) {
@@ -160,11 +234,12 @@ export class Tracer {
         p.status === m.status &&
         p.exitPhase === m.exitPhase &&
         p.recoveryStage === m.recoveryStage &&
+        p.jumpStage === m.jumpStage &&
         p.problem === m.problem
       )
         continue;
       if (interesting(m) || interesting(p)) {
-        const phase = [p.exitPhase, p.recoveryStage].filter(Boolean).join("/");
+        const phase = [p.exitPhase, p.recoveryStage, p.jumpStage].filter(Boolean).join("/");
         this.note(
           "person",
           t +
@@ -182,11 +257,46 @@ export class Tracer {
       m.status = p.status;
       m.exitPhase = p.exitPhase;
       m.recoveryStage = p.recoveryStage;
+      m.jumpStage = p.jumpStage;
       m.problem = p.problem;
     }
     if (this.people.size > people.length + 20) {
       const live = new Set(people.map((p) => p.id));
       for (const id of this.people.keys()) if (!live.has(id)) this.people.delete(id);
     }
+  }
+
+  // The shift's incident plan, in one line: what the level has in store and when (the shift's own seconds), so what happened can be
+  // set beside what was meant to.
+  plan(sim) {
+    const entries = (sim.chaosPlan || []).map((e) => e.kind + "@" + Math.round(e.at) + "s");
+    return "plan: " + (entries.length ? entries.join(", ") : "no incidents");
+  }
+
+  // The state of the shift in one line, for the periodic pulse: the clock, the score, the coach, the crowd, and each running incident's
+  // numbers (its `detail`). Written every few seconds, so a page that died leaves its last known positions behind.
+  pulse(sim) {
+    const c = sim.coach,
+      bits = [
+        "score " + Math.round(sim.score || 0),
+        "coach " + coachWhere(c) + (c.carry ? " carrying " + c.carry : "") + " " + at(c),
+        crowdSummary(sim),
+      ];
+    if (sim.rescue) bits.push("rescue " + sim.rescue.stage + " " + (sim.rescue.kind || ""));
+    for (const system of sim.activeSystems?.() || []) {
+      let detail = null;
+      try {
+        detail = system.detail?.(sim);
+      } catch {}
+      if (detail)
+        bits.push(
+          system.key +
+            " " +
+            Object.entries(detail)
+              .map(([k, v]) => k + " " + show(v))
+              .join(" "),
+        );
+    }
+    return "t" + Math.floor(sim.time || 0) + "s " + bits.filter(Boolean).join(" · ");
   }
 }

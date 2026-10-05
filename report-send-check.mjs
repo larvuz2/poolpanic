@@ -11,6 +11,7 @@ import {
   savePrefs,
   canSend,
   reportPayload,
+  slimSession,
   sendReport,
   sendProblem,
 } from "./dist/report-send.mjs";
@@ -171,6 +172,21 @@ const DEVICE = /^[A-Z2-7]{8}$/;
     assert.equal(result.status, status);
     assert.match(sendProblem(result), text, `a ${status} is told as ${text}`);
   }
+  // A service that asks for quiet says for how long, in the header: it is passed on.
+  const quiet = await sendReport(payload, {
+    fetch: async () => ({
+      ok: false,
+      status: 429,
+      headers: { get: (name) => (name === "retry-after" ? "90" : null) },
+      json: async () => ({ ok: false, error: "slow down" }),
+    }),
+  });
+  assert.deepEqual(quiet, { ok: false, status: 429, error: "slow down", retryAfter: 90 });
+  assert.equal(
+    (await sendReport(payload, { fetch: answer(429, { ok: false, error: "x" }) })).retryAfter,
+    undefined,
+    "no header, nothing to pass on",
+  );
   // A 200 that is not the service (a static server's page) is not a send.
   const html = await sendReport(payload, {
     fetch: async () => ({
@@ -206,6 +222,68 @@ const DEVICE = /^[A-Z2-7]{8}$/;
   assert.equal(sendProblem(null), "");
 }
 
+// 6) What a playtest sends again and again: the report carries everything, so the raw session comes without its breadcrumbs and recordings;
+// a report that would be too big for the service loses its oldest breadcrumbs, then its recorded shift, until it fits.
+{
+  const log = new CrashLog({ storage: memory(), now: () => 1_790_000_000_000, schedule: () => 1 });
+  log.start({ build: { commit: "abc1234" }, env: { ua: "Test/1" } });
+  log.setLimits({ crumbs: 1000, bytes: 240000 });
+  log.setState({ level: 7 });
+  for (let i = 0; i < 300; i++) log.crumb("t", "line " + i);
+  log.flag("stuck at the edge", { kind: "stuck" });
+  log.setPlaytest({ lines: ["- Level 7"], data: { v: 1, levels: { 7: { runs: 1 } } } });
+  log.attach("replays", { level: 7, seed: 5, ticks: 3, inputs: [[0, "jump"]] });
+  const slim = slimSession(log.session);
+  assert.equal(slim.crumbs.length, 30, "the newest thirty");
+  assert.equal(slim.crumbs.at(-1)[2], "[stuck] stuck at the edge");
+  assert.equal(slim.replays, undefined);
+  assert.deepEqual(
+    slim.playtest,
+    { data: { v: 1, levels: { 7: { runs: 1 } } } },
+    "the lines are in the report; the data stays",
+  );
+  assert.equal(slim.flags.length, 1, "what was flagged stays");
+  assert.equal(slim.id, log.session.id);
+  assert.equal(log.session.crumbs.length, 302, "…and the log itself is not touched");
+  const live = reportPayload(log, log.session, "K7Q2M5XA", { slim: true });
+  assert.equal(live.session.crumbs.length, 30);
+  assert.match(live.report, /## Flagged by the player/);
+  assert.match(
+    live.report,
+    /## Replay: level 7 seed 5 \(1 inputs\)/,
+    "the newest recorded shift is in the report",
+  );
+  assert.match(live.report, /line 299/);
+  assert.match(live.headline, /^Playtest L7 · 1 flagged: stuck at the edge/);
+  assert.equal(
+    reportPayload(log, log.session, "K7Q2M5XA").session.crumbs.length,
+    302,
+    "the whole session when it is not slim",
+  );
+
+  // Too big even without the session: half of the oldest breadcrumbs go (the newest kept), and then, only if that is not enough, the
+  // recorded shift.
+  const size = (text) => new TextEncoder().encode(text).length;
+  const make = (arrows) => {
+    const big = new CrashLog({ storage: null, now: () => 1_790_000_000_000, schedule: () => 1 });
+    big.start({});
+    big.setLimits({ crumbs: 1000 });
+    for (let i = 0; i < 1000; i++) big.crumb("t", "line " + i + " " + "→".repeat(arrows));
+    big.attach("replays", { level: 7, seed: 5, ticks: 3, inputs: [], pad: "x".repeat(30000) });
+    return reportPayload(big, big.session, "K7Q2M5XA", { slim: true });
+  };
+  const some = make(100); // (about 330 bytes a line: 330 KB of timeline)
+  assert.ok(size(JSON.stringify(some)) <= REPORT_LIMITS.body, "it fits: " + size(JSON.stringify(some)));
+  assert.match(some.report, /line 999 /, "the newest breadcrumbs are kept");
+  assert.ok(!/line 0 /.test(some.report), "the oldest are the ones that went");
+  assert.ok(some.report.includes("## Replay: level 7"), "the recorded shift stays while that is enough");
+  const lots = make(300); // (clipped to a line of 240 characters: 700 KB of timeline)
+  assert.ok(size(JSON.stringify(lots)) <= REPORT_LIMITS.body, "it fits: " + size(JSON.stringify(lots)));
+  assert.match(lots.report, /line 999 /);
+  assert.ok(!lots.report.includes("## Replay"), "the recorded shift goes when it has to");
+  assert.ok(lots.report.includes("# Pool Panic crash report"));
+}
+
 console.log(
-  "Report send checks passed: a device code that names this device's reports, the player's say on automatic sending (never said, yes, no), sending offered only on a served page and never in the desktop app, a payload with the report and the session (the report alone when too big), and every way a send can fail told plainly.",
+  "Report send checks passed: a device code that names this device's reports, the player's say on automatic sending (never said, yes, no), sending offered only on a served page and never in the desktop app, a payload with the report and the session (the report alone when too big), and every way a send can fail told plainly, a playtest's slim live copy, and a report too big for the service shrunk to fit with its newest lines kept.",
 );

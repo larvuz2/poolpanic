@@ -51,6 +51,14 @@
           ><button id="fullscreen" class="icon-btn" aria-label="Toggle fullscreen" title="Fullscreen">
             ⛶</button
           ><button id="sound" class="icon-btn" aria-label="Toggle sound" title="Sound · M">♫</button
+          ><button
+            id="playtest"
+            class="icon-btn"
+            aria-label="Playtest tools: flag a problem"
+            title="Playtest · flag a problem"
+            hidden
+          >
+            🐞</button
           ><button id="help" class="icon-btn" aria-label="How to play" title="How to play · H">?</button
           ><button id="pause" class="icon-btn" aria-label="Pause game" title="Pause · P">Ⅱ</button>
         </nav>
@@ -417,6 +425,46 @@
         ><button id="crash-restart" class="secondary live-only">Restart this shift</button
         ><button id="crash-map" class="secondary live-only">Back to the map</button
         ><button id="crash-dismiss" class="text-btn">Not now</button>
+      </dialog>
+      <dialog id="playtest-dialog" class="modal playtest-modal" aria-labelledby="playtest-title">
+        <button id="playtest-x" class="modal-close" aria-label="Back to the game">×</button>
+        <div class="eyebrow">PLAYTEST</div>
+        <h2 id="playtest-title">Something wrong?</h2>
+        <p id="playtest-where" class="playtest-where"></p>
+        <p id="playtest-live" class="playtest-live"></p>
+        <p class="playtest-codeline">
+          Device code <b id="playtest-code" class="crash-code"></b>
+          <button id="playtest-code-copy" class="text-btn inline" type="button">Copy code</button>
+        </p>
+        <p class="playtest-hint">
+          Send it to the developer once: the log of this device is read by it, while you play.
+        </p>
+        <div id="playtest-reasons" class="playtest-chips" role="group" aria-label="What kind of problem">
+          <button type="button" data-reason="stuck">Stuck or frozen</button>
+          <button type="button" data-reason="wrong">Looks wrong</button>
+          <button type="button" data-reason="unfair">Unfair</button>
+          <button type="button" data-reason="confusing">Confusing</button>
+          <button type="button" data-reason="slow">Slow or about to crash</button>
+          <button type="button" data-reason="other">Other</button>
+        </div>
+        <textarea
+          id="playtest-note"
+          rows="2"
+          maxlength="400"
+          placeholder="What happened? (optional: dictate it)"
+          aria-label="What happened"
+        ></textarea>
+        <button id="playtest-flag" class="primary">Flag it and keep playing</button>
+        <h3>Make an incident happen now</h3>
+        <div id="playtest-triggers" class="playtest-chips"></div>
+        <h3>Seen so far</h3>
+        <p id="playtest-seen" class="playtest-seen"></p>
+        <button id="playtest-send" class="secondary">Send the log now</button
+        ><button id="playtest-copy" class="secondary">Copy the report</button
+        ><button id="playtest-reset" class="text-btn">Start the playtest notes over</button
+        ><button id="playtest-off" class="text-btn">Turn playtest off</button
+        ><button id="playtest-map" class="secondary">Back to the map</button
+        ><button id="playtest-close" class="primary">Back to the game</button>
       </dialog>
       <div id="hunt" class="hunt" hidden aria-live="polite"></div>
       <dialog id="cinematic" class="cinematic" aria-label="Story">

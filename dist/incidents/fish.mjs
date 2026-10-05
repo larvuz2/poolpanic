@@ -37,6 +37,25 @@ export const FishKid = {
   // The pool stays closed (and the shift clock waits) until the fish is netted.
   holdsClock: (sim) => sim.fish?.stage === "loose",
   panic: (sim) => sim.fish?.stage === "loose",
+  // For the shift's diary (trace.mjs): `describe` is where the incident stands, in words that change only when its stage does (a line is
+  // written each time it changes, and a stage that lasts too long is said to be waiting); `detail` is what moves, for the periodic pulse.
+  describe(sim) {
+    const f = sim.fish;
+    if (!f) return "";
+    return (
+      "stage " +
+      f.stage +
+      " · kid " +
+      (sim.visitor(f.kid)?.status ?? "gone") +
+      " · net " +
+      sim.fishNet.state +
+      (sim.closed ? " · pool closed" : "")
+    );
+  },
+  detail(sim) {
+    const f = sim.fish;
+    return f && { stamina: f.stamina, fish: f, kid: sim.visitor(f.kid) };
+  },
   start(sim) {
     const spot = sim.pickEdgeSpot(sim.coach);
     const kid = sim.spawnVisitor("kid", {

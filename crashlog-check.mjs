@@ -655,6 +655,204 @@ assert.equal(typeof BUILD.commit, "string");
   );
 }
 
+// 11) Playtest: a bigger budget, the problems a player flags (kept whole, with the trail around them), the notes on what was covered,
+// recorded shifts kept by reference, and what makes the log worth sending again.
+{
+  const store = memory(),
+    now = clock(),
+    log = fresh(store, now);
+  log.start({ build: { commit: "abc1234" }, env: { ua: "Test/1" } });
+
+  // The budget is the instance's own: a playtest asks for more, only for limits the log has, only sensible numbers.
+  log.setLimits({
+    crumbs: 1000,
+    bytes: 240000,
+    sessions: 4,
+    replays: 2,
+    bogus: 5,
+    errors: -1,
+    flags: "many",
+  });
+  assert.deepEqual(
+    [log.limits.crumbs, log.limits.bytes, log.limits.sessions, log.limits.replays],
+    [1000, 240000, 4, 2],
+  );
+  assert.equal(log.limits.errors, LIMITS.errors, "a number that is not one stays what it was");
+  assert.equal(log.limits.flags, LIMITS.flags);
+  assert.equal("bogus" in log.limits, false);
+  assert.equal(LIMITS.crumbs, 400, "the shared defaults are untouched");
+  assert.equal(fresh(memory(), now).limits.crumbs, 400, "and so is every other log");
+  for (let i = 0; i < 900; i++) log.crumb("t", "line " + i);
+  assert.equal(log.session.crumbs.length, 901, "the longer diary is kept");
+  assert.equal(
+    log
+      .report(log.session)
+      .split("\n")
+      .filter((l) => /^\+ *[\d.]+ s {2}t /.test(l)).length,
+    900,
+  );
+
+  // What is worth sending again: the diary, errors, flags; not the numbers every few seconds.
+  const r0 = log.rev;
+  log.frame(16);
+  log.perf({ calls: 9 });
+  assert.equal(log.rev, r0, "a perf line alone does not make the log worth sending again");
+  log.crumb("x", "y");
+  assert.equal(log.rev, r0 + 1);
+  log.setState({ level: 7, shift: "Splash Park", time: 45, active: "fish" });
+  assert.equal(log.rev, r0 + 1, "nor does the state's refresh");
+  // A new error is called out to whoever listens (once); one that comes again is not new; a listener that throws harms nothing.
+  const heard = [];
+  log.onNewError = (record) => heard.push(record.message);
+  log.error("a", boom("one"));
+  log.error("a", boom("one"));
+  log.error("b", boom("two"));
+  assert.deepEqual(heard, ["one", "two"]);
+  log.onNewError = () => {
+    throw new Error("listener");
+  };
+  assert.doesNotThrow(() => log.error("c", boom("three")));
+
+  // A flag keeps the player's words, the kind, the game's state and the trail at that moment, whole.
+  log.crumb("incident", "t45s fish: stage approach · kid walking · net wall");
+  now.tick(2500);
+  const flag = log.flag("The kid froze at the edge", { kind: "stuck" });
+  assert.equal(log.session.flags.length, 1);
+  assert.equal(flag.note, "The kid froze at the edge");
+  assert.equal(flag.kind, "stuck");
+  assert.equal(flag.state.level, 7);
+  assert.equal(flag.state.active, "fish");
+  assert.equal(flag.trail.length, 14);
+  assert.match(flag.trail.at(-1), /incident t45s fish: stage approach/);
+  assert.deepEqual(
+    log.session.crumbs.at(-1).slice(1, 3),
+    ["flag", "[stuck] The kid froze at the edge"],
+    "and it is in the diary too",
+  );
+  for (let i = 0; i < 1500; i++) log.crumb("t", "later " + i);
+  assert.match(
+    log.session.flags[0].trail.at(-1),
+    /incident t45s fish/,
+    "the ring moved on, the flag kept its trail",
+  );
+  assert.ok(log.session.flags[0].trail.every((l) => l.length <= 140));
+  for (let i = 0; i < 40; i++) log.flag("note " + i);
+  assert.equal(log.session.flags.length, LIMITS.flags, "the newest few are kept");
+  assert.equal(log.session.flags.at(-1).note, "note 39");
+  assert.ok(log.flag("x".repeat(1000)).note.length <= 400);
+  assert.equal(log.flag("").note, "");
+  assert.equal(log.session.crumbs.filter((c) => c[1] === "flag").at(-1)[2], "(no note)");
+  // Nothing started: nothing to keep it in, and nothing thrown.
+  const idle = fresh(memory(), now);
+  assert.equal(idle.flag("x"), null);
+  assert.doesNotThrow(() => {
+    idle.setPlaytest({ lines: ["x"] });
+    idle.attach("replays", { a: 1 });
+    idle.setLimits({ crumbs: 5 });
+  });
+
+  // Recorded shifts are attached by reference: what the recorder adds later is written with the next flush; the newest few stay.
+  const first = { level: 3, seed: 9, ticks: 1, inputs: [[0, "jump"]] },
+    second = { level: 4, seed: 10, ticks: 2, inputs: [] },
+    third = { level: 5, seed: 11, ticks: 3, inputs: [] };
+  log.attach("replays", first);
+  log.attach("replays", first);
+  assert.equal(log.session.replays.length, 1, "the same record is not attached twice");
+  log.attach("replays", second);
+  log.attach("replays", third);
+  assert.deepEqual(log.session.replays, [second, third], "two are kept: the newest");
+  third.ticks = 999;
+  log.flush(true);
+  assert.equal(JSON.parse(store.getItem(log.key + "." + log.session.id)).replays[1].ticks, 999);
+  const withReplay = log.report(log.session, { replay: 1 });
+  assert.match(
+    withReplay,
+    /## Replay: level 5 seed 11 \(0 inputs\)\n\n```json\n\{"level":5,"seed":11,"ticks":999,"inputs":\[\]\}\n```$/,
+  );
+  assert.equal((withReplay.match(/## Replay:/g) || []).length, 1, "only the newest, as asked");
+  assert.equal((log.report(log.session, { replay: 2 }).match(/## Replay:/g) || []).length, 2);
+  assert.ok(!log.report(log.session).includes("## Replay"));
+
+  // The report: the player's flags first, then what has been covered, then the errors and the timeline.
+  const story = fresh(memory(), now);
+  story.start({ build: { commit: "abc1234" } });
+  story.setState({ level: 7, shift: "Splash Park", time: 45, active: "fish" });
+  story.crumb("incident", "t45s fish: stage approach · kid walking · net wall");
+  story.flag("The kid froze at the edge", { kind: "stuck" });
+  story.flag("", { kind: "wrong" });
+  story.flag("odd noise");
+  story.error("a", boom("one"));
+  story.setPlaytest({
+    lines: [
+      '- Level 7 "Splash Park" · 1 run, 0 finished · incidents: fish 1 · flagged ×3',
+      "- Incidents not seen yet: dog",
+    ],
+    data: { v: 1 },
+  });
+  const report = story.report(story.session);
+  const where = (text) => report.indexOf(text);
+  assert.ok(where("- **Game:**") < where("## Flagged by the player"));
+  assert.ok(where("## Flagged by the player") < where("## Playtest so far"));
+  assert.ok(where("## Playtest so far") < where("## Errors"));
+  assert.ok(where("## Errors") < where("## Timeline"));
+  assert.match(
+    report,
+    /\n1\. \+\d+\.\d s \[stuck\] "The kid froze at the edge"\n {3}game: level 7 "Splash Park" · shift 45 s · active: fish\n {3}```\n(?: {3}.*\n)*? {3}\+ *[\d.]+ s {2}incident t45s fish: stage approach/,
+  );
+  assert.match(report, /\n2\. \+\d+\.\d s \[wrong\] "\(no note\)"\n/);
+  assert.match(report, /\n3\. \+\d+\.\d s "odd noise"\n/, "a flag with no kind has none in brackets");
+  assert.match(report, /- Incidents not seen yet: dog/);
+  // The headline tells a playtest's reports apart in a list: where the game was, what was flagged, then the error or the lack of one.
+  assert.equal(story.headline(story.session), "Playtest L7 · 3 flagged: odd noise · a: TypeError: one");
+  const calm = fresh(memory(), now);
+  calm.start({});
+  calm.setState({ level: 2 });
+  calm.setPlaytest({ lines: ["- Level 2"] });
+  calm.flag("", { kind: "other" });
+  assert.equal(calm.headline(calm.session), "Playtest L2 · 1 flagged: other · no errors");
+  calm.session.crash = "unclean";
+  assert.match(
+    calm.headline(calm.session),
+    /^Playtest L2 · 1 flagged: other · The page ended in the middle of a shift/,
+  );
+  const menu = fresh(memory(), now);
+  menu.start({});
+  menu.setPlaytest({ lines: [] });
+  assert.equal(menu.headline(menu.session), "Playtest menu · no errors");
+  const plain = fresh(memory(), now);
+  plain.start({});
+  assert.equal(
+    plain.headline(plain.session),
+    "No errors were recorded.",
+    "an ordinary session reads as before",
+  );
+
+  // A later launch is offered a session with flags even when nothing went wrong, and not again once it is sent.
+  const next = fresh(store, now);
+  next.start({});
+  assert.ok(
+    next.pending().some((s) => s.id === log.session.id),
+    "a flagged session is pending like a crashed one",
+  );
+  assert.ok(next.troubled().some((s) => s.id === log.session.id));
+  next.mark(log.session.id, "sent", { device: "K7Q2M5XA" });
+  assert.ok(!next.pending().some((s) => s.id === log.session.id));
+  // …and one with no flags, errors or crash is not.
+  assert.ok(!next.pending().some((s) => s.id === plain.session.id));
+
+  // The byte budget still holds with flags and recordings in: the oldest crumbs go, the rest stays.
+  const tight = fresh(memory(), now);
+  tight.start({});
+  tight.setLimits({ bytes: 20000 });
+  tight.flag("kept", { kind: "stuck" });
+  for (let i = 0; i < 900; i++)
+    tight.crumb("t", "a fairly long line of the diary number " + i + " ".repeat(40) + "end");
+  tight.flush(true);
+  const stored = JSON.parse(tight.storage.getItem(tight.key + "." + tight.session.id));
+  assert.ok(JSON.stringify(stored).length <= 20000, "stored within the budget");
+  assert.equal(stored.flags[0].note, "kept", "the flag outlives the crumbs that were dropped");
+}
+
 console.log(
-  "Crash log checks passed: breadcrumbs and errors kept and capped, repeats counted, sessions stored one per key so tabs never clash, a page that vanished mid-shift told from the background, a closed page and another tab, reports and GitHub issue links that fit, a full or broken storage shrugged off, and the browser wiring (errors, rejections, console, visibility, WebGL loss, Web Locks) driven with a fake browser.",
+  "Crash log checks passed: breadcrumbs and errors kept and capped, repeats counted, sessions stored one per key so tabs never clash, a page that vanished mid-shift told from the background, a closed page and another tab, reports and GitHub issue links that fit, a playtest's budget, flagged problems kept with their trail, recorded shifts kept by reference and the sections of a playtest's report, a full or broken storage shrugged off, and the browser wiring (errors, rejections, console, visibility, WebGL loss, Web Locks) driven with a fake browser.",
 );

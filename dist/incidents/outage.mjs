@@ -47,6 +47,16 @@ export const PowerOutage = {
       });
   },
   panic: (sim) => sim.outage?.stage === "dark",
+  // For the shift's diary (trace.mjs): `describe` is where the incident stands, in words that change only when its stage does (a line is
+  // written each time it changes, and a stage that lasts too long is said to be waiting); `detail` is what moves, for the periodic pulse.
+  describe(sim) {
+    const o = sim.outage;
+    return o ? "stage " + o.stage + " · flashlight " + sim.flashlight.state : "";
+  },
+  detail(sim) {
+    const o = sim.outage;
+    return o && { left: o.t, dark: o.dark };
+  },
   start(sim) {
     sim.outage = { stage: "flicker", t: T.flicker, elapsed: 0, dark: 0 };
     sim.emit("chaos", { kind: "outage" });
