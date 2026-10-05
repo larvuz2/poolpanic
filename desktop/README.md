@@ -6,6 +6,38 @@ button, remembered size and place), the game served from files on the player's d
 Chromium inside), the player's progress copied to a plain file that Steam Cloud can sync, and the Steam calls (the overlay,
 achievements, rich presence). With no Steam it plays exactly the same, so the same build also serves an itch.io page or a friend.
 
+## Test it on your Mac or Windows PC
+
+Steam players run this app, not a web page, so this is how the game is tested. Two routes.
+
+### 1. Download a test build (nothing to install)
+
+Every push that changes the game or the app makes a **test build** for Windows, macOS (Apple chip and Intel) and Linux, and puts them on one
+page that is replaced each time:
+
+**https://github.com/larvuz2/poolpanic/releases/tag/desktop-latest**
+
+| You have | Download | Then |
+| --- | --- | --- |
+| Windows | `PoolPanic-windows-x64.zip` | Unzip it (right-click, Extract All) and open `PoolPanic.exe` in the folder. Windows asks once ("Windows protected your PC"): **More info**, then **Run anyway**. |
+| A Mac with an Apple chip (2020 or later) | `PoolPanic-mac-apple-silicon.zip` | Unzip, move **Pool Panic** to Applications, open it. macOS says it cannot check the app: **System Settings, Privacy & Security, Open Anyway** (on an older macOS: right-click the app, Open). |
+| An older Mac with an Intel chip | `PoolPanic-mac-intel.zip` | The same. |
+| Linux, or a Steam Deck | `PoolPanic-linux-x64.zip` | Unzip, and in the folder run `./PoolPanic --no-sandbox`. |
+
+The builds are not signed (there is no Apple or Microsoft certificate yet), which is why each system asks once. The release's notes name the
+commit the build was made from, and the game's own reports name it too. A newer push replaces the page, so download again to test the newest.
+
+A test build is **not the Steam build**: it starts in **playtest mode** (the 🐞 button flags a problem, and the panel shows the **device code** to
+read out once), and as you play the game posts its log to the report service, as a web playtest does, so the developer can read what happened
+and what came before a crash. The Steam build has no `tester.json` (the file that makes a test build) and never sends anything.
+
+### 2. Run it from the source (a terminal; set up once)
+
+Needs Node 22 and git. Once: `git clone https://github.com/larvuz2/poolpanic`, then `cd poolpanic/desktop && npm install`. After that
+`npm run start:tester` is the same as a download, from the files on your disk, and for a newer version `git pull` and `npm run start:tester`
+again (`git checkout <branch>` first for a branch that is not `main`). `npm start` is the game with no playtest mode and no sending. On Windows
+use PowerShell or Command Prompt; the commands are the same.
+
 ## Run it
 
 Needs Node 22 or newer. Once:
@@ -20,6 +52,7 @@ Then, from `desktop/`:
 | Command | What it does |
 | --- | --- |
 | `npm start` | Opens the game from `../dist` in a window (developer tools on: Ctrl+Shift+I) |
+| `npm run start:tester` | The same as a test build: playtest mode on, and the game's log posted to the report service (`POOLPANIC_REPORTS=<address>` posts to a fake service of your own instead, for trying it) |
 | `npm run start:software-gl` | The same with software drawing, for a machine with no graphics card (a server, a VM) |
 | `POOLPANIC_QUERY="debug&dpr=1" npm start` | Adds an address query: the game's `?debug` hook, `?bisect`, any of its switches (`dist/tuning.mjs`) |
 | `POOLPANIC_FULLSCREEN=1 npm start` | Starts full screen |
@@ -47,6 +80,8 @@ npm run pack:win       # on Windows  -> out/win-unpacked/PoolPanic.exe
 npm run pack:mac       # on a Mac    -> out/mac-arm64/Pool Panic.app and out/mac/Pool Panic.app (Intel)
 npm run pack:linux     # on Linux    -> out/linux-unpacked/PoolPanic
 ```
+
+(`npm run pack:tester:win|mac|linux` make the **test builds** the same way, with a `tester.json` beside the game: CI does that on every push, `.github/workflows/desktop-test-build.yml`, and the Steam upload below never uses them.)
 
 Each first copies the game into `desktop/game` (`scripts/prepare-game.mjs`, which also stamps the build so a crash report names its commit),
 then packs a **folder**, not an installer: Steam wants the files, and sends players only the ones that changed in an update. Nothing is

@@ -40,7 +40,15 @@ import { MomentDirector, edgeArrow } from "./moments.mjs";
 import { installCrashLog, describeGpu } from "./crashlog-hooks.mjs";
 import { Tracer, describeEvent, isNoisy, crowdSummary } from "./trace.mjs";
 import { footprint, surfaceMB } from "./scene/footprint.mjs";
-import { readPrefs, savePrefs, canSend, reportPayload, sendReport, sendProblem } from "./report-send.mjs";
+import {
+  readPrefs,
+  savePrefs,
+  canSend,
+  bridgeFetch,
+  reportPayload,
+  sendReport,
+  sendProblem,
+} from "./report-send.mjs";
 import {
   PLAYTEST_LIMITS,
   COVERAGE_KEY,
@@ -828,7 +836,13 @@ async function copyText(text) {
 // The crash dialog: what went wrong, and three ways to get the report to the developer: send it (report-send.mjs: once, or every time
 // if the box is left ticked), copy it, or open a prefilled GitHub issue. `live` is a shift that just hit an error and is paused.
 const reportPrefs = readPrefs(crashStorage);
-const reportsOpen = () => canSend({ desktop: isDesktop(), protocol: location.protocol });
+// A tester build of the desktop app hands the page a way to post (desktop/preload.cjs); a Steam build, and a browser's tab on a server with
+// no report service, have none.
+const desktopPost =
+  typeof globalThis.desktop?.sendReport === "function" ? globalThis.desktop.sendReport : null;
+const reportsOpen = () =>
+  canSend({ desktop: isDesktop(), protocol: location.protocol, bridge: !!desktopPost });
+const postReport = (payload) => sendReport(payload, desktopPost ? { fetch: bridgeFetch(desktopPost) } : {});
 // A playtest sends by itself: whoever switched it on is the one who reads the log.
 const autoSend = () => reportPrefs.auto === true || playtest;
 let crashOn = null;
@@ -866,7 +880,7 @@ function showSent(session, problem = "") {
 }
 async function sendSession(session, automatic = false) {
   crashlog.flush(true);
-  const result = await sendReport(reportPayload(crashlog, session, reportPrefs.device));
+  const result = await postReport(reportPayload(crashlog, session, reportPrefs.device));
   crashlog.crumb(
     "report",
     (automatic ? "automatic " : "") + "send " + (result.ok ? "ok" : "failed: " + result.error),
@@ -928,7 +942,7 @@ const TRIGGERS = [
   ["outage", "⚡ Power cut"],
 ];
 let pulseClock = 0,
-  liveClock = 0,
+  liveAt = 0, // when the live copy was last asked about, by the wall clock: a slow page (a few frames a second) must not slow its own beat
   liveRev = -1,
   liveWorked = null,
   coverageTimer = 0,
@@ -996,7 +1010,7 @@ function beginPlaytestShift(drill) {
 async function sendLive() {
   const session = crashlog.session;
   crashlog.flush(true);
-  const result = await sendReport(reportPayload(crashlog, session, reportPrefs.device, { slim: true }));
+  const result = await postReport(reportPayload(crashlog, session, reportPrefs.device, { slim: true }));
   if (result.ok !== liveWorked) {
     liveWorked = result.ok;
     crashlog.crumb("report", result.ok ? "live copy is going through" : "live copy failed: " + result.error);
@@ -1015,9 +1029,9 @@ function playtestTick(dt) {
         crashlog.crumb("pulse", tracer.pulse(sim));
       }
     }
-    liveClock += dt;
-    if (live && liveClock > 1) {
-      liveClock = 0;
+    const wall = performance.now();
+    if (live && wall - liveAt > 1000) {
+      liveAt = wall;
       const changed = crashlog.rev !== liveRev;
       liveRev = crashlog.rev;
       const want = liveWant({ mode, changed });

@@ -1,0 +1,119 @@
+# Desktop test builds: the game as the Steam app will be (Electron, Chromium inside), packed for Windows, macOS and Linux on every push that changes
+# the game or the app, and offered as downloads on one release that is replaced each time (`desktop-latest`). The creator downloads it on their
+# own Mac or Windows PC and plays; a tester build starts in playtest mode and posts its log to the report service, as a web playtest does
+# (desktop/README.md, "Test it on your Mac or Windows PC").
+# Not signed, so each system asks once before it opens an unknown app (the release notes say how). This is NOT the Steam build: that one has no
+# tester.json and is made by hand with `npm run pack:win|mac|linux` on each system (desktop/README.md, "Build it for Steam").
+name: Desktop test builds
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths:
+      - "dist/**"
+      - "desktop/**"
+      - ".github/workflows/desktop-test-build.yml"
+  workflow_dispatch:
+
+# One at a time: a newer push replaces the release the older one was about to make.
+concurrency:
+  group: desktop-test-build
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    name: Pack for ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: Windows, os: windows-latest, script: "pack:tester:win" }
+          - { label: macOS, os: macos-latest, script: "pack:tester:mac" }
+          - { label: Linux, os: ubuntu-latest, script: "pack:tester:linux" }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the build's stamp names the commit and the branch
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Install Electron and the packer (about 250 MB)
+        working-directory: desktop
+        run: npm ci
+      - name: Pack
+        working-directory: desktop
+        run: npm run ${{ matrix.script }}
+
+      - name: Zip (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        working-directory: desktop/out
+        run: |
+          mv win-unpacked PoolPanic # unzipped, a folder of that name
+          7z a -tzip -mx=3 ../../PoolPanic-windows-x64.zip PoolPanic
+      - name: Sign ad hoc and zip (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        working-directory: desktop/out
+        run: |
+          # An app that has been changed after Electron signed it, and then downloaded, is "damaged" to macOS; signed ad hoc it is "from an
+          # unidentified developer", which a click in System Settings opens. (Apple Silicon will not run an unsigned program at all.)
+          for dir in mac-arm64 mac; do codesign --force --deep --sign - "$dir/Pool Panic.app"; done
+          ditto -c -k --keepParent "mac-arm64/Pool Panic.app" ../../PoolPanic-mac-apple-silicon.zip
+          ditto -c -k --keepParent "mac/Pool Panic.app" ../../PoolPanic-mac-intel.zip
+      - name: Zip (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        working-directory: desktop/out
+        run: |
+          mv linux-unpacked PoolPanic
+          zip -ryq ../../PoolPanic-linux-x64.zip PoolPanic
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zip-${{ matrix.label }}
+          path: PoolPanic-*.zip
+          compression-level: 0 # already zips
+          if-no-files-found: error
+
+  release:
+    name: Replace the download page
+    needs: pack
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # only this job may touch the release
+    concurrency:
+      group: desktop-release # never cut in half by a newer push: the old release is deleted and the new one made in one go
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: zip-*
+          merge-multiple: true
+          path: zips
+      - name: Replace the rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          short="${GITHUB_SHA::7}"
+          cat > notes.md <<NOTES
+          The newest desktop test build: **commit \`$short\`**, branch \`${{ github.ref_name }}\`, built $(date -u +'%Y-%m-%d %H:%M') UTC. It is replaced by the next push.
+
+          | You have | Download | Then |
+          | --- | --- | --- |
+          | Windows | \`PoolPanic-windows-x64.zip\` | Unzip it, open \`PoolPanic.exe\`. Windows asks once ("Windows protected your PC"): **More info**, then **Run anyway**. |
+          | A Mac with an Apple chip (2020 or later) | \`PoolPanic-mac-apple-silicon.zip\` | Unzip, move **Pool Panic** to Applications, open it. macOS says it cannot check it: **System Settings, Privacy & Security, Open Anyway** (on older macOS: right-click the app, Open). |
+          | An older, Intel Mac | \`PoolPanic-mac-intel.zip\` | The same. |
+          | Linux (or a Steam Deck) | \`PoolPanic-linux-x64.zip\` | Unzip, and in the folder run \`./PoolPanic --no-sandbox\`. |
+
+          It is a test build: it starts in playtest mode (the 🐞 button flags a problem) and posts its log to the report service as you play, so the developer can read what happened. Not the Steam build.
+          NOTES
+          gh release delete desktop-latest --cleanup-tag --yes || true
+          gh release create desktop-latest zips/*.zip --prerelease --target "$GITHUB_SHA" --title "Desktop test build $short" --notes-file notes.md

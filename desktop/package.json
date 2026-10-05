@@ -10,10 +10,14 @@
   "scripts": {
     "prepare:game": "node scripts/prepare-game.mjs",
     "start": "electron .",
+    "start:tester": "electron . --tester",
     "start:software-gl": "POOLPANIC_SOFTWARE_GL=1 electron .",
     "pack:win": "npm run prepare:game && electron-builder --win --x64 --dir",
     "pack:mac": "npm run prepare:game && electron-builder --mac --x64 --arm64 --dir",
-    "pack:linux": "npm run prepare:game && electron-builder --linux --x64 --dir"
+    "pack:linux": "npm run prepare:game && electron-builder --linux --x64 --dir",
+    "pack:tester:win": "npm run prepare:game -- --tester && electron-builder --win --x64 --dir",
+    "pack:tester:mac": "npm run prepare:game -- --tester && electron-builder --mac --x64 --arm64 --dir",
+    "pack:tester:linux": "npm run prepare:game -- --tester && electron-builder --linux --x64 --dir"
   },
   "dependencies": {
     "steamworks.js": "0.4.0"

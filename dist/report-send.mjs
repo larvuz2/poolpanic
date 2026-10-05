@@ -3,7 +3,9 @@
 // (netlify/functions/report.mjs), which keeps it where the developer can read it. A report lists this device, the error and the last
 // things that happened in the game: no name, no account, no address. The device code is a random label made on this device the first
 // time it is needed, so "everything this device has sent" can be asked for by one short code instead of by copying text around.
-// Pure apart from the storage and the fetch it is handed. The desktop app has no site to send to and never offers it.
+// Pure apart from the storage and the fetch it is handed. The desktop app's window may only talk to its own files, so a tester build (not
+// the Steam one: desktop/README.md) gives the page `window.desktop.sendReport`, which hands the text to the app's main process to post;
+// `bridgeFetch` makes that look like a fetch to `sendReport`. A Steam build has no such thing and never offers sending.
 
 export const REPORT_PREFS_KEY = "pool-panic.reports.v1";
 export const REPORT_URL = "/api/report";
@@ -47,8 +49,34 @@ export function savePrefs(storage, prefs) {
   } catch {}
 }
 
-// Only where there is a site to send to: a page served over http(s), not the desktop app.
-export const canSend = ({ desktop = false, protocol = "" } = {}) => !desktop && /^https?:$/.test(protocol);
+// Only where there is somewhere to send to: a page served over http(s), or the desktop app when its window has been given a way to post.
+export const canSend = ({ desktop = false, protocol = "", bridge = false } = {}) =>
+  desktop ? !!bridge : /^https?:$/.test(protocol);
+
+// The desktop window's way to post (`bridge(text)` answers {ok, status, body, retryAfter} from the main process), made to look like the
+// fetch `sendReport` is written for.
+export const bridgeFetch =
+  (bridge) =>
+  async (_url, { body } = {}) => {
+    const answer = await bridge(String(body ?? ""));
+    if (!answer || !answer.status) {
+      // No answer from the service at all (no connection, or too slow): what a fetch does, which `sendReport` knows how to say.
+      const error = new Error(answer?.error || "no connection");
+      error.name = answer?.error === "timed out" ? "AbortError" : "Error";
+      throw error;
+    }
+    return {
+      ok: !!answer?.ok,
+      status: Number(answer?.status) || 0,
+      json: async () => answer?.body ?? null,
+      headers: {
+        get: (name) =>
+          String(name).toLowerCase() === "retry-after" && answer?.retryAfter
+            ? String(answer.retryAfter)
+            : null,
+      },
+    };
+  };
 
 // What is posted for a session: its report (Markdown, so it reads as it is) and the raw session next to it, unless that would be
 // too big for the service (then the report alone, and if even that is too big, a report with fewer of the oldest breadcrumbs and no

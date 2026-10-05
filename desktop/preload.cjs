@@ -57,6 +57,9 @@ contextBridge.exposeInMainWorld(
     platform: boot.platform,
     version: boot.version,
     steam,
+    // Only a tester build can post the game's log (desktop/main.cjs says where to; the page cannot choose).
+    tester: !!boot.tester,
+    ...(boot.tester && { sendReport: (text) => ipcRenderer.invoke("desktop:report", String(text)) }),
     toggleFullscreen: () => ipcRenderer.send("desktop:fullscreen"),
     quit: () => ipcRenderer.send("desktop:quit"),
     openExternal: (url) => ipcRenderer.send("desktop:open", String(url)),

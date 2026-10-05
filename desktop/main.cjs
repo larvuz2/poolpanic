@@ -28,8 +28,24 @@ const GAME_ROOT = fs.existsSync(path.join(bundled, "index.html"))
 
 // Settings from the environment, for trying things on a development machine (none of them is needed to play).
 const env = process.env;
-const QUERY = env.POOLPANIC_QUERY ? "?" + env.POOLPANIC_QUERY.replace(/^\?/, "") : ""; // e.g. "debug&dpr=1"
 const DEV = env.POOLPANIC_DEV === "1" || !app.isPackaged;
+// A tester build (lib.cjs, desktop/README.md): playtest mode is on and the game's log is posted to the report service for the page. It is one
+// when a tester.json lies beside the game (the downloads CI makes write it), or when it is run from the source with `--tester` (or the
+// environment variable POOLPANIC_TESTER=1, or POOLPANIC_REPORTS=<address> to post to a service of your own). A Steam build is none of these.
+const TESTER = (() => {
+  try {
+    const file = path.join(GAME_ROOT, "tester.json");
+    if (fs.existsSync(file)) return lib.readTester(fs.readFileSync(file, "utf8"), { allowLocal: DEV });
+  } catch {}
+  if (DEV && (process.argv.includes("--tester") || env.POOLPANIC_TESTER === "1" || env.POOLPANIC_REPORTS))
+    return lib.readTester(JSON.stringify({ reports: env.POOLPANIC_REPORTS }), { allowLocal: true });
+  return null;
+})();
+const QUERY = env.POOLPANIC_QUERY
+  ? "?" + env.POOLPANIC_QUERY.replace(/^\?/, "") // e.g. "debug&dpr=1"
+  : TESTER
+    ? "?" + TESTER.query
+    : "";
 
 // The player's data (settings, the progress mirror, the window's place) lives in one folder with a name that has no spaces,
 // which is what Steam's Auto-Cloud paths are written against: %APPDATA%/PoolPanic, ~/Library/Application Support/PoolPanic,
@@ -42,6 +58,7 @@ app.setAppUserModelId("com.poolpanic.game");
 // ---- Steam: before the app is ready, because the overlay's switches must be on the command line by then ----------------
 const steam = createSteam({ config: readConfig(path.join(__dirname, "steam.config.json")), log });
 const started = steam.start();
+if (TESTER) log("Tester build: playtest mode on, the log goes to " + TESTER.reports);
 if (started.available) {
   steam.enableOverlay();
   log("Steam is running: " + (started.name || "?") + (started.deck ? " (a Steam Deck)" : ""));
@@ -215,6 +232,7 @@ on("desktop:boot", (event) => {
     steam: steam.status(),
     saveKeys: lib.SAVE_KEYS,
     saves: readSaves(),
+    tester: !!TESTER,
   };
 });
 on("desktop:save", (_event, values) => writeSaves(values));
@@ -225,6 +243,33 @@ on("desktop:save-now", (event, values) => {
 on("desktop:fullscreen", () => win?.setFullScreen(!win.isFullScreen()));
 on("desktop:quit", () => app.quit());
 on("desktop:open", (_event, url) => lib.isSafeExternalUrl(url) && shell.openExternal(url));
+// A tester build posts the page's log to the report service (the window may only talk to its own files). The address is fixed here, not
+// the page's to choose, and only the game's own window may ask; the answer is the service's own: {ok, status, body, retryAfter}.
+ipcMain.handle("desktop:report", async (event, text) => {
+  if (!TESTER || !trusted(event)) return { ok: false, status: 0, error: "not a tester build" };
+  if (typeof text !== "string" || Buffer.byteLength(text) > lib.MAX_REPORT_BODY)
+    return { ok: false, status: 413, error: "too big" };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await net.fetch(TESTER.reports, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: text,
+      signal: controller.signal,
+    });
+    let body = null;
+    try {
+      body = await response.json();
+    } catch {}
+    const retryAfter = Number(response.headers.get("retry-after")) || 0;
+    return { ok: response.ok, status: response.status, body, ...(retryAfter > 0 && { retryAfter }) };
+  } catch (error) {
+    return { ok: false, status: 0, error: error?.name === "AbortError" ? "timed out" : "no connection" };
+  } finally {
+    clearTimeout(timer);
+  }
+});
 on("steam:unlock", (_event, id) => steam.unlock(id));
 on("steam:stat", (_event, name, value) => steam.setStat(name, value));
 on("steam:presence", (_event, text) => steam.richPresence(text));
