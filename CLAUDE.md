@@ -45,8 +45,9 @@ the app and depot ids, the store page, the price, written proof that the AI tool
   and say plainly what you understood when it matters.
 - They think in the game's terms (levels, incidents, characters, the map) and want to *see* and *rank* things: a contact sheet, a poster, an
   interactive page to rank or choose (Artifacts work well). Deliver files to them directly (a file card), not as a path.
-- They test on an **iPad in Safari**. Safari has crashed the game before (see the README's crash hunt). There is no WebKit where you work, only
-  Chromium, so say what you could not verify on the device and ask for a report. The crash dialog's **Send report** puts it where you can read it:
+- They test on an **iPad in Safari**. Safari has crashed the game before (see the README's crash hunt). Chromium is what runs where you work, and a real WebKit (WebKitGTK) can be installed with apt and driven with
+  `tools/webkit-run.py` (README: "Running the game in a real WebKit"): it has Safari's JavaScript engine but not the iPad's graphics or its memory
+  limits, so say what you could not verify on the device and ask for a report. The crash dialog's **Send report** puts it where you can read it:
   ask for the **device code** shown in that dialog (eight characters, once: it names every report that device sends, and the creator can read it
   out or type it) and fetch `https://poolpanic.netlify.app/api/report?device=<code>&latest=1` (add `&id=<launch id>` for another, or leave
   `latest` out for the list; a deploy preview has the same address under its own host). **Copy report** and `?bisect` still work without it.
