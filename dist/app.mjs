@@ -39,7 +39,7 @@ import { CoachInput } from "./input.mjs";
 import { MomentDirector, edgeArrow } from "./moments.mjs";
 import { installCrashLog, describeGpu } from "./crashlog-hooks.mjs";
 import { Tracer, describeEvent, isNoisy, crowdSummary } from "./trace.mjs";
-import { footprint } from "./scene/footprint.mjs";
+import { footprint, surfaceMB } from "./scene/footprint.mjs";
 import { readPrefs, savePrefs, canSend, reportPayload, sendReport, sendProblem } from "./report-send.mjs";
 import {
   PLAYTEST_LIMITS,
@@ -49,6 +49,7 @@ import {
   readPlaytest,
   savePlaytest,
   LiveSender,
+  liveWant,
   Coverage,
 } from "./playtest.mjs";
 import { Recorder, apply as applyInput } from "./replay.mjs";
@@ -687,11 +688,11 @@ function trialTick() {
     if (mode === "playing") trial.played += gap;
   }
   const enough = trial.played >= TRIAL_MIN * 1000;
-  // A page that dies cannot say when, so a hunt's log goes out about every 8 s (the "busy" pace) and not every 20: the last word
+  // A page that dies cannot say when, so a hunt's log goes out about every 3 s (the "beat" pace) and not every 20: the last word
   // from a crashed test then says within a few seconds how far it got.
-  if (live && now - (trial.sent || 0) > 4000) {
+  if (live && now - (trial.sent || 0) > 3000) {
     trial.sent = now;
-    live.dirty("busy");
+    live.dirty("beat");
   }
   if (mode === "results" || sim.status === "ended") return endTrial(!plainTrial || enough);
   if (trial.seen > TRIAL_CAP * 1000) return endTrial(!plainTrial || enough);
@@ -1017,10 +1018,10 @@ function playtestTick(dt) {
     liveClock += dt;
     if (live && liveClock > 1) {
       liveClock = 0;
-      if (crashlog.rev !== liveRev) {
-        liveRev = crashlog.rev;
-        live.dirty(mode === "playing" && busy ? "busy" : "calm");
-      }
+      const changed = crashlog.rev !== liveRev;
+      liveRev = crashlog.rev;
+      const want = liveWant({ mode, changed });
+      if (want) live.dirty(want);
       live.poll();
     }
   } catch (e) {
@@ -3019,13 +3020,37 @@ try {
   if (huntState && hunt.finished(huntState)) showHuntResults();
   else if (huntStep || params.has("trial")) setTimeout(startTrial, 1500);
   // The GPU, and how big the drawing surface is (the likeliest thing to run a small device out of memory).
-  const surface = world.renderer?.domElement;
+  const surface = world.renderer?.domElement,
+    gl = world.renderer?.getContext?.();
+  let samples = 0;
+  try {
+    samples = gl?.getParameter?.(gl.SAMPLES) || 0; // what the browser really gave the drawing surface (4 when it multisamples)
+  } catch {}
   crashlog.setEnv({
-    gpu: describeGpu(world.renderer?.getContext?.()),
+    gpu: describeGpu(gl),
     canvas: surface ? surface.width + "×" + surface.height : "",
+    samples,
+    surfaceMB: surface ? surfaceMB({ width: surface.width, height: surface.height, samples }) : 0,
     maxTexture: world.renderer?.capabilities?.maxTextureSize,
     webgl2: world.renderer?.capabilities?.isWebGL2,
   });
+  // Every change of the page's size is a new drawing surface (a canvas that is resized is the likeliest thing to leak on a browser with
+  // an idle toolbar that comes and goes), so the log says each one: the page's size, the visual viewport's and the surface's.
+  const sized = (what) =>
+    crashlog.crumb(
+      "view",
+      what +
+        " " +
+        innerWidth +
+        "×" +
+        innerHeight +
+        (window.visualViewport
+          ? " (visual " + Math.round(visualViewport.width) + "×" + Math.round(visualViewport.height) + ")"
+          : "") +
+        (surface ? " surface " + surface.width + "×" + surface.height : ""),
+    );
+  window.addEventListener("resize", () => sized("resize"));
+  window.visualViewport?.addEventListener("resize", () => sized("visual resize"));
   crashlog.crumb("boot", "ready in " + Math.round(performance.now()) + " ms");
   requestAnimationFrame(animate);
   // QA hook (?debug): drive the fixed-step simulation faster than real time for screenshots and repros.

@@ -114,7 +114,10 @@ export function parseReport(md = "") {
     flags.push({ at: Number(m[1]), kind: m[2] || "", note });
   }
   // The last shift of the launch: where it began, when the go came, and how long it had been played when the last word came.
-  const last = rows.length ? rows[rows.length - 1].t : 0;
+  // (The header's "session ran N s" is the page's last word to within a couple of seconds, which the diary's last row need not be: in a
+  // calm minute nothing is written down, and the live copy is renewed all the same.)
+  const ran = Number((when.match(/session ran (\d+) s/) || [])[1] || 0),
+    last = Math.max(rows.length ? rows[rows.length - 1].t : 0, ran);
   let start = -1;
   rows.forEach((r, i) => {
     if (r.kind === "shift" && /^start L\d/.test(r.text)) start = i;

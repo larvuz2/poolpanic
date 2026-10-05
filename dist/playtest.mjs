@@ -64,9 +64,20 @@ export const INCIDENT_KINDS = {
 // dies the copy on the server is seconds old, and the developer can read how a shift is going while it is played. This decides only
 // when: the game asks `dirty()` when the log changed (and how much it matters), calls `poll()` now and then, and the sender does the
 // rest: never two sends at once, quicker while an incident runs, an urgent one (a problem was flagged, an error, a save) soon, slower
-// and slower after failures, stopped for good where there is no service (a local server answers 404).
-export const SEND_GAPS = { calm: 20000, busy: 8000, urgent: 2000, max: 120000 };
-const WEIGHT = { calm: 1, busy: 2, urgent: 3 };
+// and slower after failures, stopped for good where there is no service (a local server answers 404). While a shift is played the copy is
+// also renewed every few seconds whether or not the log changed (a "beat", see `liveWant`): a page that dies leaves a copy on the server
+// that says to within a few seconds when it stopped, and in a calm minute the log may not change for twenty.
+export const SEND_GAPS = { calm: 20000, busy: 8000, beat: 3000, urgent: 2000, max: 120000 };
+const WEIGHT = { calm: 1, busy: 2, beat: 3, urgent: 4 };
+
+// What the live copy asks for this second, given what the game is doing and whether the log changed since it last looked: a beat all
+// through a shift being played (the countdown too), else a calm copy when the log changed, else nothing. (The moments that matter more ask
+// for "urgent" themselves.) The server takes 2400 replacements an hour for the whole site (netlify/functions/report.mjs): a beat every
+// three seconds is 1200 an hour of play, so a player has the budget to themselves.
+export function liveWant({ mode = "", changed = false } = {}) {
+  if (mode === "playing" || mode === "countdown") return "beat";
+  return changed ? "calm" : null;
+}
 
 export class LiveSender {
   // `send()` makes the payload fresh and resolves {ok, status, error?} (report-send.mjs's sendReport); it may throw, which counts as

@@ -209,6 +209,17 @@ const run = (launches, extra = {}) =>
   const noGo = parseReport(launch({ level: 0, end: 20, how: "running" }).md);
   assert.equal(noGo.played, null, "no shift, no go");
   assert.ok(!fitsKnown(noGo, classify(noGo)));
+  // The page's last word is the header's "session ran N s" when that is later than the diary's last row (a calm minute writes nothing
+  // down, and the live copy is renewed all the same): 52 s of diary and a header that says 61 s is a page heard from 61 s in.
+  const beat = launch({ go: 8, end: 52 }).md.replace(/session ran 52 s/, "session ran 61 s");
+  assert.notEqual(beat, launch({ go: 8, end: 52 }).md, "the header says how long the session ran");
+  assert.equal(parseReport(beat).played, 53, "heard from 53 s after the go, though the diary stops at 44");
+  assert.equal(parseReport(beat).last, 61);
+  assert.equal(
+    parseReport(launch({ go: 8, end: 52 }).md.replace(/session ran 52 s/, "session ran 40 s")).last,
+    52,
+    "never earlier than the diary",
+  );
 }
 
 // 2) The time hidden after the go is not played; the last shift of a launch is the one that counts.

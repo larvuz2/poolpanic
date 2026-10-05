@@ -8,6 +8,7 @@ import {
   PLAYTEST_LIMITS,
   INCIDENT_KINDS,
   SEND_GAPS,
+  liveWant,
   playtestChoice,
   readPlaytest,
   savePlaytest,
@@ -138,8 +139,24 @@ const memory = () => {
   now += SEND_GAPS.urgent;
   await sender.poll();
   assert.equal(sent.length, 4, "an urgent one goes after the short gap");
-  assert.ok(SEND_GAPS.urgent < SEND_GAPS.busy && SEND_GAPS.busy < SEND_GAPS.calm);
-  assert.match(sender.describe(), /^Live ✓ last copy just now · 4 sent$/);
+  assert.ok(
+    SEND_GAPS.urgent < SEND_GAPS.beat && SEND_GAPS.beat < SEND_GAPS.busy && SEND_GAPS.busy < SEND_GAPS.calm,
+  );
+  // A beat (the copy renewed while a shift is played) goes after its own gap, beats a busy reason and gives way to an urgent one.
+  sender.dirty("busy");
+  sender.dirty("beat");
+  now += SEND_GAPS.beat - 1;
+  assert.equal(sender.poll(), null, "not before the beat's gap");
+  now += 1;
+  await sender.poll();
+  assert.equal(sent.length, 5, "a beat goes after the beat's gap, though a busy reason was asked first");
+  sender.dirty("beat");
+  sender.dirty("calm"); // (a weaker reason does not water it down)
+  sender.dirty("urgent");
+  now += SEND_GAPS.urgent;
+  await sender.poll();
+  assert.equal(sent.length, 6, "an urgent reason beats the beat");
+  assert.match(sender.describe(), /^Live ✓ last copy just now · 6 sent$/);
   now += 7_000;
   assert.match(sender.describe(), /last copy 7 s ago/);
 
@@ -150,7 +167,7 @@ const memory = () => {
   now += 10_000;
   const first = sender.poll();
   assert.ok(first, "one starts");
-  assert.equal(sent.length, 5);
+  assert.equal(sent.length, 7);
   assert.match(sender.describe(), /^Sending…$/);
   sender.dirty("urgent");
   now += 10_000;
@@ -159,16 +176,16 @@ const memory = () => {
   release();
   await first;
   gate = null;
-  assert.equal(sent.length, 5, "still the one");
+  assert.equal(sent.length, 7, "still the one");
   // (the change made while it was on its way is still wanted)
   now += SEND_GAPS.urgent;
   await sender.poll();
-  assert.equal(sent.length, 6);
+  assert.equal(sent.length, 8);
 
   // The page is going away: send now, whatever the gap, even when nothing is marked.
   now += 1;
   await sender.flushNow();
-  assert.equal(sent.length, 7, "flushNow does not wait");
+  assert.equal(sent.length, 9, "flushNow does not wait");
   assert.equal(sender.wanted, null);
 
   // A failure: still wanted, and the gap doubles with each one in a row; a success starts it over.
@@ -176,7 +193,7 @@ const memory = () => {
   sender.dirty("calm");
   now += SEND_GAPS.calm;
   await sender.poll();
-  assert.equal(sent.length, 8);
+  assert.equal(sent.length, 10);
   assert.equal(sender.failures, 1);
   assert.match(sender.describe(), /^Could not send \(no connection\), trying again\.$/);
   now += SEND_GAPS.calm * 2 - 1;
@@ -338,6 +355,21 @@ const memory = () => {
   old.begin({ level: 6 });
   old.event({ type: "incident", kind: "dog" });
   assert.equal(old.levels["6"].incidents.dog, 1);
+}
+
+// What the live copy asks for each second: a beat all through a shift being played (the countdown too), a calm copy when the log changed
+// anywhere else, nothing when nothing changed.
+{
+  assert.equal(liveWant({ mode: "playing" }), "beat");
+  assert.equal(liveWant({ mode: "playing", changed: true }), "beat");
+  assert.equal(liveWant({ mode: "countdown" }), "beat");
+  for (const mode of ["menu", "paused", "results", ""]) {
+    assert.equal(liveWant({ mode, changed: true }), "calm", mode + ": a change asks for a calm copy");
+    assert.equal(liveWant({ mode }), null, mode + ": nothing changed, nothing asked");
+  }
+  assert.equal(liveWant(), null);
+  // Over an hour of play the beat stays inside what the service takes for the whole site (2400 replacements an hour).
+  assert.ok(3600_000 / SEND_GAPS.beat <= 2400 / 2, "a beat all hour is at most half the site's budget");
 }
 
 console.log(
