@@ -64,9 +64,15 @@ jobs:
         run: |
           # An app that has been changed after Electron signed it, and then downloaded, is "damaged" to macOS; signed ad hoc it is "from an
           # unidentified developer", which a click in System Settings opens. (Apple Silicon will not run an unsigned program at all.)
-          for dir in mac-arm64 mac; do codesign --force --deep --sign - "$dir/Pool Panic.app"; done
-          ditto -c -k --keepParent "mac-arm64/Pool Panic.app" ../../PoolPanic-mac-apple-silicon.zip
-          ditto -c -k --keepParent "mac/Pool Panic.app" ../../PoolPanic-mac-intel.zip
+          ls -la mac-arm64 mac
+          apple="$(find mac-arm64 -maxdepth 1 -name '*.app' -print -quit)"
+          intel="$(find mac -maxdepth 1 -name '*.app' -print -quit)"
+          echo "Apple chip app: $apple; Intel app: $intel"
+          test -n "$apple" && test -n "$intel"
+          codesign --force --deep --sign - "$apple"
+          codesign --force --deep --sign - "$intel"
+          ditto -c -k --keepParent "$apple" ../../PoolPanic-mac-apple-silicon.zip
+          ditto -c -k --keepParent "$intel" ../../PoolPanic-mac-intel.zip
       - name: Zip (Linux)
         if: runner.os == 'Linux'
         shell: bash
