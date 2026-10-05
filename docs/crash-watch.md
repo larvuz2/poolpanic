@@ -1,5 +1,7 @@
 # Crash watch
 
+> **Stopped on 5 October 2026**, at the creator's request: no scheduled checks; the creator says when they are playing and the bugs are synced live (CLAUDE.md). The routine was deleted and the "Crash watch" session archived; the log issue (#22) and the branch `claude/crash-watch` stay. This file is kept for what it learned (the start-up race of a recreated container, why a routine's own fresh session cannot write to GitHub, what a run costs) and as the brief if the watch is ever started again: follow "The pieces" and "How often, and what it costs".
+
 A crash on the creator's iPad is looked at without anyone asking. The game sends its crash log by itself in a playtest (`?playtest`, see the
 README), and every twelve hours a scheduled routine wakes one long-lived Claude session, "Crash watch", which reads what has come in, looks
 into each new crash, and writes it up in one place. It fixes only what is small and understood, on a branch of its own. This file is that session's
