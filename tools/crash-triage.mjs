@@ -31,6 +31,9 @@ export const DEVICE = /^[A-Z2-7]{8}$/;
 // The crash that has been hunted since 4 October 2026: an iPad's tab killed 38 to 55 s after the go of a shift, with no error. When it has been
 // found and fixed this window must change (a crash inside it is then a new one): docs/crash-watch.md says so.
 export const KNOWN = { name: "the 45-second crash", from: 38, to: 55 };
+// A live copy (a playtest sends its log every few seconds while it runs) that stopped in the middle of a shift and was never sent again
+// nor closed is a page that died: Safari reloads a crashed tab, but if nobody plays on, no later launch says so.
+export const STOPPED_AFTER = 10 * 60 * 1000;
 export const STUCK_AFTER = 50; // seconds a state has lasted, from the diary's waiting lines
 export const QUIET_HUNT = 30; // minutes without a word after which a hunt that is not done is read as it stands
 const BENIGN = [/WebGL context lost/];
@@ -202,12 +205,21 @@ export function parseReport(md = "") {
 }
 
 // What is the matter with a launch, if anything: {kind, sig, errors, notes}. `sig` is what goes after the launch's id in its token.
-export function classify(p) {
+export const stoppedMidShift = (p, at, now) =>
+  p.endedWord === "running" &&
+  / · (playing|countdown) · /.test(p.game || "") &&
+  at > 0 &&
+  now - at > STOPPED_AFTER;
+
+export function classify(p, { at = 0, now = Date.now() } = {}) {
   const notes = [],
     errors = [];
   for (const e of p.errors) (BENIGN.some((re) => re.test(e.text)) ? notes : errors).push(e);
   if (p.hunt) return { kind: "hunt", sig: "", errors, notes };
-  const crashed = p.endedWord === "crash",
+  const stopped = stoppedMidShift(p, at, now);
+  if (stopped)
+    notes.push({ text: "the live copy stopped in the middle of a shift and nothing came after it" });
+  const crashed = p.endedWord === "crash" || stopped,
     stuck = p.stuck >= STUCK_AFTER;
   const sig =
     (crashed ? "c" : "") +
@@ -330,7 +342,7 @@ export async function triage({
           path = out ? join(out, r.id + ".md") : "";
         if (path) writeFileSync(path, md);
         const parsed = parseReport(md),
-          cls = classify(parsed),
+          cls = classify(parsed, { at: r.at }),
           token = cls.sig ? r.id + ":" + cls.sig : "";
         launches.push({
           id: r.id,
@@ -429,6 +441,7 @@ export function format(result, { replayCommand = "node tools/replay.mjs" } = {})
       out.push("   " + (p.game || "(no game line)"));
       const bits = [];
       if (p.endedWord === "crash") bits.push("the page ended without closing");
+      else if (l.class?.kind === "crash") bits.push("its live copy stopped in the middle of the shift");
       bits.push(
         p.played !== null
           ? "shift played " +

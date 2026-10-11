@@ -64,6 +64,7 @@ import { Recorder, apply as applyInput } from "./replay.mjs";
 import { BUILD } from "./version.mjs";
 import { playCinematic } from "./cinematic.mjs";
 import { readTuning, isWebKit } from "./tuning.mjs";
+import { isTouchWebKit, bootGfx, markDrawing, resetGfx, graphicsPlan, Governor } from "./gfx.mjs";
 import { Achievements } from "./achievements.mjs";
 import { isDesktop, quitGame, richPresence, unlockAchievement } from "./platform.mjs";
 import * as hunts from "./bisect.mjs";
@@ -111,11 +112,32 @@ const huntStep = huntState && !hunt.finished(huntState) ? hunt.current(huntState
 // sets its own switches and gets no default.
 const testing = params.has("bisect") || params.has("trial");
 const handsOff = isWebKit(navigator.userAgent) && !params.has("hands") && !testing;
+// How hard to drive the graphics here (gfx.mjs): a touch device with WebKit draws fewer pixels and at most 60 frames a second, and a
+// page that died in the middle of a shift makes this launch draw with lighter graphics. `?gfx=reset` goes back to full graphics.
+if (params.get("gfx") === "reset") resetGfx(crashStorage);
+const touchWebKit = isTouchWebKit({
+  userAgent: navigator.userAgent,
+  maxTouchPoints: navigator.maxTouchPoints,
+});
+const gfxBoot = bootGfx(crashStorage, { count: !testing });
+const gfxTier = testing ? 0 : gfxBoot.tier;
 const tuning = readTuning(location.search, [
   ...(huntStep ? huntStep.flags : []),
   ...(handsOff ? ["nohands"] : []),
+  ...graphicsPlan({ tier: gfxTier }).flags,
 ]);
 globalThis.__poolTuning = tuning;
+const gfx = (globalThis.__poolGfx = {
+  plan: graphicsPlan({
+    tier: gfxTier,
+    touch: touchWebKit,
+    deviceRatio: devicePixelRatio || 1,
+    dprCap: tuning.number("dpr", null),
+    testing,
+  }),
+  governor: new Governor(),
+  scale: 1,
+});
 if (tuning.has("nosound")) {
   audio.enabled = false;
   audio.init = () => {};
@@ -2575,7 +2597,53 @@ const MOMENTS = new Set([
 // The map covers the pool in the menu, so once the first frames have warmed the 3D scene up nothing of it is
 // updated or drawn until a shift starts (moving speech bubbles under a full-screen map cost real frame time).
 let warmFrames = 3;
+// The frame-rate cap (gfx.mjs: 60 on a touch device with WebKit, whose 120 Hz screen would ask for twice the drawing), the governor that
+// lowers the resolution while the frames of a shift are slow, and the mark a shift being drawn leaves on the device (a page that dies
+// with it still there makes the next launch draw lighter).
+let lastDrawn = 0,
+  drawingMarked = false;
+function governFrame(t) {
+  const drawing =
+    (mode === "playing" || mode === "countdown") && document.visibilityState === "visible" && !testing;
+  if (drawing !== drawingMarked) {
+    drawingMarked = drawing;
+    markDrawing(crashStorage, drawing);
+  }
+  if (!gfx.plan.govern || !drawing || !lastDrawn) return;
+  const scale = gfx.governor.frame(t - lastDrawn);
+  if (scale === null) return;
+  const before = world.renderer?.getPixelRatio?.();
+  gfx.scale = scale;
+  world.resize();
+  crashlog.crumb(
+    "gfx",
+    "frames slow (" +
+      gfx.governor.fps +
+      " fps): pixel ratio " +
+      before +
+      " → " +
+      world.renderer?.getPixelRatio?.(),
+  );
+}
+// A page that is hidden or closed has put its shift away: the system may end it there without that being a crash.
+const putAway = () => {
+  if (!drawingMarked) return;
+  drawingMarked = false;
+  markDrawing(crashStorage, false);
+};
+document.addEventListener("visibilitychange", () => document.hidden && putAway());
+window.addEventListener("pagehide", putAway);
 function animate(t) {
+  if (gfx.plan.fpsCap && lastDrawn && t - lastDrawn < 1000 / gfx.plan.fpsCap - 3) {
+    requestAnimationFrame(animate);
+    return;
+  }
+  try {
+    governFrame(t);
+  } catch (e) {
+    crashlog.error("frame:gfx", e);
+  }
+  lastDrawn = t;
   try {
     frame(t);
     if (failing.loop) failing.loop = 0;
@@ -3065,6 +3133,31 @@ try {
     );
   window.addEventListener("resize", () => sized("resize"));
   window.visualViewport?.addEventListener("resize", () => sized("visual resize"));
+  crashlog.crumb(
+    "gfx",
+    "tier " +
+      gfx.plan.tier +
+      " (" +
+      gfx.plan.says +
+      ")" +
+      (touchWebKit ? " · touch WebKit" : "") +
+      " · pixel ratio " +
+      world.renderer?.getPixelRatio?.() +
+      (gfx.plan.fpsCap ? " · at most " + gfx.plan.fpsCap + " fps" : "") +
+      (gfx.plan.govern ? " · governor on" : "") +
+      (gfxBoot.died ? " · the last page died in a shift" + (testing ? " (a test: not counted)" : "") : ""),
+  );
+  if (gfxBoot.raised)
+    setTimeout(
+      () =>
+        toast(
+          "The last shift stopped the browser, so Pool Panic now draws with lighter graphics on this device (" +
+            gfx.plan.says +
+            ").",
+          true,
+        ),
+      2500,
+    );
   crashlog.crumb("boot", "ready in " + Math.round(performance.now()) + " ms");
   requestAnimationFrame(animate);
   // QA hook (?debug): drive the fixed-step simulation faster than real time for screenshots and repros.
