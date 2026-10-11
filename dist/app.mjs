@@ -65,6 +65,8 @@ import { BUILD } from "./version.mjs";
 import { playCinematic } from "./cinematic.mjs";
 import { readTuning, isWebKit } from "./tuning.mjs";
 import { isTouchWebKit, bootGfx, markDrawing, resetGfx, graphicsPlan, Governor } from "./gfx.mjs";
+import { installWeek } from "./week-ui.mjs";
+import { passMark } from "./week.mjs";
 import { Achievements } from "./achievements.mjs";
 import { isDesktop, quitGame, richPresence, unlockAchievement } from "./platform.mjs";
 import * as hunts from "./bisect.mjs";
@@ -484,14 +486,24 @@ const achievements = new Achievements({
   },
 });
 achievements.replay(unlockAchievement); // (those earned before Steam was there; nothing in a browser)
+// The top bar's pill: the week's Date Fund against its goal, always in sight (the date, what is saved, what it costs).
 function renderFund(bump = false) {
-  $("fund-now").textContent = money(Math.min(fundOf(story), STORY.goal));
-  $("fund-goal").textContent = "/ " + money(STORY.goal);
-  const pill = $("fund-pill");
-  pill.setAttribute(
-    "aria-label",
-    `Ocean Fund: ${$("fund-now").textContent} of ${money(STORY.goal)}. Watch the story.`,
-  );
+  const pill = $("fund-pill"),
+    week = weekUi?.pill();
+  if (week) {
+    pill.querySelector("span").textContent = week.icon;
+    $("fund-now").textContent = money(week.now);
+    $("fund-goal").textContent = "/ " + money(week.goal);
+    pill.setAttribute("aria-label", `Date Fund: ${money(week.now)} of ${money(week.goal)}.`);
+    pill.title = "Date Fund for this weekend's date with Marina";
+  } else {
+    $("fund-now").textContent = money(Math.min(fundOf(story), STORY.goal));
+    $("fund-goal").textContent = "/ " + money(STORY.goal);
+    pill.setAttribute(
+      "aria-label",
+      `Ocean Fund: ${$("fund-now").textContent} of ${money(STORY.goal)}. Watch the story.`,
+    );
+  }
   if (bump && !reducedMotion.matches) {
     pill.classList.remove("bump");
     void pill.offsetWidth;
@@ -1012,6 +1024,8 @@ function beginPlaytestShift(drill) {
       booking: activeBooking || "",
       drill: drill?.id || "",
       man: forcedMan || "",
+      // A shift of the week was built, not looked up: the record carries what it was built from.
+      ...(weekShift && { week: { config: weekShift.config, perks: weekShift.perks } }),
     });
     crashlog.attach("replays", recorder.record);
     coverage?.begin({
@@ -1436,7 +1450,12 @@ function loadFishKid(s) {
   loadFishModel(); // (and the fish he lets go: scene/fish-model.mjs)
 }
 // Begin the shift the map has selected: a level (with a booking from Splash Park on) or a chunk's drill.
-function start(bookingId = null) {
+// The week (week.mjs, week-ui.mjs) is the main game: `week` is the shift it built (its blueprint tier, its config with the director's
+// incidents, a booking, the shop's perks). Without one, a level of the map (free play) or a drill.
+let weekShift = null,
+  weekUi = null;
+function start(bookingId = null, week = null) {
+  weekShift = week;
   audio.panic = false;
   clearTimeout(toastTimer);
   $("toast").hidden = true;
@@ -1444,24 +1463,37 @@ function start(bookingId = null) {
   accumulator = 0;
   document.activeElement?.blur();
   document.querySelectorAll("dialog[open]").forEach((d) => d.close());
-  const drill = selected.kind === "drill" ? DRILLS[selected.id] : null;
-  activeBooking = drill ? null : bookingId;
+  const drill = !week && selected.kind === "drill" ? DRILLS[selected.id] : null;
+  activeBooking = week ? week.booking : drill ? null : bookingId;
   runSeed = nextSeed || Date.now();
   nextSeed = 0;
   const man = forcedMan && { cannonball: forcedMan };
-  sim = drill
-    ? new PoolSimulation(drill.tier, runSeed, { config: { ...drill.config, ...man }, drill: drill.id })
-    : new PoolSimulation(level, runSeed, {
-        booking: activeBooking,
-        ...(man && { config: { ...SHIFTS[level - 1], ...man } }),
-      });
+  sim = week
+    ? new PoolSimulation(week.tier, runSeed, {
+        config: { ...week.config, ...man },
+        booking: week.booking,
+        perks: week.perks,
+      })
+    : drill
+      ? new PoolSimulation(drill.tier, runSeed, { config: { ...drill.config, ...man }, drill: drill.id })
+      : new PoolSimulation(level, runSeed, {
+          booking: activeBooking,
+          ...(man && { config: { ...SHIFTS[level - 1], ...man } }),
+        });
   syncVenue(sim);
   world.resetActors();
   tracer.reset();
   if (playtest) beginPlaytestShift(drill);
   loadCannonballMan(sim);
   loadFishKid(sim);
-  richPresence(drill ? "Drill · " + drill.name : "Level " + level + " · " + sim.config.name);
+  richPresence(
+    week
+      ? "Week " + week.chapter.id + " · " + week.day + " " + week.slot
+      : drill
+        ? "Drill · " + drill.name
+        : "Level " + level + " · " + sim.config.name,
+  );
+  weekUi?.hideMenu();
   sim.start({ countdown: true });
   mode = "countdown";
   snagged = false;
@@ -1492,7 +1524,8 @@ function start(bookingId = null) {
       sim.venue.id +
       " · seed " +
       runSeed +
-      (activeBooking ? " · booking " + activeBooking : ""),
+      (activeBooking ? " · booking " + activeBooking : "") +
+      (week ? " · week " + week.chapter.id + " shift " + (week.index + 1) : ""),
   );
   try {
     crashlog.crumb("plan", tracer.plan(sim));
@@ -1529,8 +1562,12 @@ function returnMenu() {
   $("closure").hidden = true;
   $("toast").hidden = true;
   document.body.classList.add("menu");
+  weekShift = null;
+  weekUi?.dismiss();
   clearBubbles();
   updateMenu(reveal);
+  weekUi?.menu();
+  renderFund();
   updateUI();
   $("start").focus({ preventScroll: true });
 }
@@ -1621,6 +1658,8 @@ function requestStart() {
 }
 // HUD line: which chunk of three you are in ("WARM-UP · 2 OF 3"), or that this is a drill.
 function shiftTag() {
+  const weekTag = weekUi?.hudTag(sim.config);
+  if (weekTag) return weekTag;
   if (sim.drill) return "DRILL";
   const zone = zoneOfLevel(sim.level);
   if (!zone) return "";
@@ -1717,6 +1756,101 @@ function pick(data) {
   updateUI();
 }
 
+// The results' numbers and the tip (a free-play level, a drill or a shift of the week).
+function renderResultDetails(r, drill) {
+  const st = sim.stats,
+    extra = [
+      ["VIPS 👑", st.vips],
+      ["FLIPS 🤸", st.flips],
+      ["CRASHES 💥", st.crashes],
+      ["PATCHED UP 🩹", st.healed],
+      ["SAVES ✋", st.prevented],
+      ["CANNONBALLS 💣", st.cannonballs],
+      ["BLACKOUTS ⚡", st.blackouts],
+    ].filter(([, v]) => v > 0);
+  $("result-stats").innerHTML = [
+    ["SERVED", r.served],
+    ["HAPPY", r.happy],
+    ["LOST", r.lost],
+    ["AVG. WAIT", Math.round(r.avgWait) + "s"],
+    ["AVG. MOOD", Math.round(r.avgHappiness) + "%"],
+    ["BEST STREAK", r.bestStreak],
+    ...extra.slice(0, 3),
+  ]
+    .map(([label, v]) => "<div><strong>" + v + "</strong><small>" + label + "</small></div>")
+    .join("");
+  $("result-tip").textContent = r.catastrophes
+    ? "A queasy customer cost you the pool. Next time, catch the warning signs before they get in."
+    : st.crashes
+      ? "Crashes hurt. When a daredevil waits on the tower, select the swimmers in the splash lane and move them to another lane."
+      : st.blackouts
+        ? "When the lights flicker, sprint to the fuse box. A quick reset stops the blackout."
+        : st.cannonballs > 1
+          ? cannonballMan(sim.config, sim.level).name +
+            " hits the deck running. Meet him before the edge and show him the red card."
+          : r.collisions > 2
+            ? "Traffic was your biggest troublemaker. Pair similar speeds and keep aqua out of fast lanes."
+            : r.lost > 3
+              ? "The deck queue needs some love. Assign waiting swimmers quickly, even if a lane is not perfect."
+              : r.stars === 3
+                ? drill
+                  ? "Three stars! Try the next chunk, or beat this run with an even longer happy streak."
+                  : "Three stars! Try the next shift, or beat this run with an even longer happy streak."
+                : "A new arrival mix awaits. Can you keep the happy streak going just a little longer?";
+}
+// A shift of the week is over: the week's part of the results (week-ui.mjs), and its buttons.
+function finishWeek() {
+  const r = sim.summary(),
+    ws = weekShift;
+  achievements.shift({
+    stars: r.stars,
+    drill: false,
+    levelStars: (n) => starsFor(n, records.bests[n - 1] || 0),
+    levels: SHIFTS.length,
+  });
+  richPresence("Looking at the results");
+  if (coverage)
+    try {
+      coverage.finish({ score: r.score, stars: r.stars });
+      saveCoverage();
+      live?.dirty("urgent");
+    } catch (e) {
+      crashlog.error("playtest", e);
+    }
+  const res = weekUi.finish(r, sim.stats);
+  if (!res) return returnMenu();
+  if (res.won && res.chapter.date.id === "ocean" && !res.chapter.heat) achievements.fund();
+  $("result-eyebrow").textContent =
+    `WEEK ${ws.chapter.id} · ${ws.day.toUpperCase()} ${ws.slot.toUpperCase()}` +
+    (ws.card && ws.card.id !== "regular" ? " · " + ws.card.name.toUpperCase() : "") +
+    (res.failed ? " · SHIFT FAILED" : " · SHIFT COMPLETE");
+  $("result-stars").textContent = Array.from({ length: 3 }, (_, i) => (i < r.stars ? "★" : "☆")).join(" ");
+  $("result-title").textContent = res.failed
+    ? "The pool fell apart."
+    : res.won
+      ? "It's a date! 💖"
+      : r.stars === 3
+        ? "You absolute pool legend."
+        : r.stars === 2
+          ? "So close to pool perfection."
+          : r.stars === 1
+            ? "You kept your head above water."
+            : "Passed, just. Phew.";
+  $("result-score").innerHTML = r.score.toLocaleString() + "<small>POINTS</small>";
+  $("new-best").hidden = true;
+  $("result-fund").hidden = true;
+  $("result-chunk").hidden = true;
+  renderResultDetails(r, null);
+  renderFund(res.gained > 0);
+  $("next-level").hidden = false;
+  $("next-level").textContent = weekUi.nextLabel();
+  $("play-again").hidden = true;
+  $("back-menu").textContent = "Back to the menu";
+  $("results-dialog").showModal();
+  $("next-level").focus();
+  if (!res.failed) world.confetti();
+  if (res.won) audio.cheer(2);
+}
 function finish() {
   releaseMouse();
   input.clear();
@@ -1726,6 +1860,10 @@ function finish() {
   audio.playing = false;
   logState();
   crashlog.crumb("shift", "ended · score " + Math.round(sim.score));
+  if (sim.config.week && weekUi) return finishWeek();
+  $("result-week").hidden = true;
+  $("play-again").hidden = false;
+  $("back-menu").textContent = "Back to the map";
   const r = sim.summary(),
     drill = sim.drill ? DRILLS[sim.drill] : null,
     played = sim.level,
@@ -1790,8 +1928,9 @@ function finish() {
     achievements.fund();
   }
   if (pay.gained || pay.reached) saveStory();
-  showFundResult(pay, booked);
-  renderFund(pay.gained > 0);
+  $("result-fund").hidden = true; // (the Ocean Fund still counts in free play; the week's Date Fund is the one on screen)
+  void booked;
+  renderFund(false);
   // Where the chunk stands: three dots, so the next new place is never more than three shifts away.
   $("result-chunk").hidden = !zone;
   if (zone) {
@@ -1825,45 +1964,7 @@ function finish() {
           : `${name} · ${after.cleared} OF ${after.total}`;
     $("result-chunk-note").textContent = notes.join(" · ");
   }
-  const st = sim.stats,
-    extra = [
-      ["VIPS 👑", st.vips],
-      ["FLIPS 🤸", st.flips],
-      ["CRASHES 💥", st.crashes],
-      ["PATCHED UP 🩹", st.healed],
-      ["SAVES ✋", st.prevented],
-      ["CANNONBALLS 💣", st.cannonballs],
-      ["BLACKOUTS ⚡", st.blackouts],
-    ].filter(([, v]) => v > 0);
-  $("result-stats").innerHTML = [
-    ["SERVED", r.served],
-    ["HAPPY", r.happy],
-    ["LOST", r.lost],
-    ["AVG. WAIT", Math.round(r.avgWait) + "s"],
-    ["AVG. MOOD", Math.round(r.avgHappiness) + "%"],
-    ["BEST STREAK", r.bestStreak],
-    ...extra.slice(0, 3),
-  ]
-    .map(([label, v]) => "<div><strong>" + v + "</strong><small>" + label + "</small></div>")
-    .join("");
-  $("result-tip").textContent = r.catastrophes
-    ? "A queasy customer cost you the pool. Next time, catch the warning signs before they get in."
-    : st.crashes
-      ? "Crashes hurt. When a daredevil waits on the tower, select the swimmers in the splash lane and move them to another lane."
-      : st.blackouts
-        ? "When the lights flicker, sprint to the fuse box. A quick reset stops the blackout."
-        : st.cannonballs > 1
-          ? cannonballMan(sim.config, sim.level).name +
-            " hits the deck running. Meet him before the edge and show him the red card."
-          : r.collisions > 2
-            ? "Traffic was your biggest troublemaker. Pair similar speeds and keep aqua out of fast lanes."
-            : r.lost > 3
-              ? "The deck queue needs some love. Assign waiting swimmers quickly, even if a lane is not perfect."
-              : r.stars === 3
-                ? drill
-                  ? "Three stars! Try the next chunk, or beat this run with an even longer happy streak."
-                  : "Three stars! Try the next shift, or beat this run with an even longer happy streak."
-                : "A new arrival mix awaits. Can you keep the happy streak going just a little longer?";
+  renderResultDetails(r, drill);
   $("next-level").hidden = drill
     ? true
     : nextMode === "level" && (played >= SHIFTS.length || !isUnlocked(records, played + 1));
@@ -2033,13 +2134,17 @@ function updateUI() {
   $("stars").textContent = Array.from({ length: 3 }, (_, i) => (i < n ? "★" : "☆")).join(" ");
   $("score-fill").style.width =
     Math.min(100, (Math.max(0, sim.score) / sim.config.thresholds[2]) * 100) + "%";
+  const pass = sim.config.week ? passMark(sim.config) : 0;
+  $("next-star").classList.toggle("below-pass", sim.score < pass);
   $("next-star").textContent =
-    n >= 3
-      ? "THREE-STAR COACH"
-      : Math.max(0, sim.config.thresholds[n] - sim.score).toLocaleString() +
-        " TO " +
-        (n === 0 ? "FIRST" : n === 1 ? "SECOND" : "THIRD") +
-        " STAR";
+    sim.score < pass
+      ? (pass - Math.max(0, sim.score)).toLocaleString() + " TO PASS THE SHIFT"
+      : n >= 3
+        ? "THREE-STAR COACH"
+        : Math.max(0, sim.config.thresholds[n] - sim.score).toLocaleString() +
+          " TO " +
+          (n === 0 ? "FIRST" : n === 1 ? "SECOND" : "THIRD") +
+          " STAR";
   $("clarity").textContent = Math.round(100 - sim.contamination) + "%";
   $("water-fill").style.width = 100 - sim.contamination + "%";
   $("water-fill").style.background = sim.contamination > 55 ? "#9dba59" : "#48b3b5";
@@ -2741,6 +2846,22 @@ function frame(t) {
   if (playtest) playtestTick(dt);
 }
 function bind() {
+  weekUi = installWeek({
+    $,
+    storage: crashStorage,
+    startShift: (shift) => start(null, shift),
+    returnMenu,
+    playScene: (panels, then) => {
+      releaseMouse();
+      crashlog.crumb("story", "marina scene");
+      playCinematic($("cinematic"), panels, { labels: { last: "Let's go! ▶" }, done: () => then() });
+    },
+    toast,
+    crumb: (kind, text) => crashlog.crumb(kind, text),
+    presence: richPresence,
+    celebrate: () => world.confetti(),
+  });
+  weekUi.menu();
   mapView = new LevelMap($("map"), {
     onLevel: selectLevel,
     onDrill: selectDrill,
@@ -2836,10 +2957,10 @@ function bind() {
     closeCrash();
   });
   $("fund-pill").onclick = () => {
-    if (mode === "menu") playStory("intro");
-    else
+    const week = weekUi?.pill();
+    if (week)
       toast(
-        `Ocean Fund ${money(Math.min(fundOf(story), STORY.goal))} of ${money(STORY.goal)}. Every shift pays in.`,
+        `Date Fund ${money(week.now)} of ${money(week.goal)}. Fill it by Friday and Marina is yours for the weekend ${week.icon}`,
       );
   };
   $("help-story").onclick = () => {
@@ -2922,6 +3043,10 @@ function bind() {
   $("play-again").onclick = () => start(activeBooking);
   $("back-menu").onclick = returnMenu;
   $("next-level").onclick = () => {
+    if (weekUi?.pending) {
+      $("results-dialog").close();
+      return weekUi.next();
+    }
     if (nextMode === "map") return returnMenu();
     level = Math.min(SHIFTS.length, level + 1);
     selected = { kind: "level", level };
@@ -3166,6 +3291,9 @@ try {
       get sim() {
         return sim;
       },
+      get week() {
+        return weekUi;
+      },
       get world() {
         return world;
       },
@@ -3258,11 +3386,7 @@ try {
     };
   // The very first launch opens with the story, before anything can be played (`?story` shows it again; `?debug`
   // sessions for tests and repros skip it).
-  if (params.has("story") || (!story.seen && !params.has("debug") && !testing))
-    playStory("intro", () => {
-      story.seen = true;
-      saveStory();
-    });
+  if (params.has("story")) playStory("intro");
   // A launch after a crash offers the report (`?log` opens the log any time, crash or not).
   const wantsLog = new URLSearchParams(location.search).has("log");
   setTimeout(async () => {

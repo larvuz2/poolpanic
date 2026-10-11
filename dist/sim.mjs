@@ -367,6 +367,8 @@ export class PoolSimulation extends ChaosController {
     this.config = config;
     this.booking = booking?.id ?? null;
     this.drill = options.drill ?? null;
+    // What the week's shop has bought for this shift (week.mjs PERKS): multipliers that are all 1 (and a warning of 0 s) without.
+    this.perks = { speed: 1, dash: 1, patience: 1, cramp: 1, warning: 0, score: 1, ...(options.perks || {}) };
     this.seed = seed >>> 0;
     this.time = 0;
     this.arrivalTime = 0;
@@ -500,7 +502,7 @@ export class PoolSimulation extends ChaosController {
       angle: 0,
       h: 100,
       wait: 0,
-      waitLimit: 32 - this.difficulty * 2 + this.random() * 8,
+      waitLimit: (32 - this.difficulty * 2 + this.random() * 8) * this.perks.patience,
       lane: null,
       path: [],
       p: 0,
@@ -519,8 +521,8 @@ export class PoolSimulation extends ChaosController {
       stomachWarning: false,
       stomachDelay: 3 + this.random() * 4,
       stomachElapsed: 0,
-      sicknessTimer: 10,
-      sicknessDuration: 10,
+      sicknessTimer: 10 + this.perks.warning,
+      sicknessDuration: 10 + this.perks.warning,
       needsFins: need,
       midFins: need && this.level > 1 && this.random() < 0.62,
       hasFins: false,
@@ -539,7 +541,7 @@ export class PoolSimulation extends ChaosController {
       crampDone: false,
     };
     p.crampAt =
-      this.level >= 2 && ((this.level === 2 && index === 1) || p.shape < 0.25)
+      this.level >= 2 && ((this.level === 2 && index === 1) || p.shape < 0.25 * this.perks.cramp)
         ? 9 + (p.phase / 6.28) * 4
         : Infinity;
     if (type === "daredevil")
@@ -601,7 +603,7 @@ export class PoolSimulation extends ChaosController {
   }
   // What a served swimmer is worth: the streak multiplier times the booking's payout.
   scoreMultiplier() {
-    return this.multiplier() * (this.config.payout ?? 1);
+    return this.multiplier() * (this.config.payout ?? 1) * (this.perks?.score ?? 1);
   }
   select(id) {
     const p = this.get(id);

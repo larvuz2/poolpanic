@@ -50,6 +50,52 @@ What follows from that for anyone working on the game:
 - On September 26, 2026, the complete Site source and this README were copied into GitHub. Both now contain the game; future changes do **not** automatically synchronize between them.
 - In the full Site checkout, `dist/` contains the editable runtime source, not merely disposable generated output. There is no build step. If this README is present but `dist/` is absent, you have the documentation-only checkout and must open the existing Site source before editing gameplay.
 
+## The week: the main loop (11 October 2026)
+
+The game is played a **week** at a time (`dist/week.mjs` the rules, `dist/week-ui.mjs` the screens, `dist/marina.mjs` Marina's scenes;
+`week-check.mjs`). The menu's card says it plainly: *Ice cream on the pier with Marina · save $500 by Friday*, with **Start the week**.
+
+- **Five days, two shifts a day** (Monday morning to Friday afternoon). Every shift pays into the **Date Fund**, the goal of the week,
+  which is always in sight: in the top bar's pill (🍦 $120 / $500), on the menu card, before every shift and on every result. It only ever
+  goes up. Fill it by Friday and the weekend is a date (a full-screen cinematic); short of it on Friday, or one shift that does not
+  **pass**, and the week starts over on Monday, a new week.
+- **Passing a shift.** Its pass mark is half its first star (`passMark`), shown before the shift (PASS: 900 POINTS) and in the HUD while
+  the score is under it ("600 TO PASS THE SHIFT", in orange). Stars decide the pay: $15 for passing plus $15 a star, times the pool's pay
+  and the card's.
+- **The shifts are built, not written** (the **incident director**, `directShift`): each one takes a season level as its blueprint (its length, crowd,
+  star targets and features) and draws its incidents from a budget that follows the blueprint with a little give either way, at random
+  times, and its twists from the ones the pool allows (the storm only at the Sunset Lagoon, the aqua class only at the club). The first
+  three shifts of the first week have no roaming incident; after that the **next incident in `INCIDENT_ORDER`** (dog, fish kid, cannonball
+  man, power cut, Karen: change the list to change the order) may **surprise** the player in any shift, never two shifts in a row, and is
+  in the draw for good once met (`known`, kept across weeks). The same week always draws the same shifts (its seed), so a shift can be
+  replayed from a report; a new week draws new ones.
+- **The cards.** Before each shift the player picks a gig: a **Regular day**, from the third shift a **booking** (tour group, stag
+  party, kids' party, night swim: more trouble, better pay; only those whose trouble the player has met) and from the fifth sometimes a
+  **Mystery gig** (one more incident, ×1.3 pay, maybe the next surprise).
+- **Marina's wishes.** Every shift comes with two of her wishes (make N swimmers happy, nobody storms off, a happy streak, two stars, no
+  collisions, a short wait, the mood, stop trouble early, clean water, the VIPs, trampoline flips: only those that fit the shift), shown
+  before it and ticked on the results: each one met pays extra into the Date Fund. Marina never walks onto the deck: she is in her texts,
+  her wishes and the full-screen scenes.
+- **Tips and the shop.** Every shift also earns **tips** (pocket money: 2, plus a tip a star, a save and a wish met), and between shifts
+  the coach's locker sells three perks for the rest of the week (running shoes, turbo whistle, shady benches, stretching poster, tummy
+  alarm, megaphone, a No dogs or No bombs sign, a tip jar, Marina's lucky charm, a local sponsor, shift insurance; 🎲 new stock for 2
+  tips). **Spending tips never touches the Date Fund.** The perks the simulation reads are `perks` in `PoolSimulation` (1 for each, so
+  without them the game is exactly as it was).
+- **Four weeks, four dates.** The Community Pool (ice cream on the pier, $500), Splash Park (movie night, $700), the Sunset Lagoon
+  (dinner by the lagoon, $780) and the Grand Gala Arena (the ocean trip, $1,100, whose blueprint is the gala stretched from half to full
+  length through the week). Then the weeks go on, hotter: the pools again, harder, better paid, and new dates.
+- **Marina's scenes** (`dist/marina.mjs`): the invite at the start of each pool's first week, the date when the fund is full, a rain
+  check when the week is lost. Each is drawn (emoji placeholders) until a video is named for it in `VIDEOS`
+  (`"date-icecream": "assets/video/marina/date-icecream.mp4"`, a file under `dist/`): then it plays full screen with its caption and
+  moves on when it ends; a video that cannot play falls back to the drawing.
+- **Saved** in `pool-panic.week.v1` (a save the desktop app keeps): the chapter, the incidents met, the dates had, the week in
+  progress. Leaving in the middle of a shift loses nothing: the week waits at that shift.
+- **Free play** is the level map as before (every level, drills and bookings, the old Ocean Fund counted but no longer shown).
+- **Balance** (`week-check.mjs`, the coach bot through every shift of every pool): it passes 39 of 40; its pay alone (no wishes) is
+  375, 560, 525 and 860 a week against goals of 500, 700, 780 and 1,100, so Marina's wishes, the cards and the stars are what make the
+  date, and a week of one-star shifts does not. **Not verified:** how it feels to a person, which only playtests can say (the goals and
+  prices are the first numbers to tune).
+
 ## Core loop
 
 1. Choose an unlocked shift on the campaign map: two acts of ten levels, each act three chunks of three levels plus a finale (levels 1–10 at the Community Swim Club; Act 2 opens at Splash Park with levels 11–16, moves to the Sunset Lagoon for 17–19 and ends with the level 20 finale in the Grand Gala Arena). From level 11 the club offers a booking first.
@@ -528,6 +574,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/map.mjs` | The map's DOM layer: buttons, tags, coach, clouds and reveal, driven by the campaign state |
 | `dist/audio.mjs`, `dist/audio-files.mjs` | Procedural music and effects; the list of recorded sounds that replace placeholders (Karen's voice) |
 | `dist/tuning.mjs`, `dist/bisect.mjs` | The URL switches for isolating a crash, and the crash hunt's plan and state (pure); the scripted runs themselves are in `dist/app.mjs` |
+| `dist/week.mjs`, `dist/week-ui.mjs`, `dist/marina.mjs` | The week (pure: chapters, the incident director, cards, wishes, pay, tips, perks, the save), its screens (the menu card, the shift picker, the shop, the week on the results) and Marina's scenes (placeholders, and the videos that replace them) |
 | `dist/gfx.mjs` | How hard the game drives the graphics on a device (pure): a pixel budget and a 60 fps cap on a touch device with WebKit, the governor that lowers the resolution while a shift's frames are slow, and the lighter tier a launch takes after a page died in a shift |
 | `dist/hunt/lunch-rush.json` | The shift that crashed an iPad, as the recorder kept it: what `?bisect=shift` plays back in every test (`replay-check.mjs` plays it through) |
 | `dist/platform.mjs`, `dist/achievements.mjs` | The game's side of Steam: a bridge to the desktop app that does nothing in a browser (achievements, rich presence, quit), and the fifteen achievements as pure rules (what earns each, kept on the device, told to Steam when it is there) |
@@ -681,6 +728,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node story-check.mjs` | The story: pay and payouts, sanitised saves, a fund that cannot be farmed, Marina's texts, well-formed scenes, the cinematic player against a fake dialog |
 | `node trace-check.mjs` | The shift's diary: a whole cramp rescue read as a story (cramp, ring, dive, swim, handoff, climb, bench) from the real simulation, an ordinary shift quiet, looking changing nothing, events saying what they carry, every incident's stages in order (the short and the verbose diary, a `describe` that throws costing one line), a stage that goes on being said to be waiting at 25 and 50 seconds (a pause is not waiting), the pool, lane, storm and gear, the plan and the pulse, and the scene's footprint counting shared geometry once |
 | `node playtest-check.mjs` | Playtest mode: the switch from the address and from the device, the live sender (gaps by reason, never two at once, back-off after failures, quiet when the service asks, stopped where there is no service, flush when the page goes) and the notes on levels played and incidents seen |
+| `node week-check.mjs` | The week: five days of two shifts at four pools and hotter weeks after; the director gentle at first, bringing in only met incidents and the next in the order, never two surprises in a row, no two weeks alike, signs keeping their incident away, twists only where the pool allows; cards; a Date Fund that only goes up and that tips never touch; the pass mark, insurance, Friday; wishes that fit; the save; perks in the simulation (and none changing nothing); the coach bot through every shift of every pool; replays of a week's shift; Marina's scenes with and without video; the wiring |
 | `node gfx-check.mjs` | The graphics plan: touch devices with WebKit told from the rest, the iPad's pixel budget and 60 fps cap, a desktop as it was, `?dpr` winning, four tiers each lighter, a page that died in a shift making the next launch a tier lighter (a hunt not counted, `?gfx=reset`, broken storage harmless), the governor going down only on slow frames and never on a hitch, and the game wired to it |
 | `node crash-triage-check.mjs` | The crash watch's reader: reports made by the real crash log read as facts (the level, how long the shift had been played when the last word came with the time hidden left out, the final seconds), a live copy that stopped mid-shift read as a crash, the known 45-second crash told from another, errors, flags and stuck incidents with tokens, tokens handed back so nothing is looked at twice, a hunt read as one run, a failing service said and never read as nothing new, the digest naming a device by two characters |
 | `node replay-check.mjs` | Recording a shift: levels of every kind, a booking, a drill, incidents and a cramp started by hand, played by a bot that gives every input and replayed to the very same state at every checkpoint; only outermost inputs recorded; a tampered record saying where it drifts; the record in the crash log and read back from a report; the command line |

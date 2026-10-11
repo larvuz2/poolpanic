@@ -147,6 +147,7 @@ function trackedGameFiles() {
     "dist/scene/coach-model.mjs",
     "dist/scene/swimmer-models.mjs",
     "dist/story.mjs",
+    "dist/week.mjs",
   ]
     .map(read)
     .join("\n");

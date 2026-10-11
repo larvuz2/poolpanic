@@ -12,7 +12,12 @@ the same twice: see `docs/incidents.md`).
 
 ## The order of work
 
-1. **The game (now).** Systems, mechanics, characters, incidents, the loop. It has to work *perfectly*. This is where effort goes.
+1. **The game (now).** Systems, mechanics, characters, incidents, the loop. It has to work *perfectly*. This is where effort goes. The loop
+   is **the week** (since 11 October 2026; README, "The week: the main loop"): five days of two shifts to fill the Date Fund for a
+   weekend date with Marina, every shift must pass or the week starts over, the incidents drawn by a director (`INCIDENT_ORDER` in
+   `dist/week.mjs` is the creator's to reorder), Marina's wishes for each shift, tips and a shop that never touch the Date Fund. Marina
+   never appears on the deck: only in texts, wishes and full-screen scenes, whose videos the creator will add (`VIDEOS` in
+   `dist/marina.mjs`). The level map stays as free play.
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
    and Steam Deck support, a settings screen (volumes, graphics, key rebinding, full screen), more achievements, localisation.
 3. **The look.** Lighting, textures, the art pass. **Last, on purpose.** Do not polish it unless asked: it must not change how the game plays.
@@ -99,6 +104,7 @@ the app and depot ids, the store page, the price, written proof that the AI tool
 | --- | --- |
 | The brief, every system, the module map and the checks | `README.md` |
 | Every incident, how a shift picks them, the level table, the director proposal | `docs/incidents.md` |
+| The week: chapters, the director, cards, wishes, pay, the shop, Marina's scenes | `dist/week.mjs`, `dist/week-ui.mjs`, `dist/marina.mjs`, README "The week" |
 | The road to a Steam release, the build and upload, the achievements list | `desktop/README.md`, `desktop/steam/` |
 | The character pipeline (Blender rigs, clips, grounding) | `tools/blender/README.md`, `tools/viewer/` (Anim Bench) |
 | A crash on a device | the README's "Crash log", `dist/crashlog.mjs`, `dist/trace.mjs` (the shift's diary), `?bisect`, `docs/crash-watch.md` |

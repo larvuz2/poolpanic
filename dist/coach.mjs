@@ -38,7 +38,7 @@ export class CoachController {
     c.dashX = n ? c.input.x / n : Math.sin(c.angle);
     c.dashZ = n ? c.input.z / n : Math.cos(c.angle);
     c.dashTime = T.dashDuration;
-    c.dashCooldown = T.dashCooldown;
+    c.dashCooldown = T.dashCooldown * (this.perks?.dash ?? 1);
     this.emit("dash", { x: c.x, z: c.z });
     return true;
   }
@@ -102,8 +102,9 @@ export class CoachController {
     const moving = c.slipTime === 0;
     const accel = c.input.x || c.input.z ? T.acceleration : T.braking;
     const dashing = c.dashTime > 0 && moving;
-    const dx = (moving ? c.input.x * T.speed : 0) - c.vx,
-      dz = (moving ? c.input.z * T.speed : 0) - c.vz;
+    const speed = T.speed * (this.perks?.speed ?? 1),
+      dx = (moving ? c.input.x * speed : 0) - c.vx,
+      dz = (moving ? c.input.z * speed : 0) - c.vz;
     const velocityStep = Math.min(1, (accel * dt) / Math.max(0.000001, Math.hypot(dx, dz)));
     if (dashing) {
       c.vx = c.dashX * T.dashSpeed;

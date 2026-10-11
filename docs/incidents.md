@@ -103,7 +103,13 @@ Roaming slots show `kinds @ window in seconds`; a slash means the game picks one
 
 Karen is only on level 4 today; it is the one incident with a level of its own.
 
-## 4. Proposal: an incident director (not built, waiting for the ranking)
+## 4. Proposal: an incident director (built for the week, 11 October 2026)
+
+**Built** in `dist/week.mjs` (`directShift`) for the week, the game's main loop (README, "The week"): a registry (`INCIDENTS`, cost and
+weight), an order the creator can change (`INCIDENT_ORDER`: the next one in it surprises the player once a few shifts are behind them,
+never two shifts in a row), counts that follow each blueprint level with a little give, random windows, twists by pool, bookings and a
+mystery card adding trouble, signs from the shop lowering a weight. Free play (the level map) still plays the slots below. What follows
+is the proposal as it was written; the ranking still decides the weights and costs.
 
 What is wrong with the slots: the number and rhythm of incidents are fixed per level, the pool of kinds is small and hand-picked, and a player
 who has played a level twice knows its beats. What we want instead is a **director** that builds a shift's incidents when the shift starts, from

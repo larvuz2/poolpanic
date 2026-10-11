@@ -69,6 +69,20 @@
         ><button id="reset-view" aria-label="Reset camera" title="Reset camera">⌖</button>
       </div>
       <div id="map" class="map" role="group" aria-label="Season map"></div>
+      <section id="week-card" class="week-card" aria-label="This week" hidden>
+        <div class="wk-head">
+          <span id="wk-date-icon" class="wk-date-icon" aria-hidden="true">🍦</span>
+          <div class="wk-text">
+            <small id="wk-eyebrow">WEEK 1 · COMMUNITY POOL</small>
+            <strong id="wk-title">Ice cream on the pier with Marina</strong>
+            <span id="wk-sub">Save $500 by Friday</span>
+          </div>
+          <button id="wk-go" class="primary">START THE WEEK <span>▶</span></button>
+        </div>
+        <div class="wk-fund"><div class="fund-bar"><i id="wk-fill"></i></div><b id="wk-money">$0 / $500</b></div>
+        <div id="wk-days" class="wk-days" aria-hidden="true"></div>
+        <small id="wk-note" class="wk-note">Free play: pick any level on the map below.</small>
+      </section>
       <section id="welcome" class="map-panel" aria-label="Selected shift">
         <div class="panel-main">
           <span id="panel-num" class="panel-num">01</span>
@@ -482,6 +496,37 @@
         <div id="booking-cards" class="booking-cards"></div>
         <button id="booking-back" class="text-btn">Back to the map</button>
       </dialog>
+      <dialog id="week-dialog" class="modal week-modal" aria-labelledby="wd-title">
+        <div class="eyebrow"><span id="wd-title">MONDAY · MORNING</span><span id="wd-count">SHIFT 1 OF 10</span></div>
+        <div class="wk-fund big">
+          <span id="wd-date" class="wk-goal"></span>
+          <div class="fund-bar"><i id="wd-fill"></i></div>
+          <b id="wd-money"></b>
+          <small id="wd-pace" class="wk-pace"></small>
+        </div>
+        <div id="wd-days" class="wk-days" aria-hidden="true"></div>
+        <div class="wd-row">
+          <span id="wd-pass" class="wk-pass"></span><span id="wd-tips" class="wk-tips"></span
+          ><span id="wd-perks" class="wk-perks"></span>
+        </div>
+        <div class="wk-wishes">
+          <small>💌 MARINA'S WISHES FOR THIS SHIFT</small>
+          <ul id="wd-wishes"></ul>
+        </div>
+        <p class="booking-note">Pick today's gig. More trouble pays more.</p>
+        <div id="wd-cards" class="booking-cards"></div>
+        <button id="wd-back" class="text-btn">Back to the menu</button>
+      </dialog>
+      <dialog id="shop-dialog" class="modal week-modal" aria-labelledby="shop-title">
+        <div class="eyebrow"><span id="shop-title">COACH'S LOCKER</span><span id="shop-tips"></span></div>
+        <p class="booking-note">Spend your tips on perks for the rest of the week. The Date Fund is never touched.</p>
+        <div id="shop-cards" class="booking-cards"></div>
+        <div class="wd-row"><span id="shop-perks" class="wk-owned"></span></div>
+        <div class="shop-actions">
+          <button id="shop-reroll" class="secondary">🎲 New stock</button
+          ><button id="shop-next" class="primary">Next shift ▶</button>
+        </div>
+      </dialog>
       <dialog id="results-dialog" class="modal results-modal">
         <div class="eyebrow" id="result-eyebrow">SHIFT COMPLETE</div>
         <div id="result-stars" class="result-stars">★ ★ ☆</div>
@@ -496,6 +541,16 @@
           <div class="fund-bar"><i id="result-fund-fill"></i></div>
           <p id="result-fund-text" class="fund-text"></p>
           <button id="watch-ending" class="primary" hidden>Watch what happens ▶</button>
+        </div>
+        <div id="result-week" class="result-week" hidden>
+          <div id="rw-banner" class="rw-banner" hidden></div>
+          <ul id="rw-lines" class="rw-lines"></ul>
+          <div class="wk-fund big">
+            <span id="rw-date" class="wk-goal"></span>
+            <div class="fund-bar"><i id="rw-fill"></i></div>
+            <b id="rw-money"></b>
+          </div>
+          <p id="rw-text" class="fund-text"></p>
         </div>
         <div id="result-chunk" class="chunk-row" hidden>
           <span class="chunk-main"
