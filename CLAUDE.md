@@ -19,7 +19,8 @@ the same twice: see `docs/incidents.md`).
    never appears on the deck: only in texts, wishes and full-screen scenes, whose videos the creator will add (`VIDEOS` in
    `dist/marina.mjs`). The level map stays as free play.
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
-   and Steam Deck support, a settings screen (volumes, graphics, key rebinding, full screen), more achievements, localisation.
+   and Steam Deck support, a settings screen (volumes, key rebinding, full screen; graphics quality exists, in Help: Auto, Low, Medium,
+   Standard, High, Ultra, `QUALITY` in `dist/gfx.mjs`), more achievements, localisation.
 3. **The look.** Lighting, textures, the art pass. **Last, on purpose.** Do not polish it unless asked: it must not change how the game plays.
 4. **Launch.** Store page, trailer, wishlists, a demo, review, release.
 

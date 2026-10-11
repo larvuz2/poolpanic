@@ -14,6 +14,10 @@ import {
   resetGfx,
   graphicsPlan,
   Governor,
+  QUALITY,
+  QUALITY_CHOICES,
+  qualityOf,
+  readQuality,
 } from "./dist/gfx.mjs";
 
 const IPAD =
@@ -43,7 +47,11 @@ assert.ok(!isTouchWebKit(), "nothing known");
   assert.equal(ipad.fpsCap, 60, "never more than 60 frames a second there");
   assert.ok(ipad.govern, "and the governor watches its frames");
   assert.deepEqual(ipad.flags, [], "tier 0 turns nothing off");
-  assert.equal(ipad.ratio(1366, 892, 0.85), +(r * 0.85).toFixed(3), "the governor's scale multiplies it");
+  assert.equal(
+    ipad.ratio(1366, 892, 0.85),
+    Math.floor(r * 0.85 * 1000) / 1000,
+    "the governor's scale multiplies it",
+  );
   assert.equal(
     graphicsPlan({ touch: true, deviceRatio: 3 }).ratio(390, 844),
     1.7,
@@ -184,9 +192,25 @@ assert.ok(!isTouchWebKit(), "nothing known");
   assert.match(app, /const gfxTier = testing \? 0 : gfxBoot\.tier/, "a hunt plays at tier 0");
   assert.match(
     app,
-    /\.\.\.graphicsPlan\(\{ tier: gfxTier \}\)\.flags/,
-    "the tier's switches go into the tuning",
+    /\.\.\.graphicsPlan\(\{ tier: gfxTier, quality: gfxQuality \}\)\.flags/,
+    "the tier's and the quality's switches go into the tuning",
   );
+  assert.match(
+    app,
+    /const gfxQuality = testing \? "auto" : readQuality\(crashStorage\)/,
+    "a hunt plays Auto",
+  );
+  assert.match(app, /function renderQuality\(\)/);
+  assert.match(
+    app,
+    /if \(qualityPending\) return location\.reload\(\)/,
+    "a new quality starts fresh on the menu",
+  );
+  assert.match(scene, /mapSize\.set\(shadowSize, shadowSize\)/, "the sun's shadow map follows the quality");
+  assert.match(scene, /sharpenTextures\(\)/, "textures follow the quality's anisotropy");
+  const page = readFileSync("dist/index.html", "utf8");
+  for (const id of ["quality-buttons", "quality-note", "quality-reset"])
+    assert.ok(page.includes(`id="${id}"`), id);
   assert.match(app, /dprCap: tuning\.number\("dpr", null\)/, "?dpr still wins");
   assert.match(app, /globalThis\.__poolGfx/);
   assert.match(app, /function governFrame/);
@@ -205,6 +229,58 @@ assert.ok(!isTouchWebKit(), "nothing known");
   assert.ok(GFX_KEY.startsWith("pool-panic."));
 }
 
+// 6) The quality levels a player can choose: five, each at least as sharp as the one before, two above Standard; Auto is Standard
+// with the device's own care; a crash caps whatever was chosen.
+{
+  assert.deepEqual(
+    QUALITY.map((q) => q.id),
+    ["low", "medium", "standard", "high", "ultra"],
+  );
+  assert.deepEqual(QUALITY_CHOICES, ["auto", "low", "medium", "standard", "high", "ultra"]);
+  for (let i = 1; i < QUALITY.length; i++)
+    for (const key of ["ratio", "pixels", "shadow", "anisotropy"])
+      assert.ok(
+        QUALITY[i][key] >= QUALITY[i - 1][key],
+        QUALITY[i].id + " is no less than " + QUALITY[i - 1].id + " in " + key,
+      );
+  assert.ok(
+    QUALITY.filter((q) => q.ratio > qualityOf("standard").ratio).length >= 2,
+    "at least two levels above Standard",
+  );
+  assert.equal(qualityOf("nonsense").id, "standard");
+  for (const touch of [false, true]) {
+    const auto = graphicsPlan({ touch, deviceRatio: 2 }),
+      standard = graphicsPlan({ touch, deviceRatio: 2, quality: "standard" });
+    assert.equal(auto.ratio(1366, 892), standard.ratio(1366, 892), "Auto is Standard");
+    assert.equal(auto.shadow, 2048);
+    assert.deepEqual(auto.flags, []);
+  }
+  const at = (quality, deviceRatio, w = 1920, h = 1080) => graphicsPlan({ quality, deviceRatio }).ratio(w, h);
+  assert.equal(at("standard", 2), 1.7);
+  assert.equal(at("high", 2), 2, "High: the screen's full sharpness");
+  assert.equal(at("ultra", 1), 1.5, "Ultra supersamples a 1080p screen");
+  assert.ok(at("ultra", 2) * at("ultra", 2) * 1920 * 1080 <= 8.3e6 + 1, "Ultra stops at a 4K frame");
+  assert.equal(at("high", 1), 1, "High never draws past the screen");
+  assert.equal(graphicsPlan({ quality: "high" }).shadow, 4096);
+  assert.ok(graphicsPlan({ quality: "ultra" }).anisotropy > graphicsPlan({ quality: "standard" }).anisotropy);
+  const low = graphicsPlan({ quality: "low", deviceRatio: 2 });
+  assert.ok(low.flags.includes("noaa") && low.flags.includes("noshadow") && low.shadow === 0);
+  assert.equal(low.ratio(1920, 1080), 1);
+  assert.ok(graphicsPlan({ quality: "medium", deviceRatio: 2 }).flags.includes("noaa"));
+  const capped = graphicsPlan({ quality: "ultra", tier: 1, deviceRatio: 2 });
+  assert.ok(
+    capped.ratio(1920, 1080) <= 1.25 && capped.flags.includes("noaa") && capped.shadow <= 2048,
+    "a crash caps Ultra",
+  );
+  assert.equal(graphicsPlan({ quality: "ultra", tier: 2 }).shadow, 0);
+  const store = (v) => ({ getItem: () => v });
+  assert.equal(readQuality(store(JSON.stringify({ quality: "high", coachCam: true }))), "high");
+  assert.equal(readQuality(store(JSON.stringify({ quality: "max" }))), "auto");
+  assert.equal(readQuality(store("{broken")), "auto");
+  assert.equal(readQuality(null), "auto");
+}
+
 console.log(
-  "Graphics plan checks passed: an iPad and an iPhone told from a Mac, the desktop app and Windows; an iPad drawing about 2 million pixels (not 3.5) at most 60 times a second, a desktop as it was, ?dpr winning; four tiers each lighter than the last; a page that died in a shift making the next launch a tier lighter (once, never past the last, a hunt not counted, ?gfx=reset back to full, broken storage harmless); the governor lowering the resolution only on slow frames, step by step to its floor, never on a hitch; and the game wired to all of it.",
+  "Graphics quality: Auto, Low, Medium, Standard, High and Ultra, each sharper than the last, a crash capping any of them. " +
+    "Graphics plan checks passed: an iPad and an iPhone told from a Mac, the desktop app and Windows; an iPad drawing about 2 million pixels (not 3.5) at most 60 times a second, a desktop as it was, ?dpr winning; four tiers each lighter than the last; a page that died in a shift making the next launch a tier lighter (once, never past the last, a hunt not counted, ?gfx=reset back to full, broken storage harmless); the governor lowering the resolution only on slow frames, step by step to its floor, never on a hitch; and the game wired to all of it.",
 );

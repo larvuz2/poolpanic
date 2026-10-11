@@ -64,7 +64,17 @@ import { Recorder, apply as applyInput } from "./replay.mjs";
 import { BUILD } from "./version.mjs";
 import { playCinematic } from "./cinematic.mjs";
 import { readTuning, isWebKit } from "./tuning.mjs";
-import { isTouchWebKit, bootGfx, markDrawing, resetGfx, graphicsPlan, Governor } from "./gfx.mjs";
+import {
+  isTouchWebKit,
+  bootGfx,
+  markDrawing,
+  resetGfx,
+  graphicsPlan,
+  Governor,
+  QUALITY_CHOICES,
+  qualityOf,
+  readQuality,
+} from "./gfx.mjs";
 import { installWeek } from "./week-ui.mjs";
 import { passMark } from "./week.mjs";
 import { Achievements } from "./achievements.mjs";
@@ -123,10 +133,12 @@ const touchWebKit = isTouchWebKit({
 });
 const gfxBoot = bootGfx(crashStorage, { count: !testing });
 const gfxTier = testing ? 0 : gfxBoot.tier;
+// The quality the player chose in Help (Auto, Low, Medium, Standard, High, Ultra); a hunt or a trial plays Auto.
+const gfxQuality = testing ? "auto" : readQuality(crashStorage);
 const tuning = readTuning(location.search, [
   ...(huntStep ? huntStep.flags : []),
   ...(handsOff ? ["nohands"] : []),
-  ...graphicsPlan({ tier: gfxTier }).flags,
+  ...graphicsPlan({ tier: gfxTier, quality: gfxQuality }).flags,
 ]);
 globalThis.__poolTuning = tuning;
 const gfx = (globalThis.__poolGfx = {
@@ -136,6 +148,7 @@ const gfx = (globalThis.__poolGfx = {
     deviceRatio: devicePixelRatio || 1,
     dprCap: tuning.number("dpr", null),
     testing,
+    quality: gfxQuality,
   }),
   governor: new Governor(),
   scale: 1,
@@ -1532,7 +1545,28 @@ function start(bookingId = null, week = null) {
   } catch {}
   live?.dirty("urgent");
 }
+// The Graphics row of Help: the six choices, which one is on, and what the crash safety holds back.
+let qualityPending = false;
+function renderQuality() {
+  const chosen = settings.quality || "auto";
+  $("quality-buttons").innerHTML = QUALITY_CHOICES.map(
+    (id) =>
+      `<button class="quality-btn${id === chosen ? " on" : ""}" data-quality="${id}" aria-pressed="${id === chosen}">${id === "auto" ? "Auto" : qualityOf(id).name}</button>`,
+  ).join("");
+  const capped = gfx.plan.tier > 0;
+  $("quality-note").textContent = qualityPending
+    ? "Saved. It switches when you are back on the menu."
+    : capped
+      ? `Held back after a shift stopped the browser (${gfx.plan.says}).`
+      : chosen === "auto"
+        ? "Auto: Standard, lighter on phones and tablets."
+        : chosen === "ultra"
+          ? "Ultra draws more pixels than the screen has: for strong graphics cards."
+          : "";
+  $("quality-reset").hidden = !capped || qualityPending;
+}
 function returnMenu() {
+  if (qualityPending) return location.reload(); // a new graphics quality takes a fresh start (everything is saved)
   releaseMouse();
   snagged = false;
   crashlog.crumb("menu", "back to the map");
@@ -3004,6 +3038,28 @@ function bind() {
         : "Switch to the classic swimmers";
   };
   swimmerButton();
+  renderQuality();
+  $("quality-buttons").onclick = (e) => {
+    const b = e.target.closest("[data-quality]");
+    if (!b || b.dataset.quality === (settings.quality || "auto")) return;
+    settings.quality = b.dataset.quality;
+    saveSettings();
+    crashlog.crumb("gfx", "quality chosen: " + settings.quality);
+    // Antialiasing is fixed when the drawing surface is made, so a new quality takes a fresh start: now on the menu, or as soon as
+    // this shift is over.
+    if (["playing", "countdown", "paused"].includes(mode)) {
+      qualityPending = true;
+      renderQuality();
+    } else location.reload();
+  };
+  $("quality-reset").onclick = () => {
+    resetGfx(crashStorage);
+    crashlog.crumb("gfx", "crash safety reset by the player");
+    if (["playing", "countdown", "paused"].includes(mode)) {
+      qualityPending = true;
+      renderQuality();
+    } else location.reload();
+  };
   $("help-swimmers").onclick = async () => {
     const next = activeSwimmerChoice() === "classic" ? "models" : "classic";
     chooseSwimmers(next);
@@ -3260,7 +3316,10 @@ try {
   window.visualViewport?.addEventListener("resize", () => sized("visual resize"));
   crashlog.crumb(
     "gfx",
-    "tier " +
+    "quality " +
+      gfx.plan.quality +
+      (gfx.plan.quality === "auto" ? "" : " (" + gfx.plan.level + ")") +
+      " · tier " +
       gfx.plan.tier +
       " (" +
       gfx.plan.says +
