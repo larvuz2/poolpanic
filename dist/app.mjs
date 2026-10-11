@@ -39,8 +39,16 @@ import { CoachInput } from "./input.mjs";
 import { MomentDirector, edgeArrow } from "./moments.mjs";
 import { installCrashLog, describeGpu } from "./crashlog-hooks.mjs";
 import { Tracer, describeEvent, isNoisy, crowdSummary } from "./trace.mjs";
-import { footprint } from "./scene/footprint.mjs";
-import { readPrefs, savePrefs, canSend, reportPayload, sendReport, sendProblem } from "./report-send.mjs";
+import { footprint, surfaceMB } from "./scene/footprint.mjs";
+import {
+  readPrefs,
+  savePrefs,
+  canSend,
+  bridgeFetch,
+  reportPayload,
+  sendReport,
+  sendProblem,
+} from "./report-send.mjs";
 import {
   PLAYTEST_LIMITS,
   COVERAGE_KEY,
@@ -49,12 +57,14 @@ import {
   readPlaytest,
   savePlaytest,
   LiveSender,
+  liveWant,
   Coverage,
 } from "./playtest.mjs";
 import { Recorder, apply as applyInput } from "./replay.mjs";
 import { BUILD } from "./version.mjs";
 import { playCinematic } from "./cinematic.mjs";
 import { readTuning, isWebKit } from "./tuning.mjs";
+import { isTouchWebKit, bootGfx, markDrawing, resetGfx, graphicsPlan, Governor } from "./gfx.mjs";
 import { Achievements } from "./achievements.mjs";
 import { isDesktop, quitGame, richPresence, unlockAchievement } from "./platform.mjs";
 import * as hunts from "./bisect.mjs";
@@ -102,11 +112,32 @@ const huntStep = huntState && !hunt.finished(huntState) ? hunt.current(huntState
 // sets its own switches and gets no default.
 const testing = params.has("bisect") || params.has("trial");
 const handsOff = isWebKit(navigator.userAgent) && !params.has("hands") && !testing;
+// How hard to drive the graphics here (gfx.mjs): a touch device with WebKit draws fewer pixels and at most 60 frames a second, and a
+// page that died in the middle of a shift makes this launch draw with lighter graphics. `?gfx=reset` goes back to full graphics.
+if (params.get("gfx") === "reset") resetGfx(crashStorage);
+const touchWebKit = isTouchWebKit({
+  userAgent: navigator.userAgent,
+  maxTouchPoints: navigator.maxTouchPoints,
+});
+const gfxBoot = bootGfx(crashStorage, { count: !testing });
+const gfxTier = testing ? 0 : gfxBoot.tier;
 const tuning = readTuning(location.search, [
   ...(huntStep ? huntStep.flags : []),
   ...(handsOff ? ["nohands"] : []),
+  ...graphicsPlan({ tier: gfxTier }).flags,
 ]);
 globalThis.__poolTuning = tuning;
+const gfx = (globalThis.__poolGfx = {
+  plan: graphicsPlan({
+    tier: gfxTier,
+    touch: touchWebKit,
+    deviceRatio: devicePixelRatio || 1,
+    dprCap: tuning.number("dpr", null),
+    testing,
+  }),
+  governor: new Governor(),
+  scale: 1,
+});
 if (tuning.has("nosound")) {
   audio.enabled = false;
   audio.init = () => {};
@@ -687,11 +718,11 @@ function trialTick() {
     if (mode === "playing") trial.played += gap;
   }
   const enough = trial.played >= TRIAL_MIN * 1000;
-  // A page that dies cannot say when, so a hunt's log goes out about every 8 s (the "busy" pace) and not every 20: the last word
+  // A page that dies cannot say when, so a hunt's log goes out about every 3 s (the "beat" pace) and not every 20: the last word
   // from a crashed test then says within a few seconds how far it got.
-  if (live && now - (trial.sent || 0) > 4000) {
+  if (live && now - (trial.sent || 0) > 3000) {
     trial.sent = now;
-    live.dirty("busy");
+    live.dirty("beat");
   }
   if (mode === "results" || sim.status === "ended") return endTrial(!plainTrial || enough);
   if (trial.seen > TRIAL_CAP * 1000) return endTrial(!plainTrial || enough);
@@ -827,7 +858,13 @@ async function copyText(text) {
 // The crash dialog: what went wrong, and three ways to get the report to the developer: send it (report-send.mjs: once, or every time
 // if the box is left ticked), copy it, or open a prefilled GitHub issue. `live` is a shift that just hit an error and is paused.
 const reportPrefs = readPrefs(crashStorage);
-const reportsOpen = () => canSend({ desktop: isDesktop(), protocol: location.protocol });
+// A tester build of the desktop app hands the page a way to post (desktop/preload.cjs); a Steam build, and a browser's tab on a server with
+// no report service, have none.
+const desktopPost =
+  typeof globalThis.desktop?.sendReport === "function" ? globalThis.desktop.sendReport : null;
+const reportsOpen = () =>
+  canSend({ desktop: isDesktop(), protocol: location.protocol, bridge: !!desktopPost });
+const postReport = (payload) => sendReport(payload, desktopPost ? { fetch: bridgeFetch(desktopPost) } : {});
 // A playtest sends by itself: whoever switched it on is the one who reads the log.
 const autoSend = () => reportPrefs.auto === true || playtest;
 let crashOn = null;
@@ -865,7 +902,7 @@ function showSent(session, problem = "") {
 }
 async function sendSession(session, automatic = false) {
   crashlog.flush(true);
-  const result = await sendReport(reportPayload(crashlog, session, reportPrefs.device));
+  const result = await postReport(reportPayload(crashlog, session, reportPrefs.device));
   crashlog.crumb(
     "report",
     (automatic ? "automatic " : "") + "send " + (result.ok ? "ok" : "failed: " + result.error),
@@ -927,7 +964,7 @@ const TRIGGERS = [
   ["outage", "⚡ Power cut"],
 ];
 let pulseClock = 0,
-  liveClock = 0,
+  liveAt = 0, // when the live copy was last asked about, by the wall clock: a slow page (a few frames a second) must not slow its own beat
   liveRev = -1,
   liveWorked = null,
   coverageTimer = 0,
@@ -995,7 +1032,7 @@ function beginPlaytestShift(drill) {
 async function sendLive() {
   const session = crashlog.session;
   crashlog.flush(true);
-  const result = await sendReport(reportPayload(crashlog, session, reportPrefs.device, { slim: true }));
+  const result = await postReport(reportPayload(crashlog, session, reportPrefs.device, { slim: true }));
   if (result.ok !== liveWorked) {
     liveWorked = result.ok;
     crashlog.crumb("report", result.ok ? "live copy is going through" : "live copy failed: " + result.error);
@@ -1014,13 +1051,13 @@ function playtestTick(dt) {
         crashlog.crumb("pulse", tracer.pulse(sim));
       }
     }
-    liveClock += dt;
-    if (live && liveClock > 1) {
-      liveClock = 0;
-      if (crashlog.rev !== liveRev) {
-        liveRev = crashlog.rev;
-        live.dirty(mode === "playing" && busy ? "busy" : "calm");
-      }
+    const wall = performance.now();
+    if (live && wall - liveAt > 1000) {
+      liveAt = wall;
+      const changed = crashlog.rev !== liveRev;
+      liveRev = crashlog.rev;
+      const want = liveWant({ mode, changed });
+      if (want) live.dirty(want);
       live.poll();
     }
   } catch (e) {
@@ -2560,7 +2597,53 @@ const MOMENTS = new Set([
 // The map covers the pool in the menu, so once the first frames have warmed the 3D scene up nothing of it is
 // updated or drawn until a shift starts (moving speech bubbles under a full-screen map cost real frame time).
 let warmFrames = 3;
+// The frame-rate cap (gfx.mjs: 60 on a touch device with WebKit, whose 120 Hz screen would ask for twice the drawing), the governor that
+// lowers the resolution while the frames of a shift are slow, and the mark a shift being drawn leaves on the device (a page that dies
+// with it still there makes the next launch draw lighter).
+let lastDrawn = 0,
+  drawingMarked = false;
+function governFrame(t) {
+  const drawing =
+    (mode === "playing" || mode === "countdown") && document.visibilityState === "visible" && !testing;
+  if (drawing !== drawingMarked) {
+    drawingMarked = drawing;
+    markDrawing(crashStorage, drawing);
+  }
+  if (!gfx.plan.govern || !drawing || !lastDrawn) return;
+  const scale = gfx.governor.frame(t - lastDrawn);
+  if (scale === null) return;
+  const before = world.renderer?.getPixelRatio?.();
+  gfx.scale = scale;
+  world.resize();
+  crashlog.crumb(
+    "gfx",
+    "frames slow (" +
+      gfx.governor.fps +
+      " fps): pixel ratio " +
+      before +
+      " → " +
+      world.renderer?.getPixelRatio?.(),
+  );
+}
+// A page that is hidden or closed has put its shift away: the system may end it there without that being a crash.
+const putAway = () => {
+  if (!drawingMarked) return;
+  drawingMarked = false;
+  markDrawing(crashStorage, false);
+};
+document.addEventListener("visibilitychange", () => document.hidden && putAway());
+window.addEventListener("pagehide", putAway);
 function animate(t) {
+  if (gfx.plan.fpsCap && lastDrawn && t - lastDrawn < 1000 / gfx.plan.fpsCap - 3) {
+    requestAnimationFrame(animate);
+    return;
+  }
+  try {
+    governFrame(t);
+  } catch (e) {
+    crashlog.error("frame:gfx", e);
+  }
+  lastDrawn = t;
   try {
     frame(t);
     if (failing.loop) failing.loop = 0;
@@ -3019,13 +3102,62 @@ try {
   if (huntState && hunt.finished(huntState)) showHuntResults();
   else if (huntStep || params.has("trial")) setTimeout(startTrial, 1500);
   // The GPU, and how big the drawing surface is (the likeliest thing to run a small device out of memory).
-  const surface = world.renderer?.domElement;
+  const surface = world.renderer?.domElement,
+    gl = world.renderer?.getContext?.();
+  let samples = 0;
+  try {
+    samples = gl?.getParameter?.(gl.SAMPLES) || 0; // what the browser really gave the drawing surface (4 when it multisamples)
+  } catch {}
   crashlog.setEnv({
-    gpu: describeGpu(world.renderer?.getContext?.()),
+    gpu: describeGpu(gl),
     canvas: surface ? surface.width + "×" + surface.height : "",
+    samples,
+    surfaceMB: surface ? surfaceMB({ width: surface.width, height: surface.height, samples }) : 0,
     maxTexture: world.renderer?.capabilities?.maxTextureSize,
     webgl2: world.renderer?.capabilities?.isWebGL2,
   });
+  // Every change of the page's size is a new drawing surface (a canvas that is resized is the likeliest thing to leak on a browser with
+  // an idle toolbar that comes and goes), so the log says each one: the page's size, the visual viewport's and the surface's.
+  const sized = (what) =>
+    crashlog.crumb(
+      "view",
+      what +
+        " " +
+        innerWidth +
+        "×" +
+        innerHeight +
+        (window.visualViewport
+          ? " (visual " + Math.round(visualViewport.width) + "×" + Math.round(visualViewport.height) + ")"
+          : "") +
+        (surface ? " surface " + surface.width + "×" + surface.height : ""),
+    );
+  window.addEventListener("resize", () => sized("resize"));
+  window.visualViewport?.addEventListener("resize", () => sized("visual resize"));
+  crashlog.crumb(
+    "gfx",
+    "tier " +
+      gfx.plan.tier +
+      " (" +
+      gfx.plan.says +
+      ")" +
+      (touchWebKit ? " · touch WebKit" : "") +
+      " · pixel ratio " +
+      world.renderer?.getPixelRatio?.() +
+      (gfx.plan.fpsCap ? " · at most " + gfx.plan.fpsCap + " fps" : "") +
+      (gfx.plan.govern ? " · governor on" : "") +
+      (gfxBoot.died ? " · the last page died in a shift" + (testing ? " (a test: not counted)" : "") : ""),
+  );
+  if (gfxBoot.raised)
+    setTimeout(
+      () =>
+        toast(
+          "The last shift stopped the browser, so Pool Panic now draws with lighter graphics on this device (" +
+            gfx.plan.says +
+            ").",
+          true,
+        ),
+      2500,
+    );
   crashlog.crumb("boot", "ready in " + Math.round(performance.now()) + " ms");
   requestAnimationFrame(animate);
   // QA hook (?debug): drive the fixed-step simulation faster than real time for screenshots and repros.

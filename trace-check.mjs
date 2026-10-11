@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { PoolSimulation } from "./dist/sim.mjs";
 import { Tracer, describeEvent, isNoisy, crowdSummary } from "./dist/trace.mjs";
-import { footprint } from "./dist/scene/footprint.mjs";
+import { footprint, surfaceMB } from "./dist/scene/footprint.mjs";
 
 // What the simulation holds that a look could disturb: everybody's place and state, the clock, the score.
 const snapshot = (s) =>
@@ -273,6 +273,20 @@ function rescue(withTracer = true) {
   // Nothing to look at.
   assert.equal(footprint().nodes, 0);
   assert.equal(footprint({}).nodes, 0);
+}
+
+// 8b) The drawing surface, which no walk of the scene can see: 2322×1516 (an iPad Pro's page at 1.7 pixels) multisampled four times is
+// about 148 MB (four samples of four bytes of colour and four of depth, and three presented buffers), without multisampling about 54, a
+// third of the pixels about a third of the memory, and nothing sized is nothing.
+{
+  const mb = (samples, width = 2322, height = 1516) => surfaceMB({ width, height, samples });
+  assert.equal(mb(4), 148);
+  assert.equal(mb(0), 54);
+  assert.equal(mb(1), mb(0), "one sample is not multisampled");
+  assert.ok(mb(8) > mb(4) && mb(4) > mb(2) && mb(2) > mb(0), "more samples, more memory");
+  assert.equal(surfaceMB({ width: 1366, height: 892, samples: 4 }), Math.round((1366 * 892 * 44) / 1048576));
+  assert.equal(surfaceMB(), 0);
+  assert.equal(surfaceMB({ width: -5, height: 100, samples: 4 }), 0, "a size that makes no sense is nothing");
 }
 
 // 9) Where each incident stands: a line each time its stage changes (every step of it when the diary is verbose), the visitor's part of

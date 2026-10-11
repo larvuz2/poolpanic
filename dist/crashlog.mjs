@@ -529,6 +529,8 @@ export class CrashLog {
           env.touch ? "touch" : "",
           env.gpu && "GPU " + env.gpu,
           env.canvas && "canvas " + env.canvas,
+          env.samples > 1 && env.samples + "× multisampled",
+          env.surfaceMB && "surface ≈" + env.surfaceMB + " MB (estimate)",
           env.webgl2 === false && "WebGL 1",
           env.maxTexture && "max texture " + env.maxTexture,
           env.cores && env.cores + " cores",

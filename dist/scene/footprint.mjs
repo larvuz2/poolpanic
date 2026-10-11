@@ -72,3 +72,13 @@ export function footprint(...roots) {
     shadowMB: Math.round(shadowBytes / MB),
   };
 }
+
+// The drawing surface of a WebGL canvas, which no walk of the scene can see: what the GPU draws into and what the browser presents from.
+// A surface that multisamples keeps four bytes of colour and four of depth for every sample of every pixel, and resolves into three
+// four-byte buffers it presents in turn; one that does not, a colour buffer and a depth buffer, with the spare ones. An estimate from the
+// sizes alone (what a browser really holds is its own business): 2322×1516 at four samples is about 148 MB, and without them about 54.
+export function surfaceMB({ width = 0, height = 0, samples = 0 } = {}) {
+  const pixels = Math.max(0, width) * Math.max(0, height),
+    perPixel = samples > 1 ? 8 * samples + 12 : 16;
+  return Math.round((pixels * perPixel) / MB);
+}

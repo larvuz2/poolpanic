@@ -10,6 +10,7 @@ import {
   readPrefs,
   savePrefs,
   canSend,
+  bridgeFetch,
   reportPayload,
   slimSession,
   sendReport,
@@ -96,6 +97,61 @@ const DEVICE = /^[A-Z2-7]{8}$/;
   assert.equal(canSend({ desktop: false, protocol: "file:" }), false);
   assert.equal(canSend({ desktop: false, protocol: "app:" }), false);
   assert.equal(canSend(), false);
+  // A tester build of the desktop app gives its window a way to post (desktop/preload.cjs); a Steam build does not.
+  assert.equal(
+    canSend({ desktop: true, protocol: "app:", bridge: false }),
+    false,
+    "a Steam build has no way to post",
+  );
+  assert.equal(canSend({ desktop: true, protocol: "app:", bridge: true }), true, "a tester build has");
+  assert.equal(
+    canSend({ desktop: false, protocol: "app:", bridge: true }),
+    false,
+    "a bridge means nothing outside the desktop app",
+  );
+  assert.equal(
+    canSend({ desktop: false, protocol: "https:", bridge: false }),
+    true,
+    "a web page is as before",
+  );
+}
+
+// 3b) The desktop window's way to post, made to look like a fetch: the answer of the main process is what `sendReport` reads.
+{
+  const payload = { v: 1, device: "K7Q2M5XA", id: "abc1", headline: "h", report: "# r" };
+  const seen = [];
+  const bridge = (answer) => async (text) => (seen.push(text), answer);
+  const ok = await sendReport(payload, {
+    fetch: bridgeFetch(bridge({ ok: true, status: 200, body: { ok: true } })),
+  });
+  assert.deepEqual(ok, { ok: true, status: 200 });
+  assert.equal(JSON.parse(seen[0]).device, "K7Q2M5XA", "the bridge is handed the payload's text");
+  const quiet = await sendReport(payload, {
+    fetch: bridgeFetch(
+      bridge({ ok: false, status: 429, body: { ok: false, error: "too many" }, retryAfter: 90 }),
+    ),
+  });
+  assert.deepEqual(quiet, { ok: false, status: 429, error: "too many", retryAfter: 90 });
+  const big = await sendReport(payload, {
+    fetch: bridgeFetch(bridge({ ok: false, status: 413, error: "too big" })),
+  });
+  assert.equal(big.status, 413);
+  assert.match(sendProblem(big), /too big/);
+  const down = await sendReport(payload, {
+    fetch: bridgeFetch(bridge({ ok: false, status: 0, error: "no connection" })),
+  });
+  assert.deepEqual(down, { ok: false, status: 0, error: "no connection" });
+  const slow = await sendReport(payload, {
+    fetch: bridgeFetch(bridge({ ok: false, status: 0, error: "timed out" })),
+  });
+  assert.equal(slow.error, "timed out");
+  assert.equal(sendProblem(slow), "The report service did not answer in time.");
+  const refused = await sendReport(payload, {
+    fetch: bridgeFetch(bridge({ ok: false, status: 0, error: "not a tester build" })),
+  });
+  assert.equal(refused.ok, false, "a build that may not post says no");
+  const nothing = await sendReport(payload, { fetch: bridgeFetch(async () => undefined) });
+  assert.equal(nothing.ok, false, "and a bridge that answers nothing is no connection");
 }
 
 // 4) What is posted: the id, the headline, the report as Markdown and the raw session; the session alone is dropped when it is too big.
@@ -285,5 +341,5 @@ const DEVICE = /^[A-Z2-7]{8}$/;
 }
 
 console.log(
-  "Report send checks passed: a device code that names this device's reports, the player's say on automatic sending (never said, yes, no), sending offered only on a served page and never in the desktop app, a payload with the report and the session (the report alone when too big), and every way a send can fail told plainly, a playtest's slim live copy, and a report too big for the service shrunk to fit with its newest lines kept.",
+  "Report send checks passed: a device code that names this device's reports, the player's say on automatic sending (never said, yes, no), sending offered only on a served page or in a tester build of the desktop app (through the bridge, never in a Steam build), a payload with the report and the session (the report alone when too big), and every way a send can fail told plainly, a playtest's slim live copy, and a report too big for the service shrunk to fit with its newest lines kept.",
 );

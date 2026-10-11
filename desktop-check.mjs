@@ -427,6 +427,205 @@ function trackedGameFiles() {
   assert.ok(Number.isInteger(shipped.appId) && shipped.appId > 0, "the shipped config has an app id");
 }
 
+// ---- tester builds: the only build that posts anything --------------------------------------------------------------------------
+{
+  const ok = "https://poolpanic.netlify.app/api/report";
+  // The addresses a report may go to: https and the report path, nothing else in it; this machine's own fake service only when asked.
+  assert.equal(lib.isReportUrl(ok), true);
+  assert.equal(lib.isReportUrl("https://deploy-preview-21--poolpanic.netlify.app/api/report"), true);
+  for (const bad of [
+    "http://poolpanic.netlify.app/api/report",
+    "https://poolpanic.netlify.app/api/report?x=1",
+    "https://poolpanic.netlify.app/api/report#x",
+    "https://poolpanic.netlify.app/other",
+    "https://user:pass@poolpanic.netlify.app/api/report",
+    "ftp://poolpanic.netlify.app/api/report",
+    "/api/report",
+    "",
+    null,
+  ])
+    assert.equal(lib.isReportUrl(bad), false, `${bad} is not a report address`);
+  assert.equal(lib.isReportUrl("http://localhost:8123/api/report"), false, "no http by default");
+  assert.equal(
+    lib.isReportUrl("http://localhost:8123/api/report", { allowLocal: true }),
+    true,
+    "a developer's own service",
+  );
+  assert.equal(lib.isReportUrl("http://127.0.0.1:8123/api/report", { allowLocal: true }), true);
+  assert.equal(
+    lib.isReportUrl("http://example.com/api/report", { allowLocal: true }),
+    false,
+    "and only this machine",
+  );
+  assert.equal(lib.MAX_REPORT_BODY, 262144, "the service's own limit");
+  assert.ok(
+    read("netlify/functions/report.mjs").includes("const MAX_BODY = 262144"),
+    "and it is still the service's limit",
+  );
+
+  // What a tester.json says: its own address, a query of plain words, nothing it may not say.
+  assert.deepEqual(lib.readTester("{}"), { reports: ok, query: "playtest" });
+  assert.deepEqual(lib.readTester(JSON.stringify({ reports: ok, query: "playtest&debug" })), {
+    reports: ok,
+    query: "playtest&debug",
+  });
+  assert.equal(
+    lib.readTester(JSON.stringify({ reports: "https://evil.example/steal" })).reports,
+    ok,
+    "an address that is not allowed is the project's own",
+  );
+  assert.equal(
+    lib.readTester(JSON.stringify({ reports: "http://localhost:9/api/report" })).reports,
+    ok,
+    "a packed app never posts to http",
+  );
+  assert.equal(
+    lib.readTester(JSON.stringify({ reports: "http://localhost:9/api/report" }), { allowLocal: true })
+      .reports,
+    "http://localhost:9/api/report",
+    "an unpacked one may, for a fake service",
+  );
+  assert.equal(
+    lib.readTester(JSON.stringify({ query: "a b<script>" })).query,
+    "playtest",
+    "a query of anything but plain words is the plain one",
+  );
+  assert.equal(lib.readTester("{ broken"), null, "a damaged file is not a tester build");
+  assert.equal(lib.readTester("[]"), null);
+  assert.equal(lib.readTester("7"), null);
+  assert.equal(lib.readTester(""), null);
+
+  // The main process posts only for a tester build, only for the game's own window, to the fixed address, and the page gets the way to post
+  // only from a tester build; the window's own rules (it may talk to itself only) do not change.
+  const main = read("desktop/main.cjs"),
+    preload = read("desktop/preload.cjs");
+  const handler = main.slice(
+    main.indexOf('ipcMain.handle("desktop:report"'),
+    main.indexOf('on("steam:unlock"'),
+  );
+  assert.ok(handler.length > 200, "the report handler is there");
+  for (const needed of [
+    "!TESTER",
+    "trusted(event)",
+    "lib.MAX_REPORT_BODY",
+    "TESTER.reports",
+    "net.fetch",
+    'method: "POST"',
+    "AbortController",
+  ])
+    assert.ok(handler.includes(needed), `the report handler has ${needed}`);
+  assert.ok(
+    !/event\.sender|args\[|url\b/.test(handler.replace("TESTER.reports", "")),
+    "and the address is not the page's to choose",
+  );
+  assert.ok(main.includes("tester: !!TESTER"), "the page is told whether it is a tester build");
+  {
+    const choice = main.slice(main.indexOf("const TESTER = (() => {"), main.indexOf("const QUERY"));
+    assert.ok(
+      /if \(DEV && \(process\.argv\.includes\("--tester"\)/.test(choice) &&
+        choice.includes("POOLPANIC_REPORTS"),
+      "the flag and the environment variables only work from the source, never in a packed app",
+    );
+    assert.ok(choice.includes("allowLocal: DEV"), "and a packed app never posts to a local address");
+  }
+  assert.ok(main.includes('"tester.json"'), "a tester.json beside the game makes a tester build");
+  assert.ok(
+    /connect-src 'self' blob: data:/.test(main),
+    "the page itself still connects only to its own files",
+  );
+  assert.ok(
+    preload.includes("...(boot.tester &&") && preload.includes('invoke("desktop:report"'),
+    "only a tester build's page gets sendReport",
+  );
+  assert.ok(
+    !/invoke\("desktop:report"[^)]*\)[^;]*\n[^;]*sendReport/.test(preload) &&
+      preload.split("desktop:report").length === 2,
+    "through one channel",
+  );
+
+  // The build script writes tester.json only when asked, and the packer takes the whole game folder with it.
+  const prepare = read("desktop/scripts/prepare-game.mjs");
+  assert.ok(
+    prepare.includes('"--tester"') && prepare.includes("tester.json") && prepare.includes('"desktop-test"'),
+    "prepare-game makes a tester build when asked",
+  );
+  assert.ok(
+    /if \(tester\)\s*\n?\s*writeFileSync\(\s*join\(target, "tester.json"\)/.test(prepare),
+    "and only then",
+  );
+  const pkg = JSON.parse(read("desktop/package.json"));
+  assert.ok(pkg.scripts["start:tester"].includes("--tester"), "npm run start:tester");
+  for (const system of ["win", "mac", "linux"]) {
+    assert.ok(
+      pkg.scripts["pack:tester:" + system].includes("prepare:game -- --tester"),
+      `pack:tester:${system} writes tester.json`,
+    );
+    assert.ok(
+      !pkg.scripts["pack:" + system].includes("--tester"),
+      `and pack:${system}, the Steam one, does not`,
+    );
+  }
+  assert.ok(
+    read("desktop/electron-builder.yml").includes("game/**/*"),
+    "tester.json is packed with the game",
+  );
+  assert.ok(
+    read(".gitignore").includes("desktop/game/"),
+    "and is never committed (the game folder is made by the build)",
+  );
+}
+
+// ---- the CI that makes the downloads: tester builds only, and only its release job may write -------------------------------------
+{
+  const whole = read(".github/workflows/desktop-test-build.yml");
+  const flow = whole
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("#"))
+    .join("\n"); // (the comments may say what the workflow is not)
+  assert.match(flow, /^name: Desktop test builds$/m);
+  assert.ok(
+    /branches: \[main, "claude\/\*\*"\]/.test(flow) &&
+      flow.includes('"dist/**"') &&
+      flow.includes('"desktop/**"'),
+    "on a push to main or a working branch that changes the game or the app",
+  );
+  assert.ok(flow.includes("workflow_dispatch:"), "and by hand");
+  // Only tester builds: the Steam build is made by hand on each system, never by CI, so no CI file ever reaches a depot by accident.
+  const scripts = [...flow.matchAll(/script: "([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(scripts.sort(), ["pack:tester:linux", "pack:tester:mac", "pack:tester:win"]);
+  assert.ok(!/npm run pack:(win|mac|linux)\b/.test(flow), "CI never packs the Steam build");
+  assert.ok(
+    !/steamcmd|SteamPipe|app_build|STEAM_|secrets\./i.test(flow),
+    "and has no Steam upload and no secret",
+  );
+  // Read-only unless it is the release job, which is the only one that may write.
+  assert.match(flow, /^permissions:\n  contents: read$/m, "read-only by default");
+  assert.equal((flow.match(/contents: write/g) || []).length, 1, "one place that writes");
+  const release = flow.slice(flow.indexOf("  release:"));
+  assert.ok(release.includes("contents: write") && release.includes("needs: pack"), "the release job");
+  assert.ok(
+    release.includes("desktop-latest") && release.includes("--prerelease"),
+    "one rolling pre-release, never a real release",
+  );
+  assert.ok(!release.includes("ref_name }}\n"), "(the branch name only goes into the notes)");
+  // The files a tester is told to download are the files the build makes.
+  for (const file of [
+    "PoolPanic-windows-x64.zip",
+    "PoolPanic-mac-apple-silicon.zip",
+    "PoolPanic-mac-intel.zip",
+    "PoolPanic-linux-x64.zip",
+  ])
+    assert.ok(flow.includes(file), `${file} is made and offered`);
+  assert.ok(
+    flow.includes("codesign --force --deep --sign -"),
+    "the Mac builds are signed ad hoc (Apple Silicon will not run an unsigned program)",
+  );
+  assert.ok(
+    read("desktop/README.md").includes("desktop-latest"),
+    "desktop/README.md says where the downloads are",
+  );
+}
+
 // ---- the settings that keep it safe ---------------------------------------------------------------------------------------------
 {
   const main = read("desktop/main.cjs");
@@ -528,5 +727,5 @@ function trackedGameFiles() {
 }
 
 console.log(
-  "Desktop checks passed: files served only from the game's folder with the right types, the progress mirror (player keys only, damaged files refused), links and windows, the Steam wrapper against a fake steamworks.js (it never stops the game), the locked-down window and upload settings, and every desktop script parsing.",
+  "Desktop checks passed: files served only from the game's folder with the right types, the CI that makes the test downloads (tester builds only, one place that writes), tester builds (the only build that posts, to a fixed address, from the game's own window, never from a packed Steam build), the progress mirror (player keys only, damaged files refused), links and windows, the Steam wrapper against a fake steamworks.js (it never stops the game), the locked-down window and upload settings, and every desktop script parsing.",
 );

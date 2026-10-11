@@ -147,7 +147,52 @@ function fitWindow(saved, displays, defaults = { width: 1280, height: 720 }) {
   return out;
 }
 
+// ---- tester builds ---------------------------------------------------------------------------------------------------------------
+// A tester build (the creator's own Mac and Windows machines, from the downloads CI makes) has playtest mode on and may post the game's log
+// to the report service, which the locked-down window cannot do by itself: the main process posts it for the page. A file beside the game
+// says so, `tester.json`: {"reports": "https://…/api/report", "query": "playtest"}. The Steam build has no such file and never posts anything.
+const REPORT_PATH = "/api/report";
+const DEFAULT_REPORTS = "https://poolpanic.netlify.app" + REPORT_PATH;
+const MAX_REPORT_BODY = 262144; // what the report service takes in one post (netlify/functions/report.mjs)
+
+// An address the app may post a report to: https and the report path, nothing else in it (a developer's own fake service on this machine
+// may be http://localhost when `allowLocal` says so, which only an unpacked app does).
+function isReportUrl(address, { allowLocal = false } = {}) {
+  let url;
+  try {
+    url = new URL(address);
+  } catch {
+    return false;
+  }
+  if (url.username || url.password || url.search || url.hash || url.pathname !== REPORT_PATH) return false;
+  if (url.protocol === "https:") return true;
+  return allowLocal && url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname);
+}
+
+// What a tester.json says, or null when it is not one (a file that cannot be read is not a tester build, so a damaged Steam build never posts by
+// accident). A report address that is not allowed becomes the project's own, and the query is only letters, digits and `= & . - _`.
+function readTester(text, { allowLocal = false } = {}) {
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  return {
+    reports:
+      typeof data.reports === "string" && isReportUrl(data.reports, { allowLocal })
+        ? data.reports
+        : DEFAULT_REPORTS,
+    query: typeof data.query === "string" && /^[\w=&.-]{0,200}$/.test(data.query) ? data.query : "playtest",
+  };
+}
+
 module.exports = {
+  DEFAULT_REPORTS,
+  MAX_REPORT_BODY,
+  isReportUrl,
+  readTester,
   GAME_ORIGIN,
   SAVE_KEYS,
   SAVE_VERSION,

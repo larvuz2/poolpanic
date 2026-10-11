@@ -173,7 +173,7 @@ export class PoolWorld extends SceneKit {
         alpha: false,
         powerPreference: "high-performance",
       });
-      this.renderer.setPixelRatio(Math.min(devicePixelRatio, Math.max(0.5, tuning.number("dpr", 1.7))));
+      this.renderer.setPixelRatio(this.pixelRatio(container.clientWidth, container.clientHeight));
       this.renderer.shadowMap.enabled = !tuning.has("noshadow");
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1326,9 +1326,20 @@ export class PoolWorld extends SceneKit {
       document.exitPointerLock?.();
     this.resize();
   }
+  // How many drawing pixels a CSS pixel gets: the app's graphics plan (gfx.mjs: a budget of pixels on a touch device, a lighter tier
+  // after a crash, the governor's scale), else the screen's own ratio, at most 1.7 (or what ?dpr asks for).
+  pixelRatio(w, h) {
+    const gfx = globalThis.__poolGfx;
+    if (gfx?.plan) return gfx.plan.ratio(w, h, gfx.scale);
+    return Math.min(devicePixelRatio, Math.max(0.5, this.tune.number("dpr", 1.7)));
+  }
   resize() {
     const w = this.container.clientWidth,
       h = this.container.clientHeight;
+    if (this.renderer) {
+      const ratio = this.pixelRatio(w, h);
+      if (ratio !== this.renderer.getPixelRatio()) this.renderer.setPixelRatio(ratio);
+    }
     this.renderer?.setSize(w, h);
     if (this.viewMode === "coach") {
       // Full-screen first-person projection: no view offset for the overview's HUD framing.

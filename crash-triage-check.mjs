@@ -10,6 +10,7 @@ import {
   parseReport,
   classify,
   fitsKnown,
+  STOPPED_AFTER,
   groupHunts,
   triage,
   attention,
@@ -209,6 +210,34 @@ const run = (launches, extra = {}) =>
   const noGo = parseReport(launch({ level: 0, end: 20, how: "running" }).md);
   assert.equal(noGo.played, null, "no shift, no go");
   assert.ok(!fitsKnown(noGo, classify(noGo)));
+  // A live copy that stopped in the middle of a shift and was never sent again is a page that died (Safari reloads a crashed tab, but if
+  // nobody plays on, no later launch says so); a fresh one is still running, and one that stopped in the menu is not a crash.
+  const stopped = parseReport(launch({ go: 8, end: 44, how: "running" }).md);
+  assert.equal(stopped.endedWord, "running");
+  const old = Date.now() - STOPPED_AFTER - 60000;
+  assert.deepEqual([classify(stopped, { at: old }).kind, classify(stopped, { at: old }).sig], ["crash", "c"]);
+  assert.ok(
+    classify(stopped, { at: old }).notes.some((n) => /stopped in the middle of a shift/.test(n.text)),
+    "says why it is taken for a crash",
+  );
+  assert.equal(
+    classify(stopped, { at: Date.now() - 30000 }).kind,
+    "clean",
+    "a copy 30 s old may still be running",
+  );
+  assert.equal(classify(stopped).kind, "clean", "no time given: not called a crash");
+  assert.equal(classify(noGo, { at: old }).kind, "clean", "stopped in the menu: not a crash");
+  // The page's last word is the header's "session ran N s" when that is later than the diary's last row (a calm minute writes nothing
+  // down, and the live copy is renewed all the same): 52 s of diary and a header that says 61 s is a page heard from 61 s in.
+  const beat = launch({ go: 8, end: 52 }).md.replace(/session ran 52 s/, "session ran 61 s");
+  assert.notEqual(beat, launch({ go: 8, end: 52 }).md, "the header says how long the session ran");
+  assert.equal(parseReport(beat).played, 53, "heard from 53 s after the go, though the diary stops at 44");
+  assert.equal(parseReport(beat).last, 61);
+  assert.equal(
+    parseReport(launch({ go: 8, end: 52 }).md.replace(/session ran 52 s/, "session ran 40 s")).last,
+    52,
+    "never earlier than the diary",
+  );
 }
 
 // 2) The time hidden after the go is not played; the last shift of a launch is the one that counts.
@@ -698,5 +727,5 @@ const run = (launches, extra = {}) =>
 
 rmSync(tmp, { recursive: true, force: true });
 console.log(
-  "Crash triage checks passed: a report made by the real crash log read as facts (the shift's level, how long it had been played when the last word came with the time hidden left out, the final seconds), the known 45-second crash told from a crash with an error or at another time, errors, flags and stuck incidents with tokens, a lost GPU as a note, tokens handed back so nothing is looked at twice (and a launch that gains a problem looked at again), a hunt read as one run with each test's outcome and the page's verdict, a failing service said and never read as nothing new, the digest naming a device by two characters, the command line, and the log issue read for the tokens already handled (only the owner's lines that start handled:, read in pages, a stranger's words and a log that cannot be read never taken for a record).",
+  "Crash triage checks passed: a report made by the real crash log read as facts (the shift's level, how long it had been played when the last word came with the time hidden left out, the final seconds), a live copy that stopped mid-shift read as a crash, the known 45-second crash told from a crash with an error or at another time, errors, flags and stuck incidents with tokens, a lost GPU as a note, tokens handed back so nothing is looked at twice (and a launch that gains a problem looked at again), a hunt read as one run with each test's outcome and the page's verdict, a failing service said and never read as nothing new, the digest naming a device by two characters, the command line, and the log issue read for the tokens already handled (only the owner's lines that start handled:, read in pages, a stranger's words and a log that cannot be read never taken for a record).",
 );
