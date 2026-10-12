@@ -103,8 +103,9 @@ try {
 // The switches for isolating a crash (tuning.mjs) and the crash hunt that runs them one at a time (bisect.mjs). The
 // hunt's state is read first: a test left running by the last page means that page died in it.
 const params = new URLSearchParams(location.search);
-// ?bisect=hands looks inside the hands layer, ?bisect=shift plays plain shifts in the overview (the crash about 45 s into a shift)
-const hunt = { hands: hunts.hands, shift: hunts.shift }[params.get("bisect")] || hunts.main;
+// ?bisect=hands looks inside the hands layer, ?bisect=shift plays plain shifts in the overview (the crash about 45 s into a shift),
+// ?bisect=play lets the player play the shifts (the same crash, with the touches and the sound a hunt left alone never has)
+const hunt = { hands: hunts.hands, shift: hunts.shift, play: hunts.play }[params.get("bisect")] || hunts.main;
 let huntState = null;
 if (params.has("bisect")) {
   if (params.get("bisect") === "reset" || params.has("reset")) {
@@ -119,11 +120,12 @@ if (params.has("bisect")) {
   hunt.save(crashStorage, huntState);
 }
 const huntStep = huntState && !hunt.finished(huntState) ? hunt.current(huntState) : null;
+const playHunt = hunt === hunts.play && !!huntState;
 // The first-person hands layer crashed an iPad's Safari about 45 s into every Coach Cam shift (the crash hunt found
 // it), so Safari's engine plays without it until that is understood. `?hands` turns it back on; a hunt or a trial
 // sets its own switches and gets no default.
 const testing = params.has("bisect") || params.has("trial");
-const handsOff = isWebKit(navigator.userAgent) && !params.has("hands") && !testing;
+const handsOff = isWebKit(navigator.userAgent) && !params.has("hands") && (!testing || playHunt);
 // How hard to drive the graphics here (gfx.mjs): a touch device with WebKit draws fewer pixels and at most 60 frames a second, and a
 // page that died in the middle of a shift makes this launch draw with lighter graphics. `?gfx=reset` goes back to full graphics.
 if (params.get("gfx") === "reset") resetGfx(crashStorage);
@@ -132,7 +134,8 @@ const touchWebKit = isTouchWebKit({
   maxTouchPoints: navigator.maxTouchPoints,
 });
 const gfxBoot = bootGfx(crashStorage, { count: !testing });
-const gfxTier = testing ? 0 : gfxBoot.tier;
+// (The played hunt draws every test as light as the lightest crash so far, tier 2, so that only its own switch differs.)
+const gfxTier = testing ? (playHunt ? 2 : 0) : gfxBoot.tier;
 // The quality the player chose in Help (Auto, Low, Medium, Standard, High, Ultra); a hunt or a trial plays Auto.
 const gfxQuality = testing ? "auto" : readQuality(crashStorage);
 const tuning = readTuning(location.search, [
@@ -163,6 +166,7 @@ const playtestWord = playtestChoice(location.search, readPlaytest(crashStorage))
 if (playtestWord.said) savePlaytest(crashStorage, playtestWord.on);
 const playtest = playtestWord.on;
 const crashlog = installCrashLog({ build: BUILD, storage: crashStorage, motion: reducedMotion.matches });
+if (tuning.has("nolog")) crashlog.gap = 5000; // the played hunt's test of the log: saved every 5 s, not every half second
 if (playtest) {
   crashlog.setLimits(PLAYTEST_LIMITS);
   crashlog.crumb("playtest", "on");
@@ -801,6 +805,75 @@ function endTrial(played = true) {
   }
 }
 
+// The played hunt (?bisect=play): the player plays ordinary shifts and each launch takes one suspect out (bisect.mjs PLAY_PLAN). A test
+// starts when a shift is under way with the page in front, is passed after PLAY_SECONDS of it, and is a crash when the page dies in it
+// (the next launch finds it still running). A hidden page or a shift that ends sooner leaves the test to be played again.
+let playTest = null;
+function playHuntBanner(text) {
+  huntOverlay(`<strong>${huntLabel()}</strong><p>${text}</p>`);
+  $("hunt").classList.add("compact");
+}
+function startPlayHunt() {
+  const sofar = hunt
+    .summary(huntState)
+    .lines.map((l) => l.id + " " + l.outcome)
+    .join(", ");
+  // (The words crash-triage.mjs reads a hunt test by: the label line, "survived", and "so far: …".)
+  crashlog.crumb("hunt", huntLabel() + " · switches: " + (tuning.describe().join(" + ") || "none"));
+  crashlog.crumb("hunt", "so far: " + sofar);
+  live?.dirty("urgent");
+  playHuntBanner(
+    "Play a shift of level 2 or higher, as you normally would, for a minute. If the game crashes, open it again: the next test starts by itself.",
+  );
+  setInterval(playHuntTick, 250);
+}
+function playHuntTick() {
+  // (Once a test is passed, the page reloads into the next one; until then it plays on, and counts nothing.)
+  if (!huntStep || hunt.current(huntState) !== huntStep) return;
+  const now = performance.now(),
+    shiftOn = ["playing", "countdown", "paused"].includes(mode);
+  if (!playTest) {
+    if (mode !== "playing" || document.hidden) return;
+    playTest = { played: 0, last: now, shown: -1 };
+    crashlog.crumb("hunt", "test begins: " + huntStep.label);
+  }
+  const gap = Math.min(1000, now - playTest.last);
+  playTest.last = now;
+  // A page in the background may be ended by the system without that being a crash: the test waits for it to come back.
+  if (document.hidden || !shiftOn) {
+    if (huntState.running) {
+      hunt.abandon(huntState);
+      hunt.save(crashStorage, huntState);
+    }
+    if (!shiftOn) {
+      crashlog.crumb("hunt", "the shift ended before " + hunts.PLAY_SECONDS + " s: not counted");
+      playTest = null;
+      playHuntBanner("That shift ended too soon to count. Play another (level 3 or higher lasts longer).");
+    }
+    return;
+  }
+  if (mode !== "playing") return;
+  if (!huntState.running) {
+    hunt.begin(huntState);
+    hunt.save(crashStorage, huntState);
+  }
+  playTest.played += gap;
+  const secs = Math.floor(playTest.played / 1000);
+  if (secs !== playTest.shown) {
+    playTest.shown = secs;
+    playHuntBanner(secs + " of " + hunts.PLAY_SECONDS + " s played. Keep playing normally.");
+  }
+  if (playTest.played < hunts.PLAY_SECONDS * 1000) return;
+  const label = huntLabel(); // (the test's own, before the step moves on)
+  hunt.pass(huntState);
+  hunt.save(crashStorage, huntState);
+  crashlog.crumb("hunt", "survived");
+  live?.dirty("urgent");
+  playTest = null;
+  huntOverlay(`<strong>${label}</strong><p>Survived ✓ The next test starts in a moment…</p>`);
+  setTimeout(() => location.reload(), 1800);
+}
+
 // ---- the crash log -------------------------------------------------------------------------------------------------
 // What the game is doing, for the report: the shift, the venue, the view, what is going wrong right now.
 let runSeed = 0; // the seed of the shift being played (the deck's schedule follows from it)
@@ -1084,7 +1157,8 @@ function playtestTick(dt) {
       const changed = crashlog.rev !== liveRev;
       liveRev = crashlog.rev;
       const want = liveWant({ mode, changed });
-      if (want) live.dirty(want);
+      // (`nolog`: a playtest's log goes out when the shift is over, not while it is played.)
+      if (want && !(tuning.has("nolog") && ["playing", "countdown"].includes(mode))) live.dirty(want);
       live.poll();
     }
   } catch (e) {
@@ -2490,6 +2564,12 @@ function clearBubbles() {
   bubbles.clear();
 }
 function updateBubbles() {
+  // `notags` (the played hunt): no tag, bubble or label is drawn over the pool at all.
+  if (tuning.has("notags")) {
+    if (bubbles.size) clearBubbles();
+    $("world-labels").hidden = true;
+    return;
+  }
   const ids = new Set(),
     tagTop = document.querySelector(".scoreboard").getBoundingClientRect().bottom + 12;
   for (const p of sim.people) {
@@ -3285,6 +3365,7 @@ try {
         " · 🐞 flags a problem",
     );
   if (huntState && hunt.finished(huntState)) showHuntResults();
+  else if (playHunt) startPlayHunt();
   else if (huntStep || params.has("trial")) setTimeout(startTrial, 1500);
   // The GPU, and how big the drawing surface is (the likeliest thing to run a small device out of memory).
   const surface = world.renderer?.domElement,

@@ -189,7 +189,11 @@ assert.ok(!isTouchWebKit(), "nothing known");
     scene = readFileSync("dist/scene.mjs", "utf8");
   assert.match(app, /from "\.\/gfx\.mjs"/);
   assert.match(app, /bootGfx\(crashStorage, \{ count: !testing \}\)/, "a hunt's crash is not counted");
-  assert.match(app, /const gfxTier = testing \? 0 : gfxBoot\.tier/, "a hunt plays at tier 0");
+  assert.match(
+    app,
+    /const gfxTier = testing \? \(playHunt \? 2 : 0\) : gfxBoot\.tier/,
+    "a hunt plays at tier 0, the played hunt at the lightest crash's tier 2",
+  );
   assert.match(
     app,
     /\.\.\.graphicsPlan\(\{ tier: gfxTier, quality: gfxQuality \}\)\.flags/,
