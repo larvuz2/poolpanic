@@ -63,7 +63,7 @@ export const SHIFTS = [
     name: "Fast company",
     duration: 120,
     total: 22,
-    thresholds: [2000, 3100, 4200],
+    thresholds: [2000, 3100, 4400],
     mix: [0.19, 0.43, 0.9],
     intro: "carl",
     chaos: [{ kinds: ["carl"], window: [35, 60] }],
@@ -544,10 +544,32 @@ export class PoolSimulation extends ChaosController {
       this.level >= 2 && ((this.level === 2 && index === 1) || p.shape < 0.25 * this.perks.cramp)
         ? 9 + (p.phase / 6.28) * 4
         : Infinity;
+    // Some of the swimmers who want fins ask for them in the queue, before they will swim at all: they cannot be given a lane
+    // until the coach brings them a pair. (Decided from a number already drawn, so no other roll of the shift moves.)
+    p.finsFirst = need && !p.midFins && this.level >= 2 && p.phase < Math.PI * 0.7;
+    if (p.finsFirst) {
+      p.problem = "fins";
+      p.waitLimit *= 1.5; // they have asked, so they wait a little longer for the coach
+    }
     if (type === "daredevil")
-      Object.assign(p, { needsFins: false, midFins: false, sick: false, crampAt: Infinity });
+      Object.assign(p, {
+        needsFins: false,
+        midFins: false,
+        finsFirst: false,
+        problem: null,
+        sick: false,
+        crampAt: Infinity,
+      });
     if (spec.vip) {
-      Object.assign(p, { vip: true, sick: false, needsFins: false, midFins: false, crampAt: Infinity });
+      Object.assign(p, {
+        vip: true,
+        sick: false,
+        needsFins: false,
+        midFins: false,
+        finsFirst: false,
+        problem: null,
+        crampAt: Infinity,
+      });
       p.waitLimit *= 0.75;
     }
     if (spec.entrance) {
@@ -647,6 +669,15 @@ export class PoolSimulation extends ChaosController {
     }
     if (p.type === "daredevil") {
       this.emit("toast", { text: p.name + " only wants the trampoline! Press T or click the tower." });
+      return false;
+    }
+    if (p.finsFirst && !p.hasFins) {
+      this.emit("toast", {
+        text:
+          p.name + " won't swim without fins. Grab a pair from the fin rack (F) and hand them over first.",
+        warning: true,
+      });
+      this.emit("needs-fins", { id: p.id });
       return false;
     }
     if (this.laneLocked(lane)) return this.laneRefused(lane);

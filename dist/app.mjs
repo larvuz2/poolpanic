@@ -2057,7 +2057,11 @@ function problemIcon(p) {
 }
 function cardStatus(p) {
   if (p.status === "queue")
-    return p.type === "daredevil" ? "Daredevil · wants the trampoline" : swimmerLook(p).label;
+    return p.type === "daredevil"
+      ? "Daredevil · wants the trampoline"
+      : p.finsFirst && !p.hasFins
+        ? swimmerLook(p).label + " · wants fins first"
+        : swimmerLook(p).label;
   if (p.status === "injured") return p.healing ? "Being bandaged…" : "Hurt · needs the med kit";
   const where = p.lane == null ? "In the pool" : "Lane " + (p.lane + 1);
   return (

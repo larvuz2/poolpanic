@@ -267,7 +267,7 @@ The coach has **one carrying slot**. Inventory and ownership must survive assign
 
 | Equipment | Purpose and rules |
 | --- | --- |
-| Fins | Exactly three physical pairs total across rack, coach, swimmers, and deck. Deliver to swimmers requesting them before or during workouts; recover dropped pairs. |
+| Fins | Exactly three physical pairs total across rack, coach, swimmers, and deck. Deliver to swimmers requesting them before or during workouts; recover dropped pairs. **Fins first** (from level 2, about one swimmer in forty: none to a few a shift): a swimmer who asks in the queue (🦶 on the tag, "wants fins first" on the card) cannot be given a lane until the coach hands over a pair; a lane click says so. They have asked, so they wait half as long again before losing patience. Free play and the week alike (`finsFirst` in `dist/sim.mjs`; `service-check.mjs`; the coach bot fetches and delivers them). |
 | Chlorine | Carry from the station to the water. Balances contamination against eye irritation. |
 | Eye relief | Carry to an affected swimmer and deliver within reach. |
 | Goggles | Recover dropped goggles and return them to the correct owner. |
@@ -443,7 +443,7 @@ Changing tabs pauses active play/countdown. Pause must freeze doors and incident
 | 3 | Peak panic | Club | 90 | 14 | — | 1100 / 1800 / 2500 |
 | 4 | Fin club | Club | 120 | 20 | Dog | 1800 / 2900 / 3800 |
 | 5 | Aqua hour | Club | 120 | 21 | Fish | 1800 / 2900 / 3900 |
-| 6 | Fast company | Club | 120 | 22 | Carl | 2000 / 3100 / 4200 |
+| 6 | Fast company | Club | 120 | 22 | Carl | 2000 / 3100 / 4400 |
 | 7 | Mixed company | Club | 135 | 23 | Outage | 2100 / 3300 / 4500 |
 | 8 | The relay | Club | 135 | 24 | Dog or fish, then Carl or outage | 2200 / 3500 / 4700 |
 | 9 | Championship day | Club | 150 | 26 | Three incidents | 2300 / 3700 / 5000 |
