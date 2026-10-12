@@ -368,7 +368,7 @@ export class CrashLog {
   touch() {
     this.dirty = true;
     if (this.timer) return;
-    const wait = Math.max(0, 500 - (this.now() - this.lastWrite));
+    const wait = Math.max(0, (this.gap || 500) - (this.now() - this.lastWrite));
     this.timer = this.schedule(() => {
       this.timer = null;
       this.flush(true);

@@ -282,6 +282,44 @@ const memory = () => {
   const store = memory();
   store.setItem(hunt.KEY, "not json");
   assert.deepEqual(hunt.load(store), hunt.fresh());
+  // The played plan (?bisect=play): the player plays, one suspect out per test, its own results; a shift that ends too soon or a page
+  // that is hidden counts nothing, and the test is played again.
+  {
+    const pp = hunt.play.PLAN,
+      words = new Set([...SAFE, "notags", "nolog"]);
+    assert.equal(pp[0].id, "control");
+    assert.deepEqual(pp[0].flags, [], "The control takes nothing out");
+    for (const p of pp)
+      for (const f of p.flags) assert.ok(words.has(f) && readTuning("", [f]).list().includes(f), f);
+    for (const id of ["nosound", "nomodels", "notags", "nolog", "noparticles"])
+      assert.ok(
+        pp.some((p) => p.id === id && p.flags.length === 1),
+        id + " is a test of its own",
+      );
+    assert.ok(pp.find((p) => p.combined).flags.length >= 5, "The last takes them all out");
+    assert.ok(hunt.PLAY_SECONDS > 55, "A test outlasts every crash of the kind (38 to 55 s after the go)");
+    assert.notEqual(hunt.play.KEY, hunt.shift.KEY);
+    const store2 = memory();
+    let st = hunt.play.resume(hunt.play.load(store2));
+    hunt.play.begin(st);
+    hunt.play.save(store2, st);
+    hunt.play.abandon(st); // the shift ended too soon
+    hunt.play.save(store2, st);
+    st = hunt.play.resume(hunt.play.load(store2));
+    assert.equal(st.step, 0, "An abandoned test is not a crash");
+    assert.deepEqual(st.results, {});
+    hunt.play.begin(st);
+    hunt.play.save(store2, st); // the page dies here
+    st = hunt.play.resume(hunt.play.load(store2));
+    assert.equal(st.results.control, "crashed");
+    assert.equal(hunt.play.current(st).id, "nosound");
+    hunt.play.begin(st);
+    hunt.play.pass(st);
+    hunt.play.save(store2, st);
+    st = hunt.play.resume(hunt.play.load(store2));
+    assert.equal(st.results.nosound, "ok");
+    assert.match(hunt.play.summary(st).verdict, /Still testing/);
+  }
   store.setItem(
     hunt.KEY,
     JSON.stringify({ v: 1, step: 99, running: true, results: { control: "weird", noshadow: "ok" } }),

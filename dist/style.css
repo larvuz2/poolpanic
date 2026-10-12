@@ -4558,6 +4558,19 @@ body:not(.menu) .fund-pill {
 .hunt strong {
   color: var(--yellow);
 }
+/* The played hunt (?bisect=play): a small note in a corner that taps go through, so the shift can be played. */
+.hunt.compact {
+  top: auto;
+  bottom: 10px;
+  left: 10px;
+  transform: none;
+  width: min(60vw, 300px);
+  padding: 7px 10px;
+  font-size: 12px;
+  text-align: left;
+  pointer-events: none;
+  opacity: 0.92;
+}
 .hunt p {
   margin: 6px 0 0;
 }

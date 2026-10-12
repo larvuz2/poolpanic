@@ -56,6 +56,28 @@ export const SHIFT_PLAN = [
   { id: "control2", label: "Everything on, again", flags: ["overview"], again: "control" },
 ];
 
+// The played plan (?bisect=play), for the crash that a shift played by a person ended in about 40 to 46 s after the go, on an iPad
+// (12 October 2026: three times in four minutes, at three sizes of drawing surface down to 12 MB, without antialiasing or
+// shadows, so not the pixels). A hunt left alone never has what a played shift has: the touches, the sound (Safari starts it
+// only after a tap) and the playtest's log. Here the player plays ordinary shifts and each test takes one suspect out; the
+// graphics are those of the lightest crash so far (crash tier 2: no antialiasing or shadows, fewer pixels) in every test. A test
+// is passed when a shift has been played PLAY_SECONDS with the page in front, and crashed when the page died in it.
+export const PLAY_SECONDS = 62;
+export const PLAY_PLAN = [
+  { id: "control", label: "Light graphics, everything else on", flags: [] },
+  { id: "nosound", label: "Sound off", flags: ["nosound"] },
+  { id: "nomodels", label: "Classic characters (no models)", flags: ["nomodels"] },
+  { id: "notags", label: "No tags over the swimmers", flags: ["notags"] },
+  { id: "nolog", label: "Log saved and sent only every few seconds", flags: ["nolog"] },
+  { id: "noparticles", label: "No splashes or sparkles", flags: ["noparticles"] },
+  {
+    id: "safe",
+    label: "All of these off",
+    flags: ["nosound", "nomodels", "notags", "nolog", "noparticles"],
+    combined: true,
+  },
+];
+
 // Bring the same steps to a plan: a saved state, what a page finding it does, and the words for the results.
 export function createHunt({ key, plan }) {
   const fresh = () => ({ v: 1, step: 0, running: false, results: {} });
@@ -108,6 +130,10 @@ export function createHunt({ key, plan }) {
     state.results[plan[state.step].id] = "ok";
     state.running = false;
     state.step++;
+  }
+  // A test whose shift ended (or whose page was hidden) before it counted: not run yet, it starts again with the next shift.
+  function abandon(state) {
+    state.running = false;
   }
   // A test that could not be played through (the page was hidden or paused for too long) says nothing either way.
   function skip(state) {
@@ -188,6 +214,7 @@ export function createHunt({ key, plan }) {
     begin,
     pass,
     skip,
+    abandon,
     summary,
     report,
   };
@@ -196,6 +223,7 @@ export function createHunt({ key, plan }) {
 export const main = createHunt({ key: "pool-panic.hunt.v1", plan: MAIN_PLAN });
 export const hands = createHunt({ key: "pool-panic.hunt.hands.v1", plan: HANDS_PLAN });
 export const shift = createHunt({ key: "pool-panic.hunt.shift.v1", plan: SHIFT_PLAN });
+export const play = createHunt({ key: "pool-panic.hunt.play.v1", plan: PLAY_PLAN });
 
 // The main plan's steps, as the plain functions the first version exported.
 export const {

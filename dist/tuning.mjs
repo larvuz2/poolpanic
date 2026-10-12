@@ -30,7 +30,20 @@ export const SAFE = [
   "nomodels",
 ];
 const HANDS = ["hands", "handsnodepth", "handsnoenv", "handsnotorch", "handsbasic", "handsinline"];
-const KNOWN = new Set([...SAFE, ...HANDS, "safe", "overview", "dpr", "norender", "nosync"]);
+// Two that are not graphics, for the played hunt (bisect.mjs PLAY_PLAN): notags (no tags or bubbles over the people, which are
+// page elements moved every frame) and nolog (the crash log saved every 5 s rather than every half second, and a playtest's log
+// sent only when the shift is over).
+const KNOWN = new Set([
+  ...SAFE,
+  ...HANDS,
+  "safe",
+  "overview",
+  "dpr",
+  "norender",
+  "nosync",
+  "notags",
+  "nolog",
+]);
 
 // Safari and every other browser that draws with Apple's WebKit (all browsers on an iPhone or iPad), which is
 // where the hands layer crashed.
