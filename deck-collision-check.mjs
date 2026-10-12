@@ -65,9 +65,9 @@ for (const count of [8, 16, 27]) {
   const s = fresh(),
     people = Array.from({ length: count }, () => s.spawn({ type: "beginner", sick: false }));
   for (const p of people) {
+    Object.assign(p, { needsFins: false, finsFirst: false, problem: null }); // (fins are not what this is about)
     s.select(p.id);
     s.assign(p.id % 3);
-    p.needsFins = false;
   }
   const entered = new Set();
   for (let f = 0; f < 1500; f++) {

@@ -104,6 +104,60 @@ for (const [id, mount] of RING_MOUNTS.entries()) {
   s.tick(1 / 60);
   assert.equal(s.coach.waterTransition?.kind, "dive", "Every life ring enables automatic entry");
 }
+// Fins first: a swimmer who asks for fins in the queue cannot be given a lane until the coach hands a pair over; then the lane is
+// theirs. About one swimmer in twelve asks this way (none on level 1, and never a daredevil or a VIP).
+{
+  const s = game();
+  const p = s.spawn({ type: "intermediate", sick: false });
+  Object.assign(p, { needsFins: true, midFins: false, finsFirst: true, hasFins: false, problem: "fins" });
+  s.select(p.id);
+  s.events.length = 0;
+  assert.equal(s.assign(1), false, "no lane before the fins");
+  assert.equal(p.status, "queue");
+  assert.ok(
+    s.events.some((e) => e.type === "toast" && /won't swim without fins/.test(e.text)),
+    "the player is told why",
+  );
+  // The coach fetches a pair at the rack and hands it over in the queue.
+  const rack = s.venue.stations.fins;
+  const beside = [
+    [0.9, 0],
+    [-0.9, 0],
+    [0, 0.9],
+    [0, -0.9],
+  ].find(([dx, dz]) => isDeckPosition(rack.x + dx, rack.z + dz));
+  at(s, rack.x + beside[0], rack.z + beside[1]);
+  assert.ok(s.fetch("fins"));
+  for (let i = 0; i < 30; i++) s.tick(1 / 60);
+  assert.equal(s.coach.carry, "fins");
+  const spot = s.servicePoint(p);
+  at(s, spot.x, spot.z);
+  assert.ok(s.deliver(p.id), "the fins can be handed over in the queue");
+  for (let i = 0; i < 60 && s.coach.busy; i++) s.tick(1 / 60);
+  assert.ok(p.hasFins && p.problem === null, "fins on, nothing more to ask");
+  s.select(p.id);
+  assert.equal(s.assign(1), true, "and now a lane");
+  let asked = 0,
+    total = 0;
+  for (const level of [1, 2, 6, 12, 18]) {
+    const t = new PoolSimulation(level, 7);
+    for (let i = 0; i < 150; i++) t.spawn({});
+    for (const q of t.people) {
+      total++;
+      if (q.finsFirst) {
+        asked++;
+        assert.ok(
+          level >= 2 && q.needsFins && !q.midFins && q.problem === "fins" && !q.vip && q.type !== "daredevil",
+        );
+      }
+    }
+  }
+  assert.ok(
+    asked / total > 0.01 && asked / total < 0.08,
+    "some swimmers ask first (" + asked + " of " + total + ")",
+  );
+}
 console.log(
-  "Service checks passed: doubled handoffs, both ends, both outer-lane tracks, middle-lane restriction, E-drop priority, angry trip feedback, small single penalty, fin inventory, all three ring pickups/returns, and automatic rescue entry.",
+  "Fins first: a swimmer asking in the queue gets no lane until the fins are handed over. " +
+    "Service checks passed: doubled handoffs, both ends, both outer-lane tracks, middle-lane restriction, E-drop priority, angry trip feedback, small single penalty, fin inventory, all three ring pickups/returns, and automatic rescue entry.",
 );

@@ -296,7 +296,8 @@ export class PoolWorld extends SceneKit {
     const sun = new THREE.DirectionalLight(look.sun[0], look.sun[1]);
     sun.position.set(...look.sun[2]);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    const shadowSize = globalThis.__poolGfx?.plan?.shadow || 2048; // the chosen quality's (gfx.mjs QUALITY)
+    sun.shadow.mapSize.set(shadowSize, shadowSize);
     sun.shadow.camera.left = -27;
     sun.shadow.camera.right = 27;
     sun.shadow.camera.top = 27;
@@ -1333,6 +1334,28 @@ export class PoolWorld extends SceneKit {
     if (gfx?.plan) return gfx.plan.ratio(w, h, gfx.scale);
     return Math.min(devicePixelRatio, Math.max(0.5, this.tune.number("dpr", 1.7)));
   }
+  // Textures seen at an angle (the deck, the tiles, the models) stay as sharp as the chosen quality asks (anisotropic filtering). Looked
+  // over every two seconds, so the models that load later get it too; a texture is only sent again when its setting changes.
+  sharpenTextures() {
+    const want = globalThis.__poolGfx?.plan?.anisotropy;
+    if (!want || !this.renderer) return;
+    const now = performance.now();
+    if (now - (this.sharpenedAt || 0) < 2000) return;
+    this.sharpenedAt = now;
+    const level = Math.max(1, Math.min(want, this.renderer.capabilities.getMaxAnisotropy?.() || 1));
+    const visit = (o) => {
+      for (const m of [].concat(o.material || []))
+        for (const key of ["map", "normalMap", "roughnessMap", "emissiveMap", "aoMap"]) {
+          const t = m[key];
+          if (t?.isTexture && t.anisotropy !== level) {
+            t.anisotropy = level;
+            t.needsUpdate = true;
+          }
+        }
+    };
+    this.scene.traverse(visit);
+    this.coachCam?.scene?.traverse(visit);
+  }
   resize() {
     const w = this.container.clientWidth,
       h = this.container.clientHeight;
@@ -1649,6 +1672,7 @@ export class PoolWorld extends SceneKit {
     );
   }
   render() {
+    this.sharpenTextures();
     this.renderer.render(this.scene, this.camera);
     if (this.viewMode === "coach" && !this.tune.has("nohands")) this.coachCam.render(this.renderer);
   }

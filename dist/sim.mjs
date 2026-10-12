@@ -63,7 +63,7 @@ export const SHIFTS = [
     name: "Fast company",
     duration: 120,
     total: 22,
-    thresholds: [2000, 3100, 4200],
+    thresholds: [2000, 3100, 4400],
     mix: [0.19, 0.43, 0.9],
     intro: "carl",
     chaos: [{ kinds: ["carl"], window: [35, 60] }],
@@ -367,6 +367,8 @@ export class PoolSimulation extends ChaosController {
     this.config = config;
     this.booking = booking?.id ?? null;
     this.drill = options.drill ?? null;
+    // What the week's shop has bought for this shift (week.mjs PERKS): multipliers that are all 1 (and a warning of 0 s) without.
+    this.perks = { speed: 1, dash: 1, patience: 1, cramp: 1, warning: 0, score: 1, ...(options.perks || {}) };
     this.seed = seed >>> 0;
     this.time = 0;
     this.arrivalTime = 0;
@@ -500,7 +502,7 @@ export class PoolSimulation extends ChaosController {
       angle: 0,
       h: 100,
       wait: 0,
-      waitLimit: 32 - this.difficulty * 2 + this.random() * 8,
+      waitLimit: (32 - this.difficulty * 2 + this.random() * 8) * this.perks.patience,
       lane: null,
       path: [],
       p: 0,
@@ -519,8 +521,8 @@ export class PoolSimulation extends ChaosController {
       stomachWarning: false,
       stomachDelay: 3 + this.random() * 4,
       stomachElapsed: 0,
-      sicknessTimer: 10,
-      sicknessDuration: 10,
+      sicknessTimer: 10 + this.perks.warning,
+      sicknessDuration: 10 + this.perks.warning,
       needsFins: need,
       midFins: need && this.level > 1 && this.random() < 0.62,
       hasFins: false,
@@ -539,13 +541,35 @@ export class PoolSimulation extends ChaosController {
       crampDone: false,
     };
     p.crampAt =
-      this.level >= 2 && ((this.level === 2 && index === 1) || p.shape < 0.25)
+      this.level >= 2 && ((this.level === 2 && index === 1) || p.shape < 0.25 * this.perks.cramp)
         ? 9 + (p.phase / 6.28) * 4
         : Infinity;
+    // Some of the swimmers who want fins ask for them in the queue, before they will swim at all: they cannot be given a lane
+    // until the coach brings them a pair. (Decided from a number already drawn, so no other roll of the shift moves.)
+    p.finsFirst = need && !p.midFins && this.level >= 2 && p.phase < Math.PI * 0.7;
+    if (p.finsFirst) {
+      p.problem = "fins";
+      p.waitLimit *= 1.5; // they have asked, so they wait a little longer for the coach
+    }
     if (type === "daredevil")
-      Object.assign(p, { needsFins: false, midFins: false, sick: false, crampAt: Infinity });
+      Object.assign(p, {
+        needsFins: false,
+        midFins: false,
+        finsFirst: false,
+        problem: null,
+        sick: false,
+        crampAt: Infinity,
+      });
     if (spec.vip) {
-      Object.assign(p, { vip: true, sick: false, needsFins: false, midFins: false, crampAt: Infinity });
+      Object.assign(p, {
+        vip: true,
+        sick: false,
+        needsFins: false,
+        midFins: false,
+        finsFirst: false,
+        problem: null,
+        crampAt: Infinity,
+      });
       p.waitLimit *= 0.75;
     }
     if (spec.entrance) {
@@ -601,7 +625,7 @@ export class PoolSimulation extends ChaosController {
   }
   // What a served swimmer is worth: the streak multiplier times the booking's payout.
   scoreMultiplier() {
-    return this.multiplier() * (this.config.payout ?? 1);
+    return this.multiplier() * (this.config.payout ?? 1) * (this.perks?.score ?? 1);
   }
   select(id) {
     const p = this.get(id);
@@ -645,6 +669,15 @@ export class PoolSimulation extends ChaosController {
     }
     if (p.type === "daredevil") {
       this.emit("toast", { text: p.name + " only wants the trampoline! Press T or click the tower." });
+      return false;
+    }
+    if (p.finsFirst && !p.hasFins) {
+      this.emit("toast", {
+        text:
+          p.name + " won't swim without fins. Grab a pair from the fin rack (F) and hand them over first.",
+        warning: true,
+      });
+      this.emit("needs-fins", { id: p.id });
       return false;
     }
     if (this.laneLocked(lane)) return this.laneRefused(lane);

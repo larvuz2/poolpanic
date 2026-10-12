@@ -59,7 +59,7 @@ export class CoachBot {
       s.home();
     }
     if (s.status !== "playing") return;
-    for (const p of s.people.filter((p) => p.status === "queue")) {
+    for (const p of s.people.filter((p) => p.status === "queue" && !(p.finsFirst && !p.hasFins))) {
       s.select(p.id);
       if (p.queasy && p.sick) s.home();
       else if (p.type === "daredevil") {
@@ -183,7 +183,11 @@ export class CoachBot {
       treats: () => fx.treats,
       lifering: () => this.wallPoint(s.lifeRings.find((r) => r.state === "coach").mount),
     }[c.carry];
-    if (!home) return;
+    if (!home) {
+      // Fins have no hook to go back to: in a hurry they are left on the deck. Whatever else, time moves on.
+      if (!(c.carry === "fins" && s.dropCarriedFins())) this.frame();
+      return;
+    }
     this.approach(home(), 1.0);
     for (let f = 0; f < 60 && c.carry && !this.over; f++) {
       if (s.canInteract()) s.returnItem();
@@ -201,6 +205,8 @@ export class CoachBot {
     if (s.fish?.stage === "loose") return this.fishLoose;
     if (c.netLoaded) return this.fishReturn;
     if (s.outage?.stage === "dark") return this.outage;
+    // A pair of fins already in hand goes to the swimmer waiting for it before anything that can wait a few seconds.
+    if (c.carry === "fins" && this.finsWanted()) return this.giveFins;
     if (this.proactive) {
       if (s.fish?.stage === "approach") return this.fishKid;
       if (s.outage?.stage === "flicker") return this.outage;
@@ -210,8 +216,39 @@ export class CoachBot {
       const karen = s.karen && s.visitor(s.karen.id);
       if (karen && ["marching", "ranting"].includes(karen.status)) return this.karen;
     }
+    // Fins: a waiting swimmer who will not swim without them gets a pair (a pair in hand always goes to someone).
+    if (c.carry === "fins") return this.giveFins;
+    if (!c.carry && s.finsAvailable > 0 && this.finsWanted()) return this.giveFins;
     if (c.carry) return this.putAway;
     return null;
+  }
+  // A swimmer in the queue who will not swim without fins. (One who asks in the water is service the bot leaves alone: the star
+  // targets count on a player doing it.)
+  finsWanted() {
+    return this.s.people.find((q) => q.status === "queue" && q.finsFirst && !q.hasFins) || null;
+  }
+  giveFins() {
+    const s = this.s,
+      c = s.coach;
+    const p =
+      this.finsWanted() ||
+      (c.carry === "fins" && s.people.find((q) => q.status === "queue" && q.needsFins && !q.hasFins));
+    if (c.carry !== "fins") {
+      if (!p) return this.wait(10);
+      // The rack stands in its counter: stop within arm's reach of it, not on it.
+      this.walkTo(s.venue.stations.fins, { reach: 1.5, limit: 600 });
+      s.fetch("fins");
+      this.waitBusy();
+      if (c.carry !== "fins") return this.wait(10);
+    }
+    if (!p) {
+      // Nobody waiting needs them any more: leave them on the deck, out of the way.
+      if (!s.dropCarriedFins()) this.wait(5);
+      return;
+    }
+    this.walkTo(s.servicePoint(p), { reach: 0.5, limit: 600 });
+    if (s.deliver(p.id)) this.waitBusy();
+    else this.wait(5);
   }
   fishKid() {
     const s = this.s,

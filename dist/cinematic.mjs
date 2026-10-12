@@ -6,8 +6,14 @@
 const esc = (text) =>
   String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
-// The stage for one panel: the backdrop class, then each layer absolutely placed by percent of the stage.
+// The stage for one panel: the backdrop class, then each layer absolutely placed by percent of the stage. A panel with a
+// `video` (a file under dist/, see marina.mjs) plays it full screen instead; the layers stay behind it as the fallback.
 export function panelHtml(panel) {
+  if (panel.video)
+    return `<div class="cine-scene bg-${esc(panel.bg || "pool")}">${layersHtml(panel)}<video class="cine-video" src="${esc(panel.video)}" autoplay playsinline preload="auto"></video></div>`;
+  return `<div class="cine-scene bg-${esc(panel.bg || "pool")}">${layersHtml(panel)}</div>`;
+}
+function layersHtml(panel) {
   const layers = (panel.layers || [])
     .map((l) => {
       const at = `left:${+l.x || 0}%;top:${+l.y || 0}%`;
@@ -15,7 +21,7 @@ export function panelHtml(panel) {
       return `<span class="cine-layer ${l.a ? "a-" + esc(l.a) : ""}" style="${at};--s:${+l.s || 10}" aria-hidden="true">${esc(l.e)}</span>`;
     })
     .join("");
-  return `<div class="cine-scene bg-${esc(panel.bg || "pool")}">${layers}</div>`;
+  return layers;
 }
 
 // Play `panels` in the dialog `el`. Returns { skip, next } (mostly for checks). `done(skipped)` runs once, after the
@@ -37,6 +43,13 @@ export function playCinematic(el, panels, { done = () => {}, labels = {} } = {})
       last = i === panels.length - 1;
     stage.innerHTML = panelHtml(panel);
     caption.textContent = panel.text;
+    // A video moves on by itself when it ends; one that cannot play is taken away and the drawn panel shows instead.
+    const video = panel.video ? stage.querySelector?.("video") : null;
+    if (video) {
+      video.addEventListener("ended", () => index === i && next());
+      video.addEventListener("error", () => video.remove());
+      video.play?.()?.catch?.(() => {});
+    }
     [...dots.children].forEach((d, n) => d.classList.toggle("on", n <= i));
     nextButton.textContent = last ? labels.last || "Let's go! ▶" : "Next ▶";
     skipButton.hidden = last;

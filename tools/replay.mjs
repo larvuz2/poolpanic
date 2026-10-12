@@ -31,6 +31,12 @@ export function makeSim(record) {
       drill: drill.id,
     });
   }
+  if (record.week?.config)
+    return new PoolSimulation(record.level, record.seed, {
+      config: { ...record.week.config, ...man },
+      booking: record.booking || null,
+      perks: record.week.perks || {},
+    });
   return new PoolSimulation(record.level, record.seed, {
     booking: record.booking || null,
     ...(man && { config: { ...SHIFTS[record.level - 1], ...man } }),
