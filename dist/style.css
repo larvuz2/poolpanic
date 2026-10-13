@@ -1540,6 +1540,28 @@ body.menu .coach-prompt {
     display: none;
   }
 }
+/* On-screen controls set to On in Help: what a touch screen gets, for a mouse too (Steam Link on an iPad sends touches as clicks). Off
+   hides them, even on a touch screen. */
+body.touchpad-on .touch-controls:not([hidden]) {
+  display: block;
+}
+body.touchpad-on .queue-panel {
+  max-height: calc(100dvh - 375px);
+}
+body.touchpad-on .care-panel {
+  bottom: 270px;
+}
+body.touchpad-on .care-actions {
+  display: none;
+}
+body.touchpad-on .lane-controls {
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+}
+body.touchpad-off .touch-controls {
+  display: none !important;
+}
 @media (max-width: 620px) {
   :root {
     --edge: 12px;

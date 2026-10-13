@@ -1639,6 +1639,28 @@ function renderQuality() {
           : "";
   $("quality-reset").hidden = !capped || qualityPending;
 }
+// The On-screen controls row of Help: the walk pad and the Dash, Jump and Interact buttons. Auto shows them on a touch screen; On shows them
+// whatever the pointer (an iPad playing the desktop app through Steam Link sends its touches as mouse clicks); Off hides them.
+const TOUCHPAD_CHOICES = [
+  ["auto", "Auto"],
+  ["on", "On"],
+  ["off", "Off"],
+];
+function renderTouchpad() {
+  const chosen = settings.touchpad || "auto";
+  document.body.classList.toggle("touchpad-on", chosen === "on");
+  document.body.classList.toggle("touchpad-off", chosen === "off");
+  $("touchpad-buttons").innerHTML = TOUCHPAD_CHOICES.map(
+    ([id, name]) =>
+      `<button class="quality-btn${id === chosen ? " on" : ""}" data-touchpad="${id}" aria-pressed="${id === chosen}">${name}</button>`,
+  ).join("");
+  $("touchpad-note").textContent =
+    chosen === "on"
+      ? "The walk pad and the action buttons show during a shift, for a mouse too (Steam Link on an iPad)."
+      : chosen === "off"
+        ? "Hidden, even on a touch screen."
+        : "Auto: shown on touch screens.";
+}
 function returnMenu() {
   if (qualityPending) return location.reload(); // a new graphics quality takes a fresh start (everything is saved)
   releaseMouse();
@@ -3122,6 +3144,14 @@ function bind() {
         : "Switch to the classic swimmers";
   };
   swimmerButton();
+  renderTouchpad();
+  $("touchpad-buttons").onclick = (e) => {
+    const b = e.target.closest("[data-touchpad]");
+    if (!b) return;
+    settings.touchpad = b.dataset.touchpad;
+    saveSettings();
+    renderTouchpad();
+  };
   renderQuality();
   $("quality-buttons").onclick = (e) => {
     const b = e.target.closest("[data-quality]");
