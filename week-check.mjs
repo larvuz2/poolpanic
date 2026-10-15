@@ -1,13 +1,21 @@
-// The week (dist/week.mjs, dist/week-ui.mjs, dist/marina.mjs): Pool Panic's main loop. Five days of two shifts to fill the Date Fund
-// for a weekend date with Marina; every shift must pass or the week starts over; the incidents are drawn, not written; tips buy
-// perks that never touch the Date Fund. This plays weeks through the pure rules, plays every shift of every chapter with the coach
-// bot, and checks the game is wired to it.
+// The week (dist/week.mjs, dist/week-ui.mjs, dist/marina.mjs): Pool Panic's main loop since 16 October 2026. Six shifts, Monday to
+// Saturday, to fill the Date Fund for a Sunday date with Marina; a shift not passed pays nothing but the week goes on; a Sunday short of
+// the goal is game over (the run starts again at week 1); the levels are random from a difficulty that rises with every shift, the
+// incidents drawn, not written; tips buy perks that never touch the Date Fund; a level passed opens in free play. This plays runs
+// through the pure rules, plays the first weeks of a run with the coach bot, and checks the game is wired to it.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   WEEK_KEY,
   DAYS,
+  DATE_DAY,
   SHIFTS_PER_WEEK,
+  BASE_GOAL,
+  FIRST_SHIFT,
+  TOP_TIER,
+  stepOf,
+  tierFor,
+  vipCount,
   INCIDENT_ORDER,
   INCIDENTS,
   TWIST_RULES,
@@ -55,34 +63,27 @@ const summary = (score, stars, extra = {}) => ({
   ...extra,
 });
 
-// 1) The data: five days of two shifts; every chapter's ten blueprints exist and are its pool's; the incident order names each
-// incident once; every perk, wish and twist rule is complete.
-assert.equal(DAYS.length, 5);
-assert.equal(SHIFTS_PER_WEEK, 10);
+// 1) The data: six days and a Sunday; the incident order names each incident once; every week's date and goal, dearer and better paid
+// as the run goes on, the ocean trip the fourth; every perk, wish and twist rule is complete.
+assert.equal(DAYS.length, 6);
+assert.equal(SHIFTS_PER_WEEK, 6);
+assert.equal(DAYS.at(-1), "Saturday");
+assert.equal(DATE_DAY, "Sunday");
 assert.ok(WEEK_KEY.startsWith("pool-panic."));
 assert.deepEqual(
   [...INCIDENT_ORDER].sort(),
   Object.keys(INCIDENTS).sort(),
   "the order names every incident once",
 );
-for (const ch of CHAPTERS) {
-  assert.equal(ch.blueprints.length, SHIFTS_PER_WEEK, ch.place + ": ten shifts");
-  for (const t of ch.blueprints) {
-    assert.ok(SHIFTS[t - 1], ch.place + ": blueprint " + t + " exists");
-    assert.equal(SHIFTS[t - 1].venue || "club", ch.venue, ch.place + ": blueprint " + t + " is its pool's");
-  }
-  assert.ok(ch.goal > 0 && ch.pay > 0 && ch.date.icon && ch.date.name);
+for (let n = 1; n <= 12; n++) {
+  const ch = chapterFor(n);
+  assert.ok(ch.goal > 0 && ch.pay > 0 && ch.date.icon && ch.date.name, "week " + n);
+  if (n > 1)
+    assert.ok(ch.goal > chapterFor(n - 1).goal && ch.pay > chapterFor(n - 1).pay, "dearer, better paid");
 }
-assert.ok(
-  CHAPTERS.every((c, i) => i === 0 || c.goal > CHAPTERS[i - 1].goal),
-  "each date costs more than the last",
-);
-assert.equal(CHAPTERS.at(-1).date.id, "ocean", "the last date is the ocean trip");
-const heat = chapterFor(CHAPTERS.length + 1);
-assert.ok(
-  heat.heat === 1 && heat.goal > CHAPTERS[0].goal && heat.date.id !== CHAPTERS[0].date.id,
-  "heat weeks go on",
-);
+assert.equal(chapterFor(1).goal, BASE_GOAL);
+assert.equal(chapterFor(CHAPTERS.length).date.id, "ocean", "the fourth date is the ocean trip");
+assert.ok(chapterFor(CHAPTERS.length + 1).heat === 1, "the weeks go on after it");
 assert.equal(chapterFor(0).id, 1);
 for (const [id, p] of Object.entries(PERKS)) {
   assert.ok(p.icon && p.name && p.text && p.price > 0, id + " is a full perk");
@@ -90,6 +91,58 @@ for (const [id, p] of Object.entries(PERKS)) {
 }
 for (const [id, w] of Object.entries(WISHES)) assert.ok(w.icon && w.text && w.say && w.met && w.pay > 0, id);
 for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is a twist the game has");
+
+// 1b) The difficulty: the first shift of a run is a gentle minute on level 1 with no incident and no VIP; then a random level from a
+// window that climbs with every shift (never back to level 1, reaching the gala by week 4), the same level for the same week; VIPs from
+// the second shift, more as the run goes on; past the top, more swimmers and higher targets.
+{
+  const save = freshSave();
+  save.week = newWeek(save, 42);
+  const first = buildShift(save.week, null, save.known);
+  assert.equal(first.step, 0);
+  assert.equal(first.tier, 1);
+  assert.equal(first.config.duration, FIRST_SHIFT.duration, "about a minute");
+  assert.equal(first.plan.chaos.length, 0, "no incident");
+  assert.equal((first.config.vipAt || []).length, 0, "no VIP in the first minute");
+  assert.ok(first.pass <= 200, "easy to pass (" + first.pass + ")");
+  const tiersAt = (step) => {
+    const t = new Set();
+    for (let seed = 1; seed <= 200; seed++) t.add(tierFor(step, stream(seed)));
+    return t;
+  };
+  for (let step = 1; step < 40; step++) {
+    const t = [...tiersAt(step)];
+    assert.ok(
+      t.every((x) => x >= 2 && x <= TOP_TIER),
+      "never level 1 again, never past the top",
+    );
+    assert.ok(t.every((x) => x >= Math.min(TOP_TIER, 1 + step) - 2 && x <= Math.min(TOP_TIER, 1 + step) + 1));
+    assert.ok(t.length >= 2 || step >= 30, "random, from a window (step " + step + ")");
+  }
+  assert.ok(tiersAt(19).has(TOP_TIER) && tiersAt(18).has(TOP_TIER), "the gala by the end of week 4");
+  const mean = (step) => [...tiersAt(step)].reduce((a, b) => a + b, 0) / tiersAt(step).size;
+  assert.ok(mean(6) > mean(1) && mean(12) > mean(6) && mean(18) > mean(12), "the levels climb");
+  assert.equal(vipCount(0), 0);
+  assert.equal(vipCount(1), 1);
+  assert.ok(vipCount(12) > vipCount(1) && vipCount(99) === 5, "more VIPs as the run goes on, five at most");
+  for (let step = 1; step < 30; step++) {
+    const w = { ...newWeek(freshSave(), 900 + step), chapter: Math.floor(step / 6) + 1, shift: step % 6 };
+    assert.equal(stepOf(w), step);
+    const sh = buildShift(w, null, INCIDENT_ORDER);
+    assert.ok((sh.config.vipAt || []).length >= vipCount(step), "VIPs in shift " + step);
+    for (const f of sh.config.vipAt || []) assert.ok(f > 0.05 && f < 0.95);
+    assert.deepEqual(
+      buildShift(w, null, INCIDENT_ORDER).config,
+      sh.config,
+      "the same week builds the same shift",
+    );
+  }
+  const top = buildShift({ ...newWeek(freshSave(), 7), chapter: 4, shift: 5 }, null, INCIDENT_ORDER),
+    past = buildShift({ ...newWeek(freshSave(), 7), chapter: 9, shift: 5 }, null, INCIDENT_ORDER);
+  assert.ok(past.config.total > SHIFTS[past.tier - 1].total, "past the top: a bigger crowd");
+  assert.ok(past.config.thresholds[0] > SHIFTS[past.tier - 1].thresholds[0], "and higher targets");
+  assert.ok(top.step === 23 && past.step === 53);
+}
 
 // 2) The director: gentle at first, only incidents the player has met plus at most the next one in the order (never two surprises
 // in a row), spread over the shift and never in its last 20 s, twists only where the pool allows them, the same draw for the same
@@ -133,17 +186,14 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
         sh.plan,
         "the same week draws the same shift",
       );
-      if (i === 7) tuesdays.add(JSON.stringify(sh.plan.chaos) + JSON.stringify(sh.config.twist));
+      if (i === 5) tuesdays.add(JSON.stringify(sh.plan.chaos) + JSON.stringify(sh.config.twist));
       assert.equal(sh.pass, passMark(sh.config));
       assert.ok(sh.pass > 0 && sh.pass < sh.config.thresholds[0]);
       finishShift(save, sh, summary(sh.config.thresholds[1], 2), {});
     }
   }
-  assert.ok(surprises > 120, "surprises come along (" + surprises + " in 120 first weeks)");
-  assert.ok(
-    tuesdays.size >= 6,
-    "Thursday afternoon is not the same twice (" + tuesdays.size + " kinds of Thursday)",
-  );
+  assert.ok(surprises > 60, "surprises come along (" + surprises + " in 120 first weeks)");
+  assert.ok(tuesdays.size >= 4, "Saturday is not the same twice (" + tuesdays.size + " kinds of Saturday)");
   // Later chapters: every incident can come, and the count follows the blueprint with a little give.
   const counts = new Set();
   for (let seed = 1; seed <= 60; seed++) {
@@ -253,7 +303,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       assert.ok(save.week.tips >= 0);
     }
   }
-  // Pass and fail, insurance, the last shift.
+  // Pass and fail, the safety net, the last shift.
   const save = freshSave();
   save.week = newWeek(save, 5);
   let sh = buildShift(save.week, null, save.known);
@@ -263,6 +313,14 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     "on the pass mark: passed, paid, on to the next",
   );
   assert.ok(r.tips > 0);
+  assert.equal(save.unlocked, 1, "level 1 is open");
+  sh = buildShift(save.week, null, save.known);
+  r = finishShift(save, sh, summary(sh.pass - 1, 0), {});
+  assert.ok(
+    r.failed && !r.over && save.week && save.week.shift === 2 && r.gained === 0,
+    "not passed: no pay, the week goes on",
+  );
+  assert.equal(save.unlocked, 1, "a level not passed does not open");
   save.week.tips = 100;
   assert.ok(buyPerk(save.week, "insurance"));
   assert.ok(!buyPerk(save.week, "insurance"), "a perk once a week");
@@ -270,36 +328,45 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   sh = buildShift(save.week, null, save.known);
   r = finishShift(save, sh, summary(sh.pass - 1, 0), {});
   assert.ok(
-    r.insured && !r.failed && save.week && r.gained === 0,
-    "insurance saves the week once, and pays nothing",
+    r.failed && r.insured && r.pay > 0 && r.pay < shiftPay(1, chapterFor(1)),
+    "the safety net pays half",
   );
   sh = buildShift(save.week, null, save.known);
-  r = finishShift(save, sh, summary(sh.pass - 1, 0), {});
-  assert.ok(
-    r.failed && r.lost && save.week === null && save.weeksLost === 1,
-    "under the pass mark again: the week is lost",
-  );
-  assert.equal(r.gained, 0);
-  // A full week of good shifts makes the date; the chapter moves on and the date is kept.
+  r = finishShift(save, sh, summary(sh.pass, 1), {});
+  assert.equal(save.unlocked, Math.max(1, sh.tier), "a level passed opens in free play");
+  // A full week of good shifts makes the date; the next week is on, harder, and the date is kept.
   const good = freshSave();
   good.week = newWeek(good, 6);
   for (let i = 0; i < SHIFTS_PER_WEEK; i++) {
     const s = buildShift(good.week, null, good.known);
-    r = finishShift(good, s, summary(s.config.thresholds[2], 3), {});
+    r = finishShift(good, s, summary(s.config.thresholds[1], 2), {});
     if (i < SHIFTS_PER_WEEK - 1) assert.ok(!r.last && good.week);
   }
-  assert.ok(r.last && r.won && good.chapter === 2 && good.dates.includes("icecream") && good.week === null);
-  // A week of passes with no stars falls short on Friday: lost, back to Monday.
-  const poor = freshSave();
+  assert.ok(
+    r.last && r.won && !r.over && good.chapter === 2 && good.dates.includes("icecream") && good.week === null,
+  );
+  assert.equal(good.bestWeek, 2);
+  // A week with three shifts failed falls short on Saturday: game over, the run starts again at week 1, what was opened stays.
+  const poor = freshSave({ chapter: 3, v: 2, dates: ["icecream", "movie"], unlocked: 9 });
   poor.week = newWeek(poor, 8);
   for (let i = 0; i < SHIFTS_PER_WEEK; i++) {
     const s = buildShift(poor.week, null, poor.known);
-    r = finishShift(poor, s, summary(s.pass, 0), {});
+    r = finishShift(poor, s, summary(i % 2 ? s.pass - 1 : s.pass, 0), {});
   }
+  assert.ok(r.last && r.over && !r.won && poor.week === null, "short on Saturday: game over");
   assert.ok(
-    r.last && r.lost && !r.won && poor.chapter === 1 && poor.week === null,
-    "short on Friday: no date",
+    poor.chapter === 1 && poor.dates.length === 0 && poor.runs === 1 && poor.unlocked >= 9,
+    "back to week 1",
   );
+  // Two stars a shift make the date; one star a shift with no wish does not.
+  for (let n = 1; n <= 8; n++) {
+    const ch = chapterFor(n);
+    assert.ok(
+      shiftPay(2, ch) * SHIFTS_PER_WEEK + 6 * 15 * ch.pay >= ch.goal,
+      "two stars and a wish a shift: week " + n,
+    );
+    assert.ok(shiftPay(1, ch) * SHIFTS_PER_WEEK < ch.goal, "one star a shift is not enough: week " + n);
+  }
   // Perks add up; the charm, the tip jar and the sponsor do what they say.
   const fx = perkEffects(["shoes", "megaphone", "tummy", "tipjar", "charm", "sponsor", "nodogs"]);
   assert.equal(fx.sim.speed, 1.12);
@@ -360,24 +427,32 @@ assert.deepEqual(
   [true],
 );
 
-// 6) The save: junk is thrown out, a finished week is not kept, a week in progress is.
+// 6) The save: junk is thrown out, a finished week is not kept, a week in progress is; an old ten-shift save starts a fresh run.
 {
   const s = normalizeWeekSave({
+    v: 2,
     chapter: "x",
     known: ["dog", "unicorn"],
     dates: [7, "icecream"],
     invited: [1, -2, "a"],
+    unlocked: 99,
     week: { status: "playing", seed: 5, shift: 99, fund: -4, tips: 3.7, perks: ["shoes", "shoes", "laser"] },
   });
   assert.equal(s.chapter, 1);
   assert.deepEqual(s.known, ["dog"]);
   assert.deepEqual(s.dates, ["icecream"]);
   assert.deepEqual(s.invited, [1]);
-  assert.equal(s.week.shift, 9);
+  assert.equal(s.unlocked, TOP_TIER);
+  assert.equal(s.week.shift, SHIFTS_PER_WEEK - 1);
   assert.equal(s.week.fund, 0);
   assert.deepEqual(s.week.perks, ["shoes"]);
-  assert.equal(normalizeWeekSave({ week: { status: "won" } }).week, null);
+  assert.equal(normalizeWeekSave({ v: 2, week: { status: "won" } }).week, null);
   assert.equal(normalizeWeekSave(null).chapter, 1);
+  const old = normalizeWeekSave({ chapter: 3, known: ["dog"], week: { status: "playing", shift: 7 } });
+  assert.ok(
+    old.chapter === 1 && old.week === null && old.known[0] === "dog",
+    "an old save: a new run, what was met kept",
+  );
 }
 
 // 7) The simulation takes the perks: none is the game as it was; each does what its card says.
@@ -430,47 +505,49 @@ assert.deepEqual(
   assert.ok(Math.abs(dash.coach.dashCooldown - 0.82 * 0.6) < 1e-9, "turbo whistle");
 }
 
-// 8) The coach bot plays every shift of every chapter (one week each): every shift finishes with its incidents fired or skipped and
-// none left open, almost all pass, and a good week can make the date while a week of one star cannot by pay alone.
+// 8) The coach bot plays the first three weeks of a run (eighteen shifts, the levels climbing): every shift finishes with its incidents
+// fired or skipped and none left open, the first is passed, almost all pass, and a good week can make the date.
 const table = [];
-for (let n = 1; n <= CHAPTERS.length; n++) {
-  const save = freshSave({ chapter: n, known: n > 1 ? INCIDENT_ORDER : [] });
-  save.week = newWeek(save, 1000 + n * 77);
-  const ch = chapterFor(n);
-  let passed = 0,
-    pay = 0,
-    best = 0;
-  for (let i = 0; i < SHIFTS_PER_WEEK; i++) {
-    save.week.shift = i;
-    const sh = buildShift(save.week, null, save.known);
-    const bot = new CoachBot(sh.tier, 31 + i * 7, { config: sh.config }).run(),
-      s = bot.s,
-      r = s.summary();
-    assert.equal(s.status, "ended", `week ${n} shift ${i + 1} finishes`);
-    assert.ok(
-      s.chaosPlan.every((e) => e.done),
-      `week ${n} shift ${i + 1}: every incident fired or skipped`,
+{
+  const save = freshSave();
+  for (let n = 1; n <= 3; n++) {
+    save.week = newWeek(save, 1000 + n * 77);
+    const ch = chapterFor(n);
+    let passed = 0,
+      best = 0;
+    const tiers = [];
+    for (let i = 0; i < SHIFTS_PER_WEEK; i++) {
+      const sh = buildShift(save.week, null, save.known);
+      tiers.push(sh.tier);
+      const bot = new CoachBot(sh.tier, 31 + i * 7, { config: sh.config }).run(),
+        s = bot.s,
+        r = s.summary();
+      assert.equal(s.status, "ended", `week ${n} shift ${i + 1} finishes`);
+      assert.ok(
+        s.chaosPlan.every((e) => e.done),
+        `week ${n} shift ${i + 1}: every incident fired or skipped`,
+      );
+      assert.ok(!s.fish && !s.rescue && !s.closed, `week ${n} shift ${i + 1}: nothing left open at closing`);
+      if (n === 1 && i === 0) assert.ok(r.score >= sh.pass, "the first shift is passed");
+      if (r.score >= sh.pass) passed++;
+      best += shiftPay(3, ch) + sh.wishes.reduce((sum, w) => sum + w.pay, 0); // three stars and both wishes
+      finishShift(save, sh, { ...r, score: Math.max(r.score, sh.pass) }, s.stats);
+    }
+    table.push(
+      `week ${n}: levels ${tiers.join(",")}, ${passed}/6 passed by the bot, goal ${ch.goal}, best ${best}`,
     );
-    assert.ok(!s.fish && !s.rescue && !s.closed, `week ${n} shift ${i + 1}: nothing left open at closing`);
-    if (r.score >= sh.pass) passed++;
-    pay += shiftPay(r.stars, ch);
-    best += shiftPay(3, ch) + sh.wishes.reduce((sum, w) => sum + w.pay, 0); // three stars and both wishes
-    for (const k of sh.plan.incidents) if (!save.known.includes(k)) save.known.push(k);
+    assert.ok(passed >= 5, `week ${n}: a competent coach passes almost every shift (${passed}/6)`);
+    assert.ok(best > ch.goal * 1.15, `week ${n}: a great week makes the date with room to spare`);
+    if (!save.week && save.chapter === n) save.chapter = n + 1; // (the bot's run goes on whatever its fund)
+    save.chapter = n + 1;
   }
-  table.push(`week ${n}: ${passed}/10 passed, bot pay ${pay}, goal ${ch.goal}, best ${best}`);
-  assert.ok(passed >= 9, `week ${n}: a competent coach passes almost every shift (${passed}/10)`);
-  assert.ok(best > ch.goal * 1.15, `week ${n}: a great week makes the date with room to spare`);
-  assert.ok(
-    shiftPay(1, ch) * SHIFTS_PER_WEEK < ch.goal,
-    `week ${n}: one star a shift is not enough without Marina's wishes`,
-  );
 }
 
 // 9) A shift of the week replays: the record carries the config it was built from.
 {
   const save = freshSave({ chapter: 2, known: INCIDENT_ORDER });
   save.week = newWeek(save, 4321);
-  save.week.shift = 7;
+  save.week.shift = 4;
   save.week.perks = ["shoes"];
   const sh = buildShift(save.week, "regular", save.known);
   const game = new PoolSimulation(sh.tier, 555, { config: sh.config, booking: sh.booking, perks: sh.perks });
@@ -486,7 +563,7 @@ for (let n = 1; n <= CHAPTERS.length; n++) {
 
 // 10) Marina's scenes: an invite, a date and a rain check for each chapter, a video when one is named, drawn panels when not.
 {
-  for (const ch of CHAPTERS) {
+  for (const ch of [1, 2, 3, 4, 5, 9].map(chapterFor)) {
     for (const kind of ["invite", "date", "raincheck"]) {
       const s = scene(kind, ch);
       assert.ok(s.panels.length >= 1 && s.panels.every((p) => p.text && Array.isArray(p.layers)), kind);
@@ -501,7 +578,7 @@ for (let n = 1; n <= CHAPTERS.length; n++) {
   }
   assert.equal(Object.keys(VIDEOS).length, 0, "no videos yet: every scene is drawn");
   VIDEOS["date-icecream"] = "assets/video/marina/date-icecream.mp4";
-  const withVideo = scene("date", CHAPTERS[0]);
+  const withVideo = scene("date", chapterFor(1));
   assert.equal(withVideo.panels[0].video, "assets/video/marina/date-icecream.mp4");
   assert.equal(withVideo.panels[0].hold, 0, "a video moves on when it ends");
   delete VIDEOS["date-icecream"];
@@ -532,6 +609,8 @@ for (let n = 1; n <= CHAPTERS.length; n++) {
   for (const id of [
     "week-card",
     "wk-go",
+    "wk-free",
+    "fp-back",
     "week-dialog",
     "wd-cards",
     "wd-wishes",
@@ -550,11 +629,13 @@ for (let n = 1; n <= CHAPTERS.length; n++) {
 }
 
 console.log(
-  "Week checks passed: five days of two shifts at four pools and hotter weeks after, each date dearer; the director gentle at first, " +
-    "bringing in only met incidents and the next in the order (never two surprises in a row), never the same Tuesday twice, signs " +
-    "keeping their incident away, twists only where the pool allows; cards, the mystery gig and bookings; a Date Fund that only goes " +
-    "up and that tips never touch, the pass mark, insurance once, Friday deciding the date; wishes that fit their shift; a save that " +
-    "throws junk out; perks that change the simulation and nothing without them; the bot through every shift of every pool (" +
+  "Week checks passed: six days and a Sunday date, each week dearer and better paid; a gentle first minute, then random levels " +
+    "from a difficulty that climbs every shift, more VIPs as the run goes on, bigger crowds past the top; the director gentle at " +
+    "first, bringing in only met incidents and the next in the order, never the same Saturday twice, signs keeping their incident " +
+    "away, twists only where the pool allows; cards, the mystery gig and bookings; a Date Fund that only goes up and that tips never " +
+    "touch, a shift not passed paying nothing while the week goes on, the safety net, Saturday deciding the date or game over back " +
+    "to week 1, levels passed opening in free play; wishes that fit their shift; a save that throws junk out; perks that change the " +
+    "simulation; the bot through a run's first weeks (" +
     table.join("; ") +
     "); replays; Marina's scenes with and without video; and the game wired to it.",
 );

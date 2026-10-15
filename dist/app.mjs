@@ -126,8 +126,8 @@ const playHunt = hunt === hunts.play && !!huntState;
 // sets its own switches and gets no default.
 const testing = params.has("bisect") || params.has("trial");
 const handsOff = isWebKit(navigator.userAgent) && !params.has("hands") && (!testing || playHunt);
-// How hard to drive the graphics here (gfx.mjs): a touch device with WebKit draws fewer pixels and at most 60 frames a second, and a
-// page that died in the middle of a shift makes this launch draw with lighter graphics. `?gfx=reset` goes back to full graphics.
+// How hard to drive the graphics here (gfx.mjs): a touch device with WebKit draws at most 60 frames a second; a page that died in the
+// middle of a shift is said in the log (`?gfx=reset` clears the count).
 if (params.get("gfx") === "reset") resetGfx(crashStorage);
 const touchWebKit = isTouchWebKit({
   userAgent: navigator.userAgent,
@@ -135,7 +135,9 @@ const touchWebKit = isTouchWebKit({
 });
 const gfxBoot = bootGfx(crashStorage, { count: !testing });
 // (The played hunt draws every test as light as the lightest crash so far, tier 2, so that only its own switch differs.)
-const gfxTier = testing ? (playHunt ? 2 : 0) : gfxBoot.tier;
+// Since 16 October 2026 a crash no longer makes the next launch draw lighter (the creator: the browser's pixels back; the iPad died at
+// every tier it was given). The mark is still read, for the log. The played hunt keeps its tier-2 baseline.
+const gfxTier = playHunt ? 2 : 0;
 // The quality the player chose in Help (Auto, Low, Medium, Standard, High, Ultra); a hunt or a trial plays Auto.
 const gfxQuality = testing ? "auto" : readQuality(crashStorage);
 const tuning = readTuning(location.search, [
@@ -166,7 +168,9 @@ const playtestWord = playtestChoice(location.search, readPlaytest(crashStorage))
 if (playtestWord.said) savePlaytest(crashStorage, playtestWord.on);
 const playtest = playtestWord.on;
 const crashlog = installCrashLog({ build: BUILD, storage: crashStorage, motion: reducedMotion.matches });
-if (tuning.has("nolog")) crashlog.gap = 5000; // the played hunt's test of the log: saved every 5 s, not every half second
+// The crash log is saved every 2 s (it was every half second: up to 240 kB to the device's storage each time in a playtest); the
+// played hunt's test of the log (`nolog`) saves it every 5 s.
+crashlog.gap = tuning.has("nolog") ? 5000 : 2000;
 if (playtest) {
   crashlog.setLimits(PLAYTEST_LIMITS);
   crashlog.crumb("playtest", "on");
@@ -209,6 +213,7 @@ try {
 } catch {}
 // `?locked` previews the real, star-gated map while every level is open for playtesting (see progression.mjs).
 if (new URLSearchParams(location.search).has("locked")) progressFlags.unlockAll = false;
+if (new URLSearchParams(location.search).has("unlockall")) progressFlags.unlockAll = true;
 // The menu is a map. `selected` is what its panel shows: a level, or a chunk's drill. A new player starts on level
 // 1; a returning one on the level the coach is up to.
 level = currentLevel(records);
@@ -1577,7 +1582,7 @@ function start(bookingId = null, week = null) {
   loadFishKid(sim);
   richPresence(
     week
-      ? "Week " + week.chapter.id + " · " + week.day + " " + week.slot
+      ? "Week " + week.chapter.id + " · " + week.day
       : drill
         ? "Drill · " + drill.name
         : "Level " + level + " · " + sim.config.name,
@@ -1697,11 +1702,20 @@ function returnMenu() {
   weekShift = null;
   weekUi?.dismiss();
   clearBubbles();
+  syncUnlocks();
   updateMenu(reveal);
   weekUi?.menu();
   renderFund();
   updateUI();
-  $("start").focus({ preventScroll: true });
+  $(document.body.classList.contains("freeplay") ? "start" : "wk-go").focus({ preventScroll: true });
+}
+// The levels the week's run has passed open in free play (week.mjs `unlocked`).
+function syncUnlocks() {
+  const run = weekUi?.save?.unlocked || 1;
+  if (run > records.unlocked) {
+    records.unlocked = Math.min(SHIFTS.length, run);
+    saveRecords?.();
+  }
 }
 const two = (n) => String(n).padStart(2, "0");
 const starText = (n) => Array.from({ length: 3 }, (_, i) => (i < n ? "★" : "☆")).join("");
@@ -1953,21 +1967,23 @@ function finishWeek() {
   if (!res) return returnMenu();
   if (res.won && res.chapter.date.id === "ocean" && !res.chapter.heat) achievements.fund();
   $("result-eyebrow").textContent =
-    `WEEK ${ws.chapter.id} · ${ws.day.toUpperCase()} ${ws.slot.toUpperCase()}` +
+    `WEEK ${ws.chapter.id} · ${ws.day.toUpperCase()}` +
     (ws.card && ws.card.id !== "regular" ? " · " + ws.card.name.toUpperCase() : "") +
-    (res.failed ? " · SHIFT FAILED" : " · SHIFT COMPLETE");
+    (res.failed ? " · NOT PASSED" : " · SHIFT COMPLETE");
   $("result-stars").textContent = Array.from({ length: 3 }, (_, i) => (i < r.stars ? "★" : "☆")).join(" ");
-  $("result-title").textContent = res.failed
-    ? "The pool fell apart."
-    : res.won
-      ? "It's a date! 💖"
-      : r.stars === 3
-        ? "You absolute pool legend."
-        : r.stars === 2
-          ? "So close to pool perfection."
-          : r.stars === 1
-            ? "You kept your head above water."
-            : "Passed, just. Phew.";
+  $("result-title").textContent = res.won
+    ? "It's a date! 💖"
+    : res.over
+      ? "Not enough for the date…"
+      : res.failed
+        ? "The pool fell apart. Tomorrow's another day."
+        : r.stars === 3
+          ? "You absolute pool legend."
+          : r.stars === 2
+            ? "So close to pool perfection."
+            : r.stars === 1
+              ? "You kept your head above water."
+              : "Passed, just. Phew.";
   $("result-score").innerHTML = r.score.toLocaleString() + "<small>POINTS</small>";
   $("new-best").hidden = true;
   $("result-fund").hidden = true;
@@ -2587,6 +2603,36 @@ function clearBubbles() {
   for (const b of bubbles.values()) b.remove();
   bubbles.clear();
 }
+// Writing to the page only what changed: a tag is redrawn every frame, and a write that changes nothing still makes the browser do
+// work (a new text node, a style recalculation).
+const put = (el, text) => {
+  if (el.textContent !== text) el.textContent = text;
+};
+const putProp = (el, prop, value) => {
+  if (el[prop] !== value) el[prop] = value;
+};
+const putStyle = (el, prop, value) => {
+  if (el.style[prop] !== value) el.style[prop] = value;
+};
+const putAttr = (el, name, value) => {
+  if (el.getAttribute(name) !== value) el.setAttribute(name, value);
+};
+// A tag's place over its person, kept on screen and below the scoreboard. Its size is measured only when its text changed (reading
+// a size makes the browser lay the page out), and it moves in whole pixels.
+function placeTag(b, screen, tagTop) {
+  const key = b.textContent + (b.querySelector(".label-name")?.hidden ? "" : "|n");
+  if (b._sizeKey !== key || !b._w) {
+    b._sizeKey = key;
+    b._w = b.offsetWidth;
+    b._h = b.offsetHeight;
+  }
+  putStyle(
+    b,
+    "left",
+    Math.round(Math.max(b._w / 2 + 8, Math.min(innerWidth - b._w / 2 - 8, screen.x))) + "px",
+  );
+  putStyle(b, "top", Math.round(Math.max(tagTop + b._h, screen.y)) + "px");
+}
 function updateBubbles() {
   // `notags` (the played hunt): no tag, bubble or label is drawn over the pool at all.
   if (tuning.has("notags")) {
@@ -2619,42 +2665,49 @@ function updateBubbles() {
       p.status === "swim" ? (p.type === "aqua" ? 1.15 : 0.8) : p.status === "injured" ? 1.15 : 2 + (p.y || 0),
       p.z,
     );
-    b.hidden =
+    // (Only what changed is written: a tag is updated every frame and most frames change nothing in it. 16 October 2026.)
+    putProp(
+      b,
+      "hidden",
       !screen.visible ||
-      (world.viewMode === "coach" && Math.hypot(p.x - sim.coach.x, p.z - sim.coach.z) > 16);
-    b.disabled = mode !== "playing" || !["queue", "swim", "injured"].includes(p.status);
-    b.setAttribute("aria-label", "Select " + p.name + ", " + swimmerLook(p).label);
-    b.setAttribute("aria-pressed", String(p.id === sim.selected));
+        (world.viewMode === "coach" && Math.hypot(p.x - sim.coach.x, p.z - sim.coach.z) > 16),
+    );
+    putProp(b, "disabled", mode !== "playing" || !["queue", "swim", "injured"].includes(p.status));
+    putAttr(b, "aria-label", "Select " + p.name + ", " + swimmerLook(p).label);
+    putAttr(b, "aria-pressed", String(p.id === sim.selected));
     const rescuing =
       (sim.rescue?.victims || []).includes(p.id) && !p.rescueRecover && ["swim", "switch"].includes(p.status);
     b.classList.toggle("rescue-victim", rescuing);
-    b.querySelector(".rescue-marker").hidden = !rescuing;
+    putProp(b.querySelector(".rescue-marker"), "hidden", !rescuing);
     b.classList.toggle("stomach-warning", !!p.stomachWarning);
     b.classList.toggle("injured", p.status === "injured");
     // One countdown bar: stomach trouble, or a daredevil losing patience on the tower.
     const jumpWait = p.status === "trampoline" && p.jumpStage === "waiting",
       stomach = b.querySelector(".stomach-meter");
-    stomach.hidden = !p.stomachWarning && !jumpWait;
+    putProp(stomach, "hidden", !p.stomachWarning && !jumpWait);
     stomach.classList.toggle("jump-meter", jumpWait);
-    const left = jumpWait ? p.jumpPatience : p.sicknessTimer,
-      total = jumpWait ? sim.config.jumpPatience || 15 : p.sicknessDuration;
-    stomach.querySelector("i").style.width = Math.max(0, (left / total) * 100) + "%";
-    stomach.querySelector("b").textContent = Math.ceil(left) + "s";
+    if (!stomach.hidden) {
+      const left = jumpWait ? p.jumpPatience : p.sicknessTimer,
+        total = jumpWait ? sim.config.jumpPatience || 15 : p.sicknessDuration;
+      putStyle(stomach.querySelector("i"), "width", Math.round(Math.max(0, (left / total) * 100)) + "%");
+      put(stomach.querySelector("b"), Math.ceil(left) + "s");
+    }
     b.classList.toggle("selected", p.id === sim.selected);
     b.classList.toggle("guided", p.id === guidanceState(sim).swimmerId);
-    b.querySelector(".type-icon").textContent = swimmerLook(p).icon;
-    b.querySelector(".type-label").textContent = swimmerLook(p).label;
+    put(b.querySelector(".type-icon"), swimmerLook(p).icon);
+    put(b.querySelector(".type-label"), swimmerLook(p).label);
     const statusIcon = problemIcon(p);
-    b.querySelector(".mood-icon").textContent =
-      statusIcon !== swimmerLook(p).icon && statusIcon !== "🙂" ? statusIcon : "";
-    b.querySelector(".hp i").style.width = Math.max(0, p.h) + "%";
-    b.querySelector(".hp i").style.background = moodColor(p.h);
+    put(
+      b.querySelector(".mood-icon"),
+      statusIcon !== swimmerLook(p).icon && statusIcon !== "🙂" ? statusIcon : "",
+    );
+    const hp = b.querySelector(".hp i");
+    putStyle(hp, "width", Math.round(Math.max(0, p.h)) + "%");
+    putStyle(hp, "background", moodColor(p.h));
     const name = b.querySelector(".label-name");
-    name.textContent = p.name;
-    name.hidden = p.id !== sim.selected;
-    b.style.left =
-      Math.max(b.offsetWidth / 2 + 8, Math.min(innerWidth - b.offsetWidth / 2 - 8, screen.x)) + "px";
-    b.style.top = Math.max(tagTop + b.offsetHeight, screen.y) + "px";
+    put(name, p.name);
+    putProp(name, "hidden", p.id !== sim.selected);
+    placeTag(b, screen, tagTop);
   }
   for (const v of sim.visitors || []) {
     const tag = sim.visitorTag(v);
@@ -2689,9 +2742,7 @@ function updateBubbles() {
       meter.firstElementChild.style.background =
         tag.meter > 0.7 ? "#eb7754" : tag.meter > 0.4 ? "#e6b445" : "#73b65b";
     }
-    b.style.left =
-      Math.max(b.offsetWidth / 2 + 8, Math.min(innerWidth - b.offsetWidth / 2 - 8, screen.x)) + "px";
-    b.style.top = Math.max(tagTop + b.offsetHeight, screen.y) + "px";
+    placeTag(b, screen, tagTop);
   }
   for (const [id, b] of bubbles)
     if (!ids.has(id)) {
@@ -2845,8 +2896,8 @@ const MOMENTS = new Set([
 // updated or drawn until a shift starts (moving speech bubbles under a full-screen map cost real frame time).
 let warmFrames = 3;
 // The frame-rate cap (gfx.mjs: 60 on a touch device with WebKit, whose 120 Hz screen would ask for twice the drawing), the governor that
-// lowers the resolution while the frames of a shift are slow, and the mark a shift being drawn leaves on the device (a page that dies
-// with it still there makes the next launch draw lighter).
+// lowers the resolution while the frames of a shift are slow (off since 16 October 2026: `gfx.plan.govern`), and the mark a shift
+// being drawn leaves on the device (a page that died with it still there is said in the next launch's log).
 let lastDrawn = 0,
   drawingMarked = false;
 function governFrame(t) {
@@ -3004,6 +3055,22 @@ function bind() {
     celebrate: () => world.confetti(),
   });
   weekUi.menu();
+  // Free play: the map of the levels the run has opened. The week card's link shows it, "The week" goes back.
+  weekUi.onFreePlay = (on) => {
+    document.body.classList.toggle("freeplay", on);
+    crashlog.crumb("menu", on ? "free play" : "the week");
+    if (on) {
+      syncUnlocks();
+      if (!isUnlocked(records, level)) selectLevel(Math.min(records.unlocked, SHIFTS.length));
+      else updateMenu();
+      $("start").focus({ preventScroll: true });
+    } else {
+      weekUi.menu();
+      $("wk-go").focus({ preventScroll: true });
+    }
+  };
+  $("fp-back").onclick = () => weekUi.freePlay(false);
+  syncUnlocks();
   mapView = new LevelMap($("map"), {
     onLevel: selectLevel,
     onDrill: selectDrill,
@@ -3102,7 +3169,7 @@ function bind() {
     const week = weekUi?.pill();
     if (week)
       toast(
-        `Date Fund ${money(week.now)} of ${money(week.goal)}. Fill it by Friday and Marina is yours for the weekend ${week.icon}`,
+        `Date Fund ${money(week.now)} of ${money(week.goal)}. Fill it by Saturday night and Sunday is a date with Marina ${week.icon}`,
       );
   };
   $("help-story").onclick = () => {
@@ -3206,7 +3273,9 @@ function bind() {
         !document.querySelector("dialog[open]") &&
         !e.target.closest?.("button, a, label, input")
       ) {
-        requestStart();
+        // Enter is the screen's one START: the week's, or the selected level's in free play.
+        if (document.body.classList.contains("freeplay")) requestStart();
+        else weekUi?.go();
         return;
       }
       if (key === "m") {
@@ -3393,17 +3462,6 @@ try {
       (gfx.plan.govern ? " · governor on" : "") +
       (gfxBoot.died ? " · the last page died in a shift" + (testing ? " (a test: not counted)" : "") : ""),
   );
-  if (gfxBoot.raised)
-    setTimeout(
-      () =>
-        toast(
-          "The last shift stopped the browser, so Pool Panic now draws with lighter graphics on this device (" +
-            gfx.plan.says +
-            ").",
-          true,
-        ),
-      2500,
-    );
   crashlog.crumb("boot", "ready in " + Math.round(performance.now()) + " ms");
   requestAnimationFrame(animate);
   // QA hook (?debug): drive the fixed-step simulation faster than real time for screenshots and repros.

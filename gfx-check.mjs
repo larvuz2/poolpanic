@@ -38,25 +38,16 @@ assert.ok(!isTouchWebKit({ userAgent: ELECTRON_MAC, maxTouchPoints: 5 }), "the d
 assert.ok(!isTouchWebKit({ userAgent: WINDOWS, maxTouchPoints: 10 }), "a Windows touch screen");
 assert.ok(!isTouchWebKit(), "nothing known");
 
-// 2) The plan. The iPad of the crashes (1366×892 points, 2 pixels a point) drew 2322×1516 at 1.7; now about 2 million pixels.
+// 2) The plan. Since 16 October 2026 (the creator: the browser's pixels back) an iPad draws at its quality's own ratio like any
+// other device: 1.7 at Standard, no pixel budget, no governor. It still draws at most 60 frames a second.
 {
   const ipad = graphicsPlan({ touch: true, deviceRatio: 2 });
   const r = ipad.ratio(1366, 892);
-  assert.ok(r > 1.2 && r < 1.35, "the iPad's ratio is " + r);
-  assert.ok(1366 * 892 * r * r <= 2.0e6 + 1, "at most 2 million pixels");
+  assert.equal(r, 1.7, "the iPad's ratio is the quality's own");
   assert.equal(ipad.fpsCap, 60, "never more than 60 frames a second there");
-  assert.ok(ipad.govern, "and the governor watches its frames");
+  assert.ok(!ipad.govern, "no governor lowering it");
   assert.deepEqual(ipad.flags, [], "tier 0 turns nothing off");
-  assert.equal(
-    ipad.ratio(1366, 892, 0.85),
-    Math.floor(r * 0.85 * 1000) / 1000,
-    "the governor's scale multiplies it",
-  );
-  assert.equal(
-    graphicsPlan({ touch: true, deviceRatio: 3 }).ratio(390, 844),
-    1.7,
-    "a phone's small screen fits the budget at 1.7",
-  );
+  assert.equal(graphicsPlan({ touch: true, deviceRatio: 3 }).ratio(390, 844), 1.7);
   // A desktop is as it was: the screen's ratio, at most 1.7, no cap, no governor.
   const desk = graphicsPlan({ deviceRatio: 2 });
   assert.equal(desk.ratio(1920, 1080), 1.7);
@@ -81,10 +72,6 @@ assert.ok(!isTouchWebKit(), "nothing known");
       assert.ok(TIERS[t].flags.includes(f), "tier " + t + " keeps " + f + " off");
     assert.ok(TIERS[t].flags.length > TIERS[t - 1].flags.length, "tier " + t + " turns off more");
     assert.ok(TIERS[t].pixels < TIERS[t - 1].pixels);
-    assert.ok(
-      graphicsPlan({ tier: t, touch: true, deviceRatio: 2 }).ratio(1366, 892) <
-        graphicsPlan({ tier: t - 1, touch: true, deviceRatio: 2 }).ratio(1366, 892),
-    );
   }
   assert.deepEqual(TIERS[1].flags, ["noaa"]);
   assert.ok(TIERS[2].flags.includes("noshadow") && TIERS[3].flags.includes("noparticles"));
@@ -92,10 +79,10 @@ assert.ok(!isTouchWebKit(), "nothing known");
   const tuningWords = readFileSync("dist/tuning.mjs", "utf8");
   for (const f of TIERS[MAX_TIER].flags)
     assert.ok(tuningWords.includes('"' + f + '"'), f + " is a switch tuning.mjs knows");
-  // A desktop that crashed draws lighter too, and is governed.
+  // A tier (only the played crash hunt asks for one now) still draws lighter, and nothing is governed.
   assert.equal(graphicsPlan({ tier: 1, deviceRatio: 2 }).ratio(1920, 1080), 1.25);
   assert.equal(graphicsPlan({ tier: 2, deviceRatio: 2 }).ratio(1920, 1080), 1);
-  assert.ok(graphicsPlan({ tier: 1 }).govern);
+  assert.ok(!graphicsPlan({ tier: 1 }).govern);
   assert.equal(graphicsPlan({ tier: 9 }).tier, MAX_TIER, "a tier out of range is clamped");
 }
 
@@ -192,8 +179,8 @@ assert.ok(!isTouchWebKit(), "nothing known");
   assert.match(app, /bootGfx\(crashStorage, \{ count: !testing \}\)/, "a hunt's crash is not counted");
   assert.match(
     app,
-    /const gfxTier = testing \? \(playHunt \? 2 : 0\) : gfxBoot\.tier/,
-    "a hunt plays at tier 0, the played hunt at the lightest crash's tier 2",
+    /const gfxTier = playHunt \? 2 : 0;/,
+    "no crash tier any more (the creator, 16 October 2026); the played hunt keeps its tier-2 baseline",
   );
   assert.match(
     app,
@@ -225,7 +212,9 @@ assert.ok(!isTouchWebKit(), "nothing known");
   assert.match(app, /gfx\.plan\.fpsCap && lastDrawn && t - lastDrawn < 1000 \/ gfx\.plan\.fpsCap/);
   assert.match(app, /crashlog\.crumb\(\s*"gfx"/, "the log says the plan and every step of the governor");
   assert.match(app, /params\.get\("gfx"\) === "reset"\) resetGfx/);
-  assert.match(app, /gfxBoot\.raised/, "the player is told when the graphics went lighter");
+  // Since 16 October 2026 a crash no longer lowers the graphics, so no toast may say it did; the log still says the page died.
+  assert.doesNotMatch(app, /gfxBoot\.raised/, "no toast claims lighter graphics");
+  assert.match(app, /gfxBoot\.died \?/, "the log says the last page died in a shift");
   assert.match(scene, /pixelRatio\(w, h\) \{/);
   assert.match(scene, /gfx\.plan\.ratio\(w, h, gfx\.scale\)/);
   assert.match(scene, /setPixelRatio\(this\.pixelRatio\(container\.clientWidth, container\.clientHeight\)\)/);
@@ -287,5 +276,5 @@ assert.ok(!isTouchWebKit(), "nothing known");
 
 console.log(
   "Graphics quality: Auto, Low, Medium, Standard, High and Ultra, each sharper than the last, a crash capping any of them. " +
-    "Graphics plan checks passed: an iPad and an iPhone told from a Mac, the desktop app and Windows; an iPad drawing about 2 million pixels (not 3.5) at most 60 times a second, a desktop as it was, ?dpr winning; four tiers each lighter than the last; a page that died in a shift making the next launch a tier lighter (once, never past the last, a hunt not counted, ?gfx=reset back to full, broken storage harmless); the governor lowering the resolution only on slow frames, step by step to its floor, never on a hitch; and the game wired to all of it.",
+    "Graphics plan checks passed: an iPad and an iPhone told from a Mac, the desktop app and Windows; an iPad drawing at its quality's own ratio (no pixel budget, no governor) at most 60 times a second, a desktop as it was, ?dpr winning; four tiers each lighter than the last; the crash mark still kept for the log (the tier rules themselves kept for the played hunt); the governor lowering the resolution only on slow frames, step by step to its floor, never on a hitch; and the game wired to all of it.",
 );

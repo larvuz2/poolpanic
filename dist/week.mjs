@@ -1,25 +1,28 @@
-// The week: Pool Panic's main loop. Coach Waters has five days (two shifts a day) to save up for a weekend date with Marina.
-// Pure: no DOM, no storage of its own (the app hands the state in and saves what comes back), seeded, so a check can play it.
+// The week: Pool Panic's main loop (restructured on 16 October 2026, the creator's design). Coach Waters works six shifts, one a
+// day from Monday to Saturday, to save up for a date with Marina on Sunday. Pure: no DOM, no storage of its own (the app hands
+// the state in and saves what comes back), seeded, so a check can play it.
 //
-//   a WEEK      ten shifts, Monday morning to Friday afternoon, at one pool (a chapter). Every shift's pay goes into the Date
-//               Fund, which only ever goes up; the goal (the date) is on screen all week. A shift that earns no star loses
-//               the week: it starts again on Monday, a new week, with nothing of the old one but what was discovered.
-//   a SHIFT     built when it is reached, not written down: a blueprint (one of the season's shifts, for its length, crowd and
-//               star targets) and the incident director's draw (which incidents, how many, when), so the same Tuesday never
-//               plays the same twice. Before it, the player picks one of two or three cards (a regular day, a booking that
-//               pays more for more trouble, a mystery). With it come Marina's wishes, small objectives that pay extra.
+//   a RUN       weeks one after another, each harder than the last, for as long as the dates keep coming. A Sunday with too
+//               little in the Date Fund ends the run: the next one starts again at week 1. The levels passed stay open in
+//               free play (the map), like a level select.
+//   a WEEK      six shifts and a date. Every shift's pay goes into the Date Fund, which only ever goes up; the goal (the date)
+//               is on screen all week. A shift that is not passed pays nothing, but the week goes on.
+//   a SHIFT     built when it is reached, never the same twice: a random level (one of the season's shifts, for its pool,
+//               length, crowd and star targets) from a difficulty that rises with every shift of the run (`STEP`), and the
+//               incident director's draw (which incidents, how many, when). The first shift of a run is a gentle minute. VIPs
+//               come in every shift after it, more of them as the run goes on. Before a shift the player picks one of two or
+//               three cards (a regular day, a booking that pays more for more trouble, a mystery), and Marina has two wishes,
+//               small objectives that pay extra.
 //   TIPS        the coach's pocket money, earned in every shift, spent in the shop between shifts on perks that last the week.
 //               Spending tips never touches the Date Fund.
-//   a CHAPTER   one week at one pool, one date: the club pool, Splash Park, the Sunset Lagoon, the Grand Gala Arena (the
-//               ocean trip). After the last one, harder weeks ("heat") go on for good.
 
 import { SHIFTS } from "./sim.mjs";
 import { BOOKINGS } from "./bookings.mjs";
 
 export const WEEK_KEY = "pool-panic.week.v1";
-export const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-export const SLOTS = ["morning", "afternoon"];
-export const SHIFTS_PER_WEEK = DAYS.length * SLOTS.length;
+export const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+export const DATE_DAY = "Sunday";
+export const SHIFTS_PER_WEEK = DAYS.length;
 
 // ---- the incident director -------------------------------------------------------------------------------------------
 
@@ -65,52 +68,18 @@ const pickWeighted = (random, items) => {
   return items[items.length - 1];
 };
 
-// ---- the chapters ----------------------------------------------------------------------------------------------------
+// ---- the weeks and their dates -----------------------------------------------------------------------------------------
 
-// Each chapter is a week at one pool. `blueprints` are the season's shifts the ten shifts are built on (their length, crowd,
-// star targets and features), `scale` stretches a blueprint (the Arena's one gala serves for the whole week), `pay` is what a
-// star is worth there. The goal is what the date costs: a good week makes it with something to spare, a week of one-star
-// shifts does not.
+// Each week of a run ends with a date, dearer as the run goes on, and pays more (`pay`, what a star is worth). The goal is what
+// the date costs: six shifts at two stars with a wish or two make it with something to spare; two shifts failed do not.
+export const BASE_GOAL = 300;
 export const CHAPTERS = [
-  {
-    id: 1,
-    venue: "club",
-    place: "Community Pool",
-    date: { id: "icecream", icon: "🍦", name: "Ice cream on the pier" },
-    goal: 500,
-    pay: 1,
-    blueprints: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-  },
-  {
-    id: 2,
-    venue: "resort",
-    place: "Splash Park",
-    date: { id: "movie", icon: "🎬", name: "Movie night" },
-    goal: 700,
-    pay: 1.35,
-    blueprints: [11, 11, 12, 12, 13, 13, 14, 14, 15, 16],
-  },
-  {
-    id: 3,
-    venue: "lagoon",
-    place: "Sunset Lagoon",
-    date: { id: "dinner", icon: "🍝", name: "Dinner by the lagoon" },
-    goal: 780,
-    pay: 1.7,
-    blueprints: [17, 17, 17, 18, 18, 18, 18, 19, 19, 19],
-  },
-  {
-    id: 4,
-    venue: "arena",
-    place: "Grand Gala Arena",
-    date: { id: "ocean", icon: "🌊", name: "The ocean trip" },
-    goal: 1100,
-    pay: 2.1,
-    blueprints: [20, 20, 20, 20, 20, 20, 20, 20, 20, 20],
-    scale: [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 1],
-  },
+  { id: 1, date: { id: "icecream", icon: "🍦", name: "Ice cream on the pier" } },
+  { id: 2, date: { id: "movie", icon: "🎬", name: "Movie night" } },
+  { id: 3, date: { id: "dinner", icon: "🍝", name: "Dinner by the lagoon" } },
+  { id: 4, date: { id: "ocean", icon: "🌊", name: "The ocean trip" } },
 ];
-// After the last chapter the weeks go on, each a little hotter: the pools come round again, harder and better paid.
+// After the fourth week the dates go round these, and the weeks keep getting harder.
 export const HEAT_DATES = [
   { id: "picnic", icon: "🧺", name: "A picnic in the park" },
   { id: "concert", icon: "🎸", name: "A concert under the stars" },
@@ -118,19 +87,39 @@ export const HEAT_DATES = [
   { id: "sailing", icon: "⛵", name: "A day on a sailboat" },
 ];
 export function chapterFor(n) {
-  const index = Math.max(1, Math.floor(n) || 1) - 1;
-  if (index < CHAPTERS.length) return { ...CHAPTERS[index], heat: 0 };
-  const heat = index - CHAPTERS.length + 1,
-    base = CHAPTERS[(heat - 1) % CHAPTERS.length];
+  const id = Math.max(1, Math.floor(n) || 1),
+    heat = Math.max(0, id - CHAPTERS.length),
+    pay = +(1 + 0.3 * (id - 1)).toFixed(2);
   return {
-    ...base,
-    id: index + 1,
+    id,
     heat,
-    date: HEAT_DATES[(heat - 1) % HEAT_DATES.length],
-    goal: Math.round((base.goal * (1 + 0.15 * heat)) / 10) * 10,
-    pay: +(base.pay * (1 + 0.15 * heat)).toFixed(2),
+    place: "the town's pools",
+    date: id <= CHAPTERS.length ? CHAPTERS[id - 1].date : HEAT_DATES[(heat - 1) % HEAT_DATES.length],
+    goal: Math.round((BASE_GOAL * pay) / 10) * 10,
+    pay,
   };
 }
+
+// ---- the difficulty --------------------------------------------------------------------------------------------------
+
+// A run's shifts in order, from 0 (week 1, Monday): what sets how hard a shift is.
+export const stepOf = (week) => (week.chapter - 1) * SHIFTS_PER_WEEK + week.shift;
+// The level a shift is built on: the first of a run is level 1, then a random one from a window that climbs a level a shift
+// (step 6, week 2's Monday, is around level 7; step 19 reaches the last, the gala). Past it the gala's levels come round
+// again, a little harder each time (`over`: how many shifts past the top).
+export const TOP_TIER = SHIFTS.length;
+export function tierFor(step, random) {
+  if (step <= 0) return 1;
+  const center = Math.min(TOP_TIER, 1 + step),
+    lo = Math.max(2, center - 2),
+    hi = Math.min(TOP_TIER, center + 1);
+  return lo + Math.floor(random() * (hi - lo + 1));
+}
+export const overTop = (step) => Math.max(0, step - (TOP_TIER - 1));
+// The first shift of a run: level 1 stretched to a gentle minute, easy to pass.
+export const FIRST_SHIFT = { duration: 60, total: 7 };
+// VIPs (a big tip, short patience): none in the first shift, then one, then more as the run goes on (at most five).
+export const vipCount = (step) => (step <= 0 ? 0 : Math.min(5, 1 + Math.floor(step / 4)));
 
 // ---- the shop --------------------------------------------------------------------------------------------------------
 
@@ -204,8 +193,8 @@ export const PERKS = {
   },
   insurance: {
     icon: "🛟",
-    name: "Shift insurance",
-    text: "One starless shift does not lose the week",
+    name: "Safety net",
+    text: "A failed shift still pays half",
     price: 8,
     insurance: true,
   },
@@ -399,7 +388,7 @@ export function directShift({
   // give either way so a player cannot count on it.
   let count = slots;
   if (slots > 0) count = Math.max(1, slots + (random() < 0.3 ? -1 : random() < 0.35 ? 1 : 0));
-  count = Math.min(slots + 1, count + extraBudget + (heat > 0 ? 1 : 0));
+  count = Math.min(slots + heat + 1, count + extraBudget + heat);
   // A surprise: the next incident in the order, once the player has a few shifts behind them, never two in a row.
   const next = INCIDENT_ORDER.find((k) => !known.includes(k));
   const roll = random();
@@ -492,15 +481,41 @@ export function shiftCards(index, random, known = [], blueprint = {}) {
   return cards;
 }
 
+// VIP arrivals for a shift (fractions of the arrivals, as SHIFTS' `vipAt`), spread over it and kept clear of the first ones.
+function vipSlots(count, random) {
+  const at = [];
+  for (let k = 0; k < count; k++) at.push(+(0.12 + (0.8 * (k + 0.2 + random() * 0.6)) / count).toFixed(2));
+  return at;
+}
+
 // One shift of the week: everything the game needs to play it. `card` is the card picked (or null for the first look).
 export function buildShift(week, card = null, known = week.known || []) {
   const chapter = chapterFor(week.chapter),
     index = week.shift,
-    tier = chapter.blueprints[index],
-    f = chapter.scale?.[index] ?? 1;
-  const blueprint = scaleBlueprint({ ...SHIFTS[tier - 1], venue: SHIFTS[tier - 1].venue || "club" }, f);
-  const random = stream((week.seed ^ Math.imul(index + 1, 2654435761)) >>> 0);
-  const cards = shiftCards(index, stream((week.seed ^ Math.imul(index + 7, 40503)) >>> 0), known, blueprint);
+    step = stepOf(week),
+    random = stream((week.seed ^ Math.imul(index + 1, 2654435761)) >>> 0),
+    tier = tierFor(step, stream((week.seed ^ Math.imul(step + 11, 2246822519)) >>> 0)),
+    over = overTop(step),
+    // Past the top level: a little more crowd and higher targets for every shift beyond it (at most half as much again).
+    f = Math.min(1.5, 1 + 0.03 * over),
+    heat = over > 0 ? 1 + Math.floor(over / SHIFTS_PER_WEEK) : 0;
+  let blueprint = scaleBlueprint({ ...SHIFTS[tier - 1], venue: SHIFTS[tier - 1].venue || "club" }, 1);
+  if (step <= 0) {
+    // The gentle minute: level 1 stretched, the same number of swimmers a minute, the star targets in proportion.
+    const k = FIRST_SHIFT.duration / blueprint.duration;
+    blueprint = {
+      ...blueprint,
+      duration: FIRST_SHIFT.duration,
+      total: FIRST_SHIFT.total,
+      thresholds: blueprint.thresholds.map((t) => Math.round((t * k) / 50) * 50),
+    };
+  } else if (f > 1)
+    blueprint = {
+      ...blueprint,
+      total: Math.round(blueprint.total * f),
+      thresholds: blueprint.thresholds.map((t) => Math.round((t * f) / 50) * 50),
+    };
+  const cards = shiftCards(step, stream((week.seed ^ Math.imul(index + 7, 40503)) >>> 0), known, blueprint);
   const chosen = (card && cards.find((c) => c.id === card)) || null;
   const effects = perkEffects(week.perks);
   const plan = directShift({
@@ -508,24 +523,26 @@ export function buildShift(week, card = null, known = week.known || []) {
     venue: blueprint.venue,
     random,
     known,
-    index: week.chapter > 1 ? index + 3 : index,
-    heat: chapter.heat,
+    index: step,
+    heat,
     extraBudget: chosen?.mystery ? 1 : 0,
     weights: effects.director,
     surprised: !!week.history[week.history.length - 1]?.surprise,
   });
   const { chaos: _c, twist: _t, intro: _i, booking: _b, payout: _p, ...rest } = blueprint;
+  const vips = Math.max((rest.vipAt || []).length, vipCount(step));
   const config = {
     ...rest,
-    name: DAYS[Math.floor(index / 2)] + " " + SLOTS[index % 2],
+    name: DAYS[index],
     chaos: plan.chaos,
     twist: plan.twist,
+    ...(vips > (rest.vipAt || []).length && { vipAt: vipSlots(vips, random) }),
     ...(chosen?.mystery && { payout: 1.15 }),
     week: { chapter: week.chapter, shift: index },
   };
   if (plan.surprise) config.intro = plan.surprise;
   const shape = {
-    index,
+    index: step,
     tier,
     total: config.total,
     incidents: plan.incidents,
@@ -535,8 +552,8 @@ export function buildShift(week, card = null, known = week.known || []) {
   const wishes = drawWishes(shape, stream((week.seed ^ Math.imul(index + 3, 362437)) >>> 0), chapter.pay);
   return {
     index,
-    day: DAYS[Math.floor(index / 2)],
-    slot: SLOTS[index % 2],
+    step,
+    day: DAYS[index],
     tier,
     chapter,
     config,
@@ -553,8 +570,8 @@ export function buildShift(week, card = null, known = week.known || []) {
 // ---- the week's state --------------------------------------------------------------------------------------------------
 
 export const PAY = { base: 15, star: 15 };
-// A shift is complete when its score reaches the pass mark, half of its first star: below it the pool is a mess and the week
-// is lost. It is on screen before the shift and in the HUD during it.
+// A shift is passed when its score reaches the pass mark, half of its first star: below it the pool was a mess and the shift
+// pays nothing (the week goes on). It is on screen before the shift and in the HUD during it.
 export const PASS_SHARE = 0.5;
 export const passMark = (config) => Math.max(50, Math.round((config.thresholds[0] * PASS_SHARE) / 50) * 50);
 
@@ -577,42 +594,45 @@ export function newWeek(save, seed = Date.now()) {
     fund: 0,
     tips: 0,
     perks: [],
-    insuranceUsed: false,
     rolls: 0,
     history: [],
     status: "playing", // "playing" | "won" | "lost"
   };
 }
 
-// The save: which chapter the player is on, what they have discovered, the dates they have had, and the week in progress.
+// The save: which week of the run the player is on, what they have discovered, the dates of the run, the week in progress,
+// and the levels the run has opened in free play (`unlocked`: every level up to it, never less than 1).
 export function normalizeWeekSave(saved = {}) {
   const s = saved && typeof saved === "object" ? saved : {};
   const known = Array.isArray(s.known) ? s.known.filter((k) => INCIDENTS[k]) : [];
   const dates = Array.isArray(s.dates) ? s.dates.filter((d) => typeof d === "string" && d.length < 40) : [];
-  const chapter = Math.max(1, Math.min(99, Math.floor(Number(s.chapter)) || 1));
+  const chapter = Math.max(1, Math.min(999, Math.floor(Number(s.chapter)) || 1));
+  const count = (v, max = 1e6) => Math.max(0, Math.min(max, Math.floor(Number(v)) || 0));
   let week = null;
   const w = s.week;
-  if (w && typeof w === "object" && w.status === "playing") {
-    const num = (v, max) => Math.max(0, Math.min(max, Math.floor(Number(v)) || 0));
+  // A week saved by the old ten-shift version (two shifts a day) is not carried over: its shifts do not fit six days.
+  if (w && typeof w === "object" && w.status === "playing" && s.v === 2) {
     week = {
       chapter,
-      seed: num(w.seed, 4294967295) || 1,
-      shift: num(w.shift, SHIFTS_PER_WEEK - 1),
-      fund: num(w.fund, 1e6),
-      tips: num(w.tips, 1e4),
+      seed: count(w.seed, 4294967295) || 1,
+      shift: count(w.shift, SHIFTS_PER_WEEK - 1),
+      fund: count(w.fund),
+      tips: count(w.tips, 1e4),
       perks: Array.isArray(w.perks) ? [...new Set(w.perks.filter((p) => PERKS[p]))] : [],
-      insuranceUsed: !!w.insuranceUsed,
-      rolls: num(w.rolls, 1e4),
+      rolls: count(w.rolls, 1e4),
       history: Array.isArray(w.history) ? w.history.slice(0, SHIFTS_PER_WEEK) : [],
       status: "playing",
     };
   }
   return {
-    chapter,
+    v: 2,
+    chapter: s.v === 2 ? chapter : 1,
     known: [...new Set(known)],
-    dates,
-    weeksLost: Math.max(0, Math.floor(Number(s.weeksLost)) || 0),
-    bestFund: Math.max(0, Math.floor(Number(s.bestFund)) || 0),
+    dates: s.v === 2 ? dates : [],
+    runs: count(s.runs ?? s.weeksLost),
+    bestWeek: Math.max(1, count(s.bestWeek, 999) || 1),
+    bestFund: count(s.bestFund),
+    unlocked: Math.max(1, Math.min(TOP_TIER, count(s.unlocked, TOP_TIER) || 1)),
     invited: Array.isArray(s.invited)
       ? s.invited.filter((n) => Number.isInteger(n) && n > 0).slice(-100)
       : [],
@@ -621,8 +641,10 @@ export function normalizeWeekSave(saved = {}) {
 }
 
 // A shift is over. Returns what happened (for the results screen) and changes `save` (and its week) in place:
-//   failed   no star: the week is lost (unless insurance covers it)
-//   last     the week's last shift: `won` when the Date Fund reached the goal, else lost
+//   failed   below the pass mark: it pays nothing (half with the safety net), and the week goes on
+//   last     Saturday's shift: Sunday decides. `won` when the Date Fund reached the goal (a date, and the next week), else
+//            `over`: the run is lost and the next one starts again at week 1
+// A level passed opens in free play, with every level below it.
 export function finishShift(save, shift, summary, stats = {}) {
   const week = save.week,
     chapter = chapterFor(week.chapter),
@@ -632,22 +654,28 @@ export function finishShift(save, shift, summary, stats = {}) {
     passed = (summary.score || 0) >= pass;
   const wishes = checkWishes(shift.wishes, summary, stats);
   for (const k of shift.plan.incidents) if (!save.known.includes(k)) save.known.push(k);
-  const insured = !passed && effects.insurance && !week.insuranceUsed;
-  if (insured) week.insuranceUsed = true;
-  const failed = !passed && !insured;
-  const pay = passed ? shiftPay(stars, chapter, shift.card) : 0,
+  const insured = !passed && effects.insurance;
+  const failed = !passed;
+  const unlockedBefore = save.unlocked;
+  if (passed) save.unlocked = Math.max(save.unlocked, Math.min(TOP_TIER, shift.tier));
+  const pay = passed
+      ? shiftPay(stars, chapter, shift.card)
+      : insured
+        ? roundPay(shiftPay(1, chapter, shift.card) / 2)
+        : 0,
     wishPay = failed
       ? 0
       : wishes.filter((w) => w.met).reduce((sum, w) => sum + roundPay(w.pay * effects.wishes), 0),
     sponsor = passed ? effects.sponsor : 0,
-    gained = failed ? 0 : pay + wishPay + sponsor,
-    tips = failed ? 0 : shiftTips(stars, summary, stats, wishes.filter((w) => w.met).length, effects.tips);
+    gained = pay + wishPay + sponsor,
+    tips = shiftTips(stars, summary, stats, failed ? 0 : wishes.filter((w) => w.met).length, effects.tips);
   const before = week.fund;
   week.fund += gained;
   week.tips += tips;
   week.history.push({
     stars,
     score: Math.round(summary.score || 0),
+    passed,
     gained,
     wishes: wishes.filter((w) => w.met).length,
     surprise: shift.plan.surprise || null,
@@ -670,22 +698,27 @@ export function finishShift(save, shift, summary, stats = {}) {
     goal: chapter.goal,
     last,
     won: false,
-    lost: false,
+    over: false,
     chapter,
+    step: shift.step,
+    tier: shift.tier,
+    unlocked: save.unlocked > unlockedBefore ? save.unlocked : 0,
     surprise: shift.plan.surprise,
   };
-  if (failed) {
-    result.lost = true;
-    week.status = "lost";
-    save.weeksLost++;
-  } else if (last) {
+  if (last) {
     result.won = week.fund >= chapter.goal;
-    result.lost = !result.won;
+    result.over = !result.won;
     week.status = result.won ? "won" : "lost";
     if (result.won) {
       save.dates.push(chapter.date.id);
       save.chapter = week.chapter + 1;
-    } else save.weeksLost++;
+      save.bestWeek = Math.max(save.bestWeek, save.chapter);
+    } else {
+      // Game over: the run starts again at week 1 (what was discovered and the levels opened stay).
+      save.runs++;
+      save.chapter = 1;
+      save.dates = [];
+    }
   } else {
     week.shift++;
     week.rolls = 0;

@@ -15,7 +15,7 @@ import {
   fundShare,
   ART,
 } from "./dist/story.mjs";
-import { CHAPTERS } from "./dist/week.mjs";
+import { CHAPTERS, chapterFor } from "./dist/week.mjs";
 import { scene } from "./dist/marina.mjs";
 import { existsSync } from "node:fs";
 import { playCinematic, panelHtml } from "./dist/cinematic.mjs";
@@ -231,12 +231,13 @@ assert.ok(
     "escaped",
   );
   assert.ok(html.includes("cine-bubble") && !html.includes("cine-layer"), "the bubbles stay, the emoji go");
-  const first = scene("invite", CHAPTERS[0]).panels,
-    second = scene("invite", CHAPTERS[1]).panels;
+  const first = scene("invite", chapterFor(1)).panels,
+    second = scene("invite", chapterFor(2)).panels;
   assert.ok(first.some((p) => p.img === ART.marinaDreams) && first.some((p) => p.img === ART.coachDaydream));
   assert.ok(!second.some((p) => p.img === ART.marinaDreams), "the prologue is the first week's alone");
   assert.equal(first[0].img, ART.coachPool, "the week still opens on Coach Waters at his pool");
-  for (const ch of CHAPTERS)
+  assert.ok(!first.some((p) => /NaN/.test(p.text || "")), "the invite names a real Date Fund");
+  for (const ch of CHAPTERS.map((c) => chapterFor(c.id)))
     for (const kind of ["invite", "date", "raincheck"])
       for (const p of scene(kind, ch).panels)
         assert.ok(!p.img || files.includes(p.img), kind + ": a known still");

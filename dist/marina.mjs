@@ -54,7 +54,7 @@ function invite(chapter) {
       bg: "pool",
       img: ART.coachPool,
       hold: 3600,
-      text: `Coach Waters works the ${chapter.place}. Five days, two shifts a day.`,
+      text: `Week ${chapter.id}. Coach Waters works the town's pools: six shifts, Monday to Saturday.`,
       layers: [
         { e: "🧑", x: 50, y: 54, s: 18, a: "sway" },
         { e: "🏊", x: 20, y: 76, s: 9, a: "bob" },
@@ -67,24 +67,24 @@ function invite(chapter) {
       img: ART.marinaText,
       hold: 4000,
       text: "A text from Marina…",
-      layers: phone(`${d.name} this weekend? ${d.icon} Only if you can treat me 😉`),
+      layers: phone(`${d.name} on Sunday? ${d.icon} Only if you can treat me 😉`),
     },
     {
       bg: "jar",
       img: ART.fundJar,
       hold: 0,
-      text: `Save ${money(chapter.goal)} by Friday and it's a date. Lose a shift, and the week starts over.`,
+      text: `Save ${money(chapter.goal)} by Saturday night and Sunday is a date. Fall short, and it's game over.`,
       layers: [
         { e: "💰", x: 50, y: 56, s: 22, a: "pulse" },
         { e: d.icon, x: 26, y: 40, s: 12, a: "float" },
         { e: "💌", x: 74, y: 42, s: 10, a: "float2" },
-        { b: `Date Fund: ${money(chapter.goal)} by Friday`, x: 50, y: 18 },
+        { b: `Date Fund: ${money(chapter.goal)} by Saturday`, x: 50, y: 18 },
       ],
     },
   ];
 }
 
-// The weekend: the Date Fund made it.
+// Sunday: the Date Fund made it.
 function date(chapter) {
   const d = chapter.date;
   return [
@@ -92,14 +92,14 @@ function date(chapter) {
       bg: "dream",
       img: ART.marinaReady,
       hold: 3600,
-      text: `Friday night. The Date Fund is full: ${money(chapter.goal)}!`,
+      text: `Saturday night. The Date Fund is full: ${money(chapter.goal)}!`,
       layers: phone("I'm ready! Pick me up at eight 💖", [{ e: "🎉", x: 18, y: 30, s: 10, a: "float" }]),
     },
     {
       bg: chapter.date.id === "ocean" ? "sea" : "dream",
       img: ART.date[d.id],
       hold: 4200,
-      text: `The weekend: ${d.name.toLowerCase()} with Marina.`,
+      text: `Sunday: ${d.name.toLowerCase()} with Marina.`,
       layers: [
         { e: "🧑", x: 38, y: 60, s: 16, a: "sway" },
         { e: "👩", x: 60, y: 60, s: 16, a: "sway" },
@@ -111,16 +111,16 @@ function date(chapter) {
       bg: "pool",
       img: ART.coachPool,
       hold: 0,
-      text: "Monday comes round again. A new pool, a new week, and Marina's already planning the next date…",
+      text: "Monday comes round again: busier pools, a harder week, and Marina's already planning the next date…",
       layers: [
         { e: "📅", x: 50, y: 50, s: 20, a: "pulse" },
-        { b: "Same time next weekend? 😘", x: 50, y: 20 },
+        { b: "Same time next Sunday? 😘", x: 50, y: 20 },
       ],
     },
   ];
 }
 
-// The week is lost: a shift that did not pass, or a Friday short of the goal.
+// Game over: a Saturday night short of the goal. The run starts again at week 1.
 function raincheck(chapter, why) {
   return [
     {
@@ -129,8 +129,8 @@ function raincheck(chapter, why) {
       hold: 0,
       text:
         why === "short"
-          ? `Friday night, and the Date Fund is short of ${money(chapter.goal)}. The week starts over on Monday.`
-          : "The shift fell apart, and the pool closed early. The week starts over on Monday.",
+          ? `Saturday night, and the Date Fund is short of ${money(chapter.goal)}. Game over: the next run starts again at week 1.`
+          : "The week fell apart. Game over: the next run starts again at week 1.",
       layers: phone("Rain check? I'll save the date for you 💛 Try again!", [
         { e: "🌧️", x: 20, y: 30, s: 10, a: "float" },
       ]),
