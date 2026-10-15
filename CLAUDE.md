@@ -83,7 +83,9 @@ the app and depot ids, the store page, the price, written proof that the AI tool
   `latest` out for the list; a deploy preview has the same address under its own host). **Copy report** and `?bisect` still work without it.
 - Be honest about verification: say what was run and what was only checked by CPU, and never present a programmatic check as a visual or listening
   pass. The README's verification paragraphs are the model.
-- Do not open a pull request unless asked; push only to the branch you were given.
+- **Always merge when the work is finished** (the creator, 16 October 2026: "Always merge when I ask for things! Even when I don't say
+  it!"). Push to the branch you were given, run the whole suite, then open a pull request to `main` and merge it, without waiting to be
+  told. Never merge with a failing check, and say what you merged (the PR and the commit).
 - They have asked for, and not yet decided on: the fish kid's walk versus run (CarryWalk normal, CarryRun harder), and whether the kids' random
   names (Timmy, Rosie, Benji, Lola, Arlo, Mina) should match the boy model. The incident ranking is theirs to make before the incident director
   is built.
