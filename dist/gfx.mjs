@@ -142,14 +142,16 @@ export function graphicsPlan({
     touch,
     // 60 frames a second at most on a touch WebKit device (a 120 Hz screen would ask for twice the drawing).
     fpsCap: touch ? 60 : 0,
-    // The governor watches the frames on a touch device and on any device that has crashed before; never in a test or with ?dpr.
-    govern: !testing && !fixed && (touch || crashed),
+    // The governor (lowering the resolution while frames are slow) is off since 16 October 2026: the creator asked for the browser's
+    // pixels back, and the iPad crashed at every surface size it was given (README, "Unparked on 12 October 2026").
+    govern: false,
     // The pixel ratio for a drawing surface of w×h CSS pixels, times the governor's scale.
     ratio(w, h, scale = 1) {
       if (fixed) return Math.min(deviceRatio, Math.max(0.5, dprCap));
       // Ultra draws more pixels than the screen has (supersampling); every other level at most the screen's own.
       let r = Math.min(maxRatio, deviceRatio * (crashed ? 1 : q.supersample || 1));
-      if ((touch || q.supersample) && w > 0 && h > 0) r = Math.min(r, Math.sqrt(maxPixels / (w * h)));
+      // (Only Ultra's supersampling has a budget; a touch device draws at its quality's own ratio like any other.)
+      if (q.supersample && w > 0 && h > 0) r = Math.min(r, Math.sqrt(maxPixels / (w * h)));
       return Math.max(0.5, Math.floor(r * scale * 1000) / 1000); // rounded down: never past a budget
     },
   };

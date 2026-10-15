@@ -1,8 +1,9 @@
 import { SHIFTS } from "./sim.mjs";
 import { DRILL_LIST, DRILLS } from "./drills.mjs";
-// Playtesting: every level is open to everyone until further notice. Saved progress still records real
-// unlocks, so setting this back to false restores star-gated progression without anyone losing progress.
-export const UNLOCK_ALL = true;
+// Free play opens what the week's run has passed (week.mjs `unlocked`, copied into the records by the app), and a star in free
+// play opens the next level (since 16 October 2026, the creator's design; it was every level open for playtesting before).
+// `?unlockall` opens everything for a page, for testing.
+export const UNLOCK_ALL = false;
 // The live switch: starts at UNLOCK_ALL, and the QA hook (`?debug`) can flip it to see the real, star-gated map.
 export const progressFlags = { unlockAll: UNLOCK_ALL };
 export function isUnlocked(records, level, unlockAll = progressFlags.unlockAll) {

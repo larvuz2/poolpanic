@@ -3,6 +3,7 @@
 import {
   WEEK_KEY,
   DAYS,
+  DATE_DAY,
   SHIFTS_PER_WEEK,
   PERKS,
   REROLL_PRICE,
@@ -41,6 +42,7 @@ export function installWeek({
   let shift = null; // the shift being played (or picked)
   let result = null; // the last shift's result, until the player moves on
   let pickedCard = null;
+  let inFreePlay = false; // the menu shows the level map (free play) instead of the week
 
   function load() {
     try {
@@ -56,20 +58,18 @@ export function installWeek({
   }
   const chapterNow = () => chapterFor(save.week ? save.week.chapter : save.chapter);
 
-  // The ten shifts as five days of two, each with its stars once played.
+  // The six shifts, one a day, each with its stars once played (✗ for one not passed), and Sunday's date.
   function daysHtml(week) {
-    return DAYS.map((d, di) => {
-      const cells = [0, 1]
-        .map((k) => {
-          const i = di * 2 + k,
-            h = week?.history[i],
-            now = week && i === week.shift && !h;
-          return `<i class="${h ? "done" : ""}${now ? " now" : ""}">${h ? "★".repeat(h.stars) || "✓" : ""}</i>`;
-        })
-        .join("");
-      const today = week && Math.floor(week.shift / 2) === di;
-      return `<div class="wk-day${today ? " today" : ""}"><span>${cells}</span>${upper(d.slice(0, 3))}</div>`;
-    }).join("");
+    const days = DAYS.map((d, i) => {
+      const h = week?.history[i],
+        now = week && i === week.shift && !h,
+        mark = h ? (h.passed === false ? "✗" : "★".repeat(h.stars) || "✓") : "";
+      return `<div class="wk-day${now ? " today" : ""}"><span><i class="${h ? (h.passed === false ? "miss" : "done") : ""}${now ? " now" : ""}">${mark}</i></span>${upper(d.slice(0, 3))}</div>`;
+    });
+    days.push(
+      `<div class="wk-day date"><span><i>${chapterNow().date.icon}</i></span>${upper(DATE_DAY.slice(0, 3))}</div>`,
+    );
+    return days.join("");
   }
   function fill(el, from, to) {
     el.style.transition = "none";
@@ -84,22 +84,23 @@ export function installWeek({
   function menu() {
     const ch = chapterNow(),
       w = save.week;
-    $("week-card").hidden = false;
+    $("week-card").hidden = inFreePlay;
     $("wk-date-icon").textContent = ch.date.icon;
     $("wk-eyebrow").textContent =
-      "WEEK " + ch.id + " · " + upper(ch.place) + (ch.heat ? " · HEAT " + ch.heat : "");
+      "WEEK " + ch.id + (save.bestWeek > 1 ? " · BEST: WEEK " + save.bestWeek : "");
     $("wk-title").textContent = ch.date.name + " with Marina";
     $("wk-sub").textContent = w
-      ? `${DAYS[Math.floor(w.shift / 2)]} ${w.shift % 2 ? "afternoon" : "morning"} · shift ${w.shift + 1} of ${SHIFTS_PER_WEEK}`
-      : `Save ${money(ch.goal)} by Friday. Every shift must pass, or the week starts over.`;
-    $("wk-go").innerHTML = w ? "CONTINUE <span>▶</span>" : "START THE WEEK <span>▶</span>";
+      ? `${DAYS[w.shift]} · shift ${w.shift + 1} of ${SHIFTS_PER_WEEK} · the date is on ${DATE_DAY}`
+      : `Six shifts, Monday to Saturday. Save ${money(ch.goal)} for ${DATE_DAY}, or it's game over.`;
+    $("wk-go").innerHTML = w ? "CONTINUE <span>▶</span>" : "START <span>▶</span>";
     $("wk-money").textContent = money(w ? w.fund : 0) + " / " + money(ch.goal);
     $("wk-fill").style.width = share(w ? w.fund : 0, ch.goal) + "%";
     $("wk-days").innerHTML = daysHtml(w);
     const met = INCIDENT_ORDER.filter((k) => save.known.includes(k));
     $("wk-note").textContent =
-      (save.dates.length ? "Dates so far: " + save.dates.length + " 💖 · " : "") +
-      `Incidents met: ${met.map((k) => INCIDENTS[k].icon).join(" ") || "none yet"} (${met.length}/${INCIDENT_ORDER.length}) · free play: any level on the map`;
+      (save.dates.length ? "Dates this run: " + save.dates.length + " 💖 · " : "") +
+      `Incidents met: ${met.map((k) => INCIDENTS[k].icon).join(" ") || "none yet"} (${met.length}/${INCIDENT_ORDER.length})`;
+    $("wk-free").textContent = `🗺️ Free play · ${save.unlocked} level${save.unlocked > 1 ? "s" : ""} open`;
   }
   function hideMenu() {
     $("week-card").hidden = true;
@@ -118,7 +119,7 @@ export function installWeek({
       playScene(scene("invite", chapterNow()).panels, openPicker);
     } else {
       toast(
-        `A new week! Save ${money(chapterNow().goal)} by Friday for ${chapterNow().date.name.toLowerCase()} 💌`,
+        `Week ${chapterNow().id}! Save ${money(chapterNow().goal)} by ${DATE_DAY} for ${chapterNow().date.name.toLowerCase()} 💌`,
       );
       openPicker();
     }
@@ -129,7 +130,7 @@ export function installWeek({
     const ch = chapterNow();
     shift = buildShift(w, null, save.known);
     const o = outlook(w);
-    $("wd-title").textContent = upper(shift.day) + " · " + upper(shift.slot);
+    $("wd-title").textContent = "WEEK " + ch.id + " · " + upper(shift.day);
     $("wd-count").textContent = `SHIFT ${w.shift + 1} OF ${SHIFTS_PER_WEEK}`;
     $("wd-date").textContent = ch.date.icon;
     $("wd-money").textContent = money(w.fund) + " / " + money(ch.goal);
@@ -152,7 +153,7 @@ export function installWeek({
           `<button class="booking-card${c.id === "regular" ? " regular" : ""}" data-card="${c.id}"><span class="b-icon" aria-hidden="true">${c.icon}</span><strong>${esc(c.name)}</strong><span class="b-pay">×${c.payout}<small>PAY</small></span><span class="b-note">${esc(c.note)}</span><span class="b-danger" aria-label="danger ${c.danger} of 3">${"🔥".repeat(c.danger)}</span></button>`,
       )
       .join("");
-    presence(`Week ${ch.id} · ${shift.day} ${shift.slot}`);
+    presence(`Week ${ch.id} · ${shift.day}`);
     $("week-dialog").showModal();
     $("wd-cards").firstElementChild?.focus();
   }
@@ -163,7 +164,7 @@ export function installWeek({
     hideMenu();
     crumb(
       "week",
-      `shift ${shift.index + 1} · ${shift.day} ${shift.slot} · ${cardId} · tier ${shift.tier} · ` +
+      `shift ${shift.index + 1} · ${shift.day} · step ${shift.step} · ${cardId} · tier ${shift.tier} · ` +
         `incidents ${shift.plan.incidents.join(",") || "none"}${shift.plan.surprise ? " · surprise " + shift.plan.surprise : ""} · pass ${shift.pass}`,
     );
     startShift(shift);
@@ -180,7 +181,7 @@ export function installWeek({
     crumb(
       "week",
       `shift ${shift.index + 1} done · ${result.passed ? "passed" : "FAILED"} · +${result.gained} → ${result.fund}/${result.goal}` +
-        (result.won ? " · WEEK WON" : result.lost ? " · week lost" : ""),
+        (result.won ? " · DATE" : result.over ? " · GAME OVER" : ""),
     );
     const lines = [];
     if (result.passed)
@@ -193,17 +194,15 @@ export function installWeek({
     if (result.tips) lines.push(`<li><span>🪙 Tips for the shop</span><b>+${result.tips}</b></li>`);
     $("rw-lines").innerHTML = lines.join("");
     const banner = $("rw-banner");
-    banner.hidden = !(result.failed || result.insured || result.won || result.lost);
-    banner.classList.toggle("good", result.won || result.insured);
-    banner.textContent = result.failed
-      ? `SHIFT FAILED · ${Math.round(summary.score).toLocaleString()} OF ${result.pass.toLocaleString()} TO PASS · THE WEEK STARTS OVER`
-      : result.insured
-        ? "🛟 BELOW THE PASS MARK, BUT THE INSURANCE SAVED YOUR WEEK"
-        : result.won
-          ? `💖 DATE FUND FULL! ${upper(ch.date.name)} THIS WEEKEND`
-          : result.lost
-            ? `FRIDAY, ${money(result.goal - result.fund)} SHORT · THE WEEK STARTS OVER`
-            : "";
+    banner.hidden = !(result.failed || result.won || result.over || result.unlocked);
+    banner.classList.toggle("good", result.won || (!result.failed && !result.over));
+    banner.textContent = result.won
+      ? `💖 DATE FUND FULL! ${upper(ch.date.name)} ON ${upper(DATE_DAY)}`
+      : result.over
+        ? `SATURDAY NIGHT, ${money(result.goal - result.fund)} SHORT · GAME OVER`
+        : result.failed
+          ? `NOT PASSED · ${Math.round(summary.score).toLocaleString()} OF ${result.pass.toLocaleString()} · NO PAY${result.insured ? " (THE SAFETY NET PAID HALF)" : ""}, BUT THE WEEK GOES ON`
+          : `🔓 LEVEL ${result.unlocked} IS OPEN IN FREE PLAY`;
     $("rw-date").textContent = ch.date.icon;
     $("rw-money").textContent = money(result.fund) + " / " + money(result.goal);
     fill($("rw-fill"), share(before, result.goal), share(result.fund, result.goal));
@@ -212,8 +211,8 @@ export function installWeek({
       ? `Marina: “${texts[texts.length - 1].text}”`
       : result.surprise && result.passed
         ? `New: ${INCIDENTS[result.surprise].icon} ${INCIDENTS[result.surprise].name}. It can turn up in any shift now.`
-        : result.passed && !result.last
-          ? `${money(Math.max(0, result.goal - result.fund))} to go · ${SHIFTS_PER_WEEK - save.week.shift} shifts left`
+        : !result.last
+          ? `${money(Math.max(0, result.goal - result.fund))} to go · ${SHIFTS_PER_WEEK - save.week.shift} shift${SHIFTS_PER_WEEK - save.week.shift > 1 ? "s" : ""} left before ${DATE_DAY}`
           : "";
     $("result-week").hidden = false;
     if (result.won) celebrate();
@@ -222,9 +221,8 @@ export function installWeek({
   // The results' main button, and its label.
   function nextLabel() {
     if (!result) return "";
-    if (result.failed) return "Start the week again ↻";
-    if (result.won) return "See the weekend 💖";
-    if (result.lost) return "Friday night… 💌";
+    if (result.won) return `${DATE_DAY} with Marina 💖`;
+    if (result.over) return `${DATE_DAY}… 💌`;
     return "To the shop 🛍️";
   }
   function next() {
@@ -232,15 +230,16 @@ export function installWeek({
     result = null;
     shift = null;
     if (!r) return returnMenu();
-    if (r.failed || r.lost)
-      return playScene(scene("raincheck", r.chapter, r.failed ? "failed" : "short").panels, () => {
-        go();
+    if (r.over)
+      return playScene(scene("raincheck", r.chapter, "short").panels, () => {
+        returnMenu();
+        toast("Game over. Press START for a new run: week 1, Monday 🔁");
       });
     if (r.won)
       return playScene(scene("date", r.chapter).panels, () => {
         returnMenu();
         toast(
-          `Week ${chapterNow().id}: ${chapterNow().place}. The next date: ${chapterNow().date.name} ${chapterNow().date.icon}`,
+          `Week ${chapterNow().id}: harder pools. The next date: ${chapterNow().date.name} ${chapterNow().date.icon}`,
         );
       });
     openShop();
@@ -277,11 +276,19 @@ export function installWeek({
     openShop();
   }
 
+  // ---- free play: the levels the run has opened, one at a time, on the map ----------------------------------------------
+  let onFreePlay = () => {};
+  function freePlay(on) {
+    inFreePlay = !!on;
+    $("week-card").hidden = inFreePlay;
+    onFreePlay(inFreePlay);
+  }
+
   // ---- what the HUD and the top bar show ----------------------------------------------------------------------------
   function hudTag(config) {
     const w = config?.week;
     if (!w) return null;
-    return `${upper(DAYS[Math.floor(w.shift / 2)].slice(0, 3))} · ${upper(w.shift % 2 ? "afternoon" : "morning")} · ${w.shift + 1}/${SHIFTS_PER_WEEK}`;
+    return `WEEK ${w.chapter} · ${upper(DAYS[w.shift].slice(0, 3))} · ${w.shift + 1}/${SHIFTS_PER_WEEK}`;
   }
   function pill() {
     const ch = chapterNow();
@@ -290,6 +297,7 @@ export function installWeek({
 
   // ---- the buttons ----------------------------------------------------------------------------------------------------
   $("wk-go").onclick = go;
+  $("wk-free").onclick = () => freePlay(true);
   $("wd-cards").onclick = (e) => {
     const b = e.target.closest("[data-card]");
     if (b) pick(b.dataset.card);
@@ -330,6 +338,10 @@ export function installWeek({
   }
   return {
     dismiss,
+    freePlay,
+    set onFreePlay(fn) {
+      onFreePlay = fn;
+    },
     menu,
     hideMenu,
     go,

@@ -4899,7 +4899,7 @@ body:not(.menu) .fund-pill {
 }
 .wk-days {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
   margin: 4px 0;
 }
@@ -4938,6 +4938,48 @@ body:not(.menu) .fund-pill {
 .wk-day i.now {
   border-color: var(--yellow);
   box-shadow: 0 0 0 2px #ffdc5255;
+}
+.wk-day i {
+  width: 30px;
+}
+.wk-day i.miss {
+  background: #5a2626;
+  border-color: #e0806b;
+  color: #ffd2c4;
+}
+.wk-day.date {
+  color: #ff9fbe;
+}
+.wk-day.date i {
+  background: #4a2240;
+  border-color: #ff9fbe;
+  font-size: 12px;
+}
+/* One START on the main screen (the creator, 16 October 2026): the week card holds it. The level map is free play, a separate
+   view behind the card's "Free play" link, with its own START and a way back. */
+.wk-free {
+  justify-self: center;
+  font-size: 12px;
+}
+body.menu:not(.freeplay) #welcome {
+  display: none;
+}
+body.menu:not(.freeplay) #map {
+  pointer-events: none;
+  filter: saturate(0.7) brightness(0.92);
+}
+body.menu:not(.freeplay) .map-acts,
+body:not(.freeplay) .fp-back {
+  display: none;
+}
+.fp-back {
+  position: absolute;
+  top: max(calc(var(--map-top) + 10px), 100px);
+  left: var(--edge);
+  z-index: 6;
+  width: auto;
+  min-height: 40px;
+  padding: 8px 16px;
 }
 .wk-note {
   font-size: 10px;
