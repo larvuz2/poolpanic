@@ -4,7 +4,7 @@
 # renderer; the three add-ons in vendor/ are three r170's, with their imports pointed at the files next to them.
 # The artifact host does not serve .glb files, so each model goes out as base64 text (models/x.glb.b64.txt) and the
 # built characters.json points at those; the viewer decodes them. A character's file is found relative to this folder
-# (Coach Panic's lives with the game, in dist/assets, so the viewer shows the file the game loads).
+# (Coach Waters' lives with the game, in dist/assets, so the viewer shows the file the game loads).
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 out="$here/.build"

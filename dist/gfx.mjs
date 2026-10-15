@@ -8,7 +8,7 @@
 // (about 148 MB). So on a touch device with Apple's WebKit the game draws fewer pixels to begin with (a budget of 2 million, no
 // longer the screen's 1.7 pixels a point), never more than 60 frames a second (a 120 Hz iPad asked for twice the work), and lowers the
 // resolution further while the frames are slow. And on any device, a page that dies in the middle of a shift makes the next launch
-// draw with lighter graphics (a tier: no antialiasing, then no shadows, then the classic characters), so a crash is not met twice.
+// draw with lighter graphics (a tier: no antialiasing, then no shadows, then no splashes and fewer pixels), so a crash is not met twice.
 
 import { isWebKit } from "./tuning.mjs";
 
@@ -21,11 +21,12 @@ export const TIERS = [
   { flags: [], pixels: 2.0e6, ratio: 1.7, says: "full graphics" },
   { flags: ["noaa"], pixels: 1.4e6, ratio: 1.25, says: "no antialiasing, fewer pixels" },
   { flags: ["noaa", "noshadow"], pixels: 1.0e6, ratio: 1, says: "no antialiasing or shadows, fewer pixels" },
+  // (Never the classic characters: the creator asked on 15 October 2026 that the game always show the new ones.)
   {
-    flags: ["noaa", "noshadow", "noparticles", "nomodels"],
+    flags: ["noaa", "noshadow", "noparticles"],
     pixels: 0.8e6,
     ratio: 1,
-    says: "no antialiasing, shadows or splashes, classic characters",
+    says: "no antialiasing, shadows or splashes",
   },
 ];
 

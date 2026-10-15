@@ -1,6 +1,6 @@
 """Add clips of one GLB to a finished character on the same skeleton, and change nothing else in the file:
     python3 tools/blender/transplant_clips.py SOURCE.glb TARGET.glb OUT.glb --only Panic [--scale K]
-(plain Python, no Blender). SOURCE is a GLB with the clips (Coach Panic's file, or what character_clips.py wrote), TARGET the
+(plain Python, no Blender). SOURCE is a GLB with the clips (Coach Waters' file, or what character_clips.py wrote), TARGET the
 character that gets them. Like retarget_clips.py, a bone's rotation keys are copied by name, unchanged (both skeletons start
 from the same rest orientations, so a rotation means the same on either), and the hips' travel is multiplied by K, the ratio
 of the two hip heights unless --scale says otherwise, so a child hops lower and a giant higher. Unlike it, the file is not

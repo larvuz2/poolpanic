@@ -1,4 +1,4 @@
-"""Give a kid on Coach Panic's skeleton a bucket to carry, and put its clips in his file:
+"""Give a kid on Coach Waters' skeleton a bucket to carry, and put its clips in his file:
     python3 tools/blender/carry_clips.py in.glb out.glb [--bucket tools/blender/assets/bucket.glb] [--debug-frames 0,10,20]
 (plain Python with numpy, no Blender; posing.py poses the skeleton, skinpose.py reads it). The bucket goes where the hands go
 because the file gets a node, `BucketMount`, a child of the chest bone (`Spine`) that the clips move, and, with `--bucket`, the

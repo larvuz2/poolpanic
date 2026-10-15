@@ -1,5 +1,5 @@
 // The five generic swimmers in the game: Meshy characters (assets/swimmer-*.glb) standing in for the swimmers that
-// actors.mjs builds from balls and boxes. Like Coach Panic (coach-model.mjs) they have Coach Panic's own skeleton and his
+// actors.mjs builds from balls and boxes. Like Coach Waters (coach-model.mjs) they have Coach Waters' own skeleton and his
 // clips, so this file is mostly the rules that pick a clip. The classic swimmer is still built and still posed,
 // but hidden; the model goes in beside its parts. Rules, in short:
 //   - moving on foot: Walk up to a brisk pace, Run beyond it, played at the speed that keeps the feet on the floor;
@@ -136,25 +136,17 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // ---- which swimmers ------------------------------------------------------------------------------------------------
 
-// "models" (the default) or "classic". ?swimmers=classic or ?swimmers=models chooses and is remembered on this device.
+// "models" (always: the creator asked on 15 October 2026 that the game always show the new characters) or "classic", for one
+// page only with ?swimmers=classic (a test). Nothing is remembered: a classic choice an older version saved is forgotten here.
 export function swimmerChoice(search = globalThis.location?.search || "", storage = globalThis.localStorage) {
-  const asked = new URLSearchParams(search).get("swimmers");
-  const chosen = asked === "classic" || asked === "models" ? asked : null;
   try {
-    if (chosen) {
-      if (chosen === "classic") storage?.setItem(SWIMMER_KEY, "classic");
-      else storage?.removeItem(SWIMMER_KEY);
-      return chosen;
-    }
-    return storage?.getItem(SWIMMER_KEY) === "classic" ? "classic" : "models";
-  } catch {
-    return chosen || "models";
-  }
+    storage?.removeItem(SWIMMER_KEY);
+  } catch {}
+  return new URLSearchParams(search).get("swimmers") === "classic" ? "classic" : "models";
 }
 export function saveSwimmerChoice(choice, storage = globalThis.localStorage) {
   try {
-    if (choice === "classic") storage?.setItem(SWIMMER_KEY, "classic");
-    else storage?.removeItem(SWIMMER_KEY);
+    storage?.removeItem(SWIMMER_KEY);
   } catch {}
 }
 let chosen = null;

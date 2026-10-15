@@ -3,7 +3,7 @@
 Pure numpy, so it runs inside Blender (rig_from_template.py) and in plain Python. Everything here uses glTF axes in
 metres: x to the character's left, y up, z forward, feet at y = 0, arms out along x (a T-pose).
 
-How it works. The template (Coach Panic) is a mesh with a skeleton whose joint positions are known. Measure() finds a
+How it works. The template (Coach Waters) is a mesh with a skeleton whose joint positions are known. Measure() finds a
 few landmarks on any body: the neck, the crotch, the ankle, the line each arm lies on, and so on. calibrate() measures
 the template and writes down where each of its joints sits relative to those landmarks (as ratios). fit() measures a new
 body and puts every joint where the same ratios say it goes. The skeleton keeps its bone names, hierarchy and rest

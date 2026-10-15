@@ -87,7 +87,8 @@ assert.ok(!isTouchWebKit(), "nothing known");
     );
   }
   assert.deepEqual(TIERS[1].flags, ["noaa"]);
-  assert.ok(TIERS[2].flags.includes("noshadow") && TIERS[3].flags.includes("nomodels"));
+  assert.ok(TIERS[2].flags.includes("noshadow") && TIERS[3].flags.includes("noparticles"));
+  assert.ok(!TIERS.some((t) => t.flags.includes("nomodels")), "no tier takes the new characters away");
   const tuningWords = readFileSync("dist/tuning.mjs", "utf8");
   for (const f of TIERS[MAX_TIER].flags)
     assert.ok(tuningWords.includes('"' + f + '"'), f + " is a switch tuning.mjs knows");

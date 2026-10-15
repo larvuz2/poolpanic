@@ -150,6 +150,43 @@ kbd {
   filter: drop-shadow(0 3px 0 var(--ink)) drop-shadow(1px 0 0 var(--ink));
   white-space: nowrap;
 }
+/* The logo (dist/assets/brand/logo.webp, the creator's art with its background taken out): top left on the map and in every
+   shift, and in a corner of the story scenes. */
+.brand {
+  filter: none;
+  transform: rotate(-2deg);
+}
+.brand-logo {
+  display: block;
+  height: 70px;
+  width: auto;
+  filter: drop-shadow(0 3px 5px rgba(4, 30, 40, 0.35));
+}
+@media (max-width: 1150px) {
+  .brand-logo {
+    height: 60px;
+  }
+}
+@media (max-width: 900px) {
+  .brand-logo {
+    height: 52px;
+  }
+}
+@media (max-width: 620px) {
+  .brand-logo {
+    height: 44px;
+  }
+}
+.cine-logo {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  height: clamp(44px, 9vh, 84px);
+  width: auto;
+  z-index: 2;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.45));
+}
 .brand-mark {
   display: grid;
   place-items: center;
@@ -4441,6 +4478,32 @@ body.menu .brand small {
   line-height: 1;
   text-shadow: 0 0.6cqw 0.8cqw rgba(0, 0, 0, 0.25);
 }
+/* A generated still fills the stage (16:9, like the stage) and drifts in slowly; the bubbles sit on top of it. */
+.cine-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: cine-drift 9s ease-out both;
+}
+@keyframes cine-drift {
+  from {
+    transform: scale(1.07);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cine-art {
+    animation: none;
+  }
+}
+.has-art .cine-bubble {
+  z-index: 1;
+  box-shadow: 0 0.6cqw 2cqw rgba(0, 0, 0, 0.35);
+}
 .cine-bubble {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -4743,7 +4806,7 @@ body:not(.menu) .fund-pill {
 /* ---- The week (week.mjs, week-ui.mjs): the menu's card, the shift picker, the shop, the week on the results ---------- */
 .week-card {
   position: absolute;
-  top: calc(var(--map-top) + 10px);
+  top: max(calc(var(--map-top) + 10px), 100px); /* below the logo */
   left: var(--edge);
   z-index: 6;
   width: min(430px, calc(100% - var(--edge) * 2));

@@ -17,7 +17,7 @@ Anything can be previewed without publishing: drop a `.glb` on the page, or use 
 | `index.html` | The page, written as a fragment: the artifact host adds the document, head and body |
 | `viewer.js` | The app |
 | `characters.json` | The characters the page lists: `{id, name, file, note, clipFiles?, clips?, skeleton?, extraBones?, adjusted?, retargeted?, own?, premium?}` |
-| `models/*.glb` | Characters that are only in the viewer. A character's `file` in `characters.json` is found from this folder, so Coach Panic's is the game's own `../../dist/assets/coach-panic.glb`, and so are the five generic swimmers' (`../../dist/assets/swimmer-*.glb`), the two cannonball men's (`../../dist/assets/carl.glb`, `leopard-man.glb`) and Karen's (`../../dist/assets/models/karen.glb`: her own 19-bone skeleton, not Coach Panic's, so she names no `skeleton`) |
+| `models/*.glb` | Characters that are only in the viewer. A character's `file` in `characters.json` is found from this folder, so Coach Waters' is the game's own `../../dist/assets/coach-panic.glb`, and so are the five generic swimmers' (`../../dist/assets/swimmer-*.glb`), the two cannonball men's (`../../dist/assets/carl.glb`, `leopard-man.glb`) and Karen's (`../../dist/assets/models/karen.glb`: her own 19-bone skeleton, not Coach Waters', so she names no `skeleton`) |
 | `vendor/` | three r170's `GLTFLoader`, `OrbitControls` and `BufferGeometryUtils`, untouched |
 | `build.sh` | Assembles `.build/` (the flat folder that is published); takes `three.module.js` from `dist/assets` |
 
@@ -62,7 +62,7 @@ room: a character is fitted between the readouts at the top and bottom of the st
 **Every character that goes into the game goes into `characters.json` too**, or it is not on the bench: Karen came into the game from another branch and was missing from the list until the creator asked where she was. `viewer-check.mjs` names the clips that need a flag (`open` for a one-shot, `pop` for a bone that turns more than 40 degrees a frame: Karen's Defeated and Complain).
 
 1. Make the GLB with the Blender tools (`tools/blender/README.md`): `polish_walk.py`, `idle_clips.py`, `game_export.py`.
-2. Put it in `models/` (or point `file` at the game's copy, as Coach Panic does) and add it to `characters.json`. More clips for the same rig can live in their own GLBs:
+2. Put it in `models/` (or point `file` at the game's copy, as Coach Waters does) and add it to `characters.json`. More clips for the same rig can live in their own GLBs:
    list them as `"clipFiles": ["models/coach-panic-run.glb"]` (bone names must match).
 3. `tools/viewer/build.sh`, then look at it locally:
    `python3 -m http.server 8766 --directory tools/viewer/.build`.

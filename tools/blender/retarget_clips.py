@@ -1,4 +1,4 @@
-"""Put the clips of a template character (Coach Panic) on a character rigged with the same skeleton (rig_from_template.py):
+"""Put the clips of a template character (Coach Waters) on a character rigged with the same skeleton (rig_from_template.py):
     tools/blender/run.sh tools/blender/retarget_clips.py -- rigged.glb out.glb [--template dist/assets/coach-panic.glb]
         [--scale K] [--only Run,Walk] [--tex-quality 90]
 Both skeletons have the same bone names, hierarchy and rest orientations, so a bone's rotation keys mean the same on

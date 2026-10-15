@@ -1,4 +1,4 @@
-"""Add belly bones to a character rigged on Coach Panic's skeleton (rig_from_template.py), for a body whose stomach should
+"""Add belly bones to a character rigged on Coach Waters' skeleton (rig_from_template.py), for a body whose stomach should
 move by itself while the rest of him walks, runs, hops and lands:
     tools/blender/run.sh tools/blender/belly_bones.py -- rigged.glb out.glb [--front 0.2] [--tex-quality 90]
 The 24 bones stay as they are (names, hierarchy, rest orientations, the clips of the file) and three bones are added, each
@@ -53,7 +53,7 @@ if any(b.name == BELLY[0][0] for b in arm.data.bones):
     raise SystemExit("The character already has belly bones")
 for name, parent, _ in BELLY:
     if parent not in arm.data.bones:
-        raise SystemExit(f"No {parent} bone: this is not a character on Coach Panic's skeleton")
+        raise SystemExit(f"No {parent} bone: this is not a character on Coach Waters' skeleton")
 arm.data.pose_position = "REST"
 bpy.context.view_layer.update()
 

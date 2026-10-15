@@ -1,4 +1,4 @@
-// Coach Panic in the game: the Meshy character (assets/coach-panic.glb) standing in for the coach that actors.mjs
+// Coach Waters in the game: the Meshy character (assets/coach-panic.glb) standing in for the coach that actors.mjs
 // builds from balls and boxes. The classic coach is still built, and still posed, but hidden, so one switch brings it
 // back (?coach=classic, or the button in How to play). The clips: IdleScan and IdleScratch (standing still), Walk (the
 // few steps into the start of a shift), Run (every other movement on foot), Swim (the freestyle crawl, made standing
@@ -31,25 +31,18 @@ const PACED = new Set(["run", "walk", "swim", "swimRing"]);
 const RING_SWIM_SPEED = 4.2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-// "panic" (the default) or "classic". ?coach=classic or ?coach=panic chooses and is remembered on this device.
+// "panic" (Coach Waters' model, always: the creator asked on 15 October 2026 that the game always show the new characters) or
+// "classic", for one page only with ?coach=classic (a test). Nothing is remembered: a classic choice an older version saved on
+// the device is forgotten here.
 export function coachChoice(search = globalThis.location?.search || "", storage = globalThis.localStorage) {
-  const asked = new URLSearchParams(search).get("coach");
-  const chosen = asked === "classic" || asked === "panic" ? asked : null;
   try {
-    if (chosen) {
-      if (chosen === "classic") storage?.setItem(COACH_KEY, "classic");
-      else storage?.removeItem(COACH_KEY);
-      return chosen;
-    }
-    return storage?.getItem(COACH_KEY) === "classic" ? "classic" : "panic";
-  } catch {
-    return chosen || "panic";
-  }
+    storage?.removeItem(COACH_KEY);
+  } catch {}
+  return new URLSearchParams(search).get("coach") === "classic" ? "classic" : "panic";
 }
 export function saveCoachChoice(choice, storage = globalThis.localStorage) {
   try {
-    if (choice === "classic") storage?.setItem(COACH_KEY, "classic");
-    else storage?.removeItem(COACH_KEY);
+    storage?.removeItem(COACH_KEY);
   } catch {}
 }
 
@@ -90,7 +83,7 @@ export async function loadCoachModel(url = new URL("../assets/coach-panic.glb", 
     });
     template = { scene: gltf.scene, clips, clone };
   } catch (error) {
-    console.warn("Coach Panic did not load; the classic coach stays.", error);
+    console.warn("Coach Waters did not load; the classic coach stays.", error);
     template = null;
   }
   return template;

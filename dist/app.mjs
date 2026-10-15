@@ -229,11 +229,13 @@ function saveMapMemory() {
     localStorage.setItem("pool-panic.map.v1", JSON.stringify(mapMemory));
   } catch {}
 }
-// Per-device preferences. Coach Cam (the first-person view) is off by default.
+// Per-device preferences. Coach Cam (the first-person view) is off at every launch (the creator, 15 October 2026): V or the
+// toggle turns it on for the session, and a choice saved before is not brought back.
 let settings = { coachCam: false };
 try {
   settings = { ...settings, ...JSON.parse(localStorage.getItem("pool-panic.settings.v1") || "{}") };
 } catch {}
+settings.coachCam = false;
 function saveSettings() {
   try {
     localStorage.setItem("pool-panic.settings.v1", JSON.stringify(settings));
@@ -475,7 +477,7 @@ function saveRecords() {
 }
 
 // ---- the story: the Ocean Fund and the cinematics ------------------------------------------------------------------
-// Coach Panic is saving up to take Marina to the ocean (story.mjs). What was seen and earned lives on the device.
+// Coach Waters is saving up to take Marina to the ocean (story.mjs). What was seen and earned lives on the device.
 let story = normalizeStory();
 try {
   story = normalizeStory(JSON.parse(localStorage.getItem(STORY.storageKey)));
@@ -3111,39 +3113,6 @@ function bind() {
   };
   $("watch-ending").onclick = () => playStory("ending");
   $("help-log").onclick = () => showCrash(crashlog.troubled()[0] || crashlog.latest());
-  // Coach Panic or the classic coach (kept for going back). The choice is remembered on this device.
-  const coachButton = () => {
-    $("help-coach").textContent =
-      activeChoice() === "classic" ? "Switch to Coach Panic" : "Switch to the classic coach";
-  };
-  coachButton();
-  $("help-coach").onclick = async () => {
-    const next = activeChoice() === "classic" ? "panic" : "classic";
-    chooseCoach(next);
-    if (next === "panic") await loadCoachModel();
-    world.swapCoach(next);
-    crashlog.crumb(
-      "coach",
-      "switched to " + next + (next === "panic" && !coachModelReady() ? " (model missing)" : ""),
-    );
-    coachButton();
-    toast(
-      next === "panic" && !coachModelReady()
-        ? "Coach Panic could not load."
-        : next === "panic"
-          ? "Coach Panic is back."
-          : "The classic coach is back.",
-    );
-  };
-  // The five swimmer characters or the classic swimmers (kept for going back). Remembered on this device; everyone on the
-  // deck is built again, so the change shows at once.
-  const swimmerButton = () => {
-    $("help-swimmers").textContent =
-      activeSwimmerChoice() === "classic"
-        ? "Switch to the swimmer characters"
-        : "Switch to the classic swimmers";
-  };
-  swimmerButton();
   renderTouchpad();
   $("touchpad-buttons").onclick = (e) => {
     const b = e.target.closest("[data-touchpad]");
@@ -3173,28 +3142,6 @@ function bind() {
       qualityPending = true;
       renderQuality();
     } else location.reload();
-  };
-  $("help-swimmers").onclick = async () => {
-    const next = activeSwimmerChoice() === "classic" ? "models" : "classic";
-    chooseSwimmers(next);
-    if (next === "models") {
-      await loadSwimmerModels();
-      loadCannonballMan(sim);
-      loadFishKid(sim);
-    }
-    world.swapSwimmers();
-    crashlog.crumb(
-      "swimmers",
-      "switched to " + next + (next === "models" && !swimmerModelsReady() ? " (models missing)" : ""),
-    );
-    swimmerButton();
-    toast(
-      next === "models" && !swimmerModelsReady()
-        ? "The swimmer characters could not load."
-        : next === "models"
-          ? "The swimmer characters are back."
-          : "The classic swimmers are back.",
-    );
   };
   $("help").onclick = showHelp;
   document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = closeHelp));
@@ -3356,7 +3303,7 @@ try {
     chooseCoach("classic", false);
     chooseSwimmers("classic", false);
   }
-  // Coach Panic's model and the five swimmers' are fetched first, together (a few seconds at most; without them the classic
+  // Coach Waters' model and the five swimmers' are fetched first, together (a few seconds at most; without them the classic
   // coach and swimmers play, and a swimmer model that arrives later is used from the next swimmer on).
   const began = performance.now();
   const fetching = [];
@@ -3368,7 +3315,7 @@ try {
     if (activeChoice() === "panic")
       crashlog.crumb(
         "coach",
-        (coachModelReady() ? "Coach Panic loaded in " : "Coach Panic not ready after ") + took,
+        (coachModelReady() ? "Coach Waters loaded in " : "Coach Waters not ready after ") + took,
       );
     if (activeSwimmerChoice() === "models")
       crashlog.crumb(

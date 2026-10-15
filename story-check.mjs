@@ -13,7 +13,11 @@ import {
   recordPay,
   fundOf,
   fundShare,
+  ART,
 } from "./dist/story.mjs";
+import { CHAPTERS } from "./dist/week.mjs";
+import { scene } from "./dist/marina.mjs";
+import { existsSync } from "node:fs";
 import { playCinematic, panelHtml } from "./dist/cinematic.mjs";
 
 // 1) Pay: finishing pays a little, each star more, a booking's payout multiplies it, in steps of five.
@@ -206,6 +210,38 @@ assert.ok(
   globalThis.clearTimeout = realClear;
 }
 
+// The stills (15 October 2026): every one is a file in dist/, every chapter's date has one, a panel with one draws it (escaped)
+// with only its bubbles over it, and the first week's invite carries the prologue.
+{
+  const files = [...Object.values(ART).filter((v) => typeof v === "string"), ...Object.values(ART.date)];
+  for (const f of files) assert.ok(existsSync("dist/" + f), "the still is in dist/: " + f);
+  for (const ch of CHAPTERS) assert.ok(ART.date[ch.date.id], "a still for the date of chapter " + ch.id);
+  for (const p of [...INTRO, ...ENDING])
+    assert.ok(p.img && files.includes(p.img), "every story panel has a still");
+  const html = panelHtml({
+    bg: "pool",
+    img: 'a"><b>',
+    layers: [
+      { e: "🧑", x: 1, y: 1 },
+      { b: "Hi!", x: 50, y: 20 },
+    ],
+  });
+  assert.ok(
+    html.includes('<img class="cine-art" src="a&quot;&gt;<b>"') === false && html.includes("a&quot;"),
+    "escaped",
+  );
+  assert.ok(html.includes("cine-bubble") && !html.includes("cine-layer"), "the bubbles stay, the emoji go");
+  const first = scene("invite", CHAPTERS[0]).panels,
+    second = scene("invite", CHAPTERS[1]).panels;
+  assert.ok(first.some((p) => p.img === ART.marinaDreams) && first.some((p) => p.img === ART.coachDaydream));
+  assert.ok(!second.some((p) => p.img === ART.marinaDreams), "the prologue is the first week's alone");
+  assert.equal(first[0].img, ART.coachPool, "the week still opens on Coach Waters at his pool");
+  for (const ch of CHAPTERS)
+    for (const kind of ["invite", "date", "raincheck"])
+      for (const p of scene(kind, ch).panels)
+        assert.ok(!p.img || files.includes(p.img), kind + ": a known still");
+}
+
 console.log(
-  "Story checks passed: pay and payouts, sanitised saves, a fund that cannot be farmed, Marina's texts once each, well-formed and escaped scenes, and the cinematic's next, skip, keys and auto-advance.",
+  "Story checks passed: pay and payouts, sanitised saves, a fund that cannot be farmed, Marina's texts once each, well-formed and escaped scenes, a still for every scene and date, and the cinematic's next, skip, keys and auto-advance.",
 );

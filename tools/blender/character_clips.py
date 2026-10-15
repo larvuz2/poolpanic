@@ -1,7 +1,7 @@
 """Add a character's own clips (what the person does while waiting to be assigned to a lane) to a rigged humanoid:
     tools/blender/run.sh tools/blender/character_clips.py -- in.glb out.glb --character marco [--only WaitWatch]
-(`--character shared` is the clips every character gets, made on Coach Panic: Panic and Swim. transplant_clips.py then
-moves them to the others. `--character coach` is the clip only Coach Panic has: SwimRing, swimming with the life ring.)
+(`--character shared` is the clips every character gets, made on Coach Waters: Panic and Swim. transplant_clips.py then
+moves them to the others. `--character coach` is the clip only Coach Waters has: SwimRing, swimming with the life ring.)
 The clips of the file stay, the new ones are added under their own names, and each one loops (its last frame is its
 first again). The legs stay planted: the feet are held where they stand, and the knees bend to follow the hips. Every bone
 is keyed in every frame, like the other clips, so switching clips never leaves a bone behind.
@@ -164,7 +164,7 @@ def swim_clip():
 
 
 def swim_ring_clip():
-    """SwimRing: Coach Panic swimming with the life ring, which floats ahead of him and which he holds at the very front. Made
+    """SwimRing: Coach Waters swimming with the life ring, which floats ahead of him and which he holds at the very front. Made
     standing, like every clip: the game lays him on his front, so "up the body" is ahead of him in the water. The arms are held
     straight up the body (a little bent, the hands a little apart, on the ring) and do not move at all: every key of both arms
     is the same. The body does not roll and the head looks ahead over the ring; only the legs kick, in the Swim's six-beat
@@ -194,7 +194,7 @@ CLIPS = {
         "Panic": panic_clip(),
         "Swim": swim_clip(),
     },
-    # What only Coach Panic does.
+    # What only Coach Waters does.
     "coach": {
         "SwimRing": swim_ring_clip(),
     },

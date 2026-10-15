@@ -6,15 +6,22 @@
 const esc = (text) =>
   String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
-// The stage for one panel: the backdrop class, then each layer absolutely placed by percent of the stage. A panel with a
-// `video` (a file under dist/, see marina.mjs) plays it full screen instead; the layers stay behind it as the fallback.
+// The stage for one panel: the backdrop class, then each layer absolutely placed by percent of the stage. A panel with an
+// `img` (a still under dist/assets/story/, generated from the characters' own pictures) shows it instead of the emoji, with
+// only the speech bubbles over it. A panel with a `video` (a file under dist/, see marina.mjs) plays it full screen on top;
+// the still or the layers stay behind it as the fallback.
 export function panelHtml(panel) {
-  if (panel.video)
-    return `<div class="cine-scene bg-${esc(panel.bg || "pool")}">${layersHtml(panel)}<video class="cine-video" src="${esc(panel.video)}" autoplay playsinline preload="auto"></video></div>`;
-  return `<div class="cine-scene bg-${esc(panel.bg || "pool")}">${layersHtml(panel)}</div>`;
+  const art = panel.img
+    ? `<img class="cine-art" src="${esc(panel.img)}" alt="" decoding="async">${layersHtml(panel, true)}`
+    : layersHtml(panel);
+  const video = panel.video
+    ? `<video class="cine-video" src="${esc(panel.video)}" autoplay playsinline preload="auto"></video>`
+    : "";
+  return `<div class="cine-scene bg-${esc(panel.bg || "pool")}${panel.img ? " has-art" : ""}">${art}${video}</div>`;
 }
-function layersHtml(panel) {
+function layersHtml(panel, bubblesOnly = false) {
   const layers = (panel.layers || [])
+    .filter((l) => !bubblesOnly || l.b)
     .map((l) => {
       const at = `left:${+l.x || 0}%;top:${+l.y || 0}%`;
       if (l.b) return `<span class="cine-bubble" style="${at}">${esc(l.b)}</span>`;

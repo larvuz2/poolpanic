@@ -17,7 +17,10 @@ the same twice: see `docs/incidents.md`).
    weekend date with Marina, every shift must pass or the week starts over, the incidents drawn by a director (`INCIDENT_ORDER` in
    `dist/week.mjs` is the creator's to reorder), Marina's wishes for each shift, tips and a shop that never touch the Date Fund. Marina
    never appears on the deck: only in texts, wishes and full-screen scenes, whose videos the creator will add (`VIDEOS` in
-   `dist/marina.mjs`). The level map stays as free play.
+   `dist/marina.mjs`); until then each scene shows a still (`ART` in `dist/story.mjs`, generated from the creator's pictures).
+   The coach is **Coach Waters** (renamed from Coach Panic on 15 October 2026; his file is still `coach-panic.glb`). The game
+   always plays the new character models (no crash tier and no saved choice brings the classic ones back), the Coach Cam is
+   off at every launch, and the logo is top left. The level map stays as free play.
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
    and Steam Deck support, a settings screen (volumes, key rebinding, full screen; graphics quality exists, in Help: Auto, Low, Medium,
    Standard, High, Ultra, `QUALITY` in `dist/gfx.mjs`), more achievements, localisation.
