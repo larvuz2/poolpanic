@@ -1,4 +1,4 @@
-"""Rig a T-pose humanoid with the skeleton of an already rigged character (Coach Panic): same bone names, same hierarchy,
+"""Rig a T-pose humanoid with the skeleton of an already rigged character (Coach Waters): same bone names, same hierarchy,
 same rest orientations, joints moved to fit the new body, skin weights worked out for the new mesh.
     tools/blender/run.sh tools/blender/rig_from_template.py -- body.glb rigged.glb [--template dist/assets/coach-panic.glb]
         [--set y_crotch=0.70 ...] [--debug out.json] [--tex-quality 90]

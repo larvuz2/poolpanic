@@ -17,7 +17,10 @@ the same twice: see `docs/incidents.md`).
    weekend date with Marina, every shift must pass or the week starts over, the incidents drawn by a director (`INCIDENT_ORDER` in
    `dist/week.mjs` is the creator's to reorder), Marina's wishes for each shift, tips and a shop that never touch the Date Fund. Marina
    never appears on the deck: only in texts, wishes and full-screen scenes, whose videos the creator will add (`VIDEOS` in
-   `dist/marina.mjs`). The level map stays as free play.
+   `dist/marina.mjs`); until then each scene shows a still (`ART` in `dist/story.mjs`, generated from the creator's pictures).
+   The coach is **Coach Waters** (renamed from Coach Panic on 15 October 2026; his file is still `coach-panic.glb`). The game
+   always plays the new character models (no crash tier and no saved choice brings the classic ones back), the Coach Cam is
+   off at every launch, and the logo is top left. The level map stays as free play.
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
    and Steam Deck support, a settings screen (volumes, key rebinding, full screen; graphics quality exists, in Help: Auto, Low, Medium,
    Standard, High, Ultra, `QUALITY` in `dist/gfx.mjs`), more achievements, localisation.
@@ -50,11 +53,12 @@ the app and depot ids, the store page, the price, written proof that the AI tool
   `gfx` log lines say the tier). Its crash (the "45-second crash") is not proven solved: the README's crash paragraphs keep every test and lead, and nothing found so far says the desktop app has it
   (the same shift played through in Electron here, memory flat).
 - **A play-through of the levels is a playtest.** For the creator to play many levels and for you to read what the incidents did (and what came before a crash), they play a tester build (it starts in playtest mode) or open the preview (or the site) with `?playtest` once. The 🐞 button flags a problem with a note, the log is sent to you while they play (no need to tap Send), and the panel shows the **device code**: ask for it once. Then read `https://<the host they play on>/api/report?device=<code>&latest=1` (a tester build posts to `poolpanic.netlify.app`) (the newest launch, replaced every few seconds while it runs) while they play, or after: *Flagged by the player* first, then *Playtest so far*, errors, the diary and the last shift's recording. `node tools/replay.mjs <saved report> --diary` plays that shift again exactly (level, seed and inputs decide everything). README "Playtest mode" has the rest. A new incident needs `describe` and `detail` (see `docs/incidents.md` §5).
-- **The game must work in the browser too (12 October 2026, the creator: "Have needs to work on browser!!"):** the iPad's 45-second
-  crash is hunted again. Three crashes on 12 October at three surface sizes down to 12 MB, without antialiasing or shadows, ruled the
-  pixels out. `?bisect=play&playtest` is the hunt for it: the creator plays ordinary shifts and each launch takes one suspect out (sound,
-  the character models, the tags over the swimmers, the log's saving, the splashes; `PLAY_PLAN` in `dist/bisect.mjs`), so the touches and
-  the sound that a hunt left alone never had are in every test. Read its `hunt` lines like any hunt's.
+- **No browser testing for now (13 October 2026, the creator: "this project is intended to be released on Steam, so let's not test on
+  the browser for now").** The iPad's 45-second crash is parked again. What is known: three crashes on 12 October at three surface sizes
+  down to 12 MB, without antialiasing or shadows, ruled the pixels out; `?bisect=play&playtest` is the hunt ready for it if it comes back
+  (the creator plays and each launch takes one suspect out: sound, the character models, the tags over the swimmers, the log's saving, the
+  splashes; `PLAY_PLAN` in `dist/bisect.mjs`). **An iPad plays the desktop app streamed from the Mac with Steam Link** (desktop/README.md,
+  "On an iPad"), with Help's On-screen controls set to On, since Steam Link sends touches as mouse clicks.
 - **A crash only a device shows is hunted by that device.** `?bisect=shift&playtest` plays the shift that crashed the iPad back twelve times by itself (a recording in `dist/hunt/`, one part of the game off per test, the iPad left awake and untouched, about 15 minutes; Safari reloads the page after each crash and the plan goes on), and its device code is read like any playtest's: the `hunt` lines of each launch say which test it was, and a launch that ends without closing is a test that crashed. Say plainly that a hunt is the device's answer and nothing else is; the README's "The 45-second crash" keeps what is known.
 - **Crashes are synced live, while the creator plays.** There is no scheduled watch: a "Crash watch" session woken by a routine was tried on 4 October 2026 and stopped on 5 October at the creator's request (every wake pays for the whole conversation again, and they would rather say when they are playing). When they say they are playing, read their device's reports as they come (a tester build sends them too; the device code is in its 🐞 panel, one per install) (the playtest bullets above; the device code is per address, so a new address shows a new code), and `node tools/crash-triage.mjs CODE` sorts what has come in (a crash, an error, a stuck incident, a flag, a hunt test; `--issue 22` also reads the `handled:` tokens of the public log issue). Fix a crash only with evidence (a replay, a reproduction). `docs/crash-watch.md` keeps what was learned and how to start the watch again. When the 45-second crash is found and fixed, change `KNOWN` in `tools/crash-triage.mjs` in the same commit, or a new crash in that window will be taken for it. The repo is public: no device code and no whole report in an issue.
 - **The suite is the gate on Netlify** (`npm test` runs in the deploy build, so one failing check fails the preview). A check must not depend on
@@ -67,7 +71,7 @@ the app and depot ids, the store page, the price, written proof that the AI tool
   and say plainly what you understood when it matters.
 - They think in the game's terms (levels, incidents, characters, the map) and want to *see* and *rank* things: a contact sheet, a poster, an
   interactive page to rank or choose (Artifacts work well). Deliver files to them directly (a file card), not as a path.
-- They test on the **desktop app on a Mac and a Windows PC** (they used to on an iPad's Safari, which crashed the game: see the README's crash hunt, parked). Chromium is what
+- They test on the **desktop app on a Mac and a Windows PC**, and on an iPad through Steam Link from the Mac (they used to on an iPad's Safari, which crashed the game: see the README's crash hunt, parked). Chromium is what
   runs where you work, and the desktop app itself runs here too (Electron under a virtual screen with software drawing; `desktop/README.md`); a real WebKit (WebKitGTK) can be
   installed with apt and driven with `tools/webkit-run.py` (README: "Running the game in a real WebKit"). Neither has the creator's graphics card or Steam, so say what you could
   not verify on their machines and ask for a report. The crash dialog's **Send report** puts it where you can read it:

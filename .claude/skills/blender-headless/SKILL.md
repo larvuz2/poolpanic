@@ -20,7 +20,7 @@ preview they can check on any device and exports the glTF.
    - `idle_clips.py -- in.glb out.glb`: adds `IdleScan` (head turns left/right, alert) and `IdleScratch` (the same, then a
      head scratch) to the file, next to the walk. Every bone is keyed so clip switches in the game never leave a bone behind.
    - `merge_clips.py -- base.glb out.glb more.glb`: add the clips of other GLBs (same rig) to a character.
-   - `rig_from_template.py -- body.glb rigged.glb`: a T-pose biped (Meshy, Tripo) gets Coach Panic's own 24-bone skeleton,
+   - `rig_from_template.py -- body.glb rigged.glb`: a T-pose biped (Meshy, Tripo) gets Coach Waters' own 24-bone skeleton,
      fitted to its body, with skin weights and no clips. Use it instead of `humanoid_rig.py` or Meshy's rigging for any
      human-shaped character, because the Coach's animations then retarget onto it by bone name. Shorts can fool the
      crotch landmark: `--set y_crotch=0.70` (metres). Details: "More characters on the same skeleton" in

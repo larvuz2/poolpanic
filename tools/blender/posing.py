@@ -1,4 +1,4 @@
-"""Pose a character on Coach Panic's skeleton from joint angles and end-effector targets, without Blender, and write the
+"""Pose a character on Coach Waters' skeleton from joint angles and end-effector targets, without Blender, and write the
 result as the frames of a clip (numpy; used by cannonball_clip.py).
     pose = Posing(Rig("character.glb"))
     pose.hips(up=0.4, pitch=-10)                    # where the pelvis is, and how it is turned

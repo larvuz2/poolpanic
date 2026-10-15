@@ -1,12 +1,30 @@
-// The story, as data: Coach Panic wants to take Marina to the ocean and has to earn the trip, one shift at a time. Every
+// The story, as data: Coach Waters wants to take Marina to the ocean and has to earn the trip, one shift at a time. Every
 // shift pays into the Ocean Fund; a riskier booking pays more. Pure module (no DOM, no globals) so a check can drive it.
 //
-// The scenes are placeholders on purpose (emoji on a painted backdrop, see cinematic.mjs): they are plain data, so
-// real art can replace them later without touching the rules below. A layer is {e: emoji, x, y, s, a?} (x and y in
-// percent of the stage, s the size in percent of its width, a an animation name) or {b: text, x, y} for a speech bubble.
+// The scenes are plain data (see cinematic.mjs). Since 15 October 2026 each has a still, `img`, generated from the creator's own
+// pictures of Coach Waters, Marina, the swimmers and the swim club (dist/assets/story/); the emoji layers stay as the fallback
+// and the speech bubbles are drawn over the still. A layer is {e: emoji, x, y, s, a?} (x and y in percent of the stage, s the
+// size in percent of its width, a an animation name) or {b: text, x, y} for a speech bubble.
+
+// The stills, by what they show. marina.mjs uses them too.
+export const ART = {
+  coachPool: "assets/story/coach-pool.webp",
+  marinaDreams: "assets/story/marina-dreams.webp",
+  coachDaydream: "assets/story/coach-daydream.webp",
+  fundJar: "assets/story/fund-jar.webp",
+  marinaText: "assets/story/marina-text.webp",
+  marinaReady: "assets/story/marina-ready.webp",
+  raincheck: "assets/story/raincheck.webp",
+  date: {
+    icecream: "assets/story/date-icecream.webp",
+    movie: "assets/story/date-movie.webp",
+    dinner: "assets/story/date-dinner.webp",
+    ocean: "assets/story/date-ocean.webp",
+  },
+};
 
 export const STORY = {
-  coach: "Coach Panic",
+  coach: "Coach Waters",
   love: "Marina",
   goal: 1500, // what the day at the ocean costs, in dollars
   storageKey: "pool-panic.story.v1",
@@ -67,6 +85,7 @@ export function recordPay(story, key, amount) {
 export const INTRO = [
   {
     bg: "pool",
+    img: ART.coachPool,
     hold: 3800,
     text: `${STORY.coach} guards Splash Park. Every splash, every swimmer, every day.`,
     layers: [
@@ -78,6 +97,7 @@ export const INTRO = [
   },
   {
     bg: "pool",
+    img: ART.marinaDreams,
     hold: 3800,
     text: `${STORY.love} loves the ocean. She has never seen it.`,
     layers: [
@@ -88,6 +108,7 @@ export const INTRO = [
   },
   {
     bg: "dream",
+    img: ART.coachDaydream,
     hold: 4200,
     text: `${STORY.coach} has one dream: to take ${STORY.love} to the ocean.`,
     layers: [
@@ -101,6 +122,7 @@ export const INTRO = [
   },
   {
     bg: "jar",
+    img: ART.fundJar,
     hold: 0,
     text: `But the trip costs ${money(STORY.goal)}. Time to work! Every shift pays into the Ocean Fund. Riskier gigs pay more.`,
     layers: [
@@ -115,6 +137,7 @@ export const INTRO = [
 export const ENDING = [
   {
     bg: "sea",
+    img: ART.marinaReady,
     hold: 3800,
     text: `The Ocean Fund is full! ${STORY.coach} picks ${STORY.love} up at eight.`,
     layers: [
@@ -125,6 +148,7 @@ export const ENDING = [
   },
   {
     bg: "sea",
+    img: ART.date.ocean,
     hold: 4200,
     text: `${STORY.love} sees the ocean for the very first time.`,
     layers: [
@@ -137,6 +161,7 @@ export const ENDING = [
   },
   {
     bg: "sea",
+    img: ART.date.ocean,
     hold: 0,
     text: "Thanks for playing! The pool never really closes, so keep going for bigger scores.",
     layers: [

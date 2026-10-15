@@ -79,7 +79,7 @@ for (const character of manifest.characters) {
   );
   const known = new Set(); // every clip the character's files have
   for (const file of [character.file, ...(character.clipFiles || [])]) {
-    const path = resolve(dir, file); // a character's file is found from the viewer's folder (Coach Panic's is the game's own)
+    const path = resolve(dir, file); // a character's file is found from the viewer's folder (Coach Waters' is the game's own)
     assert.ok(existsSync(path), `${path} is missing`);
     assert.ok(statSync(path).size < MAX_GLB_BYTES, `${path} is over the artifact host's 15 MB file limit`);
     const glb = readGlb(path);

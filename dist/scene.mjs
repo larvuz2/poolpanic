@@ -530,7 +530,7 @@ export class PoolWorld extends SceneKit {
     this.incidentView.clearVisitors();
     this.introPlan = null; // the coach walks in again
   }
-  // The coach: Coach Panic when the model is loaded and wanted, else the classic one (coach-model.mjs).
+  // The coach: Coach Waters when the model is loaded and wanted, else the classic one (coach-model.mjs).
   makeCoach(choice = activeChoice()) {
     const group = character(this, { type: "coach", skin: 1, shape: 0.5 });
     attachCoachModel(group, choice);
@@ -1002,7 +1002,7 @@ export class PoolWorld extends SceneKit {
     else if (this.viewDirection && sim.status !== "ready")
       this.followCoach(c, this.realDt ?? dt, this.attention(sim));
     const rig = cu.rig;
-    // Coach Panic walks in while the countdown runs, and is at the spawn point when it reaches zero.
+    // Coach Waters walks in while the countdown runs, and is at the spawn point when it reaches zero.
     let intro = null;
     if (rig && sim.status === "countdown") {
       this.introPlan ||= planIntro(sim);

@@ -31,6 +31,25 @@ A test build is **not the Steam build**: it starts in **playtest mode** (the �
 read out once), and as you play the game posts its log to the report service, as a web playtest does, so the developer can read what happened
 and what came before a crash. The Steam build has no `tester.json` (the file that makes a test build) and never sends anything.
 
+### On an iPad: stream it from the Mac with Steam Link
+
+There is no Pool Panic app for an iPad (an Electron app runs on Windows, macOS and Linux only), and the game is tested as the desktop app, not
+in Safari. An iPad plays it by **streaming the Mac's app** with Valve's free **Steam Link** app, which is also how a Steam player would play it
+on a tablet:
+
+1. On the Mac: install Steam (https://store.steampowered.com/about), sign in (a free account is enough), and install the test build above.
+2. In Steam on the Mac: **Games** menu, **Add a Non-Steam Game to My Library…**, **Browse…**, pick `/Applications/PoolPanic.app`, then
+   **Add Selected Programs**. Pool Panic is now in the Steam library.
+3. On the iPad: install **Steam Link** from the App Store. With the iPad on the same Wi-Fi as the Mac (and Steam open on the Mac), open it,
+   choose the Mac, and type the code it shows into Steam on the Mac.
+4. On the iPad: **Start Playing**, then in the library **Pool Panic**, **Play**. The game runs on the Mac and its picture is streamed.
+5. In the game: Help (**?**), **On-screen controls: On**. Steam Link sends a touch as a mouse click, so the walk pad and the Dash, Jump and
+   Interact buttons only show when this is On (Auto shows them on touch screens only). A Bluetooth keyboard or a controller set up in
+   Steam Link works too.
+
+The crash reports come from the Mac's app, so they name the Mac, not the iPad. Not tried here: there is no Steam or iPad where the game is
+developed.
+
 ### 2. Run it from the source (a terminal; set up once)
 
 Needs Node 22 and git. Once: `git clone https://github.com/larvuz2/poolpanic`, then `cd poolpanic/desktop && npm install`. After that

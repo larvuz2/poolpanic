@@ -1,4 +1,4 @@
-// Coach Panic in the game (scene/coach-model.mjs): which coach is chosen, the walk in while the countdown runs, the rules
+// Coach Waters in the game (scene/coach-model.mjs): which coach is chosen, the walk in while the countdown runs, the rules
 // that pick the clip (SwimRing, with the arms held out round the life ring, whenever he swims with it), and swapping the model in and
 // out of the scene (with stand-ins for the model and its clips).
 import assert from "node:assert/strict";
@@ -32,12 +32,12 @@ const store = (initial = {}) => ({
 });
 {
   const s = store();
-  assert.equal(coachChoice("", s), "panic", "Coach Panic is the default");
-  assert.equal(coachChoice("?coach=classic", s), "classic");
-  assert.equal(coachChoice("?debug", s), "classic", "the classic coach is remembered on the device");
-  assert.equal(coachChoice("?coach=panic", s), "panic");
-  assert.equal(coachChoice("", s), "panic", "asking for Coach Panic forgets the classic choice");
-  assert.equal(coachChoice("?coach=nonsense", store({ "pool-panic.coach.v1": "classic" })), "classic");
+  assert.equal(coachChoice("", s), "panic", "Coach Waters' model, always");
+  assert.equal(coachChoice("?coach=classic", s), "classic", "a test page can ask for the classic coach");
+  assert.equal(coachChoice("?debug", s), "panic", "and it is not remembered");
+  const old = store({ "pool-panic.coach.v1": "classic" });
+  assert.equal(coachChoice("", old), "panic", "a classic choice an older version saved is ignored");
+  assert.equal(old.getItem("pool-panic.coach.v1"), null, "and forgotten");
   const broken = {
     getItem() {
       throw new Error("blocked");
@@ -60,9 +60,7 @@ const store = (initial = {}) => ({
   assert.equal(activeChoice(), "classic", "this page plays the classic coach");
   assert.deepEqual(s.data, {}, "and nothing is remembered");
   chooseCoach("classic");
-  assert.equal(s.data["pool-panic.coach.v1"], "classic", "while the choice in How to play is");
-  chooseCoach("panic");
-  assert.deepEqual(s.data, {}, "and choosing Coach Panic again forgets it");
+  assert.deepEqual(s.data, {}, "a classic choice is never saved: Coach Waters always comes back");
   delete globalThis.localStorage;
 }
 
@@ -273,7 +271,7 @@ model.add(new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.7, 0.3), new THREE.MeshBas
 useCoachTemplate({ scene: model, clips, clone: (g) => g.clone() });
 world.swapCoach("panic");
 let u = world.coach.userData;
-assert.ok(u.rig && u.model, "Coach Panic is in the scene");
+assert.ok(u.rig && u.model, "Coach Waters is in the scene");
 assert.ok(u.root.children.includes(u.model), "the model stands in the coach's root");
 assert.ok(u.classic.length > 5 && u.classic.every((part) => !part.visible), "the classic parts are hidden");
 assert.ok(u.carry.visible === false && u.root.children.includes(u.carry), "the carried item's holder stays");
@@ -366,5 +364,5 @@ assert.ok(
 );
 
 console.log(
-  "Coach model checks passed: the choice is remembered, a walk in on every level ending on the spawn point, the clip rules (SwimRing whenever he swims with the life ring, and only then), the swap in the scene, and a model that breaks is dropped.",
+  "Coach model checks passed: the models always (a classic choice never saved), a walk in on every level ending on the spawn point, the clip rules (SwimRing whenever he swims with the life ring, and only then), the swap in the scene, and a model that breaks is dropped.",
 );

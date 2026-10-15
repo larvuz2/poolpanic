@@ -25,9 +25,8 @@
       <div id="stamps" class="stamps" aria-hidden="true"></div>
       <header class="topbar">
         <a class="brand" href="./" aria-label="Pool Panic home"
-          ><span class="brand-mark">≈</span
-          ><span>POOL<span class="panic">PANIC</span><small>EVERYBODY IN. KEEP YOUR COOL.</small></span></a
-        >
+          ><img class="brand-logo" src="assets/brand/logo.webp" alt="Pool Panic" width="640" height="371"
+        /></a>
         <div id="scoreboard" class="scoreboard">
           <div class="score-metric"><small>SHIFT SCORE</small><strong id="score">0000</strong></div>
           <div class="star-track">
@@ -79,7 +78,10 @@
           </div>
           <button id="wk-go" class="primary">START THE WEEK <span>▶</span></button>
         </div>
-        <div class="wk-fund"><div class="fund-bar"><i id="wk-fill"></i></div><b id="wk-money">$0 / $500</b></div>
+        <div class="wk-fund">
+          <div class="fund-bar"><i id="wk-fill"></i></div>
+          <b id="wk-money">$0 / $500</b>
+        </div>
         <div id="wk-days" class="wk-days" aria-hidden="true"></div>
         <small id="wk-note" class="wk-note">Free play: pick any level on the map below.</small>
       </section>
@@ -223,6 +225,11 @@
           <small id="quality-note" class="quality-note"></small>
           <button id="quality-reset" class="text-btn inline" hidden>Back to full graphics</button>
         </div>
+        <div class="quality-row" role="group" aria-label="On-screen controls">
+          <span class="quality-label">ON-SCREEN CONTROLS</span>
+          <div id="touchpad-buttons" class="quality-buttons"></div>
+          <small id="touchpad-note" class="quality-note"></small>
+        </div>
         <p>
           <b>WASD or arrow keys</b> move the coach. <b>Space</b> jumps. <b>Shift</b> gives you a short dash.
           Stand beside equipment and press <b>E</b> to pick it up. Walk to a waiting swimmer, or meet a
@@ -259,7 +266,8 @@
             <b>Fins are physical.</b> Take a pair from the rack with E and deliver it at either end or beside
             lanes 1 and 3. With no swimmer in reach, E drops the fins. Pick up dropped pairs with E; carry
             them to another swimmer or use the return button beside the rack. Some swimmers ask for fins
-            <b>in the queue</b> ("wants fins first" on their card): they will not take a lane until you hand them a pair.
+            <b>in the queue</b> ("wants fins first" on their card): they will not take a lane until you hand
+            them a pair.
           </li>
           <li>
             <b>Use chlorine sparingly.</b> Pick up a bucket with E, then press E beside the pool to pour. Too
@@ -407,8 +415,6 @@
           Something broke or froze?
           <button id="help-log" class="text-btn inline">Open the game log</button> to copy what happened.
           <button id="help-story" class="text-btn inline">Watch the story again</button>
-          <button id="help-coach" class="text-btn inline">Switch to the classic coach</button>
-          <button id="help-swimmers" class="text-btn inline">Switch to the classic swimmers</button>
         </p>
         <button class="primary" data-close>I've got this ↗</button>
       </dialog>
@@ -489,6 +495,7 @@
       </dialog>
       <div id="hunt" class="hunt" hidden aria-live="polite"></div>
       <dialog id="cinematic" class="cinematic" aria-label="Story">
+        <img class="cine-logo" src="assets/brand/logo.webp" alt="" aria-hidden="true" />
         <div class="cine-stage"></div>
         <p class="cine-text" aria-live="polite"></p>
         <div class="cine-dots" aria-hidden="true"></div>
@@ -504,7 +511,9 @@
         <button id="booking-back" class="text-btn">Back to the map</button>
       </dialog>
       <dialog id="week-dialog" class="modal week-modal" aria-labelledby="wd-title">
-        <div class="eyebrow"><span id="wd-title">MONDAY · MORNING</span><span id="wd-count">SHIFT 1 OF 10</span></div>
+        <div class="eyebrow">
+          <span id="wd-title">MONDAY · MORNING</span><span id="wd-count">SHIFT 1 OF 10</span>
+        </div>
         <div class="wk-fund big">
           <span id="wd-date" class="wk-goal"></span>
           <div class="fund-bar"><i id="wd-fill"></i></div>
@@ -526,7 +535,9 @@
       </dialog>
       <dialog id="shop-dialog" class="modal week-modal" aria-labelledby="shop-title">
         <div class="eyebrow"><span id="shop-title">COACH'S LOCKER</span><span id="shop-tips"></span></div>
-        <p class="booking-note">Spend your tips on perks for the rest of the week. The Date Fund is never touched.</p>
+        <p class="booking-note">
+          Spend your tips on perks for the rest of the week. The Date Fund is never touched.
+        </p>
         <div id="shop-cards" class="booking-cards"></div>
         <div class="wd-row"><span id="shop-perks" class="wk-owned"></span></div>
         <div class="shop-actions">

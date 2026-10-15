@@ -41,15 +41,16 @@ const store = (initial = {}) => ({
 });
 {
   const s = store();
-  assert.equal(swimmerChoice("", s), "models", "the swimmer characters are the default");
-  assert.equal(swimmerChoice("?swimmers=classic", s), "classic");
-  assert.equal(swimmerChoice("?debug", s), "classic", "the classic swimmers are remembered on the device");
-  assert.equal(swimmerChoice("?swimmers=models", s), "models");
-  assert.equal(swimmerChoice("", s), "models", "asking for the characters forgets the classic choice");
+  assert.equal(swimmerChoice("", s), "models", "the swimmer characters, always");
   assert.equal(
-    swimmerChoice("?swimmers=nonsense", store({ "pool-panic.swimmers.v1": "classic" })),
+    swimmerChoice("?swimmers=classic", s),
     "classic",
+    "a test page can ask for the classic swimmers",
   );
+  assert.equal(swimmerChoice("?debug", s), "models", "and it is not remembered");
+  const old = store({ "pool-panic.swimmers.v1": "classic" });
+  assert.equal(swimmerChoice("", old), "models", "a classic choice an older version saved is ignored");
+  assert.equal(old.getItem("pool-panic.swimmers.v1"), null, "and forgotten");
   const broken = {
     getItem() {
       throw new Error("blocked");
@@ -66,16 +67,14 @@ const store = (initial = {}) => ({
 }
 {
   // The crash hunt's character-models test (?nomodels) plays one page with the classic swimmers and remembers nothing; the
-  // choice in How to play is remembered.
+  // nothing is remembered either way.
   const s = store();
   Object.defineProperty(globalThis, "localStorage", { value: s, configurable: true, writable: true });
   chooseSwimmers("classic", false);
   assert.equal(activeSwimmerChoice(), "classic", "this page plays the classic swimmers");
   assert.deepEqual(s.data, {}, "and nothing is remembered");
   chooseSwimmers("classic");
-  assert.equal(s.data["pool-panic.swimmers.v1"], "classic", "while the choice in How to play is");
-  chooseSwimmers("models");
-  assert.deepEqual(s.data, {}, "and choosing the models again forgets it");
+  assert.deepEqual(s.data, {}, "a classic choice is never saved: the characters always come back");
   delete globalThis.localStorage;
 }
 assert.equal(SWIMMERS.length, 5, "five generic swimmers");
@@ -1078,5 +1077,5 @@ assert.equal(lookFor({ figure: "carl" }), null, "so none is drawn");
 }
 
 console.log(
-  "Swimmer model checks passed: the choice is remembered, five looks given out evenly, the clip rules and their paces, the poses laid over the clips, VIPs, daredevils and Carl, the swap in the scene, a model that breaks is dropped, and the cannonball men: the Cannonball clip followed through the incident, the swim in the water, and the crowd's panic.",
+  "Swimmer model checks passed: the models always (a classic choice never saved), five looks given out evenly, the clip rules and their paces, the poses laid over the clips, VIPs, daredevils and Carl, the swap in the scene, a model that breaks is dropped, and the cannonball men: the Cannonball clip followed through the incident, the swim in the water, and the crowd's panic.",
 );

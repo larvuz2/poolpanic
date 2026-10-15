@@ -7,6 +7,8 @@
 // under it, and moves on when it ends. A scene with no video, or one whose video cannot play, shows its drawn panels (the
 // emoji placeholders below), so the game never waits on a missing file.
 
+import { ART } from "./story.mjs";
+
 export const VIDEOS = {
   // "invite-icecream": "assets/video/marina/invite-icecream.mp4",
   // "date-icecream": "assets/video/marina/date-icecream.mp4",
@@ -18,28 +20,58 @@ const phone = (text, extra = []) => [
   ...extra,
 ];
 
-// The invite at the start of a chapter's week: what the date is, and what it costs.
+// The first week opens with the story so far (the creator, 15 October 2026: "more context" at the beginning): Marina has never
+// seen the ocean, and Coach Waters dreams of taking her there one day.
+const PROLOGUE = [
+  {
+    bg: "pool",
+    img: ART.marinaDreams,
+    hold: 4000,
+    text: "Marina has never seen the ocean. She keeps a postcard of it on her table.",
+    layers: [
+      { e: "👩", x: 36, y: 56, s: 18, a: "sway" },
+      { e: "🌊", x: 80, y: 72, s: 10, a: "float" },
+    ],
+  },
+  {
+    bg: "dream",
+    img: ART.coachDaydream,
+    hold: 4200,
+    text: "Coach Waters dreams of taking her there one day. One date at a time…",
+    layers: [
+      { e: "🧑", x: 34, y: 66, s: 15, a: "bob" },
+      { e: "☁️", x: 62, y: 34, s: 44, a: "float" },
+      { e: "🏖️", x: 62, y: 40, s: 9 },
+    ],
+  },
+];
+
+// The invite at the start of a chapter's week: what the date is, and what it costs (the first week with the prologue in it).
 function invite(chapter) {
   const d = chapter.date;
   return [
     {
       bg: "pool",
+      img: ART.coachPool,
       hold: 3600,
-      text: `Coach Panic works the ${chapter.place}. Five days, two shifts a day.`,
+      text: `Coach Waters works the ${chapter.place}. Five days, two shifts a day.`,
       layers: [
         { e: "🧑", x: 50, y: 54, s: 18, a: "sway" },
         { e: "🏊", x: 20, y: 76, s: 9, a: "bob" },
         { e: "🏊", x: 80, y: 78, s: 8, a: "bob2" },
       ],
     },
+    ...(chapter.id === 1 ? PROLOGUE : []),
     {
       bg: "dream",
+      img: ART.marinaText,
       hold: 4000,
       text: "A text from Marina…",
       layers: phone(`${d.name} this weekend? ${d.icon} Only if you can treat me 😉`),
     },
     {
       bg: "jar",
+      img: ART.fundJar,
       hold: 0,
       text: `Save ${money(chapter.goal)} by Friday and it's a date. Lose a shift, and the week starts over.`,
       layers: [
@@ -58,12 +90,14 @@ function date(chapter) {
   return [
     {
       bg: "dream",
+      img: ART.marinaReady,
       hold: 3600,
       text: `Friday night. The Date Fund is full: ${money(chapter.goal)}!`,
       layers: phone("I'm ready! Pick me up at eight 💖", [{ e: "🎉", x: 18, y: 30, s: 10, a: "float" }]),
     },
     {
       bg: chapter.date.id === "ocean" ? "sea" : "dream",
+      img: ART.date[d.id],
       hold: 4200,
       text: `The weekend: ${d.name.toLowerCase()} with Marina.`,
       layers: [
@@ -75,6 +109,7 @@ function date(chapter) {
     },
     {
       bg: "pool",
+      img: ART.coachPool,
       hold: 0,
       text: "Monday comes round again. A new pool, a new week, and Marina's already planning the next date…",
       layers: [
@@ -90,6 +125,7 @@ function raincheck(chapter, why) {
   return [
     {
       bg: "dream",
+      img: ART.raincheck,
       hold: 0,
       text:
         why === "short"

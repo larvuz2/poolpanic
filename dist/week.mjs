@@ -1,4 +1,4 @@
-// The week: Pool Panic's main loop. Coach Panic has five days (two shifts a day) to save up for a weekend date with Marina.
+// The week: Pool Panic's main loop. Coach Waters has five days (two shifts a day) to save up for a weekend date with Marina.
 // Pure: no DOM, no storage of its own (the app hands the state in and saves what comes back), seeded, so a check can play it.
 //
 //   a WEEK      ten shifts, Monday morning to Friday afternoon, at one pool (a chapter). Every shift's pay goes into the Date
