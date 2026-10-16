@@ -53,7 +53,7 @@ export const LooseDog = {
     sim.emit("chaos", { kind: "dog" });
     sim.incident("dog", v, { id: v.id, name: v.name });
     sim.emit("toast", {
-      text: `🐶 ${v.name} got in! Grab the dog treats and lead them back out through a locker door.`,
+      text: `🐶 ${v.name} got in! Grab the dog treats and lead them back out through ${sim.venue.doorWord}.`,
       warning: true,
     });
   },
@@ -83,7 +83,7 @@ export const LooseDog = {
       v.status = "following";
       v.path = [];
       sim.emit("dog-notice", { x: v.x, z: v.z });
-      sim.emit("toast", { text: `${v.name} smells the treats! Lead them to a locker door.` });
+      sim.emit("toast", { text: `${v.name} smells the treats! Lead them to ${sim.venue.doorWord}.` });
       return;
     }
     mischief(sim, d, v, dt);
@@ -132,7 +132,14 @@ export const LooseDog = {
         exit = [-1, 1]
           .map((side) => ({ x: side * door.outsideX, z: door.doorZ }))
           .sort((a, b) => distance(a, c) - distance(b, c))[0];
-      alerts.push({ kind: "dog", icon: "🚪", label: "Locker door", ...exit, y: 2.2, urgency: 60 });
+      alerts.push({
+        kind: "dog",
+        icon: "🚪",
+        label: sim.venue.lockers.length ? "Locker door" : "Door",
+        ...exit,
+        y: 2.2,
+        urgency: 60,
+      });
     } else if (c.carry === "treats")
       alerts.push({ kind: "dog", icon: "🐶", label: v.name, x: v.x, z: v.z, y: 1.3, urgency: 60, id: v.id });
     else {
@@ -144,7 +151,7 @@ export const LooseDog = {
     const d = sim.dog;
     if (!d || d.stage === "leaving") return "";
     const v = sim.visitor(d.id);
-    if (d.stage === "following") return `Lead ${v?.name || "the dog"} to a locker door`;
+    if (d.stage === "following") return `Lead ${v?.name || "the dog"} to ${sim.venue.doorWord}`;
     return sim.coach.carry === "treats"
       ? `Get close to ${v?.name || "the dog"} with the treats`
       : "🐶 Grab the dog treats · E";

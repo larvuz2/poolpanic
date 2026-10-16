@@ -159,8 +159,8 @@ export class ChaosController extends RescueController {
       type: kind,
       side,
       x: side * door.insideX,
-      z: door.doorZ,
-      angle: -side * (Math.PI / 2),
+      z: door.insideZ,
+      angle: door.insideZ === door.doorZ ? -side * (Math.PI / 2) : 0,
       status: "entering",
       hold: 0.4,
       path: [{ x: side * door.outsideX, z: door.doorZ }],
@@ -193,7 +193,7 @@ export class ChaosController extends RescueController {
     const door = this.venue.arrival;
     if (Math.hypot(v.x - v.side * door.doorX, v.z - door.doorZ) < 2.4) this.keepDoorOpen(v.side);
     const arrived = this.moveAlong(v, dt, speed);
-    const inside = Math.abs(v.z - door.doorZ) < 0.2 && Math.abs(Math.abs(v.x) - door.insideX) < 0.2;
+    const inside = Math.abs(v.z - door.insideZ) < 0.2 && Math.abs(Math.abs(v.x) - door.insideX) < 0.2;
     if (arrived && inside && ["leaving", "sulking", "happy", "carded"].includes(v.status)) {
       v.status = "gone";
       this.visitors = this.visitors.filter((a) => a !== v);
@@ -540,7 +540,7 @@ export class ChaosController extends RescueController {
         side = Math.sign(this.coach.x) || 1;
       return this.guideTo(
         { x: side * door.outsideX, z: door.doorZ },
-        "Lead the dog to a locker door. It follows the treats.",
+        `Lead the dog to ${this.venue.doorWord}. It follows the treats.`,
       );
     }
     return this.guideTo(

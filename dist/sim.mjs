@@ -621,7 +621,7 @@ export class PoolSimulation extends ChaosController {
       p.status = "arriving";
       p.queueTarget = { x: p.x, z: p.z };
       p.x = side * door.insideX;
-      p.z = door.doorZ;
+      p.z = door.insideZ;
       p.arrivalHold = door.hold;
       p.path = [{ x: side * door.outsideX, z: door.doorZ }, p.queueTarget];
       this.keepDoorOpen(side);
@@ -838,7 +838,7 @@ export class PoolSimulation extends ChaosController {
     const door = this.venue.arrival;
     return [
       { x: side * door.outsideX, z: door.doorZ },
-      { x: side * door.insideX, z: door.doorZ },
+      { x: side * door.insideX, z: door.insideZ },
     ];
   }
   depart(p, served = true) {

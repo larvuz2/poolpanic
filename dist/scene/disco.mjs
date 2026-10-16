@@ -15,7 +15,6 @@ import { rngOf } from "./geom.mjs";
 import {
   bench,
   plant,
-  lockerBay,
   finRack,
   station,
   rescueStations,
@@ -127,8 +126,7 @@ export function buildDisco(w, venue) {
   roomFloor(ctx);
   lowWalls(ctx);
   backWall(ctx);
-  lockerBay(w, venue, -10.7, "LOCKERS", 0x8f6bff, "arena");
-  lockerBay(w, venue, 10.7, "CHANGING", MAGENTA, "arena");
+  entrance(ctx);
   for (const f of venue.furniture) {
     if (f.kind === "bench") bench(w, f.x, f.z, f.angle);
     if (f.kind === "plant") plant(w, f.x, f.z, f.scale || 1);
@@ -218,11 +216,11 @@ function lowWalls(ctx) {
     strip.color.copy(hsl).multiplyScalar(lit);
   });
 }
-// The back wall behind the lockers: the neon sign and the equaliser screen between the two locker bays.
+// The back wall (screen left): the neon sign and the equaliser screen above the entrance.
 function backWall(ctx) {
   const { w } = ctx,
     z0 = -16.35;
-  w.box(29.6, 6.2, 0.4, INK, 0, 2.2, z0 - 0.02, 0);
+  w.box(29.6, 8, 0.4, INK, 0, 3.1, z0 - 0.02, 0);
   // The neon sign: two tubes of light, pink and cyan, that flash on the first beat of every bar.
   const sign = canvasTexture(w, 1024, 256, (c, W, H) => {
     c.clearRect(0, 0, W, H);
@@ -239,18 +237,18 @@ function backWall(ctx) {
   });
   const signMat = new THREE.MeshBasicMaterial({ map: sign.texture, transparent: true, fog: false });
   const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 2.1), signMat);
-  signMesh.position.set(0, 4.15, z0 + 0.26);
+  signMesh.position.set(0, 5.55, z0 + 0.26);
   w.scene.add(signMesh);
   w.liveProps.push(signMesh);
   // The equaliser: bars that jump on the beat, in the hall's neon.
   const eq = canvasTexture(w, 512, 160),
     c2 = eq.canvas.getContext("2d");
   const eqMat = new THREE.MeshBasicMaterial({ map: eq.texture, fog: false });
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 2.0), eqMat);
-  screen.position.set(0, 1.75, z0 + 0.26);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 1.3), eqMat);
+  screen.position.set(0, 3.6, z0 + 0.26);
   w.scene.add(screen);
   w.liveProps.push(screen);
-  w.box(6.8, 2.4, 0.2, 0x0a0614, 0, 1.75, z0 + 0.12, 0.05);
+  w.box(6.8, 1.6, 0.2, 0x0a0614, 0, 3.6, z0 + 0.12, 0.05);
   let lastKey = "";
   ctx.beats.push((t, d, p, lit) => {
     signMat.color.setScalar((0.55 + 0.45 * (d.beat % 4 === 0 ? p : 0.4)) * lit);
@@ -274,6 +272,52 @@ function backWall(ctx) {
       c2.fillRect(8 + i * 21, 150 - h, 15, h);
     }
     eq.texture.needsUpdate = true;
+  });
+}
+
+// The way in and out (no locker rooms here: the creator, 16 October 2026): one double door set flush in the back wall, in
+// the middle, under the equaliser. Each side of the line has its leaf (`venue.arrival`: guests come out of the dark behind it
+// and go back into it), and the leaves swing open towards the deck as someone comes or goes (`world.lockerDoors`, read in
+// `World.sync`). A neon frame round it breathes with the music.
+function entrance(ctx) {
+  const { w, venue } = ctx,
+    door = venue.arrival,
+    face = -16.12, // the wall's front face
+    half = door.doorX * 2 + 0.02, // half the opening: each leaf as wide as its side's lane in
+    height = 2.6;
+  // The dark beyond, and a step of light on the floor in front.
+  w.box(half * 2, height, 0.04, 0x030208, 0, height / 2, face - 0.03, 0);
+  const frame = glowMaterial(MAGENTA);
+  for (const [sx, sy, x, y] of [
+    [0.14, height + 0.14, -half - 0.07, height / 2],
+    [0.14, height + 0.14, half + 0.07, height / 2],
+    [half * 2 + 0.28, 0.14, 0, height + 0.07],
+  ]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, 0.1), frame);
+    bar.position.set(x, y, face + 0.05);
+    w.scene.add(bar);
+  }
+  const mat = new THREE.MeshStandardMaterial({ color: 0x2a1a52, roughness: 0.5, metalness: 0.4 }),
+    pane = glowMaterial(CYAN);
+  for (const side of [-1, 1]) {
+    const hinge = new THREE.Group();
+    hinge.position.set(side * half, 0, face + 0.06);
+    w.scene.add(hinge);
+    const leaf = new THREE.Mesh(new THREE.BoxGeometry(half - 0.03, height - 0.05, 0.07), mat);
+    leaf.position.set((-side * half) / 2, (height - 0.05) / 2, 0.04);
+    leaf.castShadow = true;
+    hinge.add(leaf);
+    const porthole = new THREE.Mesh(new THREE.CircleGeometry(0.22, 24), pane);
+    porthole.position.set((-side * half) / 2, 1.75, 0.08);
+    hinge.add(porthole);
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, 0.06), glowMaterial(GOLD));
+    handle.position.set(-side * (half - 0.16), 1.1, 0.1);
+    hinge.add(handle);
+    w.lockerDoors.push({ side, hinge });
+  }
+  ctx.beats.push((t, d, p, lit) => {
+    frame.color.setHSL((0.9 + d.bar * 0.17) % 1, 1, 0.45 + 0.2 * p).multiplyScalar(lit);
+    pane.color.set(CYAN).multiplyScalar(lit * 0.7);
   });
 }
 

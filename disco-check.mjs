@@ -62,6 +62,37 @@ const assign = (s, p, lane) => {
   assert.ok(s.assign(lane), "assigned to zone " + (lane + 1));
 };
 
+// 1b) The way in and out (the creator, 16 October 2026): no locker rooms, one double door flush in the back wall, a leaf for
+// each side of the line. Guests come out of the dark behind it into the line and go back into it; a dog led out goes too.
+{
+  assert.ok(!disco.obstacles.some((o) => /locker/.test(o.kind)), "no locker walls or benches");
+  const door = disco.arrival;
+  assert.ok(door.insideZ < disco.room.minZ + 0.3, "inside is behind the back wall");
+  assert.ok(disco.isDeck(door.outsideX, door.doorZ, 3, 0.3), "the doorway opens onto the deck");
+  assert.equal(disco.doorWord, "the door");
+  assert.equal(VENUES.club.doorWord, "a locker door", "the other pools keep their locker rooms");
+  const s = shift();
+  const [p] = toQueue(s, 1);
+  assert.ok(p.status === "queue");
+  const q = s.spawn({ entrance: true });
+  assert.ok(
+    Math.abs(q.z - door.insideZ) < 1e-9 && Math.abs(Math.abs(q.x) - door.insideX) < 1e-9,
+    "comes in from behind it",
+  );
+  for (let i = 0; i < 600 && q.status !== "queue"; i++) tick(s);
+  assert.equal(q.status, "queue", "walks through the door into the line");
+  s.lose(q);
+  for (let i = 0; i < 900 && q.status !== "gone"; i++) tick(s);
+  assert.equal(q.status, "gone", "and back out through it");
+  const dog = s.spawnVisitor("dog", { name: "Rex" });
+  assert.ok(Math.abs(dog.z - door.insideZ) < 1e-9);
+  for (let i = 0; i < 120; i++) s.walkVisitor(dog, 1 / 60, 3);
+  assert.ok(disco.pastDoor(dog), "the dog is out on the deck");
+  s.sendVisitorHome(dog, "leaving");
+  for (let i = 0; i < 900 && s.visitors.includes(dog); i++) s.walkVisitor(dog, 1 / 60, 3);
+  assert.ok(!s.visitors.includes(dog), "and goes back out through the door");
+}
+
 // 2) The class: aqua dancers only, whatever the level wrote (and Marco, a VIP, dances too).
 {
   const s = new PoolSimulation(9, 5, {
@@ -192,5 +223,5 @@ const assign = (s, p, lane) => {
   assert.deepEqual(danceAt(t), danceAt(t));
 }
 console.log(
-  "Disco checks passed: the Aqua Disco's floor plan, a class of aqua dancers (Marco and the VIPs too) in rows facing the stage, four to a zone, zones not lanes, and one dance routine for all.",
+  "Disco checks passed: the Aqua Disco's floor plan and its one door in the back wall (no locker rooms), a class of aqua dancers (Marco and the VIPs too) in rows facing the stage, four to a zone, zones not lanes, and one dance routine for all.",
 );

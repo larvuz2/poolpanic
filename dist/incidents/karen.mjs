@@ -115,7 +115,7 @@ export const Karen = {
           onDeck = target === c;
         if (v.status === "marching") {
           // Out of the locker room she heads for wherever the coach is now, re-planning as the coach moves.
-          const outside = Math.abs(v.x) <= sim.venue.arrival.outsideX + 0.2;
+          const outside = sim.venue.pastDoor(v);
           k.repath -= dt;
           if (outside && k.repath <= 0) {
             k.repath = 0.4;
