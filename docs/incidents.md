@@ -38,7 +38,7 @@ prevent the incident; otherwise the recovery is the coach's job. The points are 
 
 | Incident | Levels | What happens |
 | --- | --- | --- |
-| 🆘 **Cramp** | 2 and up, about 1 swimmer in 4 | The lanes freeze, a ring icon marks the victim. Take a wall ring, dive in, swim it to them, climb out, hang the ring back. Slow: the lanes stay frozen while the queue loses patience. |
+| 🆘 **Cramp** | 2 and up, about 1 swimmer in 4 (more at Senior Aqua Fit) | The lanes freeze, a ring icon marks the victim. Take a wall ring, dive in, swim it to them, climb out, hang the ring back. Slow: the lanes stay frozen while the queue loses patience. |
 | 💩 **Tummy trouble** | 3 and up, a few a shift (more at the Kids Pool: `sickRate`) | A 10-second meter over a swimmer. Send them to the locker in time (a bonus; sending a healthy one home costs points). Missed: a mess floats in the water, everyone evacuates and panics, the streak breaks and the clock holds until skimmer, bin and chlorine are done. |
 | 🚽 **A wee** (16 October 2026) | 3 and up, a third of the tummy troubles (half at the Kids Pool) | The same mechanic as the poo with a 🚽 tag: send them home in time. Missed: a yellow cloud spreads and the whole pool turns yellow, everyone out, −500, and the clock holds; nothing to scoop, chlorine alone clears it (one dose or two), then the water settles and the pool opens. |
 | 💢 **Collisions and lost goggles** | any level; goggles from 2 | A fast swimmer stuck behind a slow one collides (−50, happiness drops). About 1 in 4 loses goggles; carry them back to their owner. Prevented by lane choice and lane moves. |

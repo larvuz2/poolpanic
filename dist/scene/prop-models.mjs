@@ -1,5 +1,6 @@
 // Small props as models (16 October 2026): Tripo meshes made from a line of text on fal (tripo3d/p2/text-to-3d) and shrunk for the
-// game (tools/glb_shrink.py): the mop and its yellow bucket (the wet spots, incidents/wet.mjs) and the Kids Pool's floating toys.
+// game (tools/glb_shrink.py): the mop and its yellow bucket (the wet spots, incidents/wet.mjs), the Kids Pool's floating toys and
+// Senior Aqua Fit's wheelchair, pool hoist, armchairs, plants, tea trolley, gramophone and loungers.
 // `propModel(name, fit)` gives a group at once with a simple stand-in in it, built from boxes and balls, and the model takes its place
 // when it has loaded (once, shared by every copy: the game asks for the files with `loadProp`, as each shift begins). A prop that
 // does not load keeps its stand-in, so the game never waits on one.
@@ -13,6 +14,14 @@ export const PROP_FILES = {
   "mop-bucket": "props/mop-bucket.glb",
   duck: "props/duck.glb",
   "swim-ring": "props/swim-ring.glb",
+  // Senior Aqua Fit (scene/senior.mjs, scene/senior-view.mjs)
+  wheelchair: "props/wheelchair.glb",
+  hoist: "props/hoist.glb",
+  armchair: "props/armchair.glb",
+  monstera: "props/monstera.glb",
+  trolley: "props/trolley.glb",
+  gramophone: "props/gramophone.glb",
+  lounger: "props/lounger.glb",
 };
 const templates = new Map(),
   loading = new Map(),

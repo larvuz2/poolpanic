@@ -169,11 +169,82 @@ export function kidsScore(step, panic = false) {
   if (panic && s % 4 === 0 && beat % 2 === 0) add("alarm", { note: beat === 0 ? 84 : 79 });
   return out;
 }
-// The two songs the player knows: the step length, the score, and how loud it plays.
+// ---- Senior Aqua Fit's song (16 October 2026) ---------------------------------------------------------------------------------
+// A tea dance in the conservatory: a gentle swing at 104 BPM in F major (Fmaj7 Dm7 Gm7 C7, a bar each). A walking bass, brushes on
+// two and four, a ride cymbal's "ding, ding-a ding", piano chords on the Charleston beat (one, and the "and" of two), and a
+// vibraphone tune, then eight bars of the vibes wandering over the chords; a teacup clinks at the end of every eight. The off-beat
+// eighths are swung (`delay`, a third of a step late).
+export const SENIOR_BPM = 104;
+export const SENIOR_STEP = 60 / SENIOR_BPM / 4;
+export const SENIOR_ROOTS = [41, 38, 43, 36]; // F2 D2 G2 C2
+const SENIOR_CHORD = [
+  [0, 4, 7, 11],
+  [0, 3, 7, 10],
+  [0, 3, 7, 10],
+  [0, 4, 7, 10],
+];
+// prettier-ignore
+export const SENIOR_TUNE = [
+  69, null, null, null, 72, null, null, null, 69, null, 67, null, 65, null, null, null,
+  74, null, 72, null, 69, null, null, null, 65, null, 69, null, 72, null, null, null,
+  70, null, null, null, 69, null, 67, null, 70, null, 74, null, 72, null, null, null,
+  67, null, 70, null, 69, null, 67, null, 64, null, null, null, null, null, null, null,
+  69, null, null, null, 72, null, null, null, 77, null, 76, null, 74, null, null, null,
+  74, null, 72, null, 69, null, null, null, 65, null, 69, null, 74, null, null, null,
+  70, null, null, null, 74, null, 72, null, 70, null, 69, null, 67, null, null, null,
+  72, null, 70, null, 69, null, 67, null, 65, null, null, null, null, null, null, null,
+];
+export const SENIOR_INTRO = 2;
+export const SENIOR_CYCLE = 16;
+export const seniorSection = (bar) =>
+  bar < SENIOR_INTRO ? "intro" : (bar - SENIOR_INTRO) % SENIOR_CYCLE < 8 ? "tune" : "vibes";
+export function seniorScore(step, panic = false) {
+  const out = [],
+    bar = Math.floor(step / STEPS_PER_BAR),
+    s = step % STEPS_PER_BAR,
+    chord = bar % 4,
+    root = SENIOR_ROOTS[chord],
+    next = SENIOR_ROOTS[(chord + 1) % 4],
+    part = seniorSection(bar),
+    inCycle = bar < SENIOR_INTRO ? bar : (bar - SENIOR_INTRO) % SENIOR_CYCLE,
+    beat = Math.floor(s / 4),
+    swing = s % 4 === 2 ? SENIOR_STEP / 3 : 0,
+    add = (voice, extra = {}) => out.push({ voice, delay: swing, ...extra });
+  // A walking bass: the root, the third, the fifth, then a half step into the next chord.
+  if (s % 4 === 0) {
+    const third = SENIOR_CHORD[chord][1];
+    const walk = [root, root + third, root + 7, next + (next > root ? -1 : 1)][beat];
+    add("walk", { note: walk, len: SENIOR_STEP * 3.4, vol: beat === 0 ? 1 : 0.8 });
+  }
+  // Brushes on two and four, the ride's "ding, ding-a ding".
+  if (s === 4 || s === 12) add("brush");
+  if (s === 0 || s === 4 || s === 8 || s === 12) add("ride", { vol: s % 8 === 4 ? 1 : 0.7 });
+  if (s === 6 || s === 14) add("ride", { vol: 0.5 });
+  // Piano on the Charleston beat.
+  if (s === 0 || s === 6)
+    add("comp", { notes: SENIOR_CHORD[chord].map((n) => root + 24 + n), vol: s === 0 ? 0.8 : 1 });
+  if (part === "tune") {
+    const n = SENIOR_TUNE[(inCycle % 8) * STEPS_PER_BAR + s];
+    if (n !== null) add("vibe", { note: n });
+  } else if (part === "vibes" && s % 2 === 0) {
+    // The vibes wander up and down the chord in swung eighths, resting on the bar's last beat.
+    const tones = SENIOR_CHORD[chord],
+      path = [0, 1, 2, 3, 2, 1, 2, null],
+      i = path[(s / 2) % path.length];
+    if (i !== null) add("vibe", { note: root + 24 + tones[i] + (inCycle % 2 ? 12 : 0), vol: 0.55 });
+  }
+  if (s === 12 && inCycle % 8 === 7) add("clink", { delay: 0 });
+  if (panic && s % 4 === 0 && beat % 2 === 0) add("alarm", { note: beat === 0 ? 84 : 79, delay: 0 });
+  return out;
+}
+
+// The songs the player knows: the step length, the score, and how loud it plays.
 export const SONGS = {
   disco: { step: STEP, score: discoScore, level: 1 },
   // (The kids' lighter voices, brought up to the disco's loudness: measured from both songs rendered offline.)
   kids: { step: KIDS_STEP, score: kidsScore, level: 1.6 },
+  // (The tea dance is quieter still: brought up to the kids' loudness the same way.)
+  senior: { step: SENIOR_STEP, score: seniorScore, level: 2.35 },
 };
 
 const release = (...nodes) => {
@@ -185,7 +256,7 @@ const release = (...nodes) => {
 
 // The player. `audio` is the game's PoolAudio (its context, master and noise). `clock()` says where the shift is: null when
 // no song of its own plays, else { time, running, dark, song } (the shift's seconds, whether its clock runs, whether the power
-// is out, and which song: "disco", the default, or "kids").
+// is out, and which song: "disco", the default, "kids" or "senior").
 export class DiscoMusic {
   constructor(audio) {
     this.audio = audio;
@@ -253,7 +324,7 @@ export class DiscoMusic {
         t = Math.max(now, this.anchor + step * STEP);
       if (this.dark) continue;
       if (step % STEPS_PER_BAR === 0) this.barFilter(step / STEPS_PER_BAR, t, song);
-      for (const n of song.score(step, a.panic)) this.play(n, t);
+      for (const n of song.score(step, a.panic)) this.play(n, t + (n.delay || 0));
     }
     return true;
   }
@@ -382,6 +453,34 @@ export class DiscoMusic {
       case "whistle":
         this.voice("sine", 880, t, 0.5, 0.045, this.synth, 1760, 0.05);
         break;
+      // Senior Aqua Fit's song's own voices.
+      case "walk":
+        this.voice("triangle", midi(n.note), t, n.len, 0.15 * vol, this.drums, null, 0.006);
+        this.voice("sine", midi(n.note) * 2, t, n.len * 0.6, 0.03 * vol, this.drums, null, 0.006);
+        break;
+      case "brush":
+        this.hiss(t, 0.16, 0.045, 2200, "bandpass");
+        break;
+      case "ride":
+        this.hiss(t, 0.22, 0.018 * vol, 7000);
+        this.voice("sine", 4180, t, 0.18, 0.004 * vol, this.drums, null, 0.002);
+        break;
+      case "comp":
+        n.notes.forEach((note, i) => {
+          this.voice("sine", midi(note), t + i * 0.006, 0.34, 0.03 * vol, this.synth, null, 0.004);
+          this.voice("triangle", midi(note) * 2, t + i * 0.006, 0.12, 0.008 * vol, this.synth, null, 0.003);
+        });
+        break;
+      case "vibe":
+        // Two sines a hair apart: the vibraphone's shimmer.
+        this.voice("sine", midi(n.note), t, 1.0, 0.06 * vol, this.synth, null, 0.003);
+        this.voice("sine", midi(n.note) * 1.004, t, 1.0, 0.04 * vol, this.synth, null, 0.003);
+        this.voice("sine", midi(n.note) * 4, t, 0.08, 0.01 * vol, this.synth, null, 0.002);
+        break;
+      case "clink":
+        this.voice("sine", 2637, t, 0.5, 0.03, this.drums, null, 0.001);
+        this.voice("sine", 3520, t + 0.07, 0.4, 0.022, this.drums, null, 0.001);
+        break;
       case "alarm":
         this.voice("square", midi(n.note), t, 0.12, 0.05, this.drums);
         break;
@@ -390,9 +489,9 @@ export class DiscoMusic {
   // Where the synths' filter sits each bar: open in the groove and the hook, shut in the breakdown, opening through the build.
   barFilter(bar, t, song = SONGS.disco) {
     if (song !== SONGS.disco) {
-      // (The kids' song keeps its filter open.)
+      // (The kids' song keeps its filter open; the tea dance a little warmer.)
       this.filter.frequency.cancelScheduledValues(t);
-      this.filter.frequency.setValueAtTime(3400, t);
+      this.filter.frequency.setValueAtTime(song === SONGS.senior ? 2400 : 3400, t);
       return;
     }
     const part = section(bar),

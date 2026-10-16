@@ -231,6 +231,130 @@ def dance_clip(which):
     return {"frames": frames, "breath": 0.0, **keys, **arms}
 
 
+# ---- Senior Aqua Fit (16 October 2026) -----------------------------------------------------------------------------------
+# The seniors' own clips, made on the Coach like the shared ones and moved to the four senior swimmers (transplant_clips.py):
+# a hunched-over shuffle (StoopedWalk) and a stooped stand (StoopedIdle) in place of the upright Walk and IdleScan, sitting in a
+# wheelchair (Sit), pushing its wheels (WheelPush) and getting up out of it (StandUp, one shot; the game plays it backwards to
+# sit down again). Numbers in metres on the Coach (hips 0.82 m); a smaller body gets them scaled by its hip height.
+STOOP = 38.0  # degrees the back is bent forward, walking and standing
+SEAT = {"hips": (0.0, 0.17, -0.33), "feet": 0.15}  # sitting: the hips back and down, the feet forward of where they stand
+SIT_HANDS = {"space": "chest", "tgt": (0.20, -0.42, -0.74), "pole": (0.7, 0.6, -0.3), "twist": 0}  # hands on the thighs
+
+
+def stooped_walk_clip():
+    """StoopedWalk: an old body's walk, bent forward at the back with the head lifted to see ahead, short shuffling steps that
+    barely leave the floor, the knees soft, a little side-to-side rock from foot to foot and the arms hanging forward with a
+    small swing. Two steps make the loop (28 frames at 24 fps, 1.17 s), slower than the upright Walk; the game plays it at the
+    rate that keeps the feet from sliding."""
+    frames = 28
+    tau = 2 * math.pi
+    stride = 0.22  # metres a foot goes forward and back of where it stands (feet planted at 0.75 m/s on the Coach)
+    lift = 0.05  # a shuffle: the swinging foot barely clears the floor
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "armL", "armR", "footL", "footR")}
+    for f in range(frames + 1):
+        w = tau * (f % frames) / frames
+        keys["hips"].append((f, (0.022 * math.sin(w), 0.07, -0.07 - 0.012 * abs(math.cos(w)))))
+        keys["hips_turn"].append((f, (5.0 * math.cos(w), 4.0, -3.0 * math.sin(w))))
+        keys["spine"].append((f, (-4.0 * math.cos(w), STOOP + 2.0 * abs(math.sin(w)), 2.0 * math.sin(w))))
+        keys["head"].append((f, (2.0 * math.cos(w), -STOOP * 0.75, -1.5 * math.sin(w))))
+        for side, phase in (("L", 0.0), ("R", math.pi)):
+            a = w + phase
+            swing = max(0.0, -math.sin(a))  # moving forward: off the floor
+            keys["foot" + side].append((f, (stride * math.cos(a), 0.02, lift * swing ** 1.5)))
+            # the arm swings with the other leg: forward when this side's foot is back
+            arm_fwd = -0.07 * math.cos(a)
+            keys["arm" + side].append(
+                (f, {"space": "chest", "tgt": (0.13, -0.22 + arm_fwd, -0.84), "pole": (0.4, 0.8, -0.2), "twist": 0})
+            )
+    return {"frames": frames, "breath": 0.0, **keys}
+
+
+def stooped_idle_clip():
+    """StoopedIdle: standing bent forward as in the walk, the hands resting together low in front, breathing slowly, looking
+    about now and then (to the left, back, to the right), a little sway."""
+    frames = 144
+    hands = {"space": "chest", "tgt": (-0.05, -0.30, -0.80), "pole": (0.6, 0.4, -0.8), "twist": 0}
+    return {
+        "frames": frames,
+        "breath_frames": 72,
+        "hips": [(0, (0.0, 0.05, -0.05)), (72, (0.012, 0.05, -0.052)), (144, (0.0, 0.05, -0.05))],
+        "hips_turn": [(0, (0, 4, 0)), (144, (0, 4, 0))],
+        "spine": [(0, (0, STOOP, 0)), (72, (0, STOOP + 2, 1)), (144, (0, STOOP, 0))],
+        "head": [(0, (0, -STOOP * 0.7, 0)), (30, (0, -STOOP * 0.7, 0)), (48, (28, -STOOP * 0.6, 4)), (66, (28, -STOOP * 0.6, 4)),
+                 (84, (0, -STOOP * 0.7, 0)), (100, (-24, -STOOP * 0.6, -4)), (118, (-24, -STOOP * 0.6, -4)), (144, (0, -STOOP * 0.7, 0))],
+        "armL": [(0, hands), (144, hands)],
+        "armR": [(0, hands), (144, hands)],
+        "footL": [(0, (0.0, 0.03, 0.0)), (144, (0.0, 0.03, 0.0))],
+        "footR": [(0, (0.0, 0.03, 0.0)), (144, (0.0, 0.03, 0.0))],
+    }
+
+
+def sit_clip():
+    """Sit: sitting in a wheelchair (or any chair), the back against the backrest, the hands on the thighs, the feet on the
+    footrests, looking about slowly. The game puts the chair under the hips (scene/senior.mjs)."""
+    frames = 144
+    feet = (SEAT["feet"], 0.04, 0.0)
+    return {
+        "frames": frames,
+        "breath_frames": 72,
+        "hips": [(0, SEAT["hips"]), (144, SEAT["hips"])],
+        "hips_turn": [(0, (0, -6, 0)), (144, (0, -6, 0))],
+        "spine": [(0, (0, 4, 0)), (72, (0, 6, 0)), (144, (0, 4, 0))],
+        "head": [(0, (0, 4, 0)), (36, (0, 4, 0)), (54, (32, 2, 4)), (76, (32, 2, 4)), (96, (-26, 6, -4)), (118, (-26, 6, -4)), (144, (0, 4, 0))],
+        "armL": [(0, SIT_HANDS), (144, SIT_HANDS)],
+        "armR": [(0, SIT_HANDS), (144, SIT_HANDS)],
+        "footL": [(0, feet), (144, feet)],
+        "footR": [(0, feet), (144, feet)],
+    }
+
+
+def wheel_push_clip():
+    """WheelPush: sitting in the wheelchair and rolling it along, both hands on the push rims: grab the rim by the hip, push it
+    forward and down, let go and swing back over it. One push a loop (24 frames, 1 s); the body leans into each push."""
+    frames = 24
+    feet = (SEAT["feet"], 0.04, 0.0)
+    grab = {"space": "chest", "tgt": (0.40, 0.02, -0.66), "pole": (0.6, 0.9, 0.0), "twist": 0}
+    push = {"space": "chest", "tgt": (0.40, -0.34, -0.70), "pole": (0.7, 0.5, -0.4), "twist": 0}
+    back = {"space": "chest", "tgt": (0.42, -0.10, -0.50), "pole": (0.6, 0.9, 0.0), "twist": 0}
+    arm = [(0, grab), (11, push), (16, back), (24, grab)]
+    return {
+        "frames": frames,
+        "breath": 0.0,
+        "hips": [(0, SEAT["hips"]), (24, SEAT["hips"])],
+        "hips_turn": [(0, (0, -6, 0)), (24, (0, -6, 0))],
+        "spine": [(0, (0, 6, 0)), (11, (0, 16, 0)), (18, (0, 8, 0)), (24, (0, 6, 0))],
+        "head": [(0, (0, -4, 0)), (11, (0, -10, 0)), (24, (0, -4, 0))],
+        "armL": arm,
+        "armR": arm,
+        "footL": [(0, feet), (24, feet)],
+        "footR": [(0, feet), (24, feet)],
+    }
+
+
+def stand_up_clip():
+    """StandUp (one shot, 40 frames, 1.67 s): from sitting (Sit's pose) to standing stooped (StoopedIdle's): the feet tuck back
+    under the seat, the body leans well forward over them, the hands push on the armrests, the hips rise and the back comes
+    up as far as it goes, hunched. The game plays it backwards to sit down."""
+    frames = 40
+    seat, feet = SEAT["hips"], SEAT["feet"]
+    armrest = {"space": "chest", "tgt": (0.36, -0.10, -0.66), "pole": (0.6, 0.9, -0.2), "twist": 0}
+    hands = {"space": "chest", "tgt": (-0.05, -0.30, -0.80), "pole": (0.6, 0.4, -0.8), "twist": 0}
+    stand = (0.0, 0.05, -0.05)
+    return {
+        "frames": frames,
+        "loop": False,
+        "breath": 0.0,
+        "hips": [(0, seat), (8, seat), (16, (0.0, seat[1] - 0.02, seat[2])), (28, (0.0, 0.08, -0.14)), (40, stand)],
+        "hips_turn": [(0, (0, -6, 0)), (14, (0, 18, 0)), (28, (0, 10, 0)), (40, (0, 4, 0))],
+        "spine": [(0, (0, 4, 0)), (14, (0, 42, 0)), (26, (0, 38, 0)), (40, (0, STOOP, 0))],
+        "head": [(0, (0, 4, 0)), (14, (0, -30, 0)), (28, (0, -26, 0)), (40, (0, -STOOP * 0.7, 0))],
+        "armL": [(0, SIT_HANDS), (8, armrest), (24, armrest), (40, hands)],
+        "armR": [(0, SIT_HANDS), (8, armrest), (24, armrest), (40, hands)],
+        "footL": [(0, (feet, 0.04, 0.0)), (10, (0.03, 0.04, 0.0)), (40, (0.0, 0.03, 0.0))],
+        "footR": [(0, (feet, 0.04, 0.0)), (10, (0.03, 0.04, 0.0)), (40, (0.0, 0.03, 0.0))],
+    }
+
+
 CLIPS = {
     # What every character does, made on the Coach and moved to the others (transplant_clips.py).
     "shared": {
@@ -240,6 +364,14 @@ CLIPS = {
         "DanceRight": dance_clip("right"),
         "DanceLeft": dance_clip("left"),
         "DanceBoth": dance_clip("both"),
+    },
+    # Senior Aqua Fit's swimmers (16 October 2026): made on a scratch copy of the Coach and moved to the four seniors.
+    "senior": {
+        "StoopedWalk": stooped_walk_clip(),
+        "StoopedIdle": stooped_idle_clip(),
+        "Sit": sit_clip(),
+        "WheelPush": wheel_push_clip(),
+        "StandUp": stand_up_clip(),
     },
     # What only Coach Waters does.
     "coach": {
@@ -707,7 +839,7 @@ for name, clip in todo.items():
     keys = []
     previous = {}
     for frame in range(n + 1):
-        pose_frame(clip, frame % n)  # the last frame is the first again
+        pose_frame(clip, frame % n if clip.get("loop", True) else frame)  # a loop's last frame is its first again
         row = {}
         for pb in pose:
             q = Quaternion(pb.rotation_quaternion)

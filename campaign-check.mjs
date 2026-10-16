@@ -582,6 +582,7 @@ const emitted = (s, type, kind) => s.events.filter((e) => e.type === type && e.k
     "kids",
     "lagoon",
     "resort",
+    "senior",
   ]);
   assert.equal(plan(VENUES.lagoon), plan(VENUES.resort));
   assert.equal(plan(VENUES.arena), plan(VENUES.resort));
@@ -591,8 +592,8 @@ const emitted = (s, type, kind) => s.events.filter((e) => e.type === type && e.k
   assert.equal(VENUES.aquatic.name, "Aquatic Centre");
   assert.deepEqual(
     Object.values(VENUES).map((v) => !!v.indoor),
-    [true, false, false, true, true, true, false],
-    "Club, arena, Aquatic Centre and Aqua Disco are indoors; the Kids Pool is outdoors",
+    [true, false, false, true, true, true, false, true],
+    "Club, arena, Aquatic Centre, Aqua Disco and Senior Aqua Fit's conservatory are indoors; the Kids Pool is outdoors",
   );
   // The Aquatic Centre has no trampoline: no tower and no stairs to walk round, a podium and a team bench instead, and every
   // station, fixture, queue spot and pool edge spot still on the deck.

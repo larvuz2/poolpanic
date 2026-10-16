@@ -184,6 +184,23 @@ export const POOLS = {
     ],
     twists: { team: 0, class: 0, closure: 0 }, // no swim team, no aqua class; a closed zone means nothing to a kid
   },
+  // Senior Aqua Fit (16 October 2026): a glass conservatory spa for seniors, who walk slowly and stooped, come in wheelchairs and
+  // get up out of them to swim, cramp more often and wait more patiently; every incident still comes, Marco too (the one young
+  // swimmer among them).
+  senior: {
+    name: "Senior Aqua Fit",
+    icon: "👵",
+    style: { venue: "senior", lighting: "senior" },
+    events: [
+      "Golden hour swim",
+      "Tea dance splash",
+      "Silver swimmers",
+      "Gentle laps",
+      "Hip & knee club",
+      "Sunday best",
+    ],
+    twists: { team: 0, class: 0 }, // no swim team, no aqua class: it is their pool
+  },
   arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20] },
 };
 export const POOL_IDS = Object.keys(POOLS);
@@ -280,6 +297,12 @@ const SCORE_SCALE = {
   kids: [
     [10, 1.4],
     [20, 1.1],
+  ],
+  // Senior Aqua Fit: slow walkers, a stand-up for every wheelchair and steady lengths serve fewer guests in a shift, so the stars
+  // ask less (the coach bot scored about half of what it does at Splash Park on the same targets; calibrated 16 October 2026).
+  senior: [
+    [10, 0.8],
+    [20, 0.65],
   ],
 };
 

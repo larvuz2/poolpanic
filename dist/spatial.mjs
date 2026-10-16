@@ -139,8 +139,12 @@ function makeVenue(spec) {
     },
     // Waiting rows sit behind the starting blocks, beneath the clubhouse wall.
     queuePosition(side, slot) {
-      const q = spec.queue;
-      return { x: side * (q.outerX - (slot % 4) * q.stepX), z: q.startZ - Math.floor(slot / 4) * q.stepZ };
+      const q = spec.queue,
+        row = q.perRow ?? 4;
+      return {
+        x: side * (q.outerX - (slot % row) * q.stepX),
+        z: q.startZ - Math.floor(slot / row) * q.stepZ,
+      };
     },
     // Shortest deck route around the basin: straight when clear, otherwise via the corridor corners.
     // Coach-sized bodies collide with the starting blocks, so `solid` routes pass further behind them.
@@ -479,6 +483,79 @@ export const KIDS = makeVenue({
   ],
 });
 
+// Senior Aqua Fit (16 October 2026, the creator: "do not follow our venues' layout… no lockers… impress me"): a Victorian glass
+// conservatory over a four-lane pool for a gentle crowd of seniors, laid out for them. No starting blocks (steps with brass handrails
+// at the near end, a pool hoist at the side); no locker rooms but a pair of tall glass doors in the back wall; the waiting area is a
+// lounge on a rug with room between the guests for a wheelchair (`queue`: wider steps, four to a row); the kit is on the far side
+// (fins, water care, eye care, the fish net), the skimmer, bin and rest bench on the near side, a hydrotherapy spa and the tea
+// trolley (the dog treats are its biscuits) at the near right, the gramophone and a reading corner at the far right (scene/senior.mjs).
+// The seniors walk slowly, stooped; some come in wheelchairs and stand up to swim (`seniors`, sim.mjs).
+export const SENIOR = makeVenue({
+  id: "senior",
+  name: "Senior Aqua Fit",
+  doorWord: "the glass doors",
+  indoor: true,
+  lighting: "senior",
+  seniors: true,
+  blocks: false,
+  lanes: [-4.8, -1.6, 1.6, 4.8],
+  deck: { minX: -14.6, maxX: 14.6, minZ: -15.2, maxZ: 12.65 },
+  room: { minX: -15.2, maxX: 15.2, minZ: -16.7, maxZ: 13.6 },
+  doors: { insideX: 0.62, doorX: 0.62, doorZ: -14.85, outsideX: 0.62, insideZ: -16.55 },
+  lockers: [],
+  queue: { outerX: 6.1, stepX: 1.3, startZ: -11.05, stepZ: 1.3, perRow: 4 },
+  coachStart: { x: -9.0, z: -4.6 },
+  cameraFollow: { kx: 0.22, maxX: 2.6 },
+  props: [
+    "mop",
+    "mop-bucket",
+    "wheelchair",
+    "hoist",
+    "armchair",
+    "monstera",
+    "trolley",
+    "gramophone",
+    "lounger",
+  ],
+  stations: {
+    fins: { x: 12.4, z: -5.6 },
+    chlorine: { x: 12.4, z: 7.4 },
+    relief: { x: 12.4, z: 3.4 },
+  },
+  sanitation: { rack: { x: -13.7, z: -3.6 }, bin: { x: -12.5, z: -1.3 }, reach: 6.2 },
+  ringMounts: [
+    { x: -4.2, z: -15.7, angle: 0 },
+    { x: -14.85, z: -6.6, angle: Math.PI / 2 },
+    { x: 14.85, z: 1.4, angle: -Math.PI / 2 },
+  ],
+  rescue: { bench: { x: -11.4, z: 2.4 }, approach: { x: -10.1, z: 2.4 } },
+  fixtures: {
+    fishNet: { x: 14.85, z: -2.2, angle: -Math.PI / 2 },
+    treats: { x: -12.9, z: 11.3 },
+    flashlight: { x: 12.4, z: -9.4 },
+    fuseBox: { x: 14.9, z: 11.6, angle: -Math.PI / 2 },
+  },
+  trampoline: null,
+  furniture: [
+    { kind: "bench", x: -11.4, z: 1.75, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
+    { kind: "rack", x: 12.4, z: -5.6, hx: 0.48, hz: 1.03 },
+    { kind: "station", x: 12.4, z: 7.4, hx: 0.6, hz: 0.9 },
+    { kind: "station", x: 12.4, z: 3.4, hx: 0.9, hz: 0.6 },
+    { kind: "spa", x: -11.7, z: 8.0, hx: 1.55, hz: 1.55 },
+    { kind: "hoist", x: -7.35, z: 4.4, hx: 0.36, hz: 0.36 },
+    { kind: "trolley", x: -12.9, z: 11.3, hx: 0.5, hz: 0.38 },
+    { kind: "gramophone", x: 12.9, z: 10.9, hx: 0.5, hz: 0.5 },
+    { kind: "armchair", x: 13.3, z: -1.3, angle: -Math.PI / 2, hx: 0.5, hz: 0.5 },
+    { kind: "armchair", x: 13.3, z: 0.1, angle: -Math.PI / 2, hx: 0.5, hz: 0.5 },
+    { kind: "lounger", x: -4.6, z: 11.75, angle: Math.PI / 2, hx: 1.05, hz: 0.45 },
+    { kind: "lounger", x: 4.6, z: 11.75, angle: Math.PI / 2, hx: 1.05, hz: 0.45 },
+    { kind: "plant", x: -13.9, z: -14.3, hx: 0.5, hz: 0.5 },
+    { kind: "plant", x: 13.9, z: -14.3, hx: 0.5, hz: 0.5 },
+    { kind: "plant", x: -13.9, z: 4.9, hx: 0.5, hz: 0.5 },
+    { kind: "plant", x: 0, z: 12.0, hx: 0.5, hz: 0.5 },
+  ],
+});
+
 export const VENUES = {
   club: CLUB,
   resort: RESORT,
@@ -487,6 +564,7 @@ export const VENUES = {
   aquatic: AQUATIC,
   disco: DISCO,
   kids: KIDS,
+  senior: SENIOR,
 };
 
 export function createCoach(venue = CLUB) {
