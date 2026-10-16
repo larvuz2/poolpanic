@@ -574,7 +574,7 @@ const emitted = (s, type, kind) => s.events.filter((e) => e.type === type && e.k
   // Five venues: Splash Park, the Sunset Lagoon, the Grand Gala Arena and the Aquatic Centre share one floor plan, so every
   // check that reads positions, lanes or the deck works in all of them; the arena, the Aquatic Centre and the club are indoors.
   const plan = (v) => JSON.stringify([v.pool, v.deck, v.lanes, v.arrival]);
-  assert.deepEqual(Object.keys(VENUES).sort(), ["aquatic", "arena", "club", "lagoon", "resort"]);
+  assert.deepEqual(Object.keys(VENUES).sort(), ["aquatic", "arena", "club", "disco", "lagoon", "resort"]);
   assert.equal(plan(VENUES.lagoon), plan(VENUES.resort));
   assert.equal(plan(VENUES.arena), plan(VENUES.resort));
   assert.equal(plan(VENUES.aquatic), plan(VENUES.resort));
@@ -583,8 +583,8 @@ const emitted = (s, type, kind) => s.events.filter((e) => e.type === type && e.k
   assert.equal(VENUES.aquatic.name, "Aquatic Centre");
   assert.deepEqual(
     Object.values(VENUES).map((v) => !!v.indoor),
-    [true, false, false, true, true],
-    "Club, arena and Aquatic Centre are indoors",
+    [true, false, false, true, true, true],
+    "Club, arena, Aquatic Centre and Aqua Disco are indoors",
   );
   // The Aquatic Centre has no trampoline: no tower and no stairs to walk round, a podium and a team bench instead, and every
   // station, fixture, queue spot and pool edge spot still on the deck.

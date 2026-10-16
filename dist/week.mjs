@@ -160,6 +160,15 @@ export const POOLS = {
     crowd: 0.8, // fewer swimmers than anywhere else, and faster: a crowd of lane swimmers fills five lanes quickly
     twists: { team: 3 }, // swim teams train here: more likely than elsewhere
   },
+  // The Aqua Disco (16 October 2026): an aqua-aerobics class and nothing else, in zones of open water, dancing Valentina's routine
+  // to the music; every incident still comes.
+  disco: {
+    name: "Aqua Disco",
+    icon: "🪩",
+    style: { venue: "disco", lighting: "disco", aqua: true },
+    events: ["Aqua Disco night", "Glow class", "Retro hour", "Foam party", "Neon splash", "Latin fever"],
+    twists: { team: 0, class: 0 }, // nobody swims laps here: no swim team; the whole shift is a class already
+  },
   arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20], from: 3 },
 };
 export const POOL_IDS = Object.keys(POOLS);
@@ -240,6 +249,11 @@ const SCORE_SCALE = {
     [10, 1.4],
     [13, 1],
     [20, 0.65],
+  ],
+  // A class of aqua dancers is the gentlest crowd in the game: the stars ask more of it (calibrated with the coach bot).
+  disco: [
+    [10, 1.65],
+    [20, 1.3],
   ],
 };
 
@@ -537,7 +551,8 @@ export function directShift({
   const allowed = Object.entries(TWIST_RULES)
     .filter(([, r]) => !r.venues || r.venues.includes(venue))
     .filter(([, r]) => !r.lighting || r.lighting.includes(blueprint.lighting))
-    .map(([kind, r]) => ({ kind, weight: r.weight * (twistWeights[kind] ?? 1) }));
+    .map(([kind, r]) => ({ kind, weight: r.weight * (twistWeights[kind] ?? 1) }))
+    .filter((t) => t.weight > 0);
   const twistCount = (blueprint.twist || []).length + (heat > 1 && random() < 0.5 ? 1 : 0);
   const twist = [];
   for (let i = 0; i < twistCount && allowed.length; i++) {
@@ -562,7 +577,9 @@ export function shiftCards(index, random, known = [], blueprint = {}) {
   ];
   if (index >= 2) {
     const fixedLight =
-      blueprint.daylight || ["arena", "aquatic"].includes(blueprint.venue) || blueprint.lighting === "night";
+      blueprint.daylight ||
+      ["arena", "aquatic", "disco"].includes(blueprint.venue) ||
+      blueprint.lighting === "night";
     const bookings = Object.values(BOOKINGS).filter(
       (b) =>
         b.id !== "regular" &&

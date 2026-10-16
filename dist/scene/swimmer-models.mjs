@@ -32,7 +32,12 @@ export const CLIPS = {
   carryWalk: "CarryWalk",
   carryRun: "CarryRun",
   dump: "BucketDump",
+  // the Aqua Disco's dances (every swimmer, Marco and Valentina): four beats each, played at the time the beat says (dance.mjs)
+  danceRight: "DanceRight",
+  danceLeft: "DanceLeft",
+  danceBoth: "DanceBoth",
 };
+const DANCES = new Set(["danceRight", "danceLeft", "danceBoth"]);
 // A model must have these; one without Panic hops with the classic swimmer's poses instead, one without Swim swims with
 // the Run clip, and one without Cannonball is the classic Carl.
 const REQUIRED = ["idle", "scratch", "walk", "run"];
@@ -139,6 +144,18 @@ export const FIGURES = [
     front: 0.15,
     back: 0.15,
     needs: ["swim", "panic"],
+  },
+  // Valentina, the Aqua Disco's aqua-aerobics instructor (one of Anim Bench's named characters): she dances on the stage at the
+  // far end of the pool, the class copying her. Not a swimmer of the simulation: the disco's scene puts her there (scene/disco.mjs).
+  {
+    id: "valentina",
+    file: "models/valentina.glb",
+    walk: 1.28,
+    run: 4.0,
+    eyes: [1.5, 0.18],
+    front: 0.14,
+    back: 0.13,
+    needs: ["danceRight", "danceLeft", "danceBoth"],
   },
 ];
 // The classic swimmer's head is a ball of this radius, 1.42 up; its crown, star and sore eyes are drawn for that head.
@@ -373,7 +390,7 @@ export class SwimmerRig {
     next.setEffectiveWeight(1);
     // (The Cannonball does not run by itself: update() sets its time from the incident, frame by frame.)
     next.setEffectiveTimeScale(
-      name === "cannonball" || name === "dump" ? 0 : RATED.has(name) ? this.rate : 1,
+      name === "cannonball" || name === "dump" || DANCES.has(name) ? 0 : RATED.has(name) ? this.rate : 1,
     );
     next.play();
     // A crowd that panics does not hop in step.
@@ -399,6 +416,7 @@ export class SwimmerRig {
       jump = null,
       carry = false,
       dump = null,
+      dance = null, // {clip, time}: the Aqua Disco's routine (dance.mjs), the clip at the time the beat says
     } = {},
   ) {
     let want;
@@ -445,10 +463,12 @@ export class SwimmerRig {
     if (carrying) want = { idle: "carry", walk: "carryWalk", run: "carryRun" }[want] || want;
     const dumping = dump !== null && !!this.actions.dump;
     if (dumping) want = "dump";
+    const dancing = !!dance && !!this.actions[dance.clip] && !panic && !jumping;
+    if (dancing) want = dance.clip;
     // (The first stroke after the splash takes a moment to take over from the tuck.)
     this.to(
       want,
-      want === "panic" || want === "cannonball" || want === "dump"
+      want === "panic" || want === "cannonball" || want === "dump" || DANCES.has(want)
         ? 0.12
         : want === "swim" && this.current === "cannonball"
           ? 0.3
@@ -458,6 +478,7 @@ export class SwimmerRig {
     );
     if (jumping) this.actions.cannonball.time = jump;
     if (dumping) this.actions.dump.time = dump;
+    if (dancing) this.actions[dance.clip].time = dance.time;
     // The rate follows smoothly; the idles play as they are.
     this.rate += (rate - this.rate) * Math.min(1, dt * 12);
     if (RATED.has(this.current)) this.actions[this.current].setEffectiveTimeScale(this.rate);

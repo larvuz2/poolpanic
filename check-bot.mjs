@@ -62,6 +62,13 @@ export class CoachBot {
     for (const p of s.people.filter((p) => p.status === "queue" && !(p.finsFirst && !p.hasFins))) {
       s.select(p.id);
       if (p.queasy && p.sick) s.home();
+      else if (s.venue.class)
+        // A class (the Aqua Disco): spread out, the emptiest open zone first.
+        s.assign(
+          [...s.lanes.keys()]
+            .filter((l) => s.laneClosed() !== l)
+            .sort((a, b) => s.occupancy(a) - s.occupancy(b) || a - b)[0],
+        );
       else if (p.type === "daredevil") {
         if (!s.jumper && !s.rescue && !s.closed) s.assignTrampoline();
       } else

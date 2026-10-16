@@ -1,4 +1,5 @@
 import { AUDIO_FILES } from "./audio-files.mjs";
+import { DiscoMusic } from "./music.mjs";
 
 const HISS_SECONDS = 3; // the longest burst of noise is 1.4 s
 // Every sound is a little chain of nodes that is over a moment after it starts, and the music alone makes about 70 of them a
@@ -21,6 +22,10 @@ export class PoolAudio {
     this.urgency = 0;
     this.playing = false;
     this.panic = false;
+    // The Aqua Disco plays its own song on the shift's clock (music.mjs): `clock` is set by the app and says where the shift
+    // is (null when no disco plays).
+    this.clock = null;
+    this.disco = new DiscoMusic(this);
   }
   init() {
     if (this.ctx) {
@@ -125,6 +130,10 @@ export class PoolAudio {
   schedule() {
     if (!this.ctx || !this.playing || !this.enabled) {
       if (this.ctx) this.next = this.ctx.currentTime + 0.05;
+      return;
+    }
+    if (this.disco.tick(this.clock?.() ?? null)) {
+      this.next = this.ctx.currentTime + 0.05;
       return;
     }
     while (this.next < this.ctx.currentTime + 0.17) {

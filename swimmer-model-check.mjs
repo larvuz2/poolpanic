@@ -538,6 +538,7 @@ Object.assign(someone, {
   slipTime: 0,
   exitPhase: null,
 });
+u.rig.idleFor = 0; // (the head scratch comes after a random 7 to 16 s of standing: not within this half second)
 step(30);
 assert.equal(u.rig.current, "idle", "a swimmer in the queue stands");
 assert.ok(!u.puppet.arms && !u.puppet.legs, "on the clips");
@@ -625,8 +626,8 @@ chooseSwimmers("models");
 // ---- the cannonball men: Carl and the leopard man -----------------------------------------------------------------------
 assert.deepEqual(
   FIGURES.map((f) => f.id),
-  ["carl", "leopard", "kid", "marco"],
-  "Carl, the leopard man, the fish kid and Marco",
+  ["carl", "leopard", "kid", "marco", "valentina"],
+  "Carl, the leopard man, the fish kid, Marco and Valentina",
 );
 {
   // Marco "the Missile" (the Aquatic Centre's star VIP): Anim Bench's own file, a swimmer's Swim and Panic, and the guest the
@@ -648,6 +649,25 @@ assert.deepEqual(
   assert.equal(p.figure, "marco", "his model");
   assert.equal(swimmerLook(p).label, "VIP · The Missile");
   assert.ok(p.desiredSpeed > 2.6 * 1.5, "faster than any Pro");
+}
+{
+  // The Aqua Disco's dance (dance.mjs): the three clips are in every swimmer's file, Marco's and Valentina's.
+  const glbClips = (file) => {
+    const bytes = readFileSync("dist/assets/" + file);
+    return JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString("utf8")).animations.map(
+      (a) => a.name,
+    );
+  };
+  for (const file of [...SWIMMERS.map((l) => l.file), "models/marco.glb", "models/valentina.glb"])
+    for (const clip of ["DanceRight", "DanceLeft", "DanceBoth"])
+      assert.ok(glbClips(file).includes(clip), `${file} has ${clip}`);
+  const valentina = FIGURES.find((f) => f.id === "valentina");
+  assert.ok(["danceRight", "danceLeft", "danceBoth"].every((c) => valentina.needs.includes(c)));
+  assert.deepEqual(
+    readFileSync("dist/assets/" + valentina.file),
+    readFileSync("tools/viewer/models/valentina.glb"),
+    "the game's Valentina is Anim Bench's",
+  );
 }
 for (const look of FIGURES.filter((f) => ["carl", "leopard"].includes(f.id))) {
   assert.ok(look.run > look.walk * 2 && look.walk > 0.5, `${look.id}: a run covers more ground than a walk`);

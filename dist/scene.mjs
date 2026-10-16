@@ -7,6 +7,7 @@ import { buildResort } from "./scene/resort.mjs";
 import { buildLagoon } from "./scene/lagoon.mjs";
 import { buildArena } from "./scene/arena.mjs";
 import { buildAquatic } from "./scene/aquatic.mjs";
+import { buildDisco } from "./scene/disco.mjs";
 import { Sky, SCENERY } from "./scene/sky.mjs";
 import { windUniforms } from "./scene/geom.mjs";
 import { dayLook, moodLook, DAY_TIMES } from "./scene/daylight.mjs";
@@ -21,6 +22,7 @@ import { CoachCam, COACH_CAM } from "./scene/coach-cam.mjs";
 import { waitingInWater, heldInWater } from "./rescue.mjs";
 import { bumpLean } from "./deck-physics.mjs";
 import { CLUB, doorOpening } from "./spatial.mjs";
+import { danceAt } from "./dance.mjs";
 import { guidanceState, cuePulse } from "./guidance.mjs";
 
 // Lighting moods. Indoor keeps the original warm hall; resort levels choose day, sunset or night.
@@ -151,6 +153,26 @@ LIGHTING.aquatic = {
   glow: 0.3,
 };
 
+// The Aqua Disco: a dark party hall, its light from the moving heads, the LEDs and the glowing water (scene/disco.mjs).
+LIGHTING.disco = {
+  background: 0x120a22,
+  exposure: 1.05,
+  hemi: [0xb3a6ff, 0x3a2050, 1.0],
+  sun: [0xe8dcff, 1.7, [-12, 30, 8]],
+  fill: [0xff5fc4, 0.8, [14, 14, -16]],
+  env: 0.45,
+  envColors: ["#4a3a8a", "#6a3a7a", "#1a1028"],
+  fog: [0x120a22, 60, 150],
+  water: {
+    shallow: [0.16, 0.72, 0.95],
+    deep: [0.06, 0.32, 0.75],
+    sky: [0.65, 0.45, 0.95],
+    glint: [1, 0.85, 1],
+    glow: 1,
+  },
+  glow: 1,
+};
+
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const BUILDERS = {
@@ -159,6 +181,7 @@ const BUILDERS = {
   lagoon: buildLagoon,
   arena: buildArena,
   aquatic: buildAquatic,
+  disco: buildDisco,
 };
 const defaultLighting = (venue) => venue.lighting || (venue.indoor ? "indoor" : "day");
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
@@ -791,6 +814,10 @@ export class PoolWorld extends SceneKit {
     // A swimmer on its front who is held stands up in the water (and lies down again when let go) over a third of a second,
     // not at once: `u.stand` goes from 0, on its front, to 1, standing. The crawl plays while it is mostly lying.
     const goal = held ? 1 : 0;
+    // A dancer of the Aqua Disco's class (dance.mjs): in the water, in place, nothing wrong.
+    const dancer =
+        !!sim.venue?.class && p.type === "aqua" && p.status === "swim" && !p.problem && !held && !crowd,
+      move = dancer ? danceAt(sim.time || 0) : null;
     u.stand = lying && u.lying ? u.stand + Math.max(-dt * 3, Math.min(dt * 3, goal - u.stand)) : goal;
     u.lying = lying;
     const swim = lying && u.stand < 0.5;
@@ -850,6 +877,14 @@ export class PoolWorld extends SceneKit {
         );
       });
       if (p.type === "aqua") u.puppet.arms = true; // the aerobics arms are in none of the clips
+      // The Aqua Disco's class dances the instructor's routine, on the beat: a model plays the dance clips (syncModel below), a
+      // classic swimmer's arms follow the same moves.
+      if (dancer) {
+        const up = (i) =>
+          (move.move === "both" || (move.move === "right") === (i === 0) ? 1 : 0) *
+          (0.55 + 0.45 * Math.cos(move.phase * Math.PI * 2));
+        u.arms.forEach((a, i) => a.rotation.set(0, 0, (i ? -1 : 1) * (0.4 + 2.4 * up(i))));
+      }
       u.legs.forEach((l, i) => {
         l.rotation.x = walking ? Math.sin(tempo + i * Math.PI) * 0.52 : 0;
       });
@@ -969,11 +1004,12 @@ export class PoolWorld extends SceneKit {
     if (!swim && p.status !== "swim") this.slipPose(u, p.slipTime, 0.65);
     if (p.status === "swim" && p.actualSpeed > 0.3 && Math.random() < 0.04)
       this.splash(p.x, -0.16, p.z, 2, true);
-    this.syncModel(p, g, swim, dt, panicClip);
+    if (dancer && u.rig?.actions[move.clip]) u.puppet.arms = false; // the clip has the arms
+    this.syncModel(p, g, swim, dt, panicClip, dancer ? move : null);
   }
   // A swimmer model's clip and poses (swimmer-models.mjs): how fast the swimmer covers the ground, whether it swims, and
   // which limbs the poses above were set for.
-  syncModel(p, g, swim, dt, panic = false) {
+  syncModel(p, g, swim, dt, panic = false, dance = null) {
     const u = g.userData;
     if (!u.rig) return;
     const at = u.lastAt;
@@ -992,6 +1028,7 @@ export class PoolWorld extends SceneKit {
               ? 0.25
               : Math.max(0.4, Math.min(1.5, Math.max(p.actualSpeed, p.status === "switch" ? 2 : 0) * 0.32)),
         panic,
+        dance,
         puppet: u.puppet,
         classic: u,
       });

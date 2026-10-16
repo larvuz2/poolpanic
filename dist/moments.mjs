@@ -164,8 +164,19 @@ export const MOMENT_TIMING = {
 };
 const T = MOMENT_TIMING;
 
+// A class venue (the Aqua Disco) has zones where the others have lanes.
+const zoned = (text, e) =>
+  e.zone
+    ? text
+        .replace(/\bLANE/g, "ZONE")
+        .replace(/\bLane/g, "Zone")
+        .replace(/\blane/g, "zone")
+    : text;
 const fill = (text, e) =>
-  text.replace(/\{(\w+)\}/g, (_, key) => (e[key] ?? (key === "name" ? "them" : "")).toString());
+  zoned(
+    text.replace(/\{(\w+)\}/g, (_, key) => (e[key] ?? (key === "name" ? "them" : "")).toString()),
+    e,
+  );
 
 export class MomentDirector {
   // `seen`: incident kinds this player already met; `remember(list)` persists the updated list.
