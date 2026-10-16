@@ -11,6 +11,27 @@ export const TYPES = {
   aqua: { label: "Aqua aerobics", color: "#b782db", speed: 0, icon: "💦" },
   daredevil: { label: "Daredevil", color: "#f39a2b", speed: 0, icon: "🤸" },
 };
+// Marco "the Missile", the star VIP (16 October 2026, the creator: in every pool, in more than half the shifts, and always at the
+// Aquatic Centre). `STAR_CHANCE` is how often he swims in a shift of any other pool.
+export const MARCO = { id: "marco", name: "Marco", title: "Marco “the Missile”" };
+export const STAR_CHANCE = 0.6;
+// The guests a free-play shift adds to its level (the creator: VIPs always): Marco in more than half of them, and VIPs in levels that
+// had none, one more every six levels. Drawn from the shift's seed alone, so a replay of the shift has them too. Level 1 (its four
+// written guests) has neither.
+export function freePlayGuests(seed, level) {
+  const L = SHIFTS[level - 1];
+  if (!L || level <= 1) return {};
+  let s = (seed ^ 0x6d2b79f5) >>> 0;
+  s = Math.imul(s ^ (s >>> 15), 2246822507) >>> 0;
+  s = Math.imul(s ^ (s >>> 13), 3266489909) >>> 0;
+  const r = ((s ^ (s >>> 16)) >>> 0) / 4294967296,
+    count = L.vipAt?.length ? 0 : 1 + Math.floor(level / 6),
+    vips = count ? Array.from({ length: count }, (_, k) => +((k + 0.6) / (count + 0.2)).toFixed(2)) : null;
+  return {
+    ...(r < STAR_CHANCE && { star: { ...MARCO, at: +(0.25 + (r / STAR_CHANCE) * 0.4).toFixed(2) } }),
+    ...(vips && { vipAt: vips }),
+  };
+}
 // How a swimmer shows in the queue and over their head: their type, or a golden VIP crown.
 export function swimmerLook(p) {
   const t = TYPES[p.type];

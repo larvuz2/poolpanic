@@ -16,7 +16,7 @@
 //   TIPS        the coach's pocket money, earned in every shift, spent in the shop between shifts on perks that last the week.
 //               Spending tips never touches the Date Fund.
 
-import { SHIFTS } from "./sim.mjs";
+import { SHIFTS, MARCO, STAR_CHANCE } from "./sim.mjs";
 import { BOOKINGS } from "./bookings.mjs";
 
 export const WEEK_KEY = "pool-panic.week.v1";
@@ -118,8 +118,9 @@ export function tierFor(step, random) {
 export const overTop = (step) => Math.max(0, step - (TOP_TIER - 1));
 // The first shift of a run: level 1 stretched to a gentle minute, easy to pass.
 export const FIRST_SHIFT = { duration: 60, total: 7 };
-// VIPs (a big tip, short patience): none in the first shift, then one, then more as the run goes on (at most five).
-export const vipCount = (step) => (step <= 0 ? 0 : Math.min(5, 1 + Math.floor(step / 4)));
+// VIPs (a big tip, short patience) in every shift (the creator, 16 October 2026: "always"): one in the gentle first minute, two from
+// the next, one more every three shifts (at most six).
+export const vipCount = (step) => (step <= 0 ? 1 : Math.min(6, 2 + Math.floor(step / 3)));
 
 // ---- the pools ---------------------------------------------------------------------------------------------------------
 
@@ -145,7 +146,7 @@ export const POOLS = {
       mix: [0.08, 0.52, 0.97],
       opening: ["intermediate", "advanced", "intermediate"],
       aqua: false,
-      star: { id: "marco", name: "Marco", title: "Marco “the Missile”", at: 0.4 },
+      star: { ...MARCO, at: 0.4 },
     },
     events: [
       "Time trials",
@@ -636,8 +637,12 @@ export function buildShift(week, card = null, known = week.known || []) {
     ...(look.jumpPatience && { jumpPatience: look.jumpPatience }),
     ...(look.opening && { opening: look.opening }),
     ...(look.aqua === false && { aqua: false }),
-    ...(look.star && { star: look.star }),
   };
+  // Marco "the Missile": always at the Aquatic Centre, and in more than half the shifts of every other pool (`STAR_CHANCE`), at a
+  // moment of his own.
+  const starRoll = stream((week.seed ^ Math.imul(index + 9, 2654435789)) >>> 0);
+  if (look.star) blueprint.star = look.star;
+  else if (starRoll() < STAR_CHANCE) blueprint.star = { ...MARCO, at: +(0.25 + starRoll() * 0.4).toFixed(2) };
   // Daredevils (Splash Park and the five-lane pools after it): as many as the pool's level has, for its crowd (one at least).
   if (look.daredevilAt) {
     const count = Math.max(1, Math.round((look.daredevilAt.length * ref.total) / look.nativeTotal));
@@ -679,7 +684,7 @@ export function buildShift(week, card = null, known = week.known || []) {
   const { chaos: _c, twist: _t, intro: _i, booking: _b, payout: _p, ...rest } = blueprint;
   // VIPs: the run's count (none in the first shift), the lagoon's and arena's own share of their crowd, and the pool's extra.
   const nativeVips = look.nativeVips ? Math.round((look.nativeVips * rest.total) / look.nativeTotal) : 0,
-    vips = step <= 0 ? 0 : Math.min(6, Math.max(vipCount(step), nativeVips) + (pool.vipBonus || 0));
+    vips = Math.min(7, Math.max(vipCount(step), nativeVips) + (step <= 0 ? 0 : pool.vipBonus || 0));
   const config = {
     ...rest,
     name: pool.name, // under the HUD's "WEEK 1 · MON · 1/6", and on the countdown

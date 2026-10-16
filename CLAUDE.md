@@ -19,7 +19,8 @@ the same twice: see `docs/incidents.md`).
    week's mix (`weekPools`: every pool each week, never one two days running; since 16 October 2026) at a difficulty that rises every
    shift (`tierFor`), with star targets made fair per pool by the coach bot (`scoreScale`). The pools: the Community Pool, Splash
    Park, the Sunset Lagoon, the **Aquatic Centre** (indoor and competitive, where Marco "the Missile" always swims) and from week 3
-   the Grand Gala Arena. More VIPs as the run goes on, and incidents drawn by a director
+   the Grand Gala Arena. **Marco swims in more than half of all shifts, in every pool** (`STAR_CHANCE`), and **VIPs come in every
+   shift**, more as the run goes on (the creator wants to see them often); incidents drawn by a director
    (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder). A shift not passed pays nothing but the week goes on. Marina's
    wishes for each shift, tips and a shop that never touch the Date Fund. Every level a run passes opens in **free play** (the level map,
    behind a small link under START, like a level select). Marina never appears on the deck: only in texts, wishes and full-screen

@@ -49,7 +49,7 @@ import {
 } from "./dist/week.mjs";
 import { scene, VIDEOS } from "./dist/marina.mjs";
 import { panelHtml } from "./dist/cinematic.mjs";
-import { SHIFTS, PoolSimulation } from "./dist/sim.mjs";
+import { SHIFTS, PoolSimulation, freePlayGuests } from "./dist/sim.mjs";
 import { TWISTS } from "./dist/incidents/twist.mjs";
 import { CoachBot } from "./check-bot.mjs";
 import { makeSim } from "./tools/replay.mjs";
@@ -108,7 +108,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   assert.equal(first.tier, 1);
   assert.equal(first.config.duration, FIRST_SHIFT.duration, "about a minute");
   assert.equal(first.plan.chaos.length, 0, "no incident");
-  assert.equal((first.config.vipAt || []).length, 0, "no VIP in the first minute");
+  assert.equal((first.config.vipAt || []).length, 1, "one VIP even in the first minute (VIPs always)");
   assert.ok(first.pass <= 200, "easy to pass (" + first.pass + ")");
   const tiersAt = (step) => {
     const t = new Set();
@@ -127,9 +127,10 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   assert.ok(tiersAt(19).has(TOP_TIER) && tiersAt(18).has(TOP_TIER), "the gala by the end of week 4");
   const mean = (step) => [...tiersAt(step)].reduce((a, b) => a + b, 0) / tiersAt(step).size;
   assert.ok(mean(6) > mean(1) && mean(12) > mean(6) && mean(18) > mean(12), "the levels climb");
-  assert.equal(vipCount(0), 0);
-  assert.equal(vipCount(1), 1);
-  assert.ok(vipCount(12) > vipCount(1) && vipCount(99) === 5, "more VIPs as the run goes on, five at most");
+  assert.equal(vipCount(0), 1);
+  assert.equal(vipCount(1), 2);
+  for (let step = 0; step < 99; step++) assert.ok(vipCount(step) >= 1, "VIPs in every shift");
+  assert.ok(vipCount(12) > vipCount(1) && vipCount(99) === 6, "more VIPs as the run goes on, six at most");
   for (let step = 1; step < 30; step++) {
     const w = { ...newWeek(freshSave(), 900 + step), chapter: Math.floor(step / 6) + 1, shift: step % 6 };
     assert.equal(stepOf(w), step);
@@ -199,7 +200,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     assert.ok(c.mix[0] <= 0.1 && c.mix[2] - c.mix[0] >= 0.85, "mostly Intermediates and Pros");
     assert.ok(!c.daredevilAt, "no trampoline, no daredevils");
     assert.ok(!c.twist.some((t) => t.kind === "class" || t.kind === "storm"), "no aqua class, no storm");
-    assert.ok((c.vipAt || []).length >= vipCount(step) + 1, "one more VIP than anywhere else");
+    assert.ok((c.vipAt || []).length >= Math.min(7, vipCount(step) + 1), "one more VIP than anywhere else");
     if (sh.step < TOP_TIER - 1)
       assert.ok(c.total < SHIFTS[sh.tier - 1].total || c.total <= 6, "a smaller crowd than the level's");
     const sim = new PoolSimulation(sh.tier, 5, { config: c }),
@@ -207,6 +208,41 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     assert.equal(sim.schedule.filter((e) => e.star === "marco").length, 1, "Marco once");
     assert.ok(!types.includes("aqua") && !types.includes("daredevil"));
     assert.equal(types[0], "intermediate", "the line opens with no beginner");
+  }
+  // Marco everywhere (the creator, 16 October 2026): in more than half the shifts of a week, at every pool, always at the Aquatic Centre;
+  // and in more than half of free play's shifts too, from the seed (so a replay has him), with VIPs in every free-play level but the first.
+  {
+    const seen = {};
+    let marco = 0,
+      shifts = 0;
+    for (let r = 0; r < 300; r++) {
+      const w = newWeek({ chapter: 1 + (r % 4) }, 5000 + r * 31);
+      for (let d = 0; d < SHIFTS_PER_WEEK; d++) {
+        const sh = buildShift({ ...w, shift: d }, null, INCIDENT_ORDER);
+        shifts++;
+        if (sh.config.star) {
+          marco++;
+          seen[sh.pool] = (seen[sh.pool] || 0) + 1;
+          assert.equal(sh.config.star.id, "marco");
+          assert.ok(sh.config.star.at >= 0.25 && sh.config.star.at <= 0.65);
+        } else assert.notEqual(sh.pool, "aquatic", "Marco always at the Aquatic Centre");
+        assert.ok((sh.config.vipAt || []).length >= 1, "VIPs in every shift");
+      }
+    }
+    assert.ok(
+      marco / shifts > 0.55,
+      "Marco in more than half the shifts (" + (marco / shifts).toFixed(2) + ")",
+    );
+    assert.deepEqual(Object.keys(seen).sort(), [...POOL_IDS].sort(), "Marco at every pool");
+    let free = 0;
+    for (let i = 0; i < 1000; i++) if (freePlayGuests(1e6 + i * 7919, 1 + (i % 20)).star) free++;
+    assert.ok(free / 1000 > 0.5, "Marco in more than half of free play");
+    assert.deepEqual(freePlayGuests(42, 1), {}, "level 1 keeps its four written guests");
+    for (let level = 2; level <= SHIFTS.length; level++) {
+      const g = freePlayGuests(777, level);
+      assert.deepEqual(freePlayGuests(777, level), g, "the same seed, the same guests");
+      assert.ok(SHIFTS[level - 1].vipAt?.length || g.vipAt?.length >= 1, "VIPs in free play level " + level);
+    }
   }
   // Star targets: the season's own where a level was made for that floor plan, scaled elsewhere (the coach bot's measure).
   for (let tier = 1; tier <= TOP_TIER; tier++) {
