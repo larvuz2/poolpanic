@@ -11,8 +11,13 @@ export function onDeck(p, venue = CLUB) {
     p.recoveryStage !== "resting" &&
     !p.evacWater &&
     !["water", "climb"].includes(p.exitPhase) &&
-    !(Math.abs(p.x) < venue.pool.deckX && Math.abs(p.z) < venue.pool.deckZ)
+    !inWater(venue, p.x, p.z)
   );
+}
+// Inside the water as deck contacts see it: the basin's box, or the Lazy River's channel (a little out over its banks).
+function inWater(venue, x, z) {
+  if (venue.river) return venue.river.inWater(x, z, -0.2) && !venue.river.onBridge(x, z);
+  return Math.abs(x) < venue.pool.deckX && Math.abs(z) < venue.pool.deckZ;
 }
 // (The Kids Pool's children wait running about the deck, not standing in line: sim.roamKid.)
 const resting = (p) => (p.status === "queue" && p.type !== "child") || p.status === "panic";
@@ -20,15 +25,14 @@ const resting = (p) => (p.status === "queue" && p.type !== "child") || p.status 
 // Corrections respect solid deck edges. Authored door/entry transitions retain their routes.
 function displace(p, x, z, sim) {
   const venue = sim.venue,
-    d = venue.deck,
-    P = venue.pool;
+    d = venue.deck;
   const safe = venue.isDeck(p.x, p.z, sim.level);
   const allowed = (x, z) =>
     x >= d.minX &&
     x <= d.maxX &&
     z >= d.minZ &&
     z <= d.maxZ &&
-    !(Math.abs(x) < P.deckX && Math.abs(z) < P.deckZ) &&
+    !inWater(venue, x, z) &&
     (!safe || venue.isDeck(x, z, sim.level));
   if (allowed(p.x + x, p.z + z)) {
     p.x += x;

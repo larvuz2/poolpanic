@@ -41,6 +41,10 @@ export const CLIPS = {
   sit: "Sit",
   push: "WheelPush",
   standUp: "StandUp",
+  // The Lazy River's riders (17 October 2026): lying back in a tube, and sitting into it (one shot, played at the time the
+  // simulation says; backwards to climb out). Every guest who rides has them (scene/river-view.mjs).
+  tubeFloat: "TubeFloat",
+  tubeBoard: "TubeBoard",
 };
 const DANCES = new Set(["danceRight", "danceLeft", "danceBoth"]);
 // A model must have these; one without Panic hops with the classic swimmer's poses instead, one without Swim swims with
@@ -417,7 +421,11 @@ export class SwimmerRig {
     next.setEffectiveWeight(1);
     // (The Cannonball does not run by itself: update() sets its time from the incident, frame by frame.)
     next.setEffectiveTimeScale(
-      name === "cannonball" || name === "dump" || name === "standUp" || DANCES.has(name)
+      name === "cannonball" ||
+        name === "dump" ||
+        name === "standUp" ||
+        name === "tubeBoard" ||
+        DANCES.has(name)
         ? 0
         : RATED.has(name)
           ? this.rate
@@ -450,6 +458,7 @@ export class SwimmerRig {
       dance = null, // {clip, time}: the Aqua Disco's routine (dance.mjs), the clip at the time the beat says
       seat = null, // "sit" or "push": a senior in a wheelchair, still or rolling (scene/senior-view.mjs)
       stand = null, // seconds into getting up out of the wheelchair (StandUp; sitting down plays it backwards)
+      tube = null, // the Lazy River: {float: true} lying back in a tube, {board: seconds} into TubeBoard (scene/river-view.mjs)
     } = {},
   ) {
     let want;
@@ -501,10 +510,18 @@ export class SwimmerRig {
     const standing = stand !== null && !!this.actions.standUp && !swim;
     if (seat && this.actions[seat] && !swim) want = seat;
     if (standing) want = "standUp";
+    const boarding = tube?.board !== undefined && tube?.board !== null && !!this.actions.tubeBoard;
+    if (tube?.float && this.actions.tubeFloat) want = "tubeFloat";
+    if (boarding) want = "tubeBoard";
     // (The first stroke after the splash takes a moment to take over from the tuck.)
     this.to(
       want,
-      want === "panic" || want === "cannonball" || want === "dump" || want === "standUp" || DANCES.has(want)
+      want === "panic" ||
+        want === "cannonball" ||
+        want === "dump" ||
+        want === "standUp" ||
+        want === "tubeBoard" ||
+        DANCES.has(want)
         ? 0.12
         : want === "swim" && this.current === "cannonball"
           ? 0.3
@@ -516,6 +533,7 @@ export class SwimmerRig {
     if (dumping) this.actions.dump.time = dump;
     if (dancing) this.actions[dance.clip].time = dance.time;
     if (standing) this.actions.standUp.time = stand;
+    if (boarding) this.actions.tubeBoard.time = tube.board;
     // The rate follows smoothly; the idles play as they are.
     this.rate += (rate - this.rate) * Math.min(1, dt * 12);
     if (RATED.has(this.current)) this.actions[this.current].setEffectiveTimeScale(this.rate);
@@ -733,7 +751,13 @@ export function attachSwimmerModel(group, p, choice = activeSwimmerChoice()) {
     // (Two keys on one clip, a senior's idle and head scratch both the stooped stand, need two actions: a copy of the clip.)
     const action = mixer.clipAction(used.has(name) ? t.clips[name].clone() : t.clips[name]);
     used.add(name);
-    if (key === "scratch" || key === "cannonball" || key === "dump" || key === "standUp") {
+    if (
+      key === "scratch" ||
+      key === "cannonball" ||
+      key === "dump" ||
+      key === "standUp" ||
+      key === "tubeBoard"
+    ) {
       action.setLoop(THREE.LoopOnce, 1);
       action.clampWhenFinished = true;
     }

@@ -186,6 +186,7 @@ function lowestPoints(rig, clip, everyFrame = false) {
 function standsOnTheFloor(rig, label, flags = {}) {
   for (const [name, clip] of Object.entries(rig.clips)) {
     if (flags[name]?.water) continue; // it ends in the water: dropsIntoTheWater says what it does instead
+    if (flags[name]?.tube) continue; // it sits in a tube: ridesATube says what it does instead
     const low = Math.min(...lowestPoints(rig, clip));
     assert.ok(
       Math.abs(low) < GROUND_CM / 100,
@@ -382,6 +383,45 @@ function holdsTheRingAhead(rig, label) {
   );
 }
 
+// The Lazy River's tube clips (17 October 2026; "clips": {"TubeFloat": {"tube": true}}): TubeFloat sits back in the ring, the
+// hips well down (between a third and three quarters of their own height under standing) and nothing under the floor (the game
+// puts the floor at the bottom of the ring); TubeBoard starts standing on the floor and
+// ends where TubeFloat begins, the hips within a centimetre of it.
+function ridesATube(rig, label, name, flags) {
+  const clip = rig.clips[name];
+  assert.ok(clip, `${label}: its tube clip ${name} is missing`);
+  const hips = rig.bones.Hips.world[13];
+  const node = rig.skin.nodes.findIndex((x) => x.name === "Hips");
+  const hipsAt = (c, f) => poseAt(rig, c, f).get(node)[13];
+  if (name === "TubeFloat") {
+    const frames = Math.round(clipLength(clip) * FPS);
+    for (let f = 0; f <= frames; f += 8) {
+      const drop = hips - hipsAt(clip, f);
+      assert.ok(
+        drop > hips / 3 && drop < hips * 0.75,
+        `${label} / TubeFloat: the hips are ${(drop * 100).toFixed(0)} cm down at frame ${f}: not sitting in the ring`,
+      );
+    }
+    const low = Math.min(...lowestPoints(rig, clip)) + (flags.sink ?? 0);
+    assert.ok(
+      low > -GROUND_CM / 100,
+      `${label} / TubeFloat: the lowest point is ${(-low * 100).toFixed(1)} cm under the floor: the body goes through the ring`,
+    );
+  } else {
+    const lows = lowestPoints(rig, clip, true);
+    assert.ok(
+      Math.abs(lows[0]) < GROUND_CM / 100,
+      `${label} / TubeBoard: it starts ${Math.abs(lows[0] * 100).toFixed(1)} cm ${lows[0] < 0 ? "under" : "above"} the floor`,
+    );
+    const float = rig.clips.TubeFloat;
+    const end = Math.round(clipLength(clip) * FPS);
+    assert.ok(
+      float && Math.abs(hipsAt(clip, end) - hipsAt(float, 0)) < 0.01,
+      `${label} / TubeBoard: it does not end where TubeFloat begins`,
+    );
+  }
+}
+
 // A clip that ends in the water (the cannonball) is made on the deck, 0.25 m above the water: the body stands on the floor,
 // jumps (the hips up by more than a quarter of their own height), tucks its legs up (the knees come above the hips'
 // own level less a third of their height), falls like a body in the air (the hips' acceleration is gravity's, 9.8 m/s^2, to
@@ -569,6 +609,7 @@ for (const character of manifest.characters) {
   crawlsLikeAFreestyler(rig, label);
   for (const [name, flags] of Object.entries(character.clips || {}))
     if (flags.water) dropsIntoTheWater(rig, label, name, flags.water);
+    else if (flags.tube) ridesATube(rig, label, name, flags.tube);
   if (Object.keys(extra).length) bellyBounces(rig, label, Object.keys(extra), ["Walk", "Run"]);
 
   // The bones: the same names, in the same hierarchy, at the same rest rotations, under a root with the same scale.

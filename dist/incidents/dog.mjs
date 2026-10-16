@@ -213,7 +213,8 @@ export function roamSpots(sim) {
     P = venue.pool;
   for (let x = d.minX + 1.2; x <= d.maxX - 1.2; x += 1.6)
     for (let z = d.minZ + 1.4; z <= d.maxZ - 1; z += 1.6) {
-      if (Math.abs(x) < P.keepOutX + 0.4 && Math.abs(z) < P.keepOutZ + 0.4) continue;
+      // (The basin's box; at the Lazy River the deck test itself keeps the dog out of the river.)
+      if (!venue.river && Math.abs(x) < P.keepOutX + 0.4 && Math.abs(z) < P.keepOutZ + 0.4) continue;
       if (z < -10.6 && Math.abs(x) < 6) continue;
       if (venue.isDeck(x, z, 3, 0.75)) spots.push({ x, z });
     }
@@ -265,7 +266,7 @@ function mischief(sim, d, v, dt) {
         } else return rest(sim, v);
         sim.emit("dog-steal", { x: v.x, z: v.z, item: d.carry.type });
         sim.emit("toast", {
-          text: `${v.name} ran off with ${d.carry.type === "fins" ? "a pair of fins" : "someone's goggles"}!`,
+          text: `${v.name} ran off with ${d.carry.type === "fins" ? (sim.venue.river ? "a tube" : "a pair of fins") : "someone's goggles"}!`,
           warning: true,
         });
         runTo(sim, v, randomRoamSpot(sim, v, 7), "carry", T.zoom);
@@ -311,11 +312,19 @@ function mischief(sim, d, v, dt) {
         v.status = "swim";
         v.timer = T.swimSeconds;
         v.bumped = [];
-        const P = sim.venue.pool;
-        v.swimTo = {
-          x: clamp(-v.x * 0.4, -P.floatX, P.floatX),
-          z: clamp(v.z + (sim.chaosRandom() - 0.5) * 6, -P.floatZ, P.floatZ),
-        };
+        const P = sim.venue.pool,
+          river = sim.venue.river;
+        // Across the pool (or out into the river and along it a little).
+        v.swimTo = river
+          ? (() => {
+              const q = river.locate(v.x, v.z);
+              const to = river.point(q.s + (sim.chaosRandom() - 0.5) * 6, -q.d * 0.4);
+              return river.clamp(to.x, to.z, 0.8);
+            })()
+          : {
+              x: clamp(-v.x * 0.4, -P.floatX, P.floatX),
+              z: clamp(v.z + (sim.chaosRandom() - 0.5) * 6, -P.floatZ, P.floatZ),
+            };
         d.swims++;
         sim.emit("splash", { x: v.x, z: v.z });
         sim.emit("dog-splash", { x: v.x, z: v.z });
@@ -394,6 +403,7 @@ function rest(sim, v) {
 }
 
 function walkerOnDeck(p) {
+  if (p.boarding > 0) return false; // (sitting into a tube at the Lazy River's dock: in the water already)
   return (
     ["queue", "enter", "arriving"].includes(p.status) ||
     (p.status === "exit" && p.exitPhase !== "water" && p.exitPhase !== "climb")
@@ -441,12 +451,20 @@ function chooseMischief(sim, d, v) {
 
 function intoWater(sim, spot, depth) {
   const P = sim.venue.pool;
+  if (sim.venue.river) return sim.venue.river.fromBank(spot, depth);
   return spot.axis === "x"
     ? { x: clamp(spot.x + spot.face * (P.solidX - P.halfX + depth), -P.floatX, P.floatX), z: spot.z }
     : { x: spot.x, z: clamp(spot.z + spot.face * (P.solidZ - P.halfZ + depth), -P.floatZ, P.floatZ) };
 }
 function nearestExit(sim, v) {
-  const P = sim.venue.pool;
+  const P = sim.venue.pool,
+    river = sim.venue.river;
+  if (river) {
+    const bank = river.bank(v.x, v.z, { inside: 0.3, outside: 0.6 });
+    return sim.venue.isDeck(bank.deck.x, bank.deck.z, sim.level, 0.3)
+      ? bank
+      : river.bank(v.x, v.z, { side: -bank.side, inside: 0.3, outside: 0.6 });
+  }
   const side = P.halfX - Math.abs(v.x) < P.halfZ - Math.abs(v.z);
   if (side) {
     const s = Math.sign(v.x) || 1;

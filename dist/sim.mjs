@@ -4,6 +4,14 @@ import { ChaosController } from "./chaos.mjs";
 import { ENTRY, VENUES, createCoach } from "./spatial.mjs";
 import { BOOKINGS, applyBooking } from "./bookings.mjs";
 import { WetSpots, wetSpotAt, slippedInWet } from "./incidents/wet.mjs";
+import {
+  riderSpawn,
+  walkToRiver,
+  tickRiverEnter,
+  updateRiver,
+  beginRiverExit,
+  tickRiverExit,
+} from "./river-ride.mjs";
 export { LANES, STATIONS } from "./spatial.mjs";
 export const TYPES = {
   beginner: { label: "Beginner", color: "#71ba54", speed: 0.55, icon: "🐢" },
@@ -16,6 +24,8 @@ export const TYPES = {
   child: { label: "Kid", color: "#ff7eb3", speed: 0.42, icon: "🧒" },
   // Senior Aqua Fit's guests (16 October 2026): slow, stooped walkers, some in wheelchairs, who swim steady lengths.
   senior: { label: "Senior", color: "#e0a458", speed: 0.5, icon: "👵" },
+  // The Lazy River's guests (17 October 2026): everyone rides a tube once round the loop (river-ride.mjs).
+  rider: { label: "Tuber", color: "#ff9f43", speed: 0.48, icon: "🛟" },
 };
 // Marco "the Missile", the star VIP (16 October 2026, the creator: in every pool, in more than half the shifts, and always at the
 // Aquatic Centre). `STAR_CHANCE` is how often he swims in a shift of any other pool.
@@ -425,7 +435,7 @@ export class PoolSimulation extends ChaosController {
     this.chlorine = 44;
     this.closed = 0;
     this.doors = { "-1": 0, 1: 0 };
-    this.finsAvailable = 3;
+    this.finsAvailable = this.venue.tubes ?? 3; // (the Lazy River's rack holds its tubes: the fins' plumbing)
     this.clutter = [];
     this.uid = 0;
     this.coach = createCoach(this.venue);
@@ -696,14 +706,16 @@ export class PoolSimulation extends ChaosController {
     // The Aqua Disco's class takes nobody but aqua-aerobics guests (VIPs and Marco included).
     const type = this.venue.kids
       ? "child"
-      : this.venue.seniors
-        ? spec.star
-          ? "advanced"
-          : "senior"
-        : this.venue.class
-          ? "aqua"
-          : spec.type ||
-            (r < mix[0] ? "beginner" : r < mix[1] ? "intermediate" : r < mix[2] ? "advanced" : "aqua");
+      : this.venue.river
+        ? "rider"
+        : this.venue.seniors
+          ? spec.star
+            ? "advanced"
+            : "senior"
+          : this.venue.class
+            ? "aqua"
+            : spec.type ||
+              (r < mix[0] ? "beginner" : r < mix[1] ? "intermediate" : r < mix[2] ? "advanced" : "aqua");
     const index = this.people.length;
     const side = index % 2 === 0 ? -1 : 1;
     const occupied = new Set(
@@ -815,6 +827,7 @@ export class PoolSimulation extends ChaosController {
       });
       p.waitLimit *= 0.75;
     }
+    if (type === "rider") riderSpawn(this, p);
     if (type === "senior") {
       // A senior: one of four looks, patient (they know the pool takes time), cramps more often, a steady swimmer of their own pace,
       // and one in three comes in a wheelchair. Everything from numbers already drawn: no other roll of the shift moves.
@@ -901,6 +914,8 @@ export class PoolSimulation extends ChaosController {
     this.emit("select", { id });
   }
   walk(p, target, mode = "enter") {
+    // (At the Lazy River every way into the water is the boarding dock.)
+    if (this.venue.river) return walkToRiver(this, p, mode);
     p.status = mode;
     const side = Math.sign(p.x) || p.side || 1;
     p.path =
@@ -940,8 +955,9 @@ export class PoolSimulation extends ChaosController {
     }
     if (p.finsFirst && !p.hasFins) {
       this.emit("toast", {
-        text:
-          p.name + " won't swim without fins. Grab a pair from the fin rack (F) and hand them over first.",
+        text: this.venue.river
+          ? p.name + " needs a tube first. Grab one from the tube rack (F) and hand it over."
+          : p.name + " won't swim without fins. Grab a pair from the fin rack (F) and hand them over first.",
         warning: true,
       });
       this.emit("needs-fins", { id: p.id });
@@ -1064,6 +1080,7 @@ export class PoolSimulation extends ChaosController {
     ];
   }
   depart(p, served = true) {
+    p.served = served;
     const fromQueue = p.status === "queue";
     const fromWater = p.status === "swim";
     if (!fromWater) this.dropFins(p);
@@ -1109,7 +1126,15 @@ export class PoolSimulation extends ChaosController {
               ...this.returnRoute(p.side),
             ]
           : this.returnRoute(p.side)
-        : [{ x: p.side * this.venue.pool.corridorX, z: p.z }, ...this.returnRoute(p.side)];
+        : this.venue.river
+          ? [
+              ...this.venue.route(p, {
+                x: p.side * this.venue.arrival.outsideX,
+                z: this.venue.arrival.doorZ,
+              }),
+              ...this.returnRoute(p.side),
+            ]
+          : [{ x: p.side * this.venue.pool.corridorX, z: p.z }, ...this.returnRoute(p.side)];
     p.lane = null;
     if (this.selected === p.id) this.selected = null;
   }
@@ -1120,6 +1145,7 @@ export class PoolSimulation extends ChaosController {
     this.emit("drop", { x: p.x, z: p.z });
   }
   beginWaterExit(p) {
+    if (this.venue.river) return beginRiverExit(this, p);
     // Finish in the water at the nearer end, then climb out beside the blocks.
     const P = this.venue.pool;
     p.exitEnd = p.z >= 0 ? 1 : -1;
@@ -1135,7 +1161,12 @@ export class PoolSimulation extends ChaosController {
     p.bumpTime = 0;
     p.slipTime = 0;
   }
+  // One in five riders drips a wet spot where they climb out of the river (incidents/wet.mjs).
+  dripOnBank(p, at) {
+    WetSpots.climbedOut(this, p, at);
+  }
   tickWaterExit(p, dt) {
+    if (this.venue.river) return tickRiverExit(this, p, dt);
     if (p.status !== "exit" || !["water", "climb"].includes(p.exitPhase)) return false;
     if (p.exitPhase === "water") {
       p.actualSpeed = Math.max(1.6, p.desiredSpeed || 2.1);
@@ -1243,9 +1274,10 @@ export class PoolSimulation extends ChaosController {
           z = entity.z;
         }
       }
-      // A passing sidestep on the return route must also stay outside the water.
+      // A passing sidestep on the return route must also stay outside the water (the river's routes go round it themselves).
       const P = this.venue.pool;
       if (
+        !this.venue.river &&
         (entity.exitPhase === "deck" || (entity.status === "enter" && entity.path.length > 1)) &&
         Math.abs(x) < P.keepOutX &&
         Math.abs(z) < P.keepOutZ
@@ -1355,6 +1387,7 @@ export class PoolSimulation extends ChaosController {
         p.h = clamp(100 - (p.wait / p.waitLimit) * 100 - (p.deckPenalty || 0), 0, 100);
         if (p.h <= 0) this.lose(p);
       } else if (p.status === "enter" || p.status === "exit") {
+        if (this.venue.river && tickRiverEnter(this, p, dt)) continue;
         if (this.tickChair(p, dt)) continue;
         if (
           p.status === "exit" &&
@@ -1395,7 +1428,8 @@ export class PoolSimulation extends ChaosController {
       }
     }
     resolveDeck(this);
-    for (let i = 0; i < this.lanes.length; i++) this.updateLane(i, dt);
+    if (this.venue.river) updateRiver(this, dt);
+    else for (let i = 0; i < this.lanes.length; i++) this.updateLane(i, dt);
     if (this.closed === 0) {
       const swimmers = this.people.filter((p) => p.status === "swim").length;
       this.contamination = clamp(

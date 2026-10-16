@@ -44,6 +44,12 @@ prevent the incident; otherwise the recovery is the coach's job. The points are 
 | 💢 **Collisions and lost goggles** | any level; goggles from 2 | A fast swimmer stuck behind a slow one collides (−50, happiness drops). About 1 in 4 loses goggles; carry them back to their owner. Prevented by lane choice and lane moves. |
 | 👁️ **Sore eyes** | every level | Too much chlorine (the target band is 40 to 65) gives red eyes and costs happiness; fetch eye relief. Dirty water costs happiness too. |
 
+**At the Lazy River** (17 October 2026) the same incidents come, in the river's own terms: the cramp is a guest who **flips off their
+tube** (the pumps stop and the whole river holds until they are ringed and out; they get back on after a rest), a poo or a wee empties the
+river onto both banks (skimmed and dosed from a bank), sore eyes hold a rider at the near bank until the coach brings relief, and two tubes
+that bump only slow and spin (no collision penalty). The coach can also **fall in** himself, jumping short of a stepping stone: a splash, a
+swim with the current, a climb out onto a bank or a stone.
+
 ### Starts on the deck, ends in the pool
 
 | Incident | Levels | What happens |

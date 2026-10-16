@@ -25,10 +25,15 @@ the same twice: see `docs/incidents.md`).
    until the coach catches one, no lanes, one POOL button, chaotic paddling, floating toys, its own song; more wees and poos),
    **Senior Aqua Fit** (a Victorian glass conservatory, the premium-dressed venue: photographs and Tripo models, golden light, clear
    water over a mosaic; only seniors, who walk stooped and slowly, a third in wheelchairs who stand up out of them when given a lane
-   and sit back down on the way out; glass doors, no lockers; a tea-dance song) and the Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
+   and sit back down on the way out; glass doors, no lockers; a tea-dance song), the **Lazy River** (a jungle water park with no pool and
+   no lanes: a river curves through the room, out of a cave behind a waterfall and into a jungle temple, and only that stretch is seen;
+   every guest wants a tube from the rack, gets on at the ALL ABOARD dock (TubeBoard), lies back in it (TubeFloat) round a loop out of
+   sight and gets off at the EXIT dock, leaving the tube at the tube return for the coach to rack; a rope bridge and two stepping
+   stones the coach jumps to, a jump that falls short lands him in the river; `dist/river.mjs`, `dist/river-ride.mjs`,
+   `dist/scene/river.mjs`; a calypso song) and the Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
    running (the creator wants that). In every pool **one swimmer in five climbing out drips a wet spot** that never dries until the coach
    mops it (Q, `dist/incidents/wet.mjs`), and a tummy ache can be a poo or **a wee** (yellow water, chlorine only). **Marco swims in
-   more than half of all shifts, in every pool but the Kids Pool** (`STAR_CHANCE`; at Senior Aqua Fit too), and **VIPs come in every
+   more than half of all shifts, in every pool but the Kids Pool** (`STAR_CHANCE`; at Senior Aqua Fit and the Lazy River too), and **VIPs come in every
    shift**, more as the run goes on (the creator wants to see them often); incidents drawn by a director
    (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder). A shift not passed pays nothing but the week goes on. Marina's
    wishes for each shift, tips and a shop that never touch the Date Fund. Every level a run passes opens in **free play** (the level map,

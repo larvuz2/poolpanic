@@ -107,6 +107,20 @@ seconds each (the same input always gives the same GLB), and the same rig is wha
   (`ground_clips.py --only Panic`, which lifts the hips by 0.1 to 1 cm), list it in `characters.json` as `retargeted` and run
   `rig-check.mjs`, which compares it with the Coach's frame by frame (hips travel x0.50 on Nico, x1.15 on Marco). Start from the
   files without the clip: the tool will not overwrite one.
+- **The tube clips** (`--character tube` in `character_clips.py`, 17 October 2026: TubeFloat, TubeBoard) are the Lazy River's. Made on a
+  scratch copy of the Coach (`character_clips.py -- dist/assets/coach-panic.glb tube.glb --character tube`; his own game file keeps
+  neither) and put into every body that rides (the five swimmers, Marco, Carl and the leopard man) with `transplant_clips.py --only
+  TubeFloat,TubeBoard`; Carl and the leopard man then get `belly_jiggle.py` and `clear_limbs.py --only TubeFloat,TubeBoard --oneshot
+  TubeBoard --arm-max 62` on the two clips. They are **not grounded**: nothing of a body in a tube stands on the floor (the game seats
+  a rider by the hips, `scene/river-view.mjs`). **TubeFloat** (96 frames, 4 s, a loop) lies back in a ring: the hips 52 cm down and
+  12 back (`TUBE`), the pelvis rolled back 24 degrees and the back 16 more, the knees up over the front of the ring and the feet
+  beyond it in the water (the knees aimed with a pole of their own, `knee_pole`, up and forward instead of forward), the arms over
+  the ring's sides, the body bobbing, the head looking up the river and to either bank, a hand trailing in the water for a while and
+  the feet paddling lazily in turn. **TubeBoard** (26 frames, one shot: `"loop": False`) goes from standing to TubeFloat's first
+  frame: the knees bend and the hands reach back for the ring, the bottom drops into it, the legs swing up and over; the game plays
+  it backwards to climb out. `characters.json` flags both `"tube"` (TubeBoard `open` too), and `rig-check.mjs` checks them their own
+  way: TubeFloat's hips between a third and three quarters of their height down and nothing under the floor (`sink`, for Carl's and
+  the leopard man's round bottoms, 14 cm), TubeBoard starting on the floor and ending where TubeFloat begins.
 - **The seniors' clips** (`--character senior` in `character_clips.py`, 16 October 2026: StoopedWalk, StoopedIdle, Sit, WheelPush,
   StandUp) are Senior Aqua Fit's. Made on a scratch copy of the Coach, then put into each senior with `transplant_clips.py --only
   StoopedWalk,StoopedIdle,Sit,WheelPush,StandUp` (after `retarget_clips.py --only Run,Walk,IdleScan,IdleScratch,Panic,Swim`, so the

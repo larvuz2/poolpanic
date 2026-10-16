@@ -31,7 +31,7 @@ export class CoachBot {
     this.frames++;
     assert.equal(
       s.finCount(),
-      3,
+      s.venue.tubes ?? 3,
       "Fins stay accounted for (level " + s.level + ", t=" + s.time.toFixed(1) + ")",
     );
   }
@@ -63,7 +63,9 @@ export class CoachBot {
       s.select(p.id);
       if (p.queasy && p.sick) s.home();
       else if (s.venue.kids) s.assign(s.poolLane());
-      else if (p.type === "senior")
+      else if (s.venue.river) {
+        if (!s.closed && !s.cleanup) s.assign(0);
+      } else if (p.type === "senior")
         // Senior Aqua Fit: the emptiest open lane, and not Marco's (he is quick, they are not).
         s.assign(
           [...s.lanes.keys()]
@@ -173,7 +175,21 @@ export class CoachBot {
   // Walk to the long-side edge nearest a point in the pool; a coach on a water mission dives in by itself.
   diveNear(point) {
     const s = this.s,
-      P = s.venue.pool,
+      river = s.venue.river;
+    if (river) {
+      // The bank nearest the point (the near bank if the far one is out of the way), then step towards the water.
+      const near = river.bank(point.x, point.z, { side: -1, outside: 0.6 }),
+        far = river.bank(point.x, point.z, { side: 1, outside: 0.6 }),
+        bank = distance(s.coach, far.deck) + 4 < distance(s.coach, near.deck) ? far : near;
+      this.walkTo(bank.deck, { until: () => s.coach.swimming || s.coach.waterTransition });
+      for (let f = 0; f < 150 && !s.coach.swimming && !this.over; f++) {
+        this.steer(bank.water);
+        this.frame();
+      }
+      s.clearInput();
+      return s.coach.swimming;
+    }
+    const P = s.venue.pool,
       side = Math.sign(point.x) || 1,
       edge = { x: side * (P.solidX + 0.7), z: Math.max(-P.turnZ, Math.min(P.turnZ, point.z)) };
     this.walkTo(edge, { until: () => s.coach.swimming || s.coach.waterTransition });
@@ -185,9 +201,18 @@ export class CoachBot {
     return s.coach.swimming;
   }
   climbOut() {
-    const s = this.s;
+    const s = this.s,
+      river = s.venue.river;
     for (let f = 0; f < 900 && (s.coach.swimming || s.coach.waterTransition) && !this.over; f++) {
-      s.setMovement(Math.sign(s.coach.x) || 1, 0);
+      if (river) {
+        // To the near bank beside him, or the far one where the near bank is jungle.
+        const near = river.bank(s.coach.x, s.coach.z, { side: -1, outside: 1 }),
+          bank = s.venue.isDeck(near.deck.x, near.deck.z, s.level)
+            ? near
+            : river.bank(s.coach.x, s.coach.z, { side: 1, outside: 1 });
+        this.steer(bank.deck);
+        if (f % 30 === 29) s.jump();
+      } else s.setMovement(Math.sign(s.coach.x) || 1, 0);
       this.frame();
     }
     s.clearInput();
@@ -242,9 +267,30 @@ export class CoachBot {
     if (this.proactive && s.wetSpots?.length && (!c.carry || c.carry === "mop")) return this.mopWet;
     // Fins: a waiting swimmer who will not swim without them gets a pair (a pair in hand always goes to someone).
     if (c.carry === "fins") return this.giveFins;
-    if (!c.carry && s.finsAvailable > 0 && this.finsWanted()) return this.giveFins;
+    if (!c.carry && (s.finsAvailable > 0 || (s.venue.river && this.spareTube())) && this.finsWanted())
+      return this.giveFins;
+    // The Lazy River: used tubes go back to the rack when there is nothing more pressing.
+    if (!c.carry && s.venue.river && this.spareTube()) return this.rackTube;
     if (c.carry) return this.putAway;
     return null;
+  }
+  // A used tube lying at the Lazy River's tube return (or anywhere on the deck).
+  spareTube() {
+    const s = this.s;
+    return (
+      s.clutter
+        .filter((f) => f.type === "fins")
+        .sort((a, b) => distance(a, s.coach) - distance(b, s.coach))[0] || null
+    );
+  }
+  rackTube() {
+    const s = this.s,
+      tube = this.spareTube();
+    if (!tube) return this.wait(5);
+    this.walkTo(tube, { reach: 0.9, limit: 600 });
+    if (!this.use("pickup")) return this.wait(5);
+    // (giveFins takes it from here: to a guest who wants one, or back on the rack.)
+    this.giveFins();
   }
   // A swimmer in the queue who will not swim without fins. (One who asks in the water is service the bot leaves alone: the star
   // targets count on a player doing it.)
@@ -259,14 +305,26 @@ export class CoachBot {
       (c.carry === "fins" && s.people.find((q) => q.status === "queue" && q.needsFins && !q.hasFins));
     if (c.carry !== "fins") {
       if (!p) return this.wait(10);
-      // The rack stands in its counter: stop within arm's reach of it, not on it.
-      this.walkTo(s.venue.stations.fins, { reach: 1.5, limit: 600 });
-      s.fetch("fins");
-      this.waitBusy();
+      const tube = s.venue.river && !s.finsAvailable && this.spareTube();
+      if (tube) {
+        // The Lazy River's rack is empty: a used tube from the tube return will do.
+        this.walkTo(tube, { reach: 0.9, limit: 600 });
+        if (!this.use("pickup")) return this.wait(5);
+      } else {
+        // The rack stands in its counter: stop within arm's reach of it, not on it.
+        this.walkTo(s.venue.stations.fins, { reach: 1.5, limit: 600 });
+        s.fetch("fins");
+        this.waitBusy();
+      }
       if (c.carry !== "fins") return this.wait(10);
     }
     if (!p) {
-      // Nobody waiting needs them any more: leave them on the deck, out of the way.
+      // Nobody waiting needs them any more: a tube goes back on its rack; fins are left on the deck, out of the way.
+      if (s.venue.river) {
+        this.walkTo(s.venue.stations.fins, { reach: 1.5, limit: 600 });
+        if (!this.use("return")) this.wait(5);
+        return;
+      }
       if (!s.dropCarriedFins()) this.wait(5);
       return;
     }

@@ -238,6 +238,75 @@ export function seniorScore(step, panic = false) {
   return out;
 }
 
+// ---- the Lazy River's song (17 October 2026) ---------------------------------------------------------------------------------
+// A lazy calypso in the jungle at 100 BPM in G major (G Em C D, a bar each): a log drum bass on the calypso beat (one, the "and" of
+// two, three), congas (slaps on two and four, an open tone on the "and" of three, low tumbas), a shaker on the eighths, marimba
+// chords on the off-beats and a steel drum tune; then eight bars of marimba rolling up and down the chords. A jungle bird calls now
+// and then. Two bars of congas to start.
+export const RIVER_BPM = 100;
+export const RIVER_STEP = 60 / RIVER_BPM / 4;
+export const RIVER_ROOTS = [43, 40, 36, 38]; // G2 E2 C2 D2
+const RIVER_CHORD = [
+  [0, 4, 7],
+  [0, 3, 7],
+  [0, 4, 7],
+  [0, 4, 7],
+];
+// prettier-ignore
+export const RIVER_TUNE = [
+  74, null, null, 71, null, 74, null, null, 79, null, 78, null, 76, null, null, null,
+  76, null, 74, null, 71, null, null, null, 67, null, 69, null, 71, null, null, null,
+  72, null, null, 76, null, 79, null, null, 81, null, 79, null, 76, null, null, null,
+  78, null, 76, null, 74, null, 72, null, 74, null, null, null, null, null, null, null,
+  79, null, null, 78, null, 79, null, 83, null, 81, null, 79, null, null, null, null,
+  76, null, 79, null, 76, null, 74, null, 71, null, null, null, 74, null, null, null,
+  72, null, 74, null, 76, null, 79, null, 81, null, 79, null, 76, null, 72, null,
+  74, null, 76, null, 78, null, 81, null, 79, null, null, null, null, null, null, null,
+];
+export const RIVER_INTRO = 2;
+export const RIVER_CYCLE = 16;
+export const riverSection = (bar) =>
+  bar < RIVER_INTRO ? "intro" : (bar - RIVER_INTRO) % RIVER_CYCLE < 8 ? "tune" : "marimba";
+export function riverScore(step, panic = false) {
+  const out = [],
+    bar = Math.floor(step / STEPS_PER_BAR),
+    s = step % STEPS_PER_BAR,
+    chord = bar % 4,
+    root = RIVER_ROOTS[chord],
+    part = riverSection(bar),
+    inCycle = bar < RIVER_INTRO ? bar : (bar - RIVER_INTRO) % RIVER_CYCLE,
+    beat = Math.floor(s / 4),
+    add = (voice, extra = {}) => out.push({ voice, ...extra });
+  // The shaker on the eighths, the congas' pattern.
+  if (s % 2 === 0) add("shaker", { vol: s % 4 === 2 ? 1 : 0.55 });
+  if (s === 4 || s === 12) add("slap");
+  if (s === 10 || s === 11) add("conga", { note: 64, vol: s === 10 ? 1 : 0.6 });
+  if (s === 0 || s === 6 || s === 14) add("conga", { note: 57, vol: s === 0 ? 1 : 0.75 });
+  if (part === "intro") return out;
+  // The log drum bass on the calypso beat.
+  if (s === 0) add("logbass", { note: root, len: RIVER_STEP * 5 });
+  if (s === 6) add("logbass", { note: root + 7, len: RIVER_STEP * 2, vol: 0.75 });
+  if (s === 8) add("logbass", { note: root, len: RIVER_STEP * 3, vol: 0.9 });
+  if (s === 14) add("logbass", { note: root + 12, len: RIVER_STEP * 1.6, vol: 0.6 });
+  // Marimba chords on the off-beats.
+  if (s % 4 === 2)
+    add("marimba", { notes: RIVER_CHORD[chord].slice(1).map((n) => root + 24 + n), vol: 0.55 });
+  if (part === "tune") {
+    const n = RIVER_TUNE[(inCycle % 8) * STEPS_PER_BAR + s];
+    if (n !== null) add("steel", { note: n });
+  } else if (s % 2 === 0) {
+    // The marimba rolls up and down the chord in eighths.
+    const tones = RIVER_CHORD[chord],
+      path = [0, 1, 2, 3, 2, 1, 2, 0],
+      i = path[(s / 2) % path.length],
+      note = root + 36 + (i === 3 ? 12 : tones[i]) + (inCycle % 2 ? 0 : -12);
+    add("marimba", { notes: [note], vol: 0.8 });
+  }
+  if (s === 10 && inCycle % 4 === 3) add("bird");
+  if (panic && s % 4 === 0 && beat % 2 === 0) add("alarm", { note: beat === 0 ? 84 : 79 });
+  return out;
+}
+
 // The songs the player knows: the step length, the score, and how loud it plays.
 export const SONGS = {
   disco: { step: STEP, score: discoScore, level: 1 },
@@ -245,6 +314,8 @@ export const SONGS = {
   kids: { step: KIDS_STEP, score: kidsScore, level: 1.6 },
   // (The tea dance is quieter still: brought up to the kids' loudness the same way.)
   senior: { step: SENIOR_STEP, score: seniorScore, level: 2.35 },
+  // (The jungle calypso, brought up to the kids' loudness the same way.)
+  river: { step: RIVER_STEP, score: riverScore, level: 2.05 },
 };
 
 const release = (...nodes) => {
@@ -481,6 +552,35 @@ export class DiscoMusic {
         this.voice("sine", 2637, t, 0.5, 0.03, this.drums, null, 0.001);
         this.voice("sine", 3520, t + 0.07, 0.4, 0.022, this.drums, null, 0.001);
         break;
+      // The Lazy River's song's own voices.
+      case "slap":
+        this.hiss(t, 0.06, 0.08, 3200, "bandpass");
+        this.voice("sine", 420, t, 0.06, 0.06, this.drums, 300, 0.001);
+        break;
+      case "conga":
+        this.voice("sine", midi(n.note), t, 0.22, 0.2 * vol, this.drums, midi(n.note) * 0.92, 0.002);
+        break;
+      case "logbass":
+        this.voice("triangle", midi(n.note), t, n.len, 0.17 * vol, this.drums, null, 0.003);
+        this.voice("sine", midi(n.note) * 2, t, n.len * 0.4, 0.05 * vol, this.drums, null, 0.002);
+        break;
+      case "marimba":
+        n.notes.forEach((note, i) => {
+          this.voice("sine", midi(note), t + i * 0.01, 0.3, 0.07 * vol, this.synth, null, 0.002);
+          this.voice("sine", midi(note) * 4, t + i * 0.01, 0.05, 0.015 * vol, this.synth, null, 0.001);
+        });
+        break;
+      case "steel":
+        // A steel drum: a soft-struck sine with its slightly out-of-tune overtones.
+        this.voice("sine", midi(n.note), t, 0.7, 0.07 * vol, this.synth, null, 0.008);
+        this.voice("sine", midi(n.note) * 2.01, t, 0.4, 0.03 * vol, this.synth, null, 0.006);
+        this.voice("sine", midi(n.note) * 2.99, t, 0.2, 0.014 * vol, this.synth, null, 0.004);
+        break;
+      case "bird":
+        this.voice("sine", 2400, t, 0.12, 0.03, this.synth, 3600, 0.01);
+        this.voice("sine", 2600, t + 0.16, 0.1, 0.025, this.synth, 4000, 0.01);
+        this.voice("sine", 3000, t + 0.3, 0.18, 0.02, this.synth, 2200, 0.01);
+        break;
       case "alarm":
         this.voice("square", midi(n.note), t, 0.12, 0.05, this.drums);
         break;
@@ -491,7 +591,10 @@ export class DiscoMusic {
     if (song !== SONGS.disco) {
       // (The kids' song keeps its filter open; the tea dance a little warmer.)
       this.filter.frequency.cancelScheduledValues(t);
-      this.filter.frequency.setValueAtTime(song === SONGS.senior ? 2400 : 3400, t);
+      this.filter.frequency.setValueAtTime(
+        song === SONGS.senior ? 2400 : song === SONGS.river ? 3000 : 3400,
+        t,
+      );
       return;
     }
     const part = section(bar),

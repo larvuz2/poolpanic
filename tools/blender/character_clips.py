@@ -1,7 +1,8 @@
 """Add a character's own clips (what the person does while waiting to be assigned to a lane) to a rigged humanoid:
     tools/blender/run.sh tools/blender/character_clips.py -- in.glb out.glb --character marco [--only WaitWatch]
 (`--character shared` is the clips every character gets, made on Coach Waters: Panic and Swim. transplant_clips.py then
-moves them to the others. `--character coach` is the clip only Coach Waters has: SwimRing, swimming with the life ring.)
+moves them to the others. `--character coach` is the clip only Coach Waters has: SwimRing, swimming with the life ring.
+`--character tube` is the Lazy River's: TubeFloat and TubeBoard, lying back in a tube and sitting into it.)
 The clips of the file stay, the new ones are added under their own names, and each one loops (its last frame is its
 first again). The legs stay planted: the feet are held where they stand, and the knees bend to follow the hips. Every bone
 is keyed in every frame, like the other clips, so switching clips never leaves a bone behind.
@@ -355,6 +356,76 @@ def stand_up_clip():
     }
 
 
+# ---- the Lazy River (17 October 2026) -----------------------------------------------------------------------------------
+# Riding a tube: every guest at the Lazy River sits back in a rubber ring, bottom in the hole, legs over the front of it and arms
+# over its sides (TubeFloat), and gets into it from the dock (TubeBoard, one shot: the game plays it backwards to climb out
+# onto the exit dock). Made on the Coach (hips 0.82 m) like the shared clips and moved to every guest who rides. The knees bend
+# up over the rim, not forward, so these clips aim them with a pole of their own (`knee_pole`).
+TUBE = {
+    "hips": (0.0, 0.12, -0.52),  # the bottom down in the ring's hole, a little behind where the feet stood
+    "tilt": (0, -24, 0),  # the pelvis rolled back against the back of the ring
+    "spine": (0, -16, 0),  # ... and the back leaning on it (40 degrees back in all)
+    "head": (0, 30, 0),  # the head tipped forward again to look ahead down the river
+    "feet": (0.42, 0.07, 0.10),  # forward, out, up: the knees over the front of the ring, the feet in the water beyond it
+}
+TUBE_KNEE = (0.0, -0.45, 0.89)  # the knees bend up and forward
+TUBE_ARM = {"space": "chest", "tgt": (0.56, 0.16, -0.68), "pole": (0.5, 0.9, 0.2), "twist": 0}  # resting over the side of the ring
+TUBE_TRAIL = {"space": "chest", "tgt": (0.66, 0.0, -0.80), "pole": (0.5, 0.9, 0.2), "twist": 0}  # a hand trailing in the water
+
+
+def tube_float_clip():
+    """TubeFloat: lying back in a tube on the lazy river, at ease: the bottom down in the ring, the back against it, the legs
+    over the front and the arms over its sides. A slow loop (96 frames, 4 s): the body bobs on the water, the head looks about
+    (up the river, to one bank, to the other), one hand trails in the water for a while and the feet paddle lazily, in turn."""
+    frames = 96
+    hx, hy, hz = TUBE["hips"]
+    fx, fo, fl = TUBE["feet"]
+    tau = 2 * math.pi
+    keys = {name: [] for name in ("hips", "footL", "footR")}
+    for f in range(frames + 1):
+        w = tau * (f % frames) / frames
+        keys["hips"].append((f, (hx + 0.006 * math.sin(w), hy, hz + 0.012 * math.sin(2 * w))))
+        keys["footL"].append((f, (fx, fo, fl + 0.05 * max(0.0, math.sin(w)) ** 2)))
+        keys["footR"].append((f, (fx + 0.02 * math.sin(w), fo, fl + 0.05 * max(0.0, -math.sin(w)) ** 2)))
+    return {
+        "frames": frames,
+        "breath_frames": 48,
+        "knee_pole": TUBE_KNEE,
+        **keys,
+        "hips_turn": [(0, TUBE["tilt"]), (48, (2, -26, 2)), (96, TUBE["tilt"])],
+        "spine": [(0, TUBE["spine"]), (48, (-2, -14, -2)), (96, TUBE["spine"])],
+        "head": [(0, TUBE["head"]), (14, TUBE["head"]), (30, (34, 26, 4)), (44, (34, 26, 4)), (58, (0, 34, 0)), (66, (0, 34, 0)),
+                 (80, (-30, 26, -4)), (90, (-30, 28, -4)), (96, TUBE["head"])],
+        "armL": [(0, TUBE_ARM), (96, TUBE_ARM)],
+        "armR": [(0, TUBE_ARM), (40, TUBE_ARM), (52, TUBE_TRAIL), (78, TUBE_TRAIL), (90, TUBE_ARM), (96, TUBE_ARM)],
+    }
+
+
+def tube_board_clip():
+    """TubeBoard (one shot, 26 frames, 1.08 s): from standing on the dock to lying back in the tube (TubeFloat's first frame):
+    the knees bend and the hands reach back for the ring, the bottom drops back into it, then the legs swing up and over the
+    front. The game plays it while it carries the guest from the dock into the water, and backwards to climb out."""
+    frames = 26
+    stand = (0.0, 0.0, 0.0)
+    crouch = (0.0, 0.06, -0.18)
+    reach_back = {"space": "chest", "tgt": (0.30, 0.25, -0.80), "pole": (0.5, 0.8, 0.0), "twist": 0}
+    planted = (0.0, 0.0, 0.0)
+    return {
+        "frames": frames,
+        "loop": False,
+        "breath": 0.0,
+        "knee_pole": TUBE_KNEE,
+        "hips": [(0, stand), (7, crouch), (15, (0.0, 0.12, -0.48)), (26, TUBE["hips"])],
+        "hips_turn": [(0, (0, 0, 0)), (7, (0, 8, 0)), (15, (0, -12, 0)), (26, TUBE["tilt"])],
+        "spine": [(0, (0, 0, 0)), (7, (0, 14, 0)), (15, (0, -6, 0)), (26, TUBE["spine"])],
+        "head": [(0, (0, 0, 0)), (7, (0, 6, 0)), (15, (0, 18, 0)), (26, TUBE["head"])],
+        "armL": [(0, HANGING), (8, reach_back), (16, TUBE_ARM), (26, TUBE_ARM)],
+        "armR": [(0, HANGING), (8, reach_back), (16, TUBE_ARM), (26, TUBE_ARM)],
+        "footL": [(0, planted), (12, planted), (19, (0.24, 0.06, 0.26)), (26, TUBE["feet"])],
+        "footR": [(0, planted), (14, planted), (21, (0.26, 0.06, 0.24)), (26, TUBE["feet"])],
+    }
+
+
 CLIPS = {
     # What every character does, made on the Coach and moved to the others (transplant_clips.py).
     "shared": {
@@ -372,6 +443,11 @@ CLIPS = {
         "Sit": sit_clip(),
         "WheelPush": wheel_push_clip(),
         "StandUp": stand_up_clip(),
+    },
+    # The Lazy River's tube riders (17 October 2026): made on a scratch copy of the Coach, moved to every guest who rides.
+    "tube": {
+        "TubeFloat": tube_float_clip(),
+        "TubeBoard": tube_board_clip(),
     },
     # What only Coach Waters does.
     "coach": {
@@ -820,16 +896,18 @@ def pose_frame(clip, t):
         hand_rest = fore_orientation @ rests[f["fore"].name].inverted() @ rests[f["hand"].name]
         set_orientation(f["hand"], Matrix.Rotation(twist / 3, 3, fore) @ hand_rest)
 
-    # legs: the feet stay where they stand (a foot may lift for a tap), the knees bend to the hips
+    # legs: the feet stay where they stand (a foot may lift for a tap), the knees bend to the hips (forward, or toward the
+    # clip's own `knee_pole`: up over a tube's rim)
+    knee = Vector(clip.get("knee_pole", LEG_POLE)).normalized()
     for side, f in sides.items():
         o = out[side]
         forward, outward, lift = num("foot" + side, (0, 0, 0))
         ankle = ankle_rest[side] + Vector((o * outward, -forward, lift))
         hip = world(pose[f["thigh"].name].matrix.translation)
-        up, down = two_bone(hip, ankle, length[side]["thigh"], length[side]["shin"], LEG_POLE)
+        up, down = two_bone(hip, ankle, length[side]["thigh"], length[side]["shin"], knee)
         rd = rest_dir[side]
-        aim(f["thigh"], up, LEG_POLE, -down, rd["thigh"], LEG_POLE, -rd["shin"])
-        aim(f["shin"], down, LEG_POLE, up, rd["shin"], LEG_POLE, rd["thigh"])
+        aim(f["thigh"], up, knee, -down, rd["thigh"], LEG_POLE, -rd["shin"])
+        aim(f["shin"], down, knee, up, rd["shin"], LEG_POLE, rd["thigh"])
         set_orientation(f["foot"], rests[f["foot"].name])
 
 

@@ -144,10 +144,18 @@ export const CannonballCarl = {
       case "floating":
         if (v.timer === 0) {
           const P = sim.venue.pool,
+            river = sim.venue.river,
             s = Math.sign(v.spot.x) || 1;
           v.status = "swimming";
-          v.swimTo = { x: s * (P.halfX - 0.35), z: v.z };
-          v.deck = { x: s * (P.solidX + 0.6), z: v.z };
+          if (river) {
+            // Back to the bank he jumped from.
+            const bank = river.bank(v.x, v.z, { side: v.spot.side, outside: 0.6 });
+            v.swimTo = bank.water;
+            v.deck = bank.deck;
+          } else {
+            v.swimTo = { x: s * (P.halfX - 0.35), z: v.z };
+            v.deck = { x: s * (P.solidX + 0.6), z: v.z };
+          }
         }
         return;
       case "swimming": {
@@ -264,13 +272,19 @@ function approachMeter(v) {
 }
 
 function pickLaunchSpot(sim, v) {
+  const river = sim.venue.river;
   const spots = sim.venue
     .edgeSpots()
-    .filter((s) => s.axis === "x" && Math.abs(s.z) <= 5 && (!v || distance(s, v) > 3));
+    .filter((s) =>
+      river
+        ? s.s > river.start + 6 && s.s < river.end - 6 && (!v || distance(s, v) > 3)
+        : s.axis === "x" && Math.abs(s.z) <= 5 && (!v || distance(s, v) > 3),
+    );
   return spots[Math.floor(sim.chaosRandom() * spots.length)] || sim.venue.edgeSpots()[0];
 }
 function intoWater(sim, spot, depth) {
   const P = sim.venue.pool;
+  if (sim.venue.river) return sim.venue.river.fromBank(spot, depth);
   return { x: clamp(spot.x + spot.face * (P.solidX - P.halfX + depth), -P.floatX, P.floatX), z: spot.z };
 }
 function beginWindup(sim, v) {
@@ -281,8 +295,14 @@ function beginWindup(sim, v) {
   v.status = "windup";
   v.timer = T.windup;
   v.edge = { x: v.spot.x, z: v.spot.z };
-  v.back = { x: -v.spot.face * 1.3, z: 0 };
-  v.angle = v.spot.face > 0 ? Math.PI / 2 : -Math.PI / 2;
+  if (v.spot.axis === "river") {
+    // (A river bank faces the water at an angle of its own.)
+    v.back = { x: -v.spot.fx * 1.3, z: -v.spot.fz * 1.3 };
+    v.angle = Math.atan2(v.spot.fx, v.spot.fz);
+  } else {
+    v.back = { x: -v.spot.face * 1.3, z: 0 };
+    v.angle = v.spot.face > 0 ? Math.PI / 2 : -Math.PI / 2;
+  }
   sim.emit("carl-windup", { x: v.x, z: v.z });
 }
 
@@ -304,7 +324,15 @@ function cannonball(sim, k, v) {
     p.collisionTime = Math.max(p.collisionTime || 0, 1.3);
     p.annoyedTime = 0.9;
     p.h = Math.max(0, p.h - 8);
-    if (sim.level > 1 && !p.problem && !p.stomachWarning && lost < 2 && sim.chaosRandom() < T.gogglesChance) {
+    // (Goggles come off lap swimmers; nobody on a tube wears any.)
+    if (
+      !sim.venue.river &&
+      sim.level > 1 &&
+      !p.problem &&
+      !p.stomachWarning &&
+      lost < 2 &&
+      sim.chaosRandom() < T.gogglesChance
+    ) {
       lost++;
       p.problem = "goggles";
       const side = Math.sign(v.x) || 1;
@@ -317,14 +345,18 @@ function cannonball(sim, k, v) {
       sim.emit("drop", spot);
     }
   }
-  const side = Math.sign(v.x) || 1;
-  for (let i = 0; i < 4; i++)
-    sim.addPuddle(
-      side * (P.solidX + 0.8 + (i % 2) * 0.9),
-      v.z + (i - 1.5) * 1.5 + (sim.chaosRandom() - 0.5),
-      0.8 + sim.chaosRandom() * 0.4,
-      18,
-    );
+  const side = Math.sign(v.x) || 1,
+    river = sim.venue.river;
+  for (let i = 0; i < 4; i++) {
+    // The splash soaks the bank he jumped from.
+    const at = river
+      ? river.point(
+          v.spot.s + (i - 1.5) * 1.5 + (sim.chaosRandom() - 0.5),
+          v.spot.side * (river.w + 0.8 + (i % 2) * 0.9),
+        )
+      : { x: side * (P.solidX + 0.8 + (i % 2) * 0.9), z: v.z + (i - 1.5) * 1.5 + (sim.chaosRandom() - 0.5) };
+    sim.addPuddle(at.x, at.z, 0.8 + sim.chaosRandom() * 0.4, 18);
+  }
   sim.emit("toast", {
     text:
       "CANNONBALL! 💦 −" +
@@ -353,7 +385,8 @@ function redCard(sim, k, v) {
       name: k.name,
       carl: true,
       figure: k.figure,
-      needsFins: false,
+      // (At the Lazy River he still needs a tube like everyone else.)
+      needsFins: !!sim.venue.river,
       midFins: false,
       crampAt: Infinity,
       x: v.x,

@@ -213,9 +213,27 @@ export class SanitationController extends CoachController {
     p.sick = false;
     p.actualSpeed = 0;
     p.lane = null;
+    const river = this.venue.river;
+    // (Out of the river: swim to the nearer bank and climb onto it, then on to the gathering place.)
+    if (river && p.evacWater) {
+      const bank = river.bank(p.x, p.z, { side: river.locate(p.x, p.z).d > 0.8 ? 1 : -1 });
+      const deck = this.venue.isDeck(bank.deck.x, bank.deck.z, this.level, 0.3)
+        ? bank
+        : river.bank(p.x, p.z, { side: -bank.side });
+      p.path = [deck.water, deck.deck];
+      return;
+    }
     p.path = p.evacWater ? [{ x: p.x, z: ENTRY.waterZ }] : this.evacDeckRoute(p);
   }
   evacDeckRoute(p) {
+    if (this.venue.river) {
+      // The Lazy River's evacuees wait in a block on the near bank, beside the lounge.
+      const slot = this.people.filter(
+          (a) => a.id < p.id && ["evacuating", "panic"].includes(a.status),
+        ).length,
+        spots = this.venue.evacSpots;
+      return this.venue.route(p, spots[slot % spots.length]);
+    }
     const slot = this.people.filter((a) => a.id < p.id && a.side === p.side).length;
     const P = this.venue.pool;
     const end = { x: p.side * (P.evacX + Math.floor(slot / 8) * 0.75), z: -2.7 + (slot % 8) * 1.35 };
@@ -267,14 +285,23 @@ export class SanitationController extends CoachController {
       if (p.sicknessTimer === 0) this.catastrophe(p);
     }
   }
+  // Where something lost in the water (a floater, a cloud) starts: where the swimmer was, kept inside the water.
+  waterSpot(p) {
+    const river = this.venue.river,
+      P = this.venue.pool;
+    return river
+      ? river.clamp(p.x, p.z, 0.9)
+      : { x: clamp(p.x, -P.entryX, P.entryX), z: clamp(p.z, -P.entryZ, P.entryZ) };
+  }
   catastrophe(p) {
     if (this.cleanup || this.level < 3) return;
     if (p.sickKind === "pee") return this.peeAccident(p);
     this.closed = 1;
+    const at = this.waterSpot(p);
     this.cleanup = {
       stage: "floating",
-      x: clamp(p.x, -this.venue.pool.entryX, this.venue.pool.entryX),
-      z: clamp(p.z, -this.venue.pool.entryZ, this.venue.pool.entryZ),
+      x: at.x,
+      z: at.z,
       vx: 0.48,
       vz: 0.62,
       phase: this.random() * 6.28,
@@ -305,11 +332,12 @@ export class SanitationController extends CoachController {
   // opens again once the water has settled.
   peeAccident(p) {
     this.closed = 1;
+    const at = this.waterSpot(p);
     this.cleanup = {
       kind: "pee",
       stage: "treat",
-      x: clamp(p.x, -this.venue.pool.entryX, this.venue.pool.entryX),
-      z: clamp(p.z, -this.venue.pool.entryZ, this.venue.pool.entryZ),
+      x: at.x,
+      z: at.z,
       elapsed: 0,
       settle: 0,
     };
@@ -375,14 +403,26 @@ export class SanitationController extends CoachController {
       }
       q.x += q.vx * dt;
       q.z += q.vz * dt;
-      const P = this.venue.pool;
-      if (Math.abs(q.x) > P.floatX) {
-        q.x = clamp(q.x, -P.floatX, P.floatX);
-        q.vx = -q.vx;
-      }
-      if (Math.abs(q.z) > P.floatZ) {
-        q.z = clamp(q.z, -P.floatZ, P.floatZ);
-        q.vz = -q.vz;
+      const P = this.venue.pool,
+        river = this.venue.river;
+      if (river) {
+        // Kept in the river's channel: off a bank it turns back into the water.
+        if (river.clearance(q.x, q.z, 0.9) < 0) {
+          const back = river.clamp(q.x, q.z, 0.9);
+          q.vx = (back.x - q.x) * 3 - q.vx * 0.5;
+          q.vz = (back.z - q.z) * 3 - q.vz * 0.5;
+          q.x = back.x;
+          q.z = back.z;
+        }
+      } else {
+        if (Math.abs(q.x) > P.floatX) {
+          q.x = clamp(q.x, -P.floatX, P.floatX);
+          q.vx = -q.vx;
+        }
+        if (Math.abs(q.z) > P.floatZ) {
+          q.z = clamp(q.z, -P.floatZ, P.floatZ);
+          q.vz = -q.vz;
+        }
       }
       this.contamination = Math.min(100, this.contamination + dt * 2.7);
       this.waterBrown = Math.min(1, this.waterBrown + dt * 0.027);

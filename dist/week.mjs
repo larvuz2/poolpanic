@@ -201,6 +201,17 @@ export const POOLS = {
     ],
     twists: { team: 0, class: 0 }, // no swim team, no aqua class: it is their pool
   },
+  // The Lazy River (17 October 2026): a jungle river that curves through the room; guests come in through the jungle gate, take a
+  // tube from the coach, get on at the boarding dock and float away round a loop nobody sees all of, then float back in and get
+  // off at the exit dock. Nobody swims laps: no swim team, no class, no lane to close. Every incident still comes, Marco too (he
+  // paddles his tube faster than the current).
+  river: {
+    name: "Lazy River",
+    icon: "🛟",
+    style: { venue: "river", lighting: "river" },
+    events: ["Jungle cruise", "Tube parade", "Monsoon float", "Explorer day", "Lazy Sunday", "Temple rapids"],
+    twists: { team: 0, class: 0, closure: 0 },
+  },
   arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20] },
 };
 export const POOL_IDS = Object.keys(POOLS);
@@ -303,6 +314,13 @@ const SCORE_SCALE = {
   senior: [
     [10, 0.8],
     [20, 0.65],
+  ],
+  // The Lazy River: about Splash Park's at first; a big crowd queues for ten tubes and a loop of half a minute, so the stars ask
+  // less late in a run (calibrated with the coach bot, 17 October 2026).
+  river: [
+    [10, 1],
+    [13, 0.95],
+    [20, 0.75],
   ],
 };
 

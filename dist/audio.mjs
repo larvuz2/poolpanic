@@ -347,6 +347,22 @@ export class PoolAudio {
     } else if (type === "select") {
       this.tone(659, t, 0.11, 0.13, "sine");
       this.tone(988, t + 0.055, 0.16, 0.09, "sine");
+    } else if (type === "tube-bump") {
+      // The Lazy River: two rubber tubes bonk into each other.
+      this.tone(240, t, 0.16, 0.14, "sine", 140);
+      this.tone(420, t + 0.03, 0.12, 0.06, "triangle", 300);
+    } else if (type === "board") {
+      // Sitting down into a tube: a squeak of rubber, then the plop into the water.
+      this.tone(900, t + 0.35, 0.12, 0.05, "sine", 1300);
+      this.noise(t + 0.8, 0.22, 0.1, 700);
+    } else if (type === "tube-returned") {
+      this.tone(300, t, 0.1, 0.08, "triangle", 200);
+    } else if (type === "coach-fell") {
+      // Coach Waters misses his jump: a big splash and a sad trombone.
+      this.noise(t, 0.5, 0.2, 400);
+      [392, 370, 349, 294].forEach((f, i) =>
+        this.tone(f, t + 0.25 + i * 0.22, i === 3 ? 0.5 : 0.2, 0.08, "sawtooth"),
+      );
     }
   }
   // Incident sting: a brass-style stab under a short motif of its own, so each problem is recognisable by ear.

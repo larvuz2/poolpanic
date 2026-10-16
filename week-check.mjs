@@ -158,7 +158,17 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
 // the Aquatic Centre is a competitive pool (few beginners, no aqua guest written in, more VIPs, smaller and faster crowds, no
 // trampoline) where Marco "the Missile" always swims.
 {
-  assert.deepEqual(POOL_IDS, ["club", "resort", "lagoon", "aquatic", "disco", "kids", "senior", "arena"]);
+  assert.deepEqual(POOL_IDS, [
+    "club",
+    "resort",
+    "lagoon",
+    "aquatic",
+    "disco",
+    "kids",
+    "senior",
+    "river",
+    "arena",
+  ]);
   const sitsOut = new Set(),
     orders = new Set(),
     inWeekOne = new Set(),
@@ -344,7 +354,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   // Star targets: the season's own where a level was made for that floor plan, scaled elsewhere (the coach bot's measure).
   for (let tier = 1; tier <= TOP_TIER; tier++) {
     assert.equal(scoreScale(tier <= 10 ? "club" : "resort", tier), 1);
-    for (const v of ["club", "resort", "lagoon", "arena", "aquatic", "disco", "kids", "senior"])
+    for (const v of ["club", "resort", "lagoon", "arena", "aquatic", "disco", "kids", "senior", "river"])
       assert.ok(scoreScale(v, tier) >= 0.6 && scoreScale(v, tier) <= 1.7, v + " " + tier);
   }
 }
