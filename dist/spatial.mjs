@@ -94,7 +94,10 @@ function segmentHitsBox(a, b, hx, minZ, maxZ) {
 
 function makeVenue(spec) {
   const pool = poolGeometry(spec.lanes);
+  // A door is crossed along x (the side wall of a locker room: inside at insideX, out on the deck at outsideX, both at doorZ) or,
+  // with `insideZ`, along z (a door in the back wall: inside at insideZ behind it, out on the deck at doorZ).
   const arrival = { ...ARRIVAL_TIMING, ...spec.doors };
+  arrival.insideZ ??= arrival.doorZ;
   const obstacles = [
     { x: 0, z: 0, hx: pool.solidX, hz: pool.solidZ, kind: "pool" },
     ...(spec.blocks === false
@@ -110,6 +113,8 @@ function makeVenue(spec) {
     entry: ENTRY,
     obstacles,
     laneCount: spec.lanes.length,
+    // What the way out is called in a toast: the locker doors, or the Aqua Disco's one door.
+    doorWord: spec.lockers.length ? "a locker door" : "the door",
     // Walkable deck test for a coach-sized body. Level-gated furniture (the waste bin) is absent early on.
     isDeck(x, z, level = 3, radius = COACH_TUNING.radius) {
       const d = spec.deck;
@@ -120,6 +125,12 @@ function makeVenue(spec) {
           Math.abs(x - b.x) < b.hx + radius &&
           Math.abs(z - b.z) < b.hz + radius,
       );
+    },
+    // Out of the doorway and on the deck (a guest or a visitor who came in has cleared the door).
+    pastDoor(v) {
+      return arrival.insideZ === arrival.doorZ
+        ? Math.abs(v.x) <= arrival.outsideX + 0.2
+        : v.z >= arrival.doorZ - 0.2;
     },
     // Waiting rows sit behind the starting blocks, beneath the clubhouse wall.
     queuePosition(side, slot) {
@@ -364,8 +375,10 @@ export const DISCO = makeVenue({
   lanes: [-4.8, -1.6, 1.6, 4.8],
   deck: { minX: -13.6, maxX: 13.6, minZ: -15.2, maxZ: 12.9 },
   room: { minX: -14.2, maxX: 14.2, minZ: -16.7, maxZ: 13.6 },
-  doors: { insideX: 8.8, doorX: 8.05, doorZ: -14.4, outsideX: 7.25 },
-  lockers: [-10.7, 10.7],
+  // No locker rooms (the creator, 16 October 2026): one double door flush in the back wall, in the middle; each side of the line
+  // comes in and goes out through its own leaf.
+  doors: { insideX: 0.62, doorX: 0.62, doorZ: -14.85, outsideX: 0.62, insideZ: -16.55 },
+  lockers: [],
   queue: { outerX: 4.6, stepX: 1.1, startZ: -11.1, stepZ: 1.15 },
   coachStart: { x: -8.4, z: 0 },
   cameraFollow: { kx: 0.22, maxX: 2.4 },
@@ -404,12 +417,6 @@ export const DISCO = makeVenue({
     { kind: "speaker", x: 4.6, z: 12.2, hx: 0.6, hz: 0.6 },
     { kind: "speaker", x: -4.6, z: 12.2, hx: 0.6, hz: 0.6 },
     { kind: "plant", x: -13.0, z: -12.4, hx: 0.5, hz: 0.5, scale: 0.9 },
-    ...[-10.7, 10.7].flatMap((x) => [
-      { kind: "locker-wall", x: x - 2.65, z: -15.06, hx: 0.15, hz: 1.4 },
-      { kind: "locker-wall", x: x + 2.65, z: -15.06, hx: 0.15, hz: 1.4 },
-      { kind: "locker-wall", x, z: -16.2, hx: 2.65, hz: 0.3 },
-      { kind: "locker-bench", x, z: -15.17, hx: 1.55, hz: 0.36 },
-    ]),
   ],
 });
 
