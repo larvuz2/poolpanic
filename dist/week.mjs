@@ -124,13 +124,11 @@ export const vipCount = (step) => (step <= 0 ? 1 : Math.min(6, 2 + Math.floor(st
 
 // ---- the pools ---------------------------------------------------------------------------------------------------------
 
-// Where Coach Waters works. A week sends him round them in a mix (the creator, 16 October 2026: "place 1, place 2, place 3, then
-// place 1 again, then place 4, then place 2"): every pool at least once a week, never the same one two days running, in an order
-// drawn for the week. How hard a shift is comes from the run (`tierFor`), not from the pool: a pool gives the shift its look, its
-// crowd and its own trouble (Splash Park's trampoline, the lagoon's storm, the Aquatic Centre's star VIP), and the difficulty gives
-// it its length, crowd size, star targets and incidents. `levels` are the season's levels in that pool (their looks are borrowed);
-// `from` is the first week a pool is in the mix; `score` scales the star targets there (the coach bot's measure: a wide pool serves
-// a crowd faster than the club's three lanes, a narrow one slower).
+// Where Coach Waters works. A week sends him to six of them, each once, drawn at random (`weekPools`), so any pool can come in any
+// week. How hard a shift is comes from the run (`tierFor`), not from the pool: a pool gives the shift its look, its crowd and its
+// own trouble (Splash Park's trampoline, the lagoon's storm, the Aquatic Centre's star VIP, the disco's class, the Kids Pool's
+// running kids), and the difficulty gives it its length, crowd size, star targets and incidents. `levels` are the season's levels
+// in that pool (their looks are borrowed). A new pool is a new entry here (and its `SCORE_SCALE`, below): it joins every week's draw.
 export const POOLS = {
   club: { name: "Community Pool", icon: "🏫", levels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
   resort: { name: "Splash Park", icon: "🌴", levels: [11, 12, 13, 14, 15, 16] },
@@ -186,18 +184,16 @@ export const POOLS = {
     ],
     twists: { team: 0, class: 0, closure: 0 }, // no swim team, no aqua class; a closed zone means nothing to a kid
   },
-  arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20], from: 3 },
+  arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20] },
 };
 export const POOL_IDS = Object.keys(POOLS);
-// The pools of a week (the arena joins from week 3).
-export const poolsOf = (chapter) => POOL_IDS.filter((id) => (POOLS[id].from || 1) <= chapter);
-
-// The week's itinerary: one pool a day. Every pool of the week once, then the days left from the others, no pool two days running;
-// the very first Monday of a run is the Community Pool (the gentle minute). With more pools than days (seven from week 3, the
-// arena and the Kids Pool both in), a different one sits the week out.
+// The week's itinerary, one pool a day (the creator, 16 October 2026: "all of these pools… can appear in every week… random…
+// you cannot repeat venue per week"): six different pools drawn at random from every pool there is, in a random order, so a week
+// is never the same twice and never visits a pool twice. A pool added to `POOLS` joins the draw from the next week; with more
+// pools than days, the ones left out change week to week. The run's very first shift is the Community Pool (the gentle minute).
+// (Only with fewer pools than days would a pool come twice in a week, and never two days running.)
 export function weekPools(chapter, seed) {
-  const random = stream((seed ^ 0x51ed27) >>> 0),
-    pools = poolsOf(chapter),
+  const random = stream((seed ^ 0x51ed27 ^ Math.imul(chapter, 0x9e3779b1)) >>> 0),
     shuffle = (list) => {
       const a = [...list];
       for (let i = a.length - 1; i > 0; i--) {
@@ -205,17 +201,23 @@ export function weekPools(chapter, seed) {
         [a[i], a[j]] = [a[j], a[i]];
       }
       return a;
+    },
+    first = (days) => {
+      if (chapter !== 1) return days;
+      const i = days.indexOf("club");
+      if (i > 0) [days[0], days[i]] = [days[i], days[0]];
+      return days;
     };
+  if (POOL_IDS.length >= SHIFTS_PER_WEEK) {
+    const all = shuffle(POOL_IDS);
+    if (chapter === 1) all.unshift(...all.splice(all.indexOf("club"), 1));
+    return all.slice(0, SHIFTS_PER_WEEK);
+  }
   let best = null;
   for (let attempt = 0; attempt < 60; attempt++) {
-    const extra = shuffle(pools).slice(0, Math.max(0, SHIFTS_PER_WEEK - pools.length));
-    const days = shuffle([...pools, ...extra]).slice(0, SHIFTS_PER_WEEK);
-    if (chapter === 1) {
-      const i = days.indexOf("club");
-      [days[0], days[i]] = [days[i], days[0]];
-    }
-    best = days;
-    if (days.every((d, i) => i === 0 || d !== days[i - 1])) break;
+    const extra = shuffle(POOL_IDS).slice(0, SHIFTS_PER_WEEK - POOL_IDS.length);
+    best = first(shuffle([...POOL_IDS, ...extra]));
+    if (best.every((d, i) => i === 0 || d !== best[i - 1])) break;
   }
   return best;
 }

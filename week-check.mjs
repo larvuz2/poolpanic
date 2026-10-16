@@ -43,7 +43,6 @@ import {
   textsPassed,
   POOLS,
   POOL_IDS,
-  poolsOf,
   weekPools,
   scoreScale,
 } from "./dist/week.mjs";
@@ -152,42 +151,50 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   assert.ok(top.step === 23 && past.step === 53);
 }
 
-// 1c) The pools: a week sends the coach round them in a mix (every pool of the week at least once, never one two days running, the
-// first Monday of a run at the Community Pool, the arena from week 3), the same order for the same week and a different one for
-// another. A shift is its pool's: the venue, the look, the crowd; the Aquatic Centre is a competitive pool (few beginners, no aqua
-// guest written in, more VIPs, smaller and faster crowds, no trampoline) where Marco "the Missile" always swims.
+// 1c) The pools (the creator, 16 October 2026: "all of these pools… can appear in every week… random… you cannot repeat venue per
+// week"): a week is six different pools drawn at random from all of them, in a random order (any pool in any week, the arena and the
+// Kids Pool in week 1 too; the first Monday of a run at the Community Pool, the gentle minute), the ones left out changing week to
+// week, the same order for the same week and a different one for another. A shift is its pool's: the venue, the look, the crowd;
+// the Aquatic Centre is a competitive pool (few beginners, no aqua guest written in, more VIPs, smaller and faster crowds, no
+// trampoline) where Marco "the Missile" always swims.
 {
   assert.deepEqual(POOL_IDS, ["club", "resort", "lagoon", "aquatic", "disco", "kids", "arena"]);
-  assert.deepEqual(poolsOf(1), ["club", "resort", "lagoon", "aquatic", "disco", "kids"]);
-  assert.deepEqual(poolsOf(3), POOL_IDS);
-  const sitsOut = new Set();
-  const orders = new Set();
+  const sitsOut = new Set(),
+    orders = new Set(),
+    inWeekOne = new Set(),
+    tuesday = new Set(),
+    weeks = Object.fromEntries(POOL_IDS.map((id) => [id, 0]));
+  let later = 0;
   for (let chapter = 1; chapter <= 6; chapter++)
     for (let seed = 1; seed <= 150; seed++) {
       const days = weekPools(chapter, seed * 7919);
       assert.equal(days.length, SHIFTS_PER_WEEK);
-      // Six days: every pool while there are six; from week 3 (seven pools) one sits the week out, never the same one every week.
-      const of = poolsOf(chapter);
       assert.ok(
-        days.every((d) => of.includes(d)),
-        "only the week's pools",
+        days.every((d) => POOL_IDS.includes(d)),
+        "only pools that exist",
       );
-      assert.equal(
-        new Set(days).size,
-        Math.min(of.length, SHIFTS_PER_WEEK),
-        "every pool of the week but one at most",
-      );
-      if (of.length > SHIFTS_PER_WEEK) sitsOut.add(of.find((id) => !days.includes(id)));
-      assert.ok(
-        days.every((d, i) => i === 0 || d !== days[i - 1]),
-        "never the same pool two days running: " + days,
-      );
-      if (chapter === 1) assert.equal(days[0], "club", "the first Monday is the Community Pool");
+      assert.equal(new Set(days).size, SHIFTS_PER_WEEK, "never the same pool twice in a week: " + days);
+      for (const id of POOL_IDS) if (!days.includes(id)) sitsOut.add(id);
+      if (chapter === 1) {
+        assert.equal(days[0], "club", "the first Monday is the Community Pool");
+        days.forEach((d) => inWeekOne.add(d));
+        tuesday.add(days[1]);
+      } else {
+        later++;
+        days.forEach((d) => weeks[d]++);
+      }
       assert.deepEqual(weekPools(chapter, seed * 7919), days, "the same week, the same order");
       orders.add(days.join());
     }
   assert.ok(orders.size > 300, "a different mix most weeks (" + orders.size + ")");
+  assert.deepEqual([...inWeekOne].sort(), [...POOL_IDS].sort(), "every pool can come in the first week");
+  assert.deepEqual([...tuesday].sort(), POOL_IDS.filter((id) => id !== "club").sort(), "and on any day");
   assert.deepEqual([...sitsOut].sort(), [...POOL_IDS].sort(), "any pool may sit a week out");
+  for (const [id, n] of Object.entries(weeks))
+    assert.ok(
+      Math.abs(n / later - SHIFTS_PER_WEEK / POOL_IDS.length) < 0.08,
+      id + " in about six weeks of seven (" + (n / later).toFixed(2) + ")",
+    );
   // Every shift of a week plays in its day's pool.
   const save = freshSave();
   save.week = newWeek(save, 4242);
@@ -435,6 +442,28 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     assert.ok(!club.twist.some((t) => t.kind === "storm"));
     assert.ok(!lagoon.twist.some((t) => t.kind === "class"));
   }
+}
+
+// 2b) No memory between shifts (the creator, 16 October 2026: "I can get a cannonball one level after the other if the odds turn
+// that way"): each shift's incidents are drawn afresh, so the same incident can come in two shifts running, and often enough to be
+// felt; the pools in between change, the trouble may not.
+{
+  const runs = {};
+  let pairs = 0;
+  for (let r = 0; r < 120; r++) {
+    const week = newWeek({ chapter: 3 }, 6007 + r * 104729);
+    let before = null;
+    for (let d = 0; d < SHIFTS_PER_WEEK; d++) {
+      const kinds = new Set(buildShift({ ...week, shift: d }, null, INCIDENT_ORDER).plan.incidents);
+      if (before) {
+        pairs++;
+        for (const k of kinds) if (before.has(k)) runs[k] = (runs[k] || 0) + 1;
+      }
+      before = kinds;
+    }
+  }
+  assert.ok(runs.carl > pairs * 0.1, "a cannonball two shifts running (" + runs.carl + " of " + pairs + ")");
+  for (const k of INCIDENT_ORDER) assert.ok(runs[k] > 0, k + " can come back the very next shift");
 }
 
 // 3) The cards: a regular day always, a booking only when its trouble is known, a mystery that brings one more.

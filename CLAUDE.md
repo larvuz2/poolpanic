@@ -16,13 +16,15 @@ the same twice: see `docs/incidents.md`).
    is **the run** (restructured on 16 October 2026; README, "The week: the main loop"): one START on the main screen; six shifts a
    week, Monday to Saturday, then Sunday is a date with Marina if the Date Fund is full, and the next week is harder; short on Saturday
    night is game over, and the next run starts at week 1. The first shift is a gentle minute; after it every shift is a pool from the
-   week's mix (`weekPools`: every pool each week, one sitting out from week 3, never one two days running; since 16 October 2026) at a difficulty that rises every
+   week's draw (`weekPools`: six different pools a week, drawn at random from all of them, so any venue can come in any week and none
+   twice in a week; a new venue joins the draw by being added to `POOLS`) at a difficulty that rises every
    shift (`tierFor`), with star targets made fair per pool by the coach bot (`scoreScale`). The pools: the Community Pool, Splash
    Park, the Sunset Lagoon, the **Aquatic Centre** (indoor and competitive, where Marco "the Missile" always swims), the **Aqua
    Disco** (a party pool with no lanes: four zones of aqua dancers facing Valentina, the instructor, all on one dance routine and its
    own song, `dist/dance.mjs`, `dist/music.mjs`; every incident still comes), the **Kids Pool** (only kids, who run all over the deck
-   until the coach catches one, no lanes, one POOL button, chaotic paddling, floating toys, its own song; more wees and poos) and from
-   week 3 the Grand Gala Arena. In every pool **one swimmer in five climbing out drips a wet spot** that never dries until the coach
+   until the coach catches one, no lanes, one POOL button, chaotic paddling, floating toys, its own song; more wees and poos) and the
+   Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
+   running (the creator wants that). In every pool **one swimmer in five climbing out drips a wet spot** that never dries until the coach
    mops it (Q, `dist/incidents/wet.mjs`), and a tummy ache can be a poo or **a wee** (yellow water, chlorine only). **Marco swims in
    more than half of all shifts, in every pool but the Kids Pool** (`STAR_CHANCE`), and **VIPs come in every
    shift**, more as the run goes on (the creator wants to see them often); incidents drawn by a director
