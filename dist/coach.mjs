@@ -164,10 +164,24 @@ export class CoachController {
   // Moments. The simulation only reports what happened and where; the presentation turns an `incident` (a new
   // problem, or one that just got worse) into a sting and a `save` (a problem prevented or solved) into a payoff.
   incident(kind, where = this.coach, extra = {}) {
-    this.emit("incident", { kind, x: where.x, z: where.z, ...extra });
+    // In a class (the Aqua Disco) the pool has zones, not lanes: `zone` says so to the sting.
+    this.emit("incident", {
+      kind,
+      x: where.x,
+      z: where.z,
+      ...(this.venue.class && { zone: true }),
+      ...extra,
+    });
   }
   save(kind, where = this.coach, value = 0, extra = {}) {
-    this.emit("save", { kind, x: where.x, z: where.z, value, ...extra });
+    this.emit("save", {
+      kind,
+      x: where.x,
+      z: where.z,
+      value,
+      ...(this.venue.class && { zone: true }),
+      ...extra,
+    });
   }
   // Each layer adds what needs the coach right now, pointing at the next place to go (the life ring before the
   // victim, the treats before the dog). Urgency: 100 is someone in danger, down to ~25 for a leftover errand.

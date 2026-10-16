@@ -97,7 +97,9 @@ function makeVenue(spec) {
   const arrival = { ...ARRIVAL_TIMING, ...spec.doors };
   const obstacles = [
     { x: 0, z: 0, hx: pool.solidX, hz: pool.solidZ, kind: "pool" },
-    ...spec.lanes.map((x) => ({ x, z: -9.15, hx: 0.6, hz: 0.56, kind: "block" })),
+    ...(spec.blocks === false
+      ? []
+      : spec.lanes.map((x) => ({ x, z: -9.15, hx: 0.6, hz: 0.56, kind: "block" }))),
     { ...spec.sanitation.bin, hx: 0.62, hz: 0.62, kind: "waste-bin", minLevel: 3 },
     ...spec.furniture.filter((f) => f.hx).map((f) => ({ x: f.x, z: f.z, hx: f.hx, hz: f.hz, kind: f.kind })),
   ];
@@ -348,7 +350,77 @@ export const AQUATIC = makeVenue({
   ],
 });
 
-export const VENUES = { club: CLUB, resort: RESORT, lagoon: LAGOON, arena: ARENA, aquatic: AQUATIC };
+// The Aqua Disco (16 October 2026): a party pool for an aqua-aerobics class, and nothing else. A plan of its own: four wide
+// zones of open water (no ropes, no lane lines, no starting blocks: `blocks: false`) where the class spreads out in rows facing
+// the instructor's stage at the far end (`class`), a DJ booth, a bar, speaker stacks. The coach still gives each guest a zone
+// (the lanes, inside), and every incident plays as anywhere else.
+export const DISCO = makeVenue({
+  id: "disco",
+  name: "Aqua Disco",
+  indoor: true,
+  lighting: "disco",
+  class: true,
+  blocks: false,
+  lanes: [-4.8, -1.6, 1.6, 4.8],
+  deck: { minX: -13.6, maxX: 13.6, minZ: -15.2, maxZ: 12.9 },
+  room: { minX: -14.2, maxX: 14.2, minZ: -16.7, maxZ: 13.6 },
+  doors: { insideX: 8.8, doorX: 8.05, doorZ: -14.4, outsideX: 7.25 },
+  lockers: [-10.7, 10.7],
+  queue: { outerX: 4.6, stepX: 1.1, startZ: -11.1, stepZ: 1.15 },
+  coachStart: { x: -8.4, z: 0 },
+  cameraFollow: { kx: 0.22, maxX: 2.4 },
+  // Where the class looks: Valentina's stage, past the far end of the pool.
+  stage: { x: 0, z: 11.6, y: 0.62 },
+  stations: {
+    fins: { x: -11.4, z: 7.2 },
+    chlorine: { x: 11.6, z: 7.0 },
+    relief: { x: 11.6, z: 2.8 },
+  },
+  sanitation: { rack: { x: -13.1, z: -2.6 }, bin: { x: -11.8, z: 1.4 }, reach: 6.2 },
+  ringMounts: [
+    { x: -3.6, z: -15.7, angle: 0 },
+    { x: -13.85, z: -6, angle: Math.PI / 2 },
+    { x: 13.85, z: -4.6, angle: -Math.PI / 2 },
+  ],
+  rescue: { bench: { x: -10.4, z: -1.2 }, approach: { x: -9.1, z: -1.2 } },
+  fixtures: {
+    fishNet: { x: 13.85, z: -1.6, angle: -Math.PI / 2 },
+    treats: { x: -12.6, z: 10.6 },
+    flashlight: { x: 11.6, z: -7.4 },
+    fuseBox: { x: 13.9, z: 11.4, angle: -Math.PI / 2 },
+  },
+  trampoline: null,
+  furniture: [
+    { kind: "bench", x: -10.4, z: -1.85, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
+    { kind: "bench", x: 10.6, z: -2.6, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
+    { kind: "rack", x: -11.4, z: 7.2, hx: 0.48, hz: 1.03 },
+    { kind: "station", x: 11.6, z: 7.0, hx: 0.6, hz: 0.9 },
+    { kind: "station", x: 11.6, z: 2.8, hx: 0.9, hz: 0.6 },
+    { kind: "stage", x: 0, z: 11.6, hx: 2.8, hz: 1.0 },
+    { kind: "dj-booth", x: -12.2, z: -9.4, hx: 1.0, hz: 1.3 },
+    { kind: "bar", x: -12.9, z: 10.6, hx: 0.75, hz: 1.5 },
+    { kind: "speaker", x: -12.9, z: 4.2, hx: 0.6, hz: 0.6 },
+    { kind: "speaker", x: 12.9, z: -10.2, hx: 0.6, hz: 0.6 },
+    { kind: "speaker", x: 4.6, z: 12.2, hx: 0.6, hz: 0.6 },
+    { kind: "speaker", x: -4.6, z: 12.2, hx: 0.6, hz: 0.6 },
+    { kind: "plant", x: -13.0, z: -12.4, hx: 0.5, hz: 0.5, scale: 0.9 },
+    ...[-10.7, 10.7].flatMap((x) => [
+      { kind: "locker-wall", x: x - 2.65, z: -15.06, hx: 0.15, hz: 1.4 },
+      { kind: "locker-wall", x: x + 2.65, z: -15.06, hx: 0.15, hz: 1.4 },
+      { kind: "locker-wall", x, z: -16.2, hx: 2.65, hz: 0.3 },
+      { kind: "locker-bench", x, z: -15.17, hx: 1.55, hz: 0.36 },
+    ]),
+  ],
+});
+
+export const VENUES = {
+  club: CLUB,
+  resort: RESORT,
+  lagoon: LAGOON,
+  arena: ARENA,
+  aquatic: AQUATIC,
+  disco: DISCO,
+};
 
 export function createCoach(venue = CLUB) {
   return {

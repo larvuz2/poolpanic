@@ -18,8 +18,9 @@ the same twice: see `docs/incidents.md`).
    night is game over, and the next run starts at week 1. The first shift is a gentle minute; after it every shift is a pool from the
    week's mix (`weekPools`: every pool each week, never one two days running; since 16 October 2026) at a difficulty that rises every
    shift (`tierFor`), with star targets made fair per pool by the coach bot (`scoreScale`). The pools: the Community Pool, Splash
-   Park, the Sunset Lagoon, the **Aquatic Centre** (indoor and competitive, where Marco "the Missile" always swims) and from week 3
-   the Grand Gala Arena. **Marco swims in more than half of all shifts, in every pool** (`STAR_CHANCE`), and **VIPs come in every
+   Park, the Sunset Lagoon, the **Aquatic Centre** (indoor and competitive, where Marco "the Missile" always swims), the **Aqua
+   Disco** (a party pool with no lanes: four zones of aqua dancers facing Valentina, the instructor, all on one dance routine and its
+   own song, `dist/dance.mjs`, `dist/music.mjs`; every incident still comes) and from week 3 the Grand Gala Arena. **Marco swims in more than half of all shifts, in every pool** (`STAR_CHANCE`), and **VIPs come in every
    shift**, more as the run goes on (the creator wants to see them often); incidents drawn by a director
    (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder). A shift not passed pays nothing but the week goes on. Marina's
    wishes for each shift, tips and a shop that never touch the Date Fund. Every level a run passes opens in **free play** (the level map,

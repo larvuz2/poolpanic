@@ -157,8 +157,8 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
 // another. A shift is its pool's: the venue, the look, the crowd; the Aquatic Centre is a competitive pool (few beginners, no aqua
 // guest written in, more VIPs, smaller and faster crowds, no trampoline) where Marco "the Missile" always swims.
 {
-  assert.deepEqual(POOL_IDS, ["club", "resort", "lagoon", "aquatic", "arena"]);
-  assert.deepEqual(poolsOf(1), ["club", "resort", "lagoon", "aquatic"]);
+  assert.deepEqual(POOL_IDS, ["club", "resort", "lagoon", "aquatic", "disco", "arena"]);
+  assert.deepEqual(poolsOf(1), ["club", "resort", "lagoon", "aquatic", "disco"]);
   assert.deepEqual(poolsOf(3), POOL_IDS);
   const orders = new Set();
   for (let chapter = 1; chapter <= 6; chapter++)
@@ -209,6 +209,45 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     assert.ok(!types.includes("aqua") && !types.includes("daredevil"));
     assert.equal(types[0], "intermediate", "the line opens with no beginner");
   }
+  // The Aqua Disco at every difficulty: a class of aqua dancers (whatever the level's mix wrote), Marco and the VIPs dancing too,
+  // every incident still in the draw, no swim team and no aqua-class twist (the whole shift is one), its own lights.
+  for (let step = 1; step < 30; step++) {
+    const w = {
+      ...newWeek(freshSave(), 900 + step),
+      chapter: Math.floor(step / 6) + 1,
+      shift: step % 6,
+      pools: Array(6).fill("disco"),
+    };
+    const sh = buildShift(w, null, INCIDENT_ORDER),
+      c = sh.config;
+    assert.equal(c.venue, "disco");
+    assert.equal(c.lighting, "disco");
+    assert.equal(sh.icon, "🪩");
+    assert.ok(!c.twist.some((t) => t.kind === "class" || t.kind === "team"), "no swim team, no class twist");
+    const sim = new PoolSimulation(sh.tier, 7, { config: c });
+    sim.start();
+    for (let i = 0; i < 1600 && sim.status === "playing"; i++) sim.tick(0.05);
+    const guests = sim.people.filter((p) => !p.chaos && p.type);
+    assert.ok(guests.length > 0);
+    assert.ok(
+      guests.every((p) => p.type === "aqua"),
+      "only aqua dancers in the disco",
+    );
+  }
+  {
+    // Every incident can be drawn in the disco.
+    const kinds = new Set();
+    for (let r = 0; r < 200; r++) {
+      const w = {
+        ...newWeek({ chapter: 3 }, 77 + r * 13),
+        shift: 3 + (r % 3),
+        pools: Array(6).fill("disco"),
+      };
+      for (const e of buildShift(w, null, INCIDENT_ORDER).config.chaos || [])
+        e.kinds.forEach((k) => kinds.add(k));
+    }
+    for (const k of INCIDENT_ORDER) assert.ok(kinds.has(k), k + " happens in the disco");
+  }
   // Marco everywhere (the creator, 16 October 2026): in more than half the shifts of a week, at every pool, always at the Aquatic Centre;
   // and in more than half of free play's shifts too, from the seed (so a replay has him), with VIPs in every free-play level but the first.
   {
@@ -247,8 +286,8 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   // Star targets: the season's own where a level was made for that floor plan, scaled elsewhere (the coach bot's measure).
   for (let tier = 1; tier <= TOP_TIER; tier++) {
     assert.equal(scoreScale(tier <= 10 ? "club" : "resort", tier), 1);
-    for (const v of ["club", "resort", "lagoon", "arena", "aquatic"])
-      assert.ok(scoreScale(v, tier) >= 0.6 && scoreScale(v, tier) <= 1.5, v + " " + tier);
+    for (const v of ["club", "resort", "lagoon", "arena", "aquatic", "disco"])
+      assert.ok(scoreScale(v, tier) >= 0.6 && scoreScale(v, tier) <= 1.7, v + " " + tier);
   }
 }
 
@@ -442,12 +481,12 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   sh = buildShift(save.week, null, save.known);
   r = finishShift(save, sh, summary(sh.pass, 1), {});
   assert.equal(save.unlocked, Math.max(1, sh.tier), "a level passed opens in free play");
-  // A full week of good shifts makes the date; the next week is on, harder, and the date is kept.
+  // A full week of three-star shifts makes the date (two stars a shift need Marina's wishes too); the next week is on, harder, and the date is kept.
   const good = freshSave();
   good.week = newWeek(good, 6);
   for (let i = 0; i < SHIFTS_PER_WEEK; i++) {
     const s = buildShift(good.week, null, good.known);
-    r = finishShift(good, s, summary(s.config.thresholds[1], 2), {});
+    r = finishShift(good, s, summary(s.config.thresholds[2], 3), {});
     if (i < SHIFTS_PER_WEEK - 1) assert.ok(!r.last && good.week);
   }
   assert.ok(

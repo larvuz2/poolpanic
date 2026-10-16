@@ -366,6 +366,8 @@ const NAMES = [
   "Theo",
 ];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+// How many dancers a zone of the Aqua Disco holds before they crowd each other.
+export const CLASS_ROOM = 4;
 export function loopPosition(p, center = 0) {
   p = ((p % CIRCUIT) + CIRCUIT) % CIRCUIT;
   if (p < 14.4) return { x: center + 0.6, z: -7.2 + p, angle: 0 };
@@ -507,8 +509,11 @@ export class PoolSimulation extends ChaosController {
   spawn(spec = {}) {
     const r = this.random();
     const mix = this.mixOverride || this.config.mix || [0.29, 0.6, 0.83];
-    const type =
-      spec.type || (r < mix[0] ? "beginner" : r < mix[1] ? "intermediate" : r < mix[2] ? "advanced" : "aqua");
+    // The Aqua Disco's class takes nobody but aqua-aerobics guests (VIPs and Marco included).
+    const type = this.venue.class
+      ? "aqua"
+      : spec.type ||
+        (r < mix[0] ? "beginner" : r < mix[1] ? "intermediate" : r < mix[2] ? "advanced" : "aqua");
     const index = this.people.length;
     const side = index % 2 === 0 ? -1 : 1;
     const occupied = new Set(
@@ -630,14 +635,16 @@ export class PoolSimulation extends ChaosController {
         this.emit("toast", {
           text:
             (this.config.star.title || p.name) +
-            " is here! 🚀 The fastest VIP in town: give him a clear lane.",
+            (this.venue.class
+              ? " joins the class! 🚀 Find him a zone with room to dance."
+              : " is here! 🚀 The fastest VIP in town: give him a clear lane."),
         });
       else if (!this.vipIntro) {
         this.vipIntro = true;
         this.emit("toast", { text: "A VIP has arrived! 👑 Big tips, but they lose patience fast." });
       }
     }
-    if (type === "aqua" && !this.aquaIntro) {
+    if (type === "aqua" && !this.aquaIntro && !this.venue.class) {
       this.aquaIntro = true;
       this.emit("toast", { text: "Aqua aerobics stays in place. Give the class some space." });
     }
@@ -735,12 +742,17 @@ export class PoolSimulation extends ChaosController {
     this.selected = null;
     return true;
   }
+  // "Lane 2", or "Zone 2" in a class venue (the Aqua Disco); with no lane, the word alone ("lane", "zone").
+  laneName(lane) {
+    const word = this.venue.class ? "zone" : "lane";
+    return lane === null ? word : word[0].toUpperCase() + word.slice(1) + " " + (lane + 1);
+  }
   laneRefused(lane) {
     this.emit("toast", {
       text:
         lane === this.laneClosure
-          ? "Lane " + (lane + 1) + " is closed. Use another lane!"
-          : "Lane " + (lane + 1) + " is the splash zone. Wait for the flip!",
+          ? this.laneName(lane) + " is closed. Use another " + this.laneName(null) + "!"
+          : this.laneName(lane) + " is the splash zone. Wait for the flip!",
       warning: true,
     });
     return false;
@@ -750,7 +762,7 @@ export class PoolSimulation extends ChaosController {
     if (this.status !== "playing" || p.status !== "swim" || p.lane == null) return false;
     if (["cramp", "injured"].includes(p.problem) || this.rescue || this.closed) return false;
     if (lane === p.lane) {
-      this.emit("toast", { text: p.name + " is already in lane " + (lane + 1) + "." });
+      this.emit("toast", { text: p.name + " is already in " + this.laneName(lane).toLowerCase() + "." });
       return false;
     }
     if (this.laneLocked(lane)) return this.laneRefused(lane);
@@ -1201,7 +1213,33 @@ export class PoolSimulation extends ChaosController {
       this.tickStomach(p, dt);
       if (this.cleanup) return;
       p.collisionTime = Math.max(0, p.collisionTime - dt);
-      if (p.type === "aqua") {
+      if (p.type === "aqua" && this.venue.class) {
+        // The Aqua Disco's class: two to a row, the front row nearest the stage first and the rest behind, down the whole zone,
+        // everyone facing the stage (+z). More than
+        // CLASS_ROOM in a zone and they bump elbows: everyone in it loses mood, the more the worse.
+        const idx = aqua.indexOf(p);
+        p.x = this.lanes[i] + (idx % 2 ? -0.75 : 0.75) + (Math.floor(idx / 2) % 2 ? 0.2 : -0.2);
+        const targetZ = p.problem ? ENTRY.waterZ : Math.max(-5.8, 6.2 - Math.floor(idx / 2) * 2.6);
+        p.z += clamp(targetZ - p.z, -dt * 2.4, dt * 2.4);
+        p.actualSpeed = 0;
+        p.angle = 0;
+        const over = aqua.length - CLASS_ROOM;
+        if (over > 0) {
+          p.h -= dt * 0.9 * over;
+          if (!p.complained && p.h < 80) {
+            p.complained = true;
+            this.emit("blocked", { id: p.id, lane: i, crowded: true });
+            this.crowdToast ||= {};
+            if (!(this.time - (this.crowdToast[i] ?? -99) < 20)) {
+              this.crowdToast[i] = this.time;
+              this.emit("toast", {
+                text: "Zone " + (i + 1) + " is packed! Spread the class out: four to a zone.",
+                warning: true,
+              });
+            }
+          }
+        }
+      } else if (p.type === "aqua") {
         const idx = aqua.indexOf(p);
         p.x = this.lanes[i] + (idx % 2 ? -0.55 : 0.55);
         const targetZ = p.problem ? ENTRY.waterZ : -1.5 + Math.floor(idx / 2) * 1.2;

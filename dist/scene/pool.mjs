@@ -115,7 +115,8 @@ export function buildPool(
     glint = [1, 0.96, 0.86],
     glow = 0,
   } = {},
-  // A pool's own dress (the Aquatic Centre's racing pool); without it, the toy pool every venue had.
+  // A pool's own dress (the Aquatic Centre's racing pool, the Aqua Disco's open water: `line`, `ropes` and `pennants` null leave
+  // them out, and a venue with `blocks: false` has no starting blocks); without it, the toy pool every venue had.
   {
     floorTiles = ["#5cc2cb", "#bfe9e6"],
     wallTiles = ["#72cdd2", "#cdeeea"],
@@ -168,13 +169,15 @@ export function buildPool(
   const band = w.mat(0x2d7f8c, { roughness: 0.35 });
   for (const x of [-halfX + 0.11, halfX - 0.11]) w.box(0.03, 0.16, halfZ * 2, band, x, -0.36, 0, 0);
   for (const z of [-halfZ + 0.09, halfZ - 0.09]) w.box(width - 0.2, 0.16, 0.03, band, 0, -0.36, z, 0);
-  // Regulation lane lines, T ends and wall targets.
-  for (const x of lanes) {
-    w.box(0.15, 0.016, 13.8, line, x, -1.33, 0, 0);
-    for (const z of [-6.9, 6.9]) w.box(1.65, 0.019, 0.18, line, x, -1.325, z, 0);
-    for (const z of [-halfZ + 0.12, halfZ - 0.12]) {
-      w.box(0.16, 0.72, 0.03, line, x, -0.91, z, 0);
-      w.box(1.15, 0.16, 0.032, line, x, -0.74, z, 0);
+  if (line !== null) {
+    // Regulation lane lines, T ends and wall targets.
+    for (const x of lanes) {
+      w.box(0.15, 0.016, 13.8, line, x, -1.33, 0, 0);
+      for (const z of [-6.9, 6.9]) w.box(1.65, 0.019, 0.18, line, x, -1.325, z, 0);
+      for (const z of [-halfZ + 0.12, halfZ - 0.12]) {
+        w.box(0.16, 0.72, 0.03, line, x, -0.91, z, 0);
+        w.box(1.15, 0.16, 0.032, line, x, -0.74, z, 0);
+      }
     }
   }
   // Rounded stone coping and drainage channels.
@@ -244,99 +247,116 @@ export function buildPool(
     w.scene.add(m);
     w.clickables.push(m);
   });
-  // Lane ropes: blue and cream mid-pool, red within the turn zones.
-  const floatGeo = new THREE.SphereGeometry(0.115, 8, 6);
-  const count = 72;
-  for (let j = 0; j <= lanes.length; j++) {
-    const x = -halfX + 0.2 + j * 3.2;
-    w.rod([x, -0.19, -halfZ], [x, -0.19, halfZ], 0.022, 0xd4e5d2);
-    const buckets = [[], [], []];
-    for (let k = 0; k < count; k++) {
-      const z = -8.08 + k * (16.16 / (count - 1));
-      buckets[Math.abs(z) > 5.8 ? 2 : k % 2].push(z);
-    }
-    buckets.forEach((arr, k) => {
-      const mesh = new THREE.InstancedMesh(
-        floatGeo,
-        w.mat(k === 2 ? ropes[2] : k === 0 ? ropes[0] : ropes[1], { roughness: 0.4 }),
-        arr.length,
-      );
-      const dummy = new THREE.Object3D();
-      arr.forEach((z, n) => {
-        dummy.position.set(x, -0.19, z);
-        dummy.scale.set(1, 0.85, 1.25);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(n, dummy.matrix);
+  if (ropes) {
+    // Lane ropes: blue and cream mid-pool, red within the turn zones.
+    const floatGeo = new THREE.SphereGeometry(0.115, 8, 6);
+    const count = 72;
+    for (let j = 0; j <= lanes.length; j++) {
+      const x = -halfX + 0.2 + j * 3.2;
+      w.rod([x, -0.19, -halfZ], [x, -0.19, halfZ], 0.022, 0xd4e5d2);
+      const buckets = [[], [], []];
+      for (let k = 0; k < count; k++) {
+        const z = -8.08 + k * (16.16 / (count - 1));
+        buckets[Math.abs(z) > 5.8 ? 2 : k % 2].push(z);
+      }
+      buckets.forEach((arr, k) => {
+        const mesh = new THREE.InstancedMesh(
+          floatGeo,
+          w.mat(k === 2 ? ropes[2] : k === 0 ? ropes[0] : ropes[1], { roughness: 0.4 }),
+          arr.length,
+        );
+        const dummy = new THREE.Object3D();
+        arr.forEach((z, n) => {
+          dummy.position.set(x, -0.19, z);
+          dummy.scale.set(1, 0.85, 1.25);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(n, dummy.matrix);
+        });
+        mesh.castShadow = true;
+        w.scene.add(mesh);
       });
-      mesh.castShadow = true;
-      w.scene.add(mesh);
+    }
+  }
+  if (venue.blocks !== false) {
+    // Starting blocks with tilted tops, grips and visible lane numbers.
+    lanes.forEach((x, i) => {
+      w.box(0.65, 0.85, 0.75, 0xd1ded3, x, 0.48, -9.15, 0.07);
+      const top = w.box(1.18, 0.19, 1.1, w.mat(blockTop, { roughness: 0.45 }), x, 0.97, -9.13, 0.08);
+      top.rotation.x = 0.12;
+      w.box(0.18, 0.11, 0.88, 0xebc14e, x + 0.45, 1.09, -9.1, 0.02);
+      w.rod([x - 0.38, 0.6, -8.85], [x + 0.38, 0.6, -8.85], 0.055, 0xdde8e0);
+      const number = w.textPlane(
+        String(i + 1),
+        0.35,
+        0.36,
+        "#d1ded3",
+        "#174958",
+        x - 0.336,
+        0.53,
+        -9.15,
+        w.scene,
+        100,
+      );
+      number.rotation.y = -Math.PI / 2;
+      const label = w.textPlane(
+        "0" + (i + 1),
+        1.2,
+        0.75,
+        "#e8eee3",
+        "#267682",
+        x,
+        0.018,
+        -10.75,
+        w.scene,
+        100,
+      );
+      label.rotation.x = -Math.PI / 2;
+      label.rotation.z = -Math.PI / 2;
     });
   }
-  // Starting blocks with tilted tops, grips and visible lane numbers.
-  lanes.forEach((x, i) => {
-    w.box(0.65, 0.85, 0.75, 0xd1ded3, x, 0.48, -9.15, 0.07);
-    const top = w.box(1.18, 0.19, 1.1, w.mat(blockTop, { roughness: 0.45 }), x, 0.97, -9.13, 0.08);
-    top.rotation.x = 0.12;
-    w.box(0.18, 0.11, 0.88, 0xebc14e, x + 0.45, 1.09, -9.1, 0.02);
-    w.rod([x - 0.38, 0.6, -8.85], [x + 0.38, 0.6, -8.85], 0.055, 0xdde8e0);
-    const number = w.textPlane(
-      String(i + 1),
-      0.35,
-      0.36,
-      "#d1ded3",
-      "#174958",
-      x - 0.336,
-      0.53,
-      -9.15,
-      w.scene,
-      100,
-    );
-    number.rotation.y = -Math.PI / 2;
-    const label = w.textPlane("0" + (i + 1), 1.2, 0.75, "#e8eee3", "#267682", x, 0.018, -10.75, w.scene, 100);
-    label.rotation.x = -Math.PI / 2;
-    label.rotation.z = -Math.PI / 2;
-  });
-  // Backstroke pennants strung across the lanes near both ends.
-  const postX = halfX + 1;
-  for (const z of [-5.7, 5.7]) {
-    for (const x of [-postX, postX]) {
-      w.cyl(0.09, 0.13, 3.35, 0xf2f1dd, x, 1.68, z);
-      w.cyl(0.25, 0.3, 0.1, COLORS.navy, x, 0.07, z);
-      w.ball(0.14, COLORS.yellow, x, 3.4, z);
-    }
-    const sag = (x) => 3.32 - 0.3 * (1 - (x / postX) ** 2);
-    const points = [];
-    for (let k = 0; k <= 30; k++) {
-      const x = -postX + (k * postX * 2) / 30;
-      points.push(new THREE.Vector3(x, sag(x), z));
-    }
-    w.scene.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(points),
-        new THREE.LineBasicMaterial({ color: 0x275663 }),
-      ),
-    );
-    const flags = Math.round((postX * 2 - 1.2) / 0.77);
-    for (let k = 0; k < flags; k++) {
-      const x = -postX + 0.6 + k * 0.77,
-        y = sag(x);
-      const shape = new THREE.Shape();
-      shape.moveTo(-0.29, 0);
-      shape.lineTo(0.29, 0);
-      shape.lineTo(0, -0.58);
-      shape.closePath();
-      const f = new THREE.Mesh(
-        new THREE.ShapeGeometry(shape),
-        new THREE.MeshStandardMaterial({
-          color: pennants[k % 3],
-          side: THREE.DoubleSide,
-          roughness: 0.9,
-        }),
+  if (pennants) {
+    // Backstroke pennants strung across the lanes near both ends.
+    const postX = halfX + 1;
+    for (const z of [-5.7, 5.7]) {
+      for (const x of [-postX, postX]) {
+        w.cyl(0.09, 0.13, 3.35, 0xf2f1dd, x, 1.68, z);
+        w.cyl(0.25, 0.3, 0.1, COLORS.navy, x, 0.07, z);
+        w.ball(0.14, COLORS.yellow, x, 3.4, z);
+      }
+      const sag = (x) => 3.32 - 0.3 * (1 - (x / postX) ** 2);
+      const points = [];
+      for (let k = 0; k <= 30; k++) {
+        const x = -postX + (k * postX * 2) / 30;
+        points.push(new THREE.Vector3(x, sag(x), z));
+      }
+      w.scene.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(points),
+          new THREE.LineBasicMaterial({ color: 0x275663 }),
+        ),
       );
-      f.position.set(x, y, z);
-      f.rotation.y = Math.PI / 2 + 0.14;
-      w.scene.add(f);
-      w.flags.push(f);
+      const flags = Math.round((postX * 2 - 1.2) / 0.77);
+      for (let k = 0; k < flags; k++) {
+        const x = -postX + 0.6 + k * 0.77,
+          y = sag(x);
+        const shape = new THREE.Shape();
+        shape.moveTo(-0.29, 0);
+        shape.lineTo(0.29, 0);
+        shape.lineTo(0, -0.58);
+        shape.closePath();
+        const f = new THREE.Mesh(
+          new THREE.ShapeGeometry(shape),
+          new THREE.MeshStandardMaterial({
+            color: pennants[k % 3],
+            side: THREE.DoubleSide,
+            roughness: 0.9,
+          }),
+        );
+        f.position.set(x, y, z);
+        f.rotation.y = Math.PI / 2 + 0.14;
+        w.scene.add(f);
+        w.flags.push(f);
+      }
     }
   }
   // Pool ladders with rails and submerged rungs.

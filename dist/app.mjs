@@ -22,7 +22,15 @@ import { DRILLS } from "./drills.mjs";
 import { offerBookings, BOOKINGS } from "./bookings.mjs";
 import { LevelMap } from "./map.mjs";
 import { guidanceState, cuePulse } from "./guidance.mjs";
-import { PoolSimulation, TYPES, SHIFTS, loopPosition, swimmerLook, freePlayGuests } from "./sim.mjs";
+import {
+  PoolSimulation,
+  TYPES,
+  SHIFTS,
+  loopPosition,
+  swimmerLook,
+  freePlayGuests,
+  CLASS_ROOM,
+} from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
 import { activeChoice, chooseCoach, loadCoachModel, coachModelReady } from "./scene/coach-model.mjs";
 import {
@@ -207,6 +215,12 @@ let input,
   pausedByHelp = false,
   resumeState = "playing",
   helpResumeState = "playing";
+// The Aqua Disco's song follows the shift's clock (music.mjs): beat 0 at the go, as the class dances; it waits through the
+// countdown and goes when the power does.
+audio.clock = () =>
+  sim?.venue?.class && (mode === "playing" || mode === "countdown")
+    ? { time: sim.time, running: mode === "playing" && !sim.clockHeld(), dark: sim.outage?.stage === "dark" }
+    : null;
 let records = normalizeRecords();
 try {
   records = normalizeRecords(JSON.parse(localStorage.getItem("pool-panic.records.v1")));
@@ -288,7 +302,7 @@ function targetLabel(d) {
     return p.id === sim.selected ? p.name + " · selected" : "Select " + p.name + " · click";
   }
   if (d.kind === "lane")
-    return "Lane " + (d.lane + 1) + (sim.get(sim.selected) ? " · click to send them here" : "");
+    return laneWord(sim) + " " + (d.lane + 1) + (sim.get(sim.selected) ? " · click to send them here" : "");
   if (d.kind === "station") return STATION_NAMES[d.item] || "";
   if (d.kind === "lifering") return "Life ring";
   if (d.kind === "sanitation") return d.item === "skimmer" ? "Pool skimmer" : "Waste bin";
@@ -1518,12 +1532,15 @@ function syncVenue(s) {
     clearBubbles();
   }
 }
+// The Aqua Disco has zones of open water where the other pools have lanes (the same thing to the simulation).
+const laneWord = (sim) => (sim?.venue?.class ? "Zone" : "Lane");
 function renderLaneControls(venue) {
+  const word = venue.class ? "ZONE" : "LANE";
   $("lane-controls").innerHTML =
     venue.lanes
       .map(
         (x, i) =>
-          `<button class="lane-btn" data-lane="${i}" aria-label="Assign selected swimmer to lane ${i + 1}"><div class="lane-top"><span class="lane-no"><span class="lane-word">LANE </span>0${i + 1}</span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Jump on in</span><span class="lane-caps"></span></div></button>`,
+          `<button class="lane-btn" data-lane="${i}" aria-label="Assign selected swimmer to ${word.toLowerCase()} ${i + 1}"><div class="lane-top"><span class="lane-no"><span class="lane-word">${word} </span>0${i + 1}</span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Jump on in</span><span class="lane-caps"></span></div></button>`,
       )
       .join("") +
     (venue.trampoline
@@ -2190,7 +2207,7 @@ function cardStatus(p) {
         ? swimmerLook(p).label + " · wants fins first"
         : swimmerLook(p).label;
   if (p.status === "injured") return p.healing ? "Being bandaged…" : "Hurt · needs the med kit";
-  const where = p.lane == null ? "In the pool" : "Lane " + (p.lane + 1);
+  const where = p.lane == null ? "In the pool" : laneWord(sim) + " " + (p.lane + 1);
   return (
     where +
     " · " +
@@ -2366,6 +2383,8 @@ function updateUI() {
     b.classList.toggle("splash-zone", splash);
     b.classList.toggle("lane-closed", closed);
     b.classList.toggle("danger", average < 50 || people.some((p) => p.blocked > 3));
+    // (At the Aqua Disco a zone holds CLASS_ROOM dancers; more and they crowd each other.)
+    const zone = !!sim.venue.class;
     b.querySelector(".lane-mode").textContent = closed
       ? "CLOSED"
       : splash
@@ -2374,11 +2393,17 @@ function updateUI() {
           ? "MOVE HERE"
           : count === 0
             ? "OPEN"
-            : count === 1
-              ? "SOLO"
-              : count === 2
-                ? "SPLIT"
-                : "CIRCLE";
+            : zone
+              ? count < CLASS_ROOM
+                ? "ROOM"
+                : count === CLASS_ROOM
+                  ? "FULL"
+                  : "PACKED!"
+              : count === 1
+                ? "SOLO"
+                : count === 2
+                  ? "SPLIT"
+                  : "CIRCLE";
     b.querySelector(".lane-count").textContent = closed
       ? "Wet floor"
       : splash
@@ -2387,7 +2412,9 @@ function updateUI() {
           : "Flip incoming"
         : count === 0
           ? "Jump on in"
-          : count + " swimmer" + (count === 1 ? "" : "s");
+          : zone
+            ? count + " of " + CLASS_ROOM + " dancers"
+            : count + " swimmer" + (count === 1 ? "" : "s");
     b.querySelector(".lane-caps").innerHTML = people
       .slice(0, 8)
       .map((p) => '<i style="background:' + swimmerLook(p).color + '"></i>')
@@ -2427,7 +2454,7 @@ function updateUI() {
                             : sim.get(sim.jumper)?.jumpStage === "waiting"
                               ? "A daredevil is waiting on the tower."
                               : sim.laneClosed() >= 0
-                                ? "Lane " + (sim.laneClosed() + 1) + " is closed · wet floor."
+                                ? laneWord(sim) + " " + (sim.laneClosed() + 1) + " is closed · wet floor."
                                 : chaos > 3
                                   ? "Keep calm. Mostly calm."
                                   : chaos > 0
@@ -3494,6 +3521,9 @@ try {
       },
       get moments() {
         return moments;
+      },
+      get audio() {
+        return audio;
       },
       get crashlog() {
         return crashlog;

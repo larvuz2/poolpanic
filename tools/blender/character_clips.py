@@ -188,11 +188,58 @@ def swim_ring_clip():
     return {"frames": frames, "breath": 0.0, **keys}  # (the hips stay where they are: no breathing on top)
 
 
+def dance_clip(which):
+    """The Aqua Disco's dances (16 October 2026): four beats at 120 BPM (48 frames at 24 fps, a beat every 12 frames), looped by
+    the game in step with the music, so every dancer and the instructor move together. "right": the right arm punches up on
+    every beat and comes back to the shoulder between beats, the left hand on the hip; "left" the mirror; "both": both arms
+    punch up in a V. The body bounces on the beat (the knees give a little just after it), sways from side to side a beat at
+    a time, the head nods on the beat and leans toward a raised arm, and the heels tap in turn. Made standing like every clip:
+    in the water only the arms and shoulders show."""
+    frames, beat = 48, 12
+    top = {"space": "chest", "tgt": (0.20, -0.04, 0.96), "pole": (0.9, 0.6, 0.0), "twist": 0}
+    top_wide = {"space": "chest", "tgt": (0.34, -0.06, 0.92), "pole": (0.9, 0.6, 0.0), "twist": 0}
+    low = {"space": "chest", "tgt": (0.30, -0.20, 0.16), "pole": (0.8, 0.2, -1.0), "twist": 0}
+    hip = {"space": "chest", "tgt": (0.06, 0.05, -0.72), "pole": (1.0, 0.5, 0.0), "twist": 0}
+
+    def pump(up):
+        keys = []
+        for f in range(0, frames + 1, beat // 2):
+            keys.append((f, up if (f // (beat // 2)) % 2 == 0 else low))
+        return keys
+
+    arms = {
+        "right": {"armR": pump(top), "armL": [(0, hip), (frames, hip)]},
+        "left": {"armL": pump(top), "armR": [(0, hip), (frames, hip)]},
+        "both": {"armL": pump(top_wide), "armR": pump(top_wide)},
+    }[which]
+    lean = {"right": -1.0, "left": 1.0, "both": 0.0}[which]  # roll + tips to the character's left
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "footL", "footR")}
+    for f in range(frames + 1):
+        b = f // beat
+        within = (f % beat) / beat
+        side = 1.0 if b % 2 == 0 else -1.0
+        dip = -0.03 * math.sin(math.pi * min(1.0, within / 0.5)) if within < 0.5 else 0.0
+        sway = 0.025 * math.sin(math.pi * f / beat)  # one way on one beat, the other on the next
+        keys["hips"].append((f, (sway, 0.0, dip)))
+        keys["hips_turn"].append((f, (0.0, 0.0, 4.0 * math.sin(math.pi * f / beat))))
+        keys["spine"].append((f, (0.0, 0.0, 6.0 * lean + 2.0 * math.sin(math.pi * f / beat))))
+        nod = 7.0 * math.sin(math.pi * min(1.0, within / 0.4)) if within < 0.4 else 0.0
+        keys["head"].append((f, (0.0, nod, 8.0 * lean)))
+        lift = 0.035 * math.sin(math.pi * min(1.0, within / 0.5)) if within < 0.5 else 0.0
+        keys["footL"].append((f, (0.0, 0.0, lift if side > 0 else 0.0)))
+        keys["footR"].append((f, (0.0, 0.0, lift if side < 0 else 0.0)))
+    return {"frames": frames, "breath": 0.0, **keys, **arms}
+
+
 CLIPS = {
     # What every character does, made on the Coach and moved to the others (transplant_clips.py).
     "shared": {
         "Panic": panic_clip(),
         "Swim": swim_clip(),
+        # The Aqua Disco's three dances (16 October 2026), for the swimmers in its class and Valentina, the instructor.
+        "DanceRight": dance_clip("right"),
+        "DanceLeft": dance_clip("left"),
+        "DanceBoth": dance_clip("both"),
     },
     # What only Coach Waters does.
     "coach": {
