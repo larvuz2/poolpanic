@@ -507,6 +507,97 @@ export class SwimmerRig {
 
 // ---- putting a model on a swimmer ---------------------------------------------------------------------------------
 
+// ---- the Kids Pool's children ----------------------------------------------------------------------------------------------
+
+// The kids all wear the fish kid's model for now (the creator, 16 October 2026: "repeat that model, we'll change the mesh later"),
+// without his bucket, each dressed differently: the shorts and goggles (the blues of his texture) and the armbands (its strong
+// orange) take a colour of their own, the skin (the soft peach) a tone of its own, the hair a shade of its own. Done in the
+// material's fragment shader on the texture's colours (one program for all, a few numbers for each child), from the child's
+// `tint`, so the same child always looks the same.
+export const CHILD_LOOKS = {
+  shorts: [0.95, 0.33, 0.78, 0.12, 0.0, 0.5, 0.6, 0.86], // hues
+  bands: [0.58, 0.95, 0.33, 0.15, 0.78, 0.04],
+  skin: [
+    [1, 1, 1],
+    [0.94, 0.86, 0.78],
+    [0.78, 0.62, 0.5],
+    [0.6, 0.45, 0.35],
+    [0.44, 0.32, 0.25],
+  ],
+  hair: [
+    [1, 1, 1],
+    [0.45, 0.45, 0.5],
+    [2.6, 3.3, 3.6],
+    [2.0, 1.2, 0.9],
+  ],
+};
+export function childLook(tint = 0) {
+  const k = Math.abs(Math.floor(tint));
+  const pick = (list, step) => list[(k * step + Math.floor(k / list.length)) % list.length];
+  return {
+    shorts: pick(CHILD_LOOKS.shorts, 3),
+    bands: pick(CHILD_LOOKS.bands, 5),
+    skin: pick(CHILD_LOOKS.skin, 2),
+    hair: pick(CHILD_LOOKS.hair, 3),
+  };
+}
+const CHILD_GLSL = `
+vec3 kidHsv(vec3 c) {
+  vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+  float d = q.x - min(q.w, q.y);
+  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + 1e-10)), d / (q.x + 1e-10), q.x);
+}
+vec3 kidRgb(vec3 c) {
+  vec3 p = abs(fract(c.xxx + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
+  return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);
+}
+`;
+function dressChild(model, p) {
+  const look = childLook(p.tint ?? p.id);
+  for (const name of ["Bucket", "BucketMount"]) {
+    const o = model.getObjectByName(name);
+    if (o) o.visible = false;
+  }
+  model.traverse((o) => {
+    if (!o.isMesh || !o.material || o.name === "Bucket") return;
+    const m = o.material.clone();
+    m.onBeforeCompile = (shader) => {
+      shader.uniforms.uShorts = { value: look.shorts };
+      shader.uniforms.uBands = { value: look.bands };
+      shader.uniforms.uSkin = { value: new THREE.Vector3(...look.skin) };
+      shader.uniforms.uHair = { value: new THREE.Vector3(...look.hair) };
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          "#include <common>",
+          "#include <common>\nuniform float uShorts;\nuniform float uBands;\nuniform vec3 uSkin;\nuniform vec3 uHair;\n" +
+            CHILD_GLSL,
+        )
+        .replace(
+          "#include <map_fragment>",
+          `#include <map_fragment>
+          {
+            vec3 srgb = pow(max(diffuseColor.rgb, vec3(0.0)), vec3(1.0 / 2.2));
+            vec3 hsv = kidHsv(srgb);
+            bool cloth = hsv.x > 0.48 && hsv.x < 0.74 && hsv.y > 0.22;
+            bool band = !cloth && hsv.x < 0.085 && hsv.y > 0.7 && hsv.z > 0.55;
+            bool skin = !cloth && !band && hsv.x > 0.03 && hsv.x < 0.13 && hsv.y > 0.25 && hsv.y < 0.7 && hsv.z > 0.55;
+            bool hair = !cloth && !band && !skin && hsv.z < 0.32;
+            if (cloth) hsv.x = uShorts;
+            if (band) hsv.x = uBands;
+            srgb = kidRgb(hsv);
+            if (hair) srgb = clamp(srgb * uHair, 0.0, 1.0);
+            if (skin) srgb *= uSkin;
+            diffuseColor.rgb = pow(srgb, vec3(2.2));
+          }`,
+        );
+    };
+    m.customProgramCacheKey = () => "pool-panic-child";
+    o.material = m;
+  });
+}
+
 // Swaps the look of a character() group built as a swimmer: the classic parts stay (hidden, still posed by the rest of
 // the game), the model goes in beside them, and the little things that sit on a body (the sore eyes, the bandage, a VIP's
 // crown and sash, a daredevil's star and cape) are moved onto it. Returns the rig, or null when the classic swimmer is
@@ -524,6 +615,7 @@ export function attachSwimmerModel(group, p, choice = activeSwimmerChoice()) {
   u.root.add(model);
   u.model = model;
   u.look = look;
+  if (p.type === "child") dressChild(model, p);
   // What rides on the body follows a bone through the clips (a hop takes the head 25 cm up). A mount is a child of the bone
   // that stands for the swimmer's root as it is at rest, so what goes into it is placed as in the root and moves with the bone.
   group.updateMatrixWorld(true);

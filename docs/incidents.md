@@ -31,7 +31,7 @@ fish kid, L13 Carl and dog, L14 outage, L17 Carl, L19 outage.
 
 ## 2. The catalogue
 
-Seventeen entries in four groups (eleven incidents proper and six whole-shift changes). Where there is a warning window the coach can use it to
+Nineteen entries in four groups (thirteen incidents proper and six whole-shift changes). Where there is a warning window the coach can use it to
 prevent the incident; otherwise the recovery is the coach's job. The points are from the code.
 
 ### In the pool: trouble for the swimmers in the water, or for the water itself
@@ -39,7 +39,8 @@ prevent the incident; otherwise the recovery is the coach's job. The points are 
 | Incident | Levels | What happens |
 | --- | --- | --- |
 | 🆘 **Cramp** | 2 and up, about 1 swimmer in 4 | The lanes freeze, a ring icon marks the victim. Take a wall ring, dive in, swim it to them, climb out, hang the ring back. Slow: the lanes stay frozen while the queue loses patience. |
-| 💩 **Tummy trouble** | 3 and up, a few a shift | A 10-second meter over a swimmer. Send them to the locker in time (a bonus; sending a healthy one home costs points). Missed: a mess floats in the water, everyone evacuates and panics, the streak breaks and the clock holds until skimmer, bin and chlorine are done. |
+| 💩 **Tummy trouble** | 3 and up, a few a shift (more at the Kids Pool: `sickRate`) | A 10-second meter over a swimmer. Send them to the locker in time (a bonus; sending a healthy one home costs points). Missed: a mess floats in the water, everyone evacuates and panics, the streak breaks and the clock holds until skimmer, bin and chlorine are done. |
+| 🚽 **A wee** (16 October 2026) | 3 and up, a third of the tummy troubles (half at the Kids Pool) | The same mechanic as the poo with a 🚽 tag: send them home in time. Missed: a yellow cloud spreads and the whole pool turns yellow, everyone out, −500, and the clock holds; nothing to scoop, chlorine alone clears it (one dose or two), then the water settles and the pool opens. |
 | 💢 **Collisions and lost goggles** | any level; goggles from 2 | A fast swimmer stuck behind a slow one collides (−50, happiness drops). About 1 in 4 loses goggles; carry them back to their owner. Prevented by lane choice and lane moves. |
 | 👁️ **Sore eyes** | every level | Too much chlorine (the target band is 40 to 65) gives red eyes and costs happiness; fetch eye relief. Dirty water costs happiness too. |
 
@@ -58,6 +59,7 @@ prevent the incident; otherwise the recovery is the coach's job. The points are 
 | 🐶 **Loose dog** | 4, 8 to 10, 13, 15 to 20 (Kids' party booking) | Steals fins, bowls people over, shakes out puddles. Fetch the treats and lead it to a locker door (+150). |
 | 😡 **Karen** | 4 only, 74 to 94 s in | Storms out of a locker door at the coach. Everyone within 3.3 m stops, covers their ears and loses 20 points (once each). Hold E beside her for 3 seconds (+100, +50 if nobody was annoyed). |
 | ⚡ **Power outage** | 7 to 10, 14 to 16, 18 to 20 (Night swim booking) | 7 seconds of flicker; reset the fuse box in time (+100). Missed: a blackout (−100), swimmers bump into each other. Flashlight, then breakers (+100). |
+| 💧 **Wet spots** (16 October 2026) | every level, every pool | One swimmer in five climbing out drips a wet spot by the ladder, and it never dries. Whoever walks or runs over it slips, is cross (−12 mood) and costs 25. Grab the mop from its bucket (Q or E), mop the spot (E, +10), put the mop back. A chore, not counted among a shift's incidents; at the Kids Pool, where kids run everywhere, it bites hardest. |
 | 🦶 **Slips: fins and puddles** | every level; puddles from the dog, Carl and the storm | Anyone who steps on a dropped fin or a puddle falls on their back and gets up; a swimmer loses 6 happiness. Jump them or pick up the fins. Puddles dry in about 14 seconds. |
 
 ### Changes to the whole shift: not one event, a new condition

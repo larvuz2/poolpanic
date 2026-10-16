@@ -169,6 +169,23 @@ export const POOLS = {
     events: ["Aqua Disco night", "Glow class", "Retro hour", "Foam party", "Neon splash", "Latin fever"],
     twists: { team: 0, class: 0 }, // nobody swims laps here: no swim team; the whole shift is a class already
   },
+  // The Kids Pool (16 October 2026): children and nobody else, running about the deck until the coach catches one, splashing
+  // about anywhere in a pool with no lanes. More tummy trouble than anywhere (`sickRate`), half of it a wee (`peeShare`); every
+  // incident still comes; no Marco (it is a children's pool), VIP kids instead.
+  kids: {
+    name: "Kids Pool",
+    icon: "🦆",
+    style: { venue: "kids", lighting: "day", sickRate: 0.32, peeShare: 0.5, noStar: true },
+    events: [
+      "Splash day",
+      "Rubber duck races",
+      "Paddle party",
+      "Little swimmers",
+      "Summer camp",
+      "Pool noodle fun",
+    ],
+    twists: { team: 0, class: 0, closure: 0 }, // no swim team, no aqua class; a closed zone means nothing to a kid
+  },
   arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20], from: 3 },
 };
 export const POOL_IDS = Object.keys(POOLS);
@@ -176,7 +193,8 @@ export const POOL_IDS = Object.keys(POOLS);
 export const poolsOf = (chapter) => POOL_IDS.filter((id) => (POOLS[id].from || 1) <= chapter);
 
 // The week's itinerary: one pool a day. Every pool of the week once, then the days left from the others, no pool two days running;
-// the very first Monday of a run is the Community Pool (the gentle minute).
+// the very first Monday of a run is the Community Pool (the gentle minute). With more pools than days (seven from week 3, the
+// arena and the Kids Pool both in), a different one sits the week out.
 export function weekPools(chapter, seed) {
   const random = stream((seed ^ 0x51ed27) >>> 0),
     pools = poolsOf(chapter),
@@ -254,6 +272,12 @@ const SCORE_SCALE = {
   disco: [
     [10, 1.65],
     [20, 1.3],
+  ],
+  // The Kids Pool: a little above Splash Park's (the bot catches a running kid at once; a player has to chase one), which leaves
+  // the bot about as far over the two stars as in the disco (calibrated 16 October 2026).
+  kids: [
+    [10, 1.4],
+    [20, 1.1],
   ],
 };
 
@@ -654,11 +678,14 @@ export function buildShift(week, card = null, known = week.known || []) {
     ...(look.jumpPatience && { jumpPatience: look.jumpPatience }),
     ...(look.opening && { opening: look.opening }),
     ...(look.aqua === false && { aqua: false }),
+    ...(look.sickRate && { sickRate: look.sickRate }),
+    ...(look.peeShare && { peeShare: look.peeShare }),
   };
   // Marco "the Missile": always at the Aquatic Centre, and in more than half the shifts of every other pool (`STAR_CHANCE`), at a
   // moment of his own.
   const starRoll = stream((week.seed ^ Math.imul(index + 9, 2654435789)) >>> 0);
-  if (look.star) blueprint.star = look.star;
+  if (look.noStar) delete blueprint.star;
+  else if (look.star) blueprint.star = look.star;
   else if (starRoll() < STAR_CHANCE) blueprint.star = { ...MARCO, at: +(0.25 + starRoll() * 0.4).toFixed(2) };
   // Daredevils (Splash Park and the five-lane pools after it): as many as the pool's level has, for its crowd (one at least).
   if (look.daredevilAt) {

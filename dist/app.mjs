@@ -1,3 +1,4 @@
+import { loadProp } from "./scene/prop-models.mjs";
 import { screenMovement } from "./spatial.mjs";
 import {
   normalizeRecords,
@@ -30,6 +31,7 @@ import {
   swimmerLook,
   freePlayGuests,
   CLASS_ROOM,
+  KIDS_ROOM,
 } from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
 import { activeChoice, chooseCoach, loadCoachModel, coachModelReady } from "./scene/coach-model.mjs";
@@ -218,8 +220,13 @@ let input,
 // The Aqua Disco's song follows the shift's clock (music.mjs): beat 0 at the go, as the class dances; it waits through the
 // countdown and goes when the power does.
 audio.clock = () =>
-  sim?.venue?.class && (mode === "playing" || mode === "countdown")
-    ? { time: sim.time, running: mode === "playing" && !sim.clockHeld(), dark: sim.outage?.stage === "dark" }
+  (sim?.venue?.class || sim?.venue?.kids) && (mode === "playing" || mode === "countdown")
+    ? {
+        time: sim.time,
+        running: mode === "playing" && !sim.clockHeld(),
+        dark: sim.outage?.stage === "dark",
+        song: sim.venue.kids ? "kids" : "disco",
+      }
     : null;
 let records = normalizeRecords();
 try {
@@ -1535,6 +1542,13 @@ function syncVenue(s) {
 // The Aqua Disco has zones of open water where the other pools have lanes (the same thing to the simulation).
 const laneWord = (sim) => (sim?.venue?.class ? "Zone" : "Lane");
 function renderLaneControls(venue) {
+  // The Kids Pool has no lanes: one button sends the kid the coach has caught into the pool (its emptiest zone, sim.poolLane).
+  if (venue.kids) {
+    $("lane-controls").innerHTML =
+      `<button class="lane-btn pool-btn" data-lane="pool" aria-label="Send the kid you caught into the pool"><div class="lane-top"><span class="lane-no">🌊 POOL</span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Catch a kid first</span><span class="lane-caps"></span></div></button>`;
+    $("lane-controls").classList.remove("five-lanes");
+    return;
+  }
   const word = venue.class ? "ZONE" : "LANE";
   $("lane-controls").innerHTML =
     venue.lanes
@@ -1558,6 +1572,8 @@ function loadCannonballMan(s) {
 }
 // The same for the fish kid and his bucket (about 1.5 MB): a shift that can have the fish incident fetches them as it begins.
 function loadFishKid(s) {
+  // (The Kids Pool's children all wear his model: fetched as the shift begins there, whatever the incidents.)
+  if (activeSwimmerChoice() === "models" && s.venue.kids) loadFigure("kid");
   if (activeSwimmerChoice() !== "models" || !s.config.chaos?.some((e) => e.kinds.includes("fish"))) return;
   loadFigure("kid");
   loadFishModel(); // (and the fish he lets go: scene/fish-model.mjs)
@@ -1610,6 +1626,7 @@ function start(bookingId = null, week = null) {
   loadCannonballMan(sim);
   loadFishKid(sim);
   loadStar(sim);
+  for (const name of sim.venue.props || ["mop", "mop-bucket"]) loadProp(name);
   richPresence(
     week
       ? "Week " + week.chapter.id + " · " + week.day
@@ -2161,6 +2178,7 @@ const CARRY_NAMES = {
   treats: "dog treats",
   flashlight: "flashlight",
   medkit: "medical kit",
+  mop: "mop",
 };
 function carryName(c) {
   if (c.carry === "skimmer") return c.skimmerLoaded ? "loaded skimmer" : "pool skimmer";
@@ -2176,7 +2194,7 @@ function problemIcon(p) {
   if (p.status === "switch") return "↔️";
   if (p.annoyedTime > 0) return "😠";
   if (sim.rescue && p.status === "swim" && p.problem !== "cramp") return "😱";
-  if (p.stomachWarning) return "💩";
+  if (p.stomachWarning) return p.sickKind === "pee" ? "🚽" : "💩";
   if (p.status === "panic" || p.status === "evacuating" || p.status === "fleeing") return "😱";
   if (p.status === "queue" && sim.fish?.stage === "loose") return "😱";
   return p.problem === "fins"
@@ -2229,16 +2247,24 @@ function formatTime(t) {
   return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 }
 function updateQueue() {
-  const waiting = sim.people.filter((p) => p.status === "queue"),
+  // At the Kids Pool the waiting kids are not listed: they run about the deck and the coach has to catch one (click them, or E).
+  const loose = sim.venue.kids ? sim.people.filter((p) => p.status === "queue") : [];
+  const waiting = sim.venue.kids
+      ? loose.filter((p) => p.id === sim.selected || p.stomachWarning)
+      : sim.people.filter((p) => p.status === "queue"),
     problems = sim.people.filter(
       (p) => (p.status === "swim" && (p.problem || p.stomachWarning)) || p.status === "injured",
     );
-  $("queue-count").textContent = waiting.length + " waiting";
+  $("queue-count").textContent = sim.venue.kids
+    ? loose.length + " running loose"
+    : waiting.length + " waiting";
   // Swimmers who need the coach come first so a long queue never hides them.
   const list = [...problems, ...waiting];
   const guide = guidanceState(sim);
   const key =
     list.map((p) => p.id + ":" + p.problem + ":" + p.stomachWarning).join(",") +
+    "|" +
+    (loose.length > 0) +
     "|" +
     sim.selected +
     "|" +
@@ -2252,7 +2278,9 @@ function updateQueue() {
               `<button class="swimmer-card ${p.id === sim.selected ? "selected" : ""} ${p.id === guide.swimmerId ? "guided" : ""}" data-swimmer="${p.id}" aria-label="Select ${p.name}, ${swimmerLook(p).label}${p.problem ? ", needs help" : ""}"><span class="portrait ${p.queasy ? "queasy" : ""}" style="background:${swimmerLook(p).color}">${swimmerLook(p).icon}</span><span class="card-info"><strong>${p.name}</strong><small>${cardStatus(p)}</small><span class="patience-track"><i data-hp="${p.id}"></i></span></span><span class="need-icon" data-need="${p.id}"></span></button>`,
           )
           .join("")
-      : '<div class="empty-queue"><span>✓</span> All in the swim.</div>';
+      : sim.venue.kids && loose.length
+        ? '<div class="empty-queue"><span>🏃</span> Kids running loose! Click one to catch them.</div>'
+        : '<div class="empty-queue"><span>✓</span> All in the swim.</div>';
   }
   for (const p of list) {
     const hp = document.querySelector('[data-hp="' + p.id + '"]');
@@ -2263,7 +2291,9 @@ function updateQueue() {
     const need = document.querySelector('[data-need="' + p.id + '"]');
     if (need)
       need.textContent = p.stomachWarning
-        ? "💩"
+        ? p.sickKind === "pee"
+          ? "🚽"
+          : "💩"
         : p.queasy && Math.sin(sim.time * 2) > -0.4
           ? "🤢"
           : p.problem
@@ -2293,11 +2323,15 @@ function updateQueue() {
       "% happy · " +
       (p.type === "daredevil"
         ? "Trampoline only · T"
-        : p.status === "swim" && !p.problem
-          ? "Pick a lane to move them"
-          : profile.speed
-            ? profile.speed + "× pace"
-            : "Aqua class") +
+        : p.type === "child"
+          ? p.status === "queue"
+            ? "Caught! Send them INTO THE POOL · 1"
+            : "Splashing about"
+          : p.status === "swim" && !p.problem
+            ? "Pick a lane to move them"
+            : profile.speed
+              ? profile.speed + "× pace"
+              : "Aqua class") +
       "</span>";
   }
 }
@@ -2356,12 +2390,49 @@ function updateUI() {
   });
   $("clean").disabled = mode !== "playing" || !!sim.coach.job || !!sim.coach.carry;
   $("clean").classList.toggle("busy-btn", sim.clutter.length > 0);
+  // The mop (incidents/wet.mjs): how many wet spots are on the deck, and whether the coach has it.
+  const wet = sim.wetSpots?.length || 0;
+  $("mop").disabled =
+    mode !== "playing" || !!sim.coach.job || (!!sim.coach.carry && sim.coach.carry !== "mop");
+  $("mop").classList.toggle("busy-btn", wet > 0 || sim.coach.carry === "mop");
+  $("wet-count").hidden = !wet;
+  $("wet-count").textContent = wet;
   $("assist").disabled = mode !== "playing";
   $("assist").querySelector(".interact-label").textContent = sim.nearestInteraction()?.label || "Interact";
   $("pause").disabled = !["playing", "countdown"].includes(mode);
   const p = sim.get(sim.selected),
     blocked = sim.laneBlocked(),
     moving = p?.status === "swim" && !p.problem ? p : null;
+  // The Kids Pool's one button: how many are splashing, and whether there is room (KIDS_ROOM).
+  const poolBtn = document.querySelector('[data-lane="pool"]');
+  if (poolBtn) {
+    const kids = sim.people.filter((q) => ["swim", "enter"].includes(q.status) && q.type === "child");
+    poolBtn.classList.toggle(
+      "assignable",
+      mode === "playing" && !sim.closed && !sim.rescue && p?.status === "queue",
+    );
+    poolBtn.classList.toggle("danger", kids.length > KIDS_ROOM);
+    poolBtn.querySelector(".lane-mode").textContent = sim.closed
+      ? "CLOSED"
+      : kids.length > KIDS_ROOM
+        ? "PACKED!"
+        : kids.length === KIDS_ROOM
+          ? "FULL"
+          : kids.length
+            ? "SPLASHING"
+            : "OPEN";
+    poolBtn.querySelector(".lane-count").textContent =
+      p?.status === "queue"
+        ? "Send " + p.name + " in!"
+        : kids.length
+          ? kids.length + " of " + KIDS_ROOM + " kids splashing"
+          : "Catch a kid first";
+    poolBtn.querySelector(".lane-caps").innerHTML = kids
+      .slice(0, 10)
+      .map((q) => '<i style="background:' + swimmerLook(q).color + '"></i>')
+      .join("");
+    poolBtn.disabled = mode !== "playing" || !!sim.rescue;
+  }
   for (let i = 0; i < sim.lanes.length; i++) {
     const people = sim.lanePeople(i),
       count = sim.occupancy(i),
@@ -2532,6 +2603,18 @@ function updateTrampolineButton(p) {
   b.disabled = mode !== "playing" || !!sim.rescue;
 }
 function sanitationPanel() {
+  // A wee: everybody out, then the chlorine (there is nothing to scoop).
+  if (sim.cleanup.kind === "pee")
+    return {
+      icon: "💛",
+      title: "WHO PEED?!",
+      task: sim.sanitationHint(),
+      steps: ["EVERYBODY OUT", "CHLORINE"].map((label, i) => ({
+        label: i + 1 + " · " + label,
+        active: i === 1,
+        done: i < 1,
+      })),
+    };
   const order = ["floating", "caught", "return", "treat"],
     stage = order.indexOf(sim.cleanup.stage);
   return {
@@ -3136,6 +3219,7 @@ function bind() {
     const b = e.target.closest("[data-lane]");
     if (!b) return;
     if (b.dataset.lane === "trampoline") pick({ kind: "trampoline" });
+    else if (b.dataset.lane === "pool") pick({ kind: "lane", lane: sim.poolLane() });
     else pick({ kind: "lane", lane: Number(b.dataset.lane) });
   };
   $("world-labels").onclick = (e) => {
@@ -3153,6 +3237,7 @@ function bind() {
   ["chlorine", "fins", "relief"].forEach((item) => ($(item).onclick = () => sim.fetch(item)));
   $("return-item").onclick = () => sim.returnItem();
   $("clean").onclick = () => sim.tidy();
+  $("mop").onclick = () => sim.mop();
   $("assist").onclick = () => {
     act("interact (button) · " + (sim.coach.carry || "empty-handed"));
     sim.interact();
@@ -3343,12 +3428,14 @@ function bind() {
         toast(settings.coachCam ? "Coach Cam on · click the pool to look around" : "Overview camera");
         return;
       }
-      if (/^[1-9]$/.test(key) && Number(key) <= sim.lanes.length) sim.assign(Number(key) - 1);
+      if (sim.venue.kids && key === "1") sim.assign(sim.poolLane());
+      else if (/^[1-9]$/.test(key) && Number(key) <= sim.lanes.length) sim.assign(Number(key) - 1);
       if (key === "t" && sim.venue.trampoline) sim.assignTrampoline?.();
       if (key === "c") sim.fetch("chlorine");
       if (key === "f") sim.fetch("fins");
       if (key === "r") sim.fetch("relief");
       if (key === "x") sim.tidy();
+      if (key === "q") sim.mop();
       if (key === "g") sim.assist();
       if (key === "escape") pause();
     },

@@ -9,6 +9,7 @@ import { CannonballCarl } from "./incidents/carl.mjs";
 import { PowerOutage } from "./incidents/outage.mjs";
 import { Karen, annoyable } from "./incidents/karen.mjs";
 import { planTwists, startTwist } from "./incidents/twist.mjs";
+import { WetSpots, useMop } from "./incidents/wet.mjs";
 import {
   Trampoline,
   tickJumper,
@@ -17,7 +18,8 @@ import {
   injuredOnDeck,
 } from "./incidents/trampoline.mjs";
 
-export const SYSTEMS = [PowerOutage, CannonballCarl, FishKid, LooseDog, Trampoline, Karen];
+// (The wet spots come last: a chore, so every incident's hint and alert come before theirs.)
+export const SYSTEMS = [PowerOutage, CannonballCarl, FishKid, LooseDog, Trampoline, Karen, WetSpots];
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -43,6 +45,12 @@ const FIXTURES = {
     needed: (s) => ["flicker", "dark"].includes(s.outage?.stage),
     go: "Run to the fuse box and press E.",
     about: "The fuse box. Reset it quickly if the lights start flickering.",
+  },
+  mop: {
+    needed: (s) => s.wetSpots.length > 0 || s.coach.carry === "mop",
+    go: "Walk to the mop bucket and press E.",
+    about:
+      "The mop and its bucket. Swimmers climbing out drip wet spots on the deck: mop them before someone slips.",
   },
   medkit: {
     needed: (s) => s.coach.carry === "medkit" || s.people.some((p) => p.status === "injured"),
@@ -516,6 +524,10 @@ export class ChaosController extends RescueController {
         .filter((o) => filter(o) && Math.hypot(o.x - point.x, o.z - point.z) < reach)
         .sort((a, b) => a.rank - b.rank)[0] || null
     );
+  }
+  // The mop (Q): grab it, mop the nearest wet spot, or put it back (incidents/wet.mjs).
+  mop() {
+    return useMop(this);
   }
   useFixture(item) {
     const point = this.venue.fixtures?.[item],

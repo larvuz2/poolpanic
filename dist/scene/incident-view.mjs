@@ -1,5 +1,6 @@
 // Visuals for chaos incidents: visiting characters, loose animals, hazards, blackout lighting and stunts.
 // Every method is a pure view of simulation state; cosmetic motion never feeds back into gameplay.
+import { syncWetSpots, mopObject } from "./wet-view.mjs";
 import { THREE, COLORS } from "./kit.mjs";
 import { character, dogObject } from "./actors.mjs";
 import { CARL_TUNING } from "../incidents/carl.mjs";
@@ -172,6 +173,7 @@ export class IncidentView {
     this.syncKaren(sim, time, dt);
     this.syncFish(sim, time);
     this.syncPuddles(sim);
+    syncWetSpots(w, sim, time);
     this.syncOutage(sim, time, dt);
     this.syncSplashZone(sim, time);
     this.syncDizzy(sim, time);
@@ -827,6 +829,13 @@ export class IncidentView {
         cu.legs.forEach((l, i) => (l.rotation.x = i ? -1.3 : 0.2));
       }
     }
+    // The mop: held across the body, its head down by the feet; swept side to side while mopping.
+    if (c.carry === "mop" && !c.swimming) {
+      const mopping = c.busy?.kind === "mop" && !this.w.reducedMotion.matches;
+      cu.carry.position.set(0.32, 0.12, 0.5);
+      cu.carry.rotation.set(-0.45, 0, -0.35 + (mopping ? Math.sin(time * 11) * 0.45 : 0));
+      cu.arms[1].rotation.set(-0.9, 0, 0);
+    }
     if (c.carry === "fishnet") {
       const fish = cu.carry.getObjectByName("net-fish");
       if (fish) fish.visible = !!c.netLoaded;
@@ -838,6 +847,7 @@ export class IncidentView {
     }
   }
   carryModel(kind) {
+    if (kind === "mop") return mopObject(this.w);
     if (kind === "fishnet") return fishNetObject(this.w);
     if (kind === "treats") return treatsObject(this.w);
     if (kind === "medkit") return medkitObject(this.w);

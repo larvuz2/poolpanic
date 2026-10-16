@@ -14,6 +14,14 @@ import {
   HOOK,
   INTRO,
   CYCLE,
+  kidsScore,
+  kidsSection,
+  KIDS_STEP,
+  KIDS_ROOTS,
+  KIDS_TUNE,
+  KIDS_INTRO,
+  KIDS_CYCLE,
+  SONGS,
 } from "./dist/music.mjs";
 import { danceAt, BEAT, BAR } from "./dist/dance.mjs";
 
@@ -249,6 +257,79 @@ const game = () => {
   a.schedule();
   assert.ok(a.step > usual, "And the usual music comes back after it");
 }
+// 7) The Kids Pool's song: 132 BPM in C major (the same notes as the disco's A minor), a boom on one and three and a chick on two
+// and four, the oom-pah bass on the bar's root and fifth, two bars of intro and round 16 (eight with the tune, eight of runs).
+{
+  assert.ok(Math.abs(KIDS_STEP * 4 - 60 / 132) < 1e-9);
+  assert.equal(SONGS.kids.score, kidsScore);
+  assert.equal(SONGS.disco.score, discoScore);
+  const kv = (step) => kidsScore(step).map((n) => n.voice);
+  assert.deepEqual(bars(0, KIDS_INTRO + KIDS_CYCLE + 1).map(kidsSection), [
+    ...Array(KIDS_INTRO).fill("intro"),
+    ...Array(8).fill("tune"),
+    ...Array(8).fill("runs"),
+    "tune",
+  ]);
+  assert.equal(KIDS_TUNE.length, 4 * STEPS_PER_BAR);
+  for (const bar of bars(KIDS_INTRO, 40)) {
+    const booms = bars(0, 16).filter((s) => kv(bar * 16 + s).includes("boom"));
+    const snaps = bars(0, 16).filter((s) => kv(bar * 16 + s).includes("snap"));
+    assert.deepEqual(booms, [0, 8], `A boom on one and three in bar ${bar}`);
+    assert.deepEqual(snaps, [4, 12], `A chick on two and four in bar ${bar}`);
+    const root = KIDS_ROOTS[bar % 4];
+    for (const n of bars(0, 16)
+      .flatMap((s) => kidsScore(bar * 16 + s))
+      .filter((n) => n.voice === "kbass"))
+      assert.ok([root, root + 7].includes(n.note), `The bass in bar ${bar} plays the root and the fifth`);
+  }
+  const bells = (from, to) =>
+    bars(from * 16, to * 16)
+      .flatMap((step) => kidsScore(step))
+      .filter((n) => n.voice === "bell").length;
+  assert.equal(
+    bells(KIDS_INTRO, KIDS_INTRO + 4),
+    KIDS_TUNE.filter((n) => n !== null).length,
+    "The tune in full",
+  );
+  assert.ok(bells(KIDS_INTRO + 8, KIDS_INTRO + 16) > 0, "Runs answer it");
+  assert.equal(bells(0, KIDS_INTRO), 0, "The intro is strums and drums");
+  const scale = new Set([0, 2, 4, 5, 7, 9, 11]);
+  for (const step of bars(0, 60 * 16))
+    for (const n of kidsScore(step))
+      for (const note of [n.note, ...(n.notes || [])].filter((x) => x !== undefined && n.voice !== "alarm"))
+        assert.ok(scale.has(note % 12), `${n.voice} ${note} is in C major`);
+  const heard = new Set(bars(0, 60 * 16).flatMap(kv));
+  for (const v of ["boom", "snap", "shaker", "kbass", "strum", "bell", "boing", "whistle"])
+    assert.ok(heard.has(v), v + " is heard");
+  // The player plays the song the clock names, on the kids' beat, and starts it again from the top when the song changes.
+  const { a, m, played } = game();
+  let time = 0;
+  const go = a.ctx.currentTime;
+  for (let i = 0; i < 200; i++) {
+    m.tick({ time, running: true, dark: false, song: "kids" });
+    a.ctx.currentTime += 0.07;
+    time += 0.07;
+  }
+  const booms = played.filter((n) => n.voice === "boom").map((n) => n.t - go);
+  assert.ok(booms.length > 8);
+  assert.ok(
+    Math.abs(booms[0] - 16 * KIDS_STEP) < 1e-6,
+    "The first bar strums alone; the boom comes in on bar two",
+  );
+  booms.forEach((t, i) =>
+    assert.ok(Math.abs(t - booms[0] - 8 * KIDS_STEP * i) < 1e-6, `Boom ${i} on its beat`),
+  );
+  assert.ok(!played.some((n) => n.voice === "kick"), "No disco in the Kids Pool");
+  assert.ok(m.drums.gain.value > 0.9 * 1.4, "The kids' lighter voices played louder");
+  const count = played.length;
+  m.tick({ time: 0, running: true, dark: false, song: "disco" });
+  assert.equal(m.song, SONGS.disco);
+  assert.ok(Math.abs(m.drums.gain.value - 0.9) < 1e-9, "and the disco at its own level");
+  assert.ok(
+    played.slice(count).some((n) => n.voice === "kick"),
+    "The disco's first kick, from the top",
+  );
+}
 console.log(
-  "Music checks passed: the disco song keeps the dance's beat, goes round its parts, and keeps the shift's clock.",
+  "Music checks passed: the disco song keeps the dance's beat, goes round its parts, and keeps the shift's clock; the Kids Pool's song bounces in C major on its own beat.",
 );

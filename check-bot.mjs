@@ -62,6 +62,7 @@ export class CoachBot {
     for (const p of s.people.filter((p) => p.status === "queue" && !(p.finsFirst && !p.hasFins))) {
       s.select(p.id);
       if (p.queasy && p.sick) s.home();
+      else if (s.venue.kids) s.assign(s.poolLane());
       else if (s.venue.class)
         // A class (the Aqua Disco): spread out, the emptiest open zone first.
         s.assign(
@@ -188,6 +189,7 @@ export class CoachBot {
       flashlight: () => fx.flashlight,
       medkit: () => fx.medkit,
       treats: () => fx.treats,
+      mop: () => fx.mop,
       lifering: () => this.wallPoint(s.lifeRings.find((r) => r.state === "coach").mount),
     }[c.carry];
     if (!home) {
@@ -223,6 +225,8 @@ export class CoachBot {
       const karen = s.karen && s.visitor(s.karen.id);
       if (karen && ["marching", "ranting"].includes(karen.status)) return this.karen;
     }
+    // Wet spots (incidents/wet.mjs): a proactive coach mops them as soon as nothing more urgent is going on.
+    if (this.proactive && s.wetSpots?.length && (!c.carry || c.carry === "mop")) return this.mopWet;
     // Fins: a waiting swimmer who will not swim without them gets a pair (a pair in hand always goes to someone).
     if (c.carry === "fins") return this.giveFins;
     if (!c.carry && s.finsAvailable > 0 && this.finsWanted()) return this.giveFins;
@@ -256,6 +260,21 @@ export class CoachBot {
     this.walkTo(s.servicePoint(p), { reach: 0.5, limit: 600 });
     if (s.deliver(p.id)) this.waitBusy();
     else this.wait(5);
+  }
+  // Grab the mop, mop the nearest wet spot, and put the mop back once the deck is dry.
+  mopWet() {
+    const s = this.s,
+      c = s.coach;
+    if (c.carry !== "mop") {
+      this.approach(s.venue.fixtures.mop, 1.0);
+      if (!this.use("mop")) return this.wait(1);
+    }
+    const spot = [...s.wetSpots].sort((a, b) => distance(a, c) - distance(b, c))[0];
+    if (spot) {
+      this.walkTo(spot, { reach: 0.7, limit: 900 });
+      if (!this.use("mop-spot")) this.wait(1);
+    }
+    if (!s.wetSpots.length) this.putAway();
   }
   fishKid() {
     const s = this.s,

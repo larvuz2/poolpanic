@@ -108,6 +108,74 @@ export function discoScore(step, panic = false) {
   return out;
 }
 
+// ---- the Kids Pool's song (16 October 2026) -----------------------------------------------------------------------------------
+// A bouncy playground tune at 132 BPM in C major (C G Am F, a bar each, the same notes as the disco's A minor): a boom-chick beat,
+// an oom-pah bass, ukulele strums on two and four, a xylophone melody a child could sing, and now and then a boing or a slide
+// whistle. Two bars of strumming to start, then round 16 bars: eight with the tune, eight of xylophone runs answering it.
+export const KIDS_BPM = 132;
+export const KIDS_STEP = 60 / KIDS_BPM / 4;
+export const KIDS_ROOTS = [48, 43, 45, 41]; // C3 G2 A2 F2
+const KIDS_CHORD = [
+  [0, 4, 7],
+  [0, 4, 7],
+  [0, 3, 7],
+  [0, 4, 7],
+];
+// prettier-ignore
+export const KIDS_TUNE = [
+  76, null, 76, null, 79, null, null, null, 76, null, 76, null, 79, null, null, null,
+  79, null, 81, null, 79, null, 77, null, 76, null, 74, null, null, null, null, null,
+  72, null, 76, null, 81, null, null, null, 79, null, 76, null, 72, null, null, null,
+  77, null, 76, null, 74, null, 72, null, 74, null, null, null, null, null, null, null,
+];
+export const KIDS_INTRO = 2;
+export const KIDS_CYCLE = 16;
+export const kidsSection = (bar) =>
+  bar < KIDS_INTRO ? "intro" : (bar - KIDS_INTRO) % KIDS_CYCLE < 8 ? "tune" : "runs";
+export function kidsScore(step, panic = false) {
+  const out = [],
+    bar = Math.floor(step / STEPS_PER_BAR),
+    s = step % STEPS_PER_BAR,
+    chord = bar % 4,
+    root = KIDS_ROOTS[chord],
+    part = kidsSection(bar),
+    inCycle = bar < KIDS_INTRO ? bar : (bar - KIDS_INTRO) % KIDS_CYCLE,
+    beat = Math.floor(s / 4),
+    add = (voice, extra = {}) => out.push({ voice, ...extra });
+  // Boom on one and three, chick on two and four (from the second bar), a shaker on the eighths.
+  if (s % 8 === 0 && (part !== "intro" || bar >= 1)) add("boom");
+  if (s % 8 === 4 && (part !== "intro" || bar >= 1)) add("snap");
+  if (s % 2 === 0) add("shaker", { vol: s % 4 === 2 ? 1 : 0.6 });
+  // Oom-pah: the root on the beat, the fifth up on the off-beat.
+  if (s % 4 === 0) add("kbass", { note: root, len: KIDS_STEP * 1.8 });
+  if (s % 4 === 2) add("kbass", { note: root + 7, len: KIDS_STEP * 1.5, vol: 0.7 });
+  // Ukulele strums on two and four, and a quick one on the "and" of four.
+  if (s === 4 || s === 12 || s === 14)
+    add("strum", { notes: KIDS_CHORD[chord].map((n) => root + 24 + n), vol: s === 14 ? 0.6 : 1 });
+  if (part === "tune") {
+    const n = KIDS_TUNE[(inCycle % 4) * STEPS_PER_BAR + s];
+    if (n !== null) add("bell", { note: n });
+  } else if (part === "runs" && s % 2 === 0) {
+    // Xylophone runs up the chord, answered by a high note at the bar's end.
+    const run = [0, 4, 7, 12, 7, 12, 16, 19];
+    const pick = KIDS_CHORD[chord],
+      degree = run[(s / 2) % run.length];
+    const note = root + 36 + (degree === 4 ? pick[1] : degree === 16 ? pick[1] + 12 : degree);
+    add("bell", { note, vol: 0.6 });
+  }
+  // A boing at the end of every fourth bar, a slide whistle into each new eight.
+  if (s === 14 && inCycle % 4 === 3) add("boing");
+  if (s === 8 && (inCycle === 7 || inCycle === 15)) add("whistle");
+  if (panic && s % 4 === 0 && beat % 2 === 0) add("alarm", { note: beat === 0 ? 84 : 79 });
+  return out;
+}
+// The two songs the player knows: the step length, the score, and how loud it plays.
+export const SONGS = {
+  disco: { step: STEP, score: discoScore, level: 1 },
+  // (The kids' lighter voices, brought up to the disco's loudness: measured from both songs rendered offline.)
+  kids: { step: KIDS_STEP, score: kidsScore, level: 1.6 },
+};
+
 const release = (...nodes) => {
   for (const node of nodes)
     try {
@@ -116,7 +184,8 @@ const release = (...nodes) => {
 };
 
 // The player. `audio` is the game's PoolAudio (its context, master and noise). `clock()` says where the shift is: null when
-// no disco plays, else { time, running, dark } (the shift's seconds, whether its clock runs, whether the power is out).
+// no song of its own plays, else { time, running, dark, song } (the shift's seconds, whether its clock runs, whether the power
+// is out, and which song: "disco", the default, or "kids").
 export class DiscoMusic {
   constructor(audio) {
     this.audio = audio;
@@ -153,6 +222,14 @@ export class DiscoMusic {
       return false;
     }
     this.setup();
+    const song = SONGS[state.song] || SONGS.disco,
+      STEP = song.step;
+    if (this.song !== song) {
+      this.song = song;
+      this.anchor = null;
+      this.drums.gain.value = 0.9 * song.level;
+      this.synth.gain.value = 0.85 * song.level;
+    }
     const now = ctx.currentTime,
       wanted = now - state.time;
     // Keep on the shift's clock: start on it, and come back to it after a pause, a held clock or a slowed sting.
@@ -175,8 +252,8 @@ export class DiscoMusic {
       const step = ++this.done,
         t = Math.max(now, this.anchor + step * STEP);
       if (this.dark) continue;
-      if (step % STEPS_PER_BAR === 0) this.barFilter(step / STEPS_PER_BAR, t);
-      for (const n of discoScore(step, a.panic)) this.play(n, t);
+      if (step % STEPS_PER_BAR === 0) this.barFilter(step / STEPS_PER_BAR, t, song);
+      for (const n of song.score(step, a.panic)) this.play(n, t);
     }
     return true;
   }
@@ -277,13 +354,47 @@ export class DiscoMusic {
       case "arp":
         this.voice("triangle", midi(n.note), t, 0.1, 0.035, this.synth);
         break;
+      // The kids' song's own voices.
+      case "boom":
+        this.voice("sine", 120, t, 0.24, 0.42, this.drums, 50, 0.002);
+        break;
+      case "snap":
+        this.hiss(t, 0.09, 0.09, 2600, "bandpass");
+        break;
+      case "shaker":
+        this.hiss(t, 0.05, 0.022 * vol, 7500);
+        break;
+      case "kbass":
+        this.voice("triangle", midi(n.note), t, n.len, 0.16 * vol, this.drums, null, 0.004);
+        break;
+      case "strum":
+        n.notes.forEach((note, i) =>
+          this.voice("triangle", midi(note), t + i * 0.018, 0.22, 0.05 * vol, this.synth, null, 0.003),
+        );
+        break;
+      case "bell":
+        this.voice("sine", midi(n.note), t, 0.32, 0.075 * vol, this.synth, null, 0.002);
+        this.voice("sine", midi(n.note) * 3.01, t, 0.12, 0.018 * vol, this.synth, null, 0.002);
+        break;
+      case "boing":
+        this.voice("sine", 640, t, 0.32, 0.07, this.drums, 140, 0.004);
+        break;
+      case "whistle":
+        this.voice("sine", 880, t, 0.5, 0.045, this.synth, 1760, 0.05);
+        break;
       case "alarm":
         this.voice("square", midi(n.note), t, 0.12, 0.05, this.drums);
         break;
     }
   }
   // Where the synths' filter sits each bar: open in the groove and the hook, shut in the breakdown, opening through the build.
-  barFilter(bar, t) {
+  barFilter(bar, t, song = SONGS.disco) {
+    if (song !== SONGS.disco) {
+      // (The kids' song keeps its filter open.)
+      this.filter.frequency.cancelScheduledValues(t);
+      this.filter.frequency.setValueAtTime(3400, t);
+      return;
+    }
     const part = section(bar),
       c = (bar - INTRO) % CYCLE,
       f = this.filter.frequency,
