@@ -285,7 +285,15 @@ export const DAY_KEYS = [
 ];
 
 // Where the classic presets sit on the scale (the campaign's existing lighting names).
-export const DAY_TIMES = { day: 0, afternoon: 0.3, golden: 0.52, sunset: 0.68, dusk: 0.83, night: 1 };
+export const DAY_TIMES = {
+  day: 0,
+  afternoon: 0.3,
+  golden: 0.52,
+  sunset: 0.68,
+  dusk: 0.83,
+  night: 1,
+  river: 0.12,
+};
 
 // The storm palette every colour is pulled toward. `dim` darkens it after dark.
 const STORM = {

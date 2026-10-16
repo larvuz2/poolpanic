@@ -28,6 +28,18 @@ export const SCENERY = {
     fireflies: 70,
     seed: 5,
   },
+  // The Lazy River's jungle (17 October 2026): no sea, green hills all round, a thick ring of palms, more birds.
+  jungle: {
+    sea: false,
+    hills: [70, 92, 118],
+    palms: 120,
+    boats: 0,
+    birds: 14,
+    balloons: 0,
+    lanterns: 0,
+    fireflies: 140,
+    seed: 61,
+  },
   lagoon: {
     sea: true,
     shoreX: -38,

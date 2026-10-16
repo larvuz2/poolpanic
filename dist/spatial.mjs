@@ -1,4 +1,5 @@
 // Shared world geometry. Screen right is +Z, screen up is +X (the camera looks across the pool from -X).
+import { makeRiver, placeOn } from "./river.mjs";
 //
 // Everything a system needs to know about a location lives in a venue: lanes, basin bounds, deck walking
 // corridors, doors, queue rows, stations, rescue fixtures and simple collision proxies. Scenes, routes,
@@ -92,18 +93,149 @@ function segmentHitsBox(a, b, hx, minZ, maxZ) {
   return t1 - t0 > 1e-6;
 }
 
+// The Lazy River in the room (17 October 2026): the river (river.mjs) and what is built on and over it. A wooden bridge crosses it
+// (the way everyone walks from one bank to the other), two flat stepping stones stand in its bend (the coach's shortcut: jump from
+// the bank to a stone, to the other, to the far bank; miss and he falls in), and two docks on the near bank: the boarding dock,
+// where a guest sits into a tube, and upstream of it the exit dock, where riders coming back round climb off, with the tube return
+// beside it. `walkable` is the river's part of the deck test; `route` walks round it, over the bridge.
+function riverPlace(spec) {
+  const r = spec.river,
+    river = makeRiver({ points: r.points, halfWidth: r.halfWidth, room: spec.room }),
+    w = river.w;
+  const bridge = { s: r.bridge.s, half: r.bridge.half ?? 0.85, reach: w + 1.3 };
+  bridge.ends = [-1, 1].map((side) => ({ ...river.point(bridge.s, side * (w + 1.3)), side }));
+  const stones = r.stones.map((st) => ({ ...placeOn(river, st.s, st.d), r: st.r, top: st.r - 0.08 }));
+  // A dock is a spot on the near bank (d < 0): where a guest stands, and where their tube floats beside it.
+  const dock = (s) => ({
+    s,
+    stand: river.point(s, -(w + 0.55)),
+    water: river.point(s, -(w - 0.8)),
+    angle: Math.atan2(river.at(s).nx, river.at(s).nz),
+  });
+  const docks = { board: dock(r.board), exit: dock(r.exit) };
+  docks.tubeReturn = river.point(r.exit - 1.9, -(w + 1.5));
+  const onBridge = (q, radius = 0) =>
+    Math.abs(q.s - bridge.s) < bridge.half - radius * 0.5 && Math.abs(q.d) < bridge.reach;
+  const place = {
+    ...river,
+    bridge,
+    stones,
+    docks,
+    flow: r.flow,
+    hidden: r.hidden,
+    // Where a coach-sized body can stand, as far as the river goes: the bridge and the stones are dry, the water is not (its edge
+    // `edge` out from the banks, plus half the body).
+    walkable(x, z, radius = 0) {
+      const q = river.locate(x, z);
+      if (onBridge(q, radius)) return true;
+      for (const st of stones) if (Math.hypot(x - st.x, z - st.z) < st.top) return true;
+      const reach = w + 0.12 + radius * 0.5;
+      return !(Math.abs(q.d) < reach && q.dist < reach + 0.001);
+    },
+    onBridge: (x, z, radius = 0) => onBridge(river.locate(x, z), radius),
+    // On a stepping stone (the coach can stand there; nobody else goes).
+    stoneAt: (x, z) => stones.find((st) => Math.hypot(x - st.x, z - st.z) < st.top) || null,
+    // Over open water, as a jumping coach can be: in the river, off the bridge and off the stones.
+    overWater(x, z) {
+      const q = river.locate(x, z);
+      return Math.abs(q.d) < w + 0.6 && !onBridge(q) && !place.stoneAt(x, z);
+    },
+    // Does a walk from a to b get its feet wet (the bridge is dry)?
+    wet(a, b) {
+      const n = Math.max(2, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.25));
+      for (let k = 0; k <= n; k++) {
+        const x = a.x + ((b.x - a.x) * k) / n,
+          z = a.z + ((b.z - a.z) * k) / n,
+          q = river.locate(x, z);
+        if (Math.abs(q.d) < w + 0.35 && q.dist < w + 0.35 && !onBridge(q)) return true;
+      }
+      return false;
+    },
+    // A deck route round the river: straight when dry, else through waypoints along the banks, over the bridge if it must cross.
+    route(from, to) {
+      if (!place.wet(from, to)) return [{ x: to.x, z: to.z }];
+      const nodes = navNodes(),
+        all = [from, ...nodes, to],
+        n = all.length,
+        dist = Array(n).fill(Infinity),
+        prev = Array(n).fill(-1),
+        done = Array(n).fill(false),
+        edge = (i, j) =>
+          i > 0 && j > 0 && i < n - 1 && j < n - 1 ? nav.edges[i - 1][j - 1] : !place.wet(all[i], all[j]);
+      dist[0] = 0;
+      for (let k = 0; k < n; k++) {
+        let u = -1;
+        for (let i = 0; i < n; i++) if (!done[i] && (u < 0 || dist[i] < dist[u])) u = i;
+        if (u < 0 || dist[u] === Infinity || u === n - 1) break;
+        done[u] = true;
+        for (let v = 0; v < n; v++) {
+          if (done[v] || !edge(u, v)) continue;
+          const d = dist[u] + Math.hypot(all[u].x - all[v].x, all[u].z - all[v].z);
+          if (d < dist[v]) {
+            dist[v] = d;
+            prev[v] = u;
+          }
+        }
+      }
+      if (prev[n - 1] < 0) return [{ x: to.x, z: to.z }];
+      const path = [];
+      for (let i = n - 1; i > 0; i = prev[i]) path.unshift({ x: all[i].x, z: all[i].z });
+      return path;
+    },
+    // Deck spots along both banks, facing the water (where a visitor goes to reach it): `side` is the bank (-1 the near one),
+    // (fx, fz) the way into the water.
+    edgeSpots(venue) {
+      if (place._spots) return place._spots;
+      const spots = [];
+      for (let s = river.start + 2.2; s <= river.end - 2.2; s += 1.6)
+        for (const side of [-1, 1]) {
+          if (Math.abs(s - bridge.s) < 1.6) continue;
+          const c = river.at(s),
+            p = river.point(s, side * (w + 0.45));
+          if (!venue.isDeck(p.x, p.z, 3, 0.3)) continue;
+          spots.push({ ...p, s, side, axis: "river", face: -side, fx: -side * c.nx, fz: -side * c.nz });
+        }
+      return (place._spots = spots);
+    },
+    // A point in the water `depth` in from a bank spot.
+    fromBank(spot, depth) {
+      return river.point(spot.s, spot.side * (w - depth));
+    },
+  };
+  // The waypoints a route may use, along both banks and at the bridge's ends, and which pairs a walker can go straight between.
+  const nav = { nodes: null, edges: null };
+  function navNodes() {
+    if (nav.nodes) return nav.nodes;
+    const nodes = [...bridge.ends.map((e) => ({ x: e.x, z: e.z }))],
+      d = spec.deck,
+      inside = (p) => p.x > d.minX + 0.6 && p.x < d.maxX - 0.6 && p.z > d.minZ + 0.6 && p.z < d.maxZ - 0.6;
+    for (let s = river.start + 1; s <= river.end - 1; s += 2.4)
+      for (const side of [-1, 1])
+        for (const off of [1.5, 4.2]) {
+          const p = river.point(s, side * (w + off));
+          if (inside(p) && place.walkable(p.x, p.z, 0.4)) nodes.push(p);
+        }
+    nav.nodes = nodes;
+    nav.edges = nodes.map((a) => nodes.map((b) => a !== b && !place.wet(a, b)));
+    return nodes;
+  }
+  return place;
+}
+
 // Where the mop bucket stands (incidents/wet.mjs) when a venue does not say: a free corner of the deck by the starting-block
 // end, right of the lockers, in every one of the first six pools.
 const MOP_SPOT = { x: 12.6, z: -11.6 };
 function makeVenue(spec) {
   const pool = poolGeometry(spec.lanes);
   spec = { ...spec, fixtures: { mop: MOP_SPOT, ...spec.fixtures } };
+  // The Lazy River has no basin: a river curves across the room (river.mjs), with its bridge, stepping stones and docks.
+  const river = spec.river ? riverPlace(spec) : null;
   // A door is crossed along x (the side wall of a locker room: inside at insideX, out on the deck at outsideX, both at doorZ) or,
   // with `insideZ`, along z (a door in the back wall: inside at insideZ behind it, out on the deck at doorZ).
   const arrival = { ...ARRIVAL_TIMING, ...spec.doors };
   arrival.insideZ ??= arrival.doorZ;
   const obstacles = [
-    { x: 0, z: 0, hx: pool.solidX, hz: pool.solidZ, kind: "pool" },
+    ...(river ? [] : [{ x: 0, z: 0, hx: pool.solidX, hz: pool.solidZ, kind: "pool" }]),
     ...(spec.blocks === false
       ? []
       : spec.lanes.map((x) => ({ x, z: -9.15, hx: 0.6, hz: 0.56, kind: "block" }))),
@@ -114,6 +246,7 @@ function makeVenue(spec) {
   const venue = {
     ...spec,
     pool,
+    river,
     arrival,
     entry: ENTRY,
     obstacles,
@@ -124,11 +257,14 @@ function makeVenue(spec) {
     isDeck(x, z, level = 3, radius = COACH_TUNING.radius) {
       const d = spec.deck;
       if (x < d.minX || x > d.maxX || z < d.minZ || z > d.maxZ) return false;
-      return !obstacles.some(
-        (b) =>
-          (!b.minLevel || level >= b.minLevel) &&
-          Math.abs(x - b.x) < b.hx + radius &&
-          Math.abs(z - b.z) < b.hz + radius,
+      return (
+        !obstacles.some(
+          (b) =>
+            (!b.minLevel || level >= b.minLevel) &&
+            Math.abs(x - b.x) < b.hx + radius &&
+            Math.abs(z - b.z) < b.hz + radius,
+        ) &&
+        (!river || river.walkable(x, z, radius))
       );
     },
     // Out of the doorway and on the deck (a guest or a visitor who came in has cleared the door).
@@ -141,6 +277,12 @@ function makeVenue(spec) {
     queuePosition(side, slot) {
       const q = spec.queue,
         row = q.perRow ?? 4;
+      // (The Lazy River's lounge is all on one side of its door: both sides fill blocks of their own, `blockX`.)
+      if (q.blockX)
+        return {
+          x: q.blockX[side < 0 ? 0 : 1] - (slot % row) * q.stepX,
+          z: q.startZ - Math.floor(slot / row) * q.stepZ,
+        };
       return {
         x: side * (q.outerX - (slot % row) * q.stepX),
         z: q.startZ - Math.floor(slot / row) * q.stepZ,
@@ -149,6 +291,7 @@ function makeVenue(spec) {
     // Shortest deck route around the basin: straight when clear, otherwise via the corridor corners.
     // Coach-sized bodies collide with the starting blocks, so `solid` routes pass further behind them.
     route(from, to, { solid = false } = {}) {
+      if (river) return river.route(from, to);
       // Solid bodies also collide with the starting-block row just behind the basin's left end.
       const kx = pool.keepOutX - 0.05,
         kz = pool.keepOutZ - 0.05,
@@ -192,6 +335,7 @@ function makeVenue(spec) {
     },
     // Deck spots right at the pool edge, used by visitors who want to reach the water.
     edgeSpots() {
+      if (river) return river.edgeSpots(venue);
       const spots = [];
       for (const side of [-1, 1])
         for (let z = -6; z <= 6; z += 2)
@@ -556,6 +700,94 @@ export const SENIOR = makeVenue({
   ],
 });
 
+// The Lazy River (17 October 2026, the creator: "a lazy river… curves, plants and rocks… we only see a section of it, where the
+// people get on and get off… hand them a tube… a door to enter and exit… rocks in the middle so Coach Waters can jump on them and
+// cut corners… an aquatic park, lazy river, jungle kind of thing"): an outdoor jungle water park. The river comes in from a cave in
+// the upper left, swings down through the middle of the room in an S and leaves through a tunnel on the right (river.mjs); the near
+// bank (below it on screen) has the door, the lounge, the tube rack and the two docks, the far bank the water care, the fish net and
+// the fuse box. No lanes and no swimmers: every guest rides a tube once round the loop (sim.mjs `updateRiver`).
+export const RIVER = makeVenue({
+  id: "river",
+  name: "Lazy River",
+  indoor: false,
+  scenery: "jungle",
+  sunAzimuth: 2.5,
+  lighting: "river",
+  doorWord: "the jungle gate",
+  river: {
+    points: [
+      { x: 9.2, z: -19.5 },
+      { x: 8.6, z: -14 },
+      { x: 5.6, z: -9 },
+      { x: 1.2, z: -5 },
+      { x: -2.4, z: -0.6 },
+      { x: -2.2, z: 4.4 },
+      { x: 1.6, z: 8.2 },
+      { x: 5.4, z: 11.2 },
+      { x: 7.2, z: 16.5 },
+    ],
+    halfWidth: 3,
+    flow: 1.35, // m/s, the current a tube rides
+    hidden: 3, // s out of sight, round the rest of the loop
+    exit: 12.5, // the exit dock, along the river
+    board: 19.5, // the boarding dock
+    bridge: { s: 34 },
+    stones: [
+      { s: 26.2, d: -1.35, r: 0.66 },
+      { s: 26.2, d: 1.35, r: 0.66 },
+    ],
+  },
+  tubes: 10,
+  blocks: false,
+  lanes: [0],
+  deck: { minX: -14.6, maxX: 14.6, minZ: -15.2, maxZ: 12.65 },
+  room: { minX: -15.2, maxX: 15.2, minZ: -16.7, maxZ: 13.6 },
+  doors: { insideX: 0.62, doorX: 0.62, doorZ: -14.85, outsideX: 0.62, insideZ: -16.55 },
+  lockers: [],
+  queue: { blockX: [-1.7, -7.9], stepX: 1.2, startZ: -12.1, stepZ: 1.2, perRow: 5 },
+  coachStart: { x: -7.0, z: -4.0 },
+  cameraFollow: { kx: 0.22, maxX: 2.6 },
+  props: ["mop", "mop-bucket", "swim-ring"],
+  stations: {
+    fins: { x: -5.6, z: -9.4 }, // the tube rack
+    chlorine: { x: 9.2, z: 2.4 },
+    relief: { x: 9.2, z: -1.4 },
+  },
+  sanitation: { rack: { x: -13.7, z: 3.6 }, bin: { x: -12.6, z: 6.2 }, reach: 6.2 },
+  ringMounts: [
+    { x: -14.85, z: -1.2, angle: Math.PI / 2 },
+    { x: 14.85, z: 5.6, angle: -Math.PI / 2 },
+    { x: -14.85, z: 9.4, angle: Math.PI / 2 },
+  ],
+  rescue: { bench: { x: -10.6, z: -5.8 }, approach: { x: -9.4, z: -5.8 } },
+  // Where everyone out of the river waits while it is closed (a floater, a fish): a block on the near bank.
+  evacSpots: [-3.6, -2.4, -1.2, 0, 1.2].flatMap((z) =>
+    [-6.8, -7.9, -9.0, -10.1, -11.2].map((x) => ({ x, z })),
+  ),
+  fixtures: {
+    fishNet: { x: 14.85, z: -4.6, angle: -Math.PI / 2 },
+    treats: { x: -11.8, z: 10.2 },
+    flashlight: { x: -7.6, z: 10.6 },
+    fuseBox: { x: 14.9, z: 9.8, angle: -Math.PI / 2 },
+    mop: { x: -9.4, z: 3.2 },
+  },
+  trampoline: null,
+  furniture: [
+    { kind: "bench", x: -10.6, z: -6.45, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
+    { kind: "tube-rack", x: -5.6, z: -9.4, hx: 0.6, hz: 1.1 },
+    { kind: "station", x: 9.2, z: 2.4, hx: 0.6, hz: 0.9 },
+    { kind: "station", x: 9.2, z: -1.4, hx: 0.9, hz: 0.6 },
+    { kind: "tiki", x: -14.0, z: -14.75, hx: 0.45, hz: 0.45 },
+    { kind: "tiki", x: 12.6, z: 11.4, hx: 0.5, hz: 0.5 },
+    { kind: "palm", x: -12.8, z: 0.8, hx: 0.5, hz: 0.5 },
+    { kind: "palm", x: 11.6, z: -9.6, hx: 0.5, hz: 0.5 },
+    { kind: "palm", x: 12.2, z: -12.6, hx: 0.5, hz: 0.5 },
+    { kind: "boulder", x: -13.2, z: 11.6, hx: 0.9, hz: 0.8 },
+    { kind: "boulder", x: 13.0, z: 0.2, hx: 0.8, hz: 0.9 },
+    { kind: "snack-hut", x: -9.8, z: 7.2, hx: 1.2, hz: 1.0 },
+  ],
+});
+
 export const VENUES = {
   club: CLUB,
   resort: RESORT,
@@ -565,6 +797,7 @@ export const VENUES = {
   disco: DISCO,
   kids: KIDS,
   senior: SENIOR,
+  river: RIVER,
 };
 
 export function createCoach(venue = CLUB) {

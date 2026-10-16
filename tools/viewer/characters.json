@@ -31,6 +31,14 @@
         },
         "Swim": {
           "prone": true
+        },
+        "TubeBoard": {
+          "tube": true,
+          "open": true,
+          "why": "plays once, from standing on the dock to lying back in the tube (backwards to climb out)"
+        },
+        "TubeFloat": {
+          "tube": true
         }
       },
       "retargeted": [
@@ -171,6 +179,14 @@
         },
         "Swim": {
           "prone": true
+        },
+        "TubeBoard": {
+          "tube": true,
+          "open": true,
+          "why": "plays once, from standing on the dock to lying back in the tube (backwards to climb out)"
+        },
+        "TubeFloat": {
+          "tube": true
         }
       },
       "retargeted": [
@@ -195,6 +211,14 @@
         },
         "Swim": {
           "prone": true
+        },
+        "TubeBoard": {
+          "tube": true,
+          "open": true,
+          "why": "plays once, from standing on the dock to lying back in the tube (backwards to climb out)"
+        },
+        "TubeFloat": {
+          "tube": true
         }
       },
       "retargeted": [
@@ -219,6 +243,14 @@
         },
         "Swim": {
           "prone": true
+        },
+        "TubeBoard": {
+          "tube": true,
+          "open": true,
+          "why": "plays once, from standing on the dock to lying back in the tube (backwards to climb out)"
+        },
+        "TubeFloat": {
+          "tube": true
         }
       },
       "retargeted": [
@@ -243,6 +275,14 @@
         },
         "Swim": {
           "prone": true
+        },
+        "TubeBoard": {
+          "tube": true,
+          "open": true,
+          "why": "plays once, from standing on the dock to lying back in the tube (backwards to climb out)"
+        },
+        "TubeFloat": {
+          "tube": true
         }
       },
       "retargeted": [
@@ -267,6 +307,14 @@
         },
         "Swim": {
           "prone": true
+        },
+        "TubeBoard": {
+          "tube": true,
+          "open": true,
+          "why": "plays once, from standing on the dock to lying back in the tube (backwards to climb out)"
+        },
+        "TubeFloat": {
+          "tube": true
         }
       },
       "retargeted": [
@@ -315,6 +363,17 @@
         },
         "Swim": {
           "prone": true
+        },
+        "TubeBoard": {
+          "tube": true,
+          "open": true,
+          "why": "plays once, from standing on the dock to lying back in the tube (backwards to climb out)"
+        },
+        "TubeFloat": {
+          "tube": {
+            "sink": 0.14
+          },
+          "why": "a round bottom sits deeper in the ring than the clip's floor: the game seats a rider by the hips"
         }
       },
       "retargeted": [
@@ -366,6 +425,17 @@
         },
         "Swim": {
           "prone": true
+        },
+        "TubeBoard": {
+          "tube": true,
+          "open": true,
+          "why": "plays once, from standing on the dock to lying back in the tube (backwards to climb out)"
+        },
+        "TubeFloat": {
+          "tube": {
+            "sink": 0.14
+          },
+          "why": "a round bottom sits deeper in the ring than the clip's floor: the game seats a rider by the hips"
         }
       },
       "retargeted": [

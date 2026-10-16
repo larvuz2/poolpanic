@@ -288,6 +288,22 @@ export class ChaosController extends RescueController {
     p.slipTime = 0;
     p.circleDir = this.chaosRandom() < 0.5 ? -1 : 1;
     p.circleAngle = this.chaosRandom() * Math.PI * 2;
+    const river = this.venue.river;
+    if (river) {
+      // Out of the river: to the nearer bank (the near one if the far one is no deck there), up onto it, then the panic.
+      if (river.inWater(p.x, p.z, -0.2)) {
+        let bank = river.bank(p.x, p.z, { side: river.locate(p.x, p.z).d > 0.8 ? 1 : -1 });
+        if (!this.venue.isDeck(bank.deck.x, bank.deck.z, this.level, 0.3))
+          bank = river.bank(p.x, p.z, { side: -bank.side });
+        p.fleePhase = "swim";
+        p.fleeTarget = bank.water;
+        p.fleeLanding = bank.deck;
+      } else {
+        p.fleePhase = "run";
+        p.panicCenter = this.panicSpot(p, { x: p.x, z: p.z });
+      }
+      return;
+    }
     if (Math.abs(p.x) < P.halfX && Math.abs(p.z) < P.halfZ) {
       const side = P.halfX - Math.abs(p.x) < P.halfZ - Math.abs(p.z);
       p.fleePhase = "swim";
@@ -309,6 +325,17 @@ export class ChaosController extends RescueController {
     }
   }
   panicSpot(p, from) {
+    const river = this.venue.river;
+    if (river) {
+      // Away from the river, up the bank.
+      const q = river.locate(from.x, from.z),
+        side = Math.sign(q.d) || -1;
+      for (const push of [1.5, 1.0, 0.5, 0]) {
+        const spot = river.point(q.s, side * (Math.abs(q.d) + push));
+        if (this.venue.isDeck(spot.x, spot.z, this.level, 0.95)) return spot;
+      }
+      return { x: from.x, z: from.z };
+    }
     const P = this.venue.pool;
     const outX = Math.abs(from.x) >= P.solidX ? Math.sign(from.x) : 0,
       outZ = outX ? 0 : Math.sign(from.z) || -1;

@@ -351,6 +351,7 @@ function updateKid(sim, kid, f, dt) {
 }
 
 function inPoolZone(sim, p) {
+  if (sim.venue.river) return sim.venue.river.inWater(p.x, p.z, -0.6);
   const P = sim.venue.pool;
   return Math.abs(p.x) < P.keepOutX && Math.abs(p.z) < P.keepOutZ;
 }
@@ -374,9 +375,16 @@ function dumpFish(sim, kid, f) {
   kid.hasFish = false;
   kid.path = [];
   f.stage = "loose";
-  f.x = clamp(kid.x + (kid.spot.axis === "x" ? kid.spot.face * 1.6 : 0), -P.floatX, P.floatX);
-  f.z = clamp(kid.z + (kid.spot.axis === "z" ? kid.spot.face * 1.6 : 0), -P.floatZ, P.floatZ);
-  f.wander = Math.atan2(-f.x, -f.z);
+  if (sim.venue.river) {
+    const at = sim.venue.river.fromBank(kid.spot, 1.6);
+    f.x = at.x;
+    f.z = at.z;
+    f.wander = Math.atan2(kid.spot.fx, kid.spot.fz);
+  } else {
+    f.x = clamp(kid.x + (kid.spot.axis === "x" ? kid.spot.face * 1.6 : 0), -P.floatX, P.floatX);
+    f.z = clamp(kid.z + (kid.spot.axis === "z" ? kid.spot.face * 1.6 : 0), -P.floatZ, P.floatZ);
+    f.wander = Math.atan2(-f.x, -f.z);
+  }
   f.vx = f.vz = 0;
   f.closedPool = true;
   sim.closed = 1;
@@ -408,7 +416,9 @@ function headingScore(sim, f, c, dx, dz, look) {
   }
   const px = f.x + dx * look,
     pz = f.z + dz * look;
-  const clear = Math.min(P.floatX - Math.abs(px), P.floatZ - Math.abs(pz));
+  const clear = sim.venue.river
+    ? sim.venue.river.clearance(px, pz, 0.65)
+    : Math.min(P.floatX - Math.abs(px), P.floatZ - Math.abs(pz));
   return (
     Math.hypot(px - soon.x, pz - soon.z) * 0.6 +
     Math.min(clear, 2) -
@@ -466,10 +476,23 @@ function swimFish(sim, f, dt) {
     dx = Math.sin(f.wander);
     dz = Math.cos(f.wander);
     const margin = 1.1,
-      gapX = P.floatX - Math.abs(f.x),
-      gapZ = P.floatZ - Math.abs(f.z);
-    if (gapX < margin) dx -= Math.sign(f.x) * (1 - gapX / margin) * 1.2;
-    if (gapZ < margin) dz -= Math.sign(f.z) * (1 - gapZ / margin) * 1.2;
+      river = sim.venue.river;
+    if (river) {
+      // Turn back towards the middle of the river before a bank.
+      const gap = river.clearance(f.x, f.z, 0.65);
+      if (gap < margin) {
+        const q = river.locate(f.x, f.z),
+          at = river.at(q.s),
+          push = (1 - gap / margin) * 1.2;
+        dx -= Math.sign(q.d) * at.nx * push;
+        dz -= Math.sign(q.d) * at.nz * push;
+      }
+    } else {
+      const gapX = P.floatX - Math.abs(f.x),
+        gapZ = P.floatZ - Math.abs(f.z);
+      if (gapX < margin) dx -= Math.sign(f.x) * (1 - gapX / margin) * 1.2;
+      if (gapZ < margin) dz -= Math.sign(f.z) * (1 - gapZ / margin) * 1.2;
+    }
     speed = T.cruise;
     turn = 2;
   }
@@ -479,6 +502,21 @@ function swimFish(sim, f, dt) {
   f.vz += ((dz / n) * speed - f.vz) * k;
   f.x += f.vx * dt;
   f.z += f.vz * dt;
+  if (sim.venue.river) {
+    // Kept in the river: at a bank it stops and turns back.
+    const river = sim.venue.river;
+    if (river.clearance(f.x, f.z, 0.65) < 0) {
+      const back = river.clamp(f.x, f.z, 0.65),
+        at = river.at(river.locate(back.x, back.z).s);
+      f.x = back.x;
+      f.z = back.z;
+      f.vx *= 0.2;
+      f.vz *= 0.2;
+      f.wander = Math.atan2(at.tx, at.tz) + (sim.chaosRandom() < 0.5 ? Math.PI : 0);
+    }
+    if (Math.hypot(f.vx, f.vz) > 0.05) f.heading = Math.atan2(f.vx, f.vz);
+    return;
+  }
   if (Math.abs(f.x) > P.floatX) {
     f.x = Math.sign(f.x) * P.floatX;
     f.vx = 0;

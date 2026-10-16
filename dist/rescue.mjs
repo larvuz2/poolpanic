@@ -15,6 +15,13 @@ export const heldInWater = (s, p, crowd = s.crowdPanic?.()) =>
   !waitingInWater(s, p) &&
   (p.status === "swim" || p.status === "switch" || (p.status === "exit" && p.exitPhase === "water"));
 
+// Where a dive from a river bank lands: a little way out into the water from where the coach stands.
+function riverDive(river, c) {
+  const q = river.locate(c.x, c.z),
+    at = river.point(q.s, (Math.sign(q.d) || -1) * (river.w - 1.2));
+  return river.clamp(at.x, at.z, 0.6);
+}
+
 export class RescueController extends SanitationController {
   constructor(venue) {
     super();
@@ -58,7 +65,9 @@ export class RescueController extends SanitationController {
     this.emit("cramp-alarm", { id: p.id, x: p.x, z: p.z });
     this.incident("cramp", p, { id: p.id, name: p.name });
     this.emit("toast", {
-      text: p.name + " has a cramp! Grab a glowing life ring and walk to the pool edge.",
+      text: this.venue.river
+        ? p.name + " flipped off their tube! Grab a glowing life ring and dive in from the bank."
+        : p.name + " has a cramp! Grab a glowing life ring and walk to the pool edge.",
       warning: true,
     });
     return true;
@@ -72,7 +81,10 @@ export class RescueController extends SanitationController {
         !a.problem &&
         !a.sick &&
         a.workTime >= a.crampAt &&
-        Math.abs(a.z) < 5.6,
+        // (At the river: out in plain sight, away from the cave and the tunnel.)
+        (this.venue.river
+          ? !a.away && a.s > this.venue.river.start + 4 && a.s < this.venue.river.end - 4
+          : Math.abs(a.z) < 5.6),
     );
     if (p) this.startCramp(p);
   }
@@ -245,8 +257,11 @@ export class RescueController extends SanitationController {
       this.canInteract() &&
       distance(c, this.waterPoint()) < 1.5
     ) {
-      const P = this.venue.pool;
-      const to = { x: clamp(c.x, -P.entryX, P.entryX), z: clamp(c.z, -P.entryZ, P.entryZ) };
+      const P = this.venue.pool,
+        river = this.venue.river;
+      const to = river
+        ? riverDive(river, c)
+        : { x: clamp(c.x, -P.entryX, P.entryX), z: clamp(c.z, -P.entryZ, P.entryZ) };
       c.waterTransition = { kind: "dive", from: { x: c.x, z: c.z }, to, t: 0 };
       c.vx = c.vz = c.vy = 0;
       c.dashTime = 0;
@@ -261,6 +276,28 @@ export class RescueController extends SanitationController {
     const c = this.coach;
     if (!c.swimming || c.waterTransition) return false;
     const P = this.venue.pool;
+    if (this.venue.river) {
+      // Out onto the nearer bank, when close to it (or onto a stepping stone right beside him).
+      const river = this.venue.river,
+        q = river.locate(c.x, c.z),
+        stone = river.stones.find((st) => Math.hypot(c.x - st.x, c.z - st.z) < st.r + 0.7);
+      let to = null;
+      if (stone) to = { x: stone.x, z: stone.z };
+      else if (Math.abs(q.d) > river.w - 0.6)
+        // The bank beside him, or a step up or down it where the bank beside him is jungle (by the cave and the tunnel).
+        for (const ds of [0, -0.6, 0.6, -1.2, 1.2, -1.8, 1.8]) {
+          const deck = river.point(q.s + ds, Math.sign(q.d) * (river.w + 0.6));
+          if (this.isDeck(deck.x, deck.z)) {
+            to = deck;
+            break;
+          }
+        }
+      if (!to) return false;
+      c.waterTransition = { kind: "climb", from: { x: c.x, z: c.z }, to, t: 0 };
+      c.vx = c.vz = 0;
+      c.angle = Math.atan2(to.x - c.x, to.z - c.z);
+      return true;
+    }
     const sides = [
       { gap: P.swimX - Math.abs(c.x), to: { x: Math.sign(c.x) * P.climbOutX, z: c.z } },
       { gap: P.swimZ - Math.abs(c.z), to: { x: c.x, z: Math.sign(c.z) * P.endWalkZ } },
@@ -283,7 +320,10 @@ export class RescueController extends SanitationController {
       c.y = q.kind === "dive" ? Math.sin(t * Math.PI) * 0.95 - 0.39 * t : -0.39 * (1 - t);
       if (t === 1) {
         c.swimming = q.kind === "dive";
-        if (!c.swimming) c.rescueEntryArmed = false;
+        if (!c.swimming) {
+          c.rescueEntryArmed = false;
+          c.fellIn = false;
+        }
         c.waterTransition = null;
         c.y = c.swimming ? -0.39 : 0;
         c.vy = 0;
@@ -302,20 +342,42 @@ export class RescueController extends SanitationController {
     c.y = -0.39;
     if (c.lookAngle != null) c.angle = c.lookAngle;
     c.state =
-      c.carry === "lifering"
-        ? "Swimming with life ring"
-        : c.carry === "fishnet"
-          ? c.netLoaded
-            ? "Swimming with the fish"
-            : "Chasing the fish"
-          : "Swimming to the edge";
+      c.fellIn && c.carry !== "lifering"
+        ? "Swimming to the bank"
+        : c.carry === "lifering"
+          ? "Swimming with life ring"
+          : c.carry === "fishnet"
+            ? c.netLoaded
+              ? "Swimming with the fish"
+              : "Chasing the fish"
+            : "Swimming to the edge";
     const n = Math.max(1, Math.hypot(c.input.x, c.input.z)),
       x = c.input.x / n,
       z = c.input.z / n;
     const rate = Math.min(1, dt * 10);
     c.vx += (x * R.swimSpeed - c.vx) * rate;
     c.vz += (z * R.swimSpeed - c.vz) * rate;
-    const P = this.venue.pool;
+    const P = this.venue.pool,
+      river = this.venue.river;
+    if (river) {
+      // In the river: the current carries him while the pumps run (not in a rescue or with the river closed).
+      const at = river.locate(c.x, c.z),
+        flow = river.at(at.s),
+        pumps = !this.rescue && !this.closed && !this.crowdPanic() ? river.flow * 0.55 : 0;
+      const next = river.clamp(
+        c.x + (c.vx + flow.tx * pumps) * dt,
+        c.z + (c.vz + flow.tz * pumps) * dt,
+        0.45,
+      );
+      c.x = next.x;
+      c.z = next.z;
+      if (c.lookAngle == null && Math.hypot(c.vx, c.vz) > 0.1) c.angle = Math.atan2(c.vx, c.vz);
+      this.onSwimStep(dt);
+      const q = river.locate(c.x, c.z),
+        out = x * at.nx + z * at.nz;
+      if (Math.abs(q.d) >= river.w - 0.5 && out * Math.sign(q.d) > 0.3) this.leaveWater();
+      return;
+    }
     c.x = clamp(c.x + c.vx * dt, -P.swimX, P.swimX);
     c.z = clamp(c.z + c.vz * dt, -P.swimZ, P.swimZ);
     if (c.lookAngle == null && Math.hypot(c.vx, c.vz) > 0.1) c.angle = Math.atan2(c.vx, c.vz);
@@ -377,6 +439,10 @@ export class RescueController extends SanitationController {
     p.stunned = 1;
     const P = this.venue.pool,
       bench = this.venue.rescue;
+    if (this.venue.river) {
+      p.path = [...this.venue.route(p, bench.approach), { ...bench.bench }];
+      return;
+    }
     const x = Math.sign(bench.bench.x) * P.corridorX;
     p.path = [
       { x, z: p.exitEnd * P.endWalkZ },

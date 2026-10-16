@@ -11,6 +11,8 @@ import { buildAquatic } from "./scene/aquatic.mjs";
 import { buildDisco } from "./scene/disco.mjs";
 import { buildKids } from "./scene/kids.mjs";
 import { buildSenior } from "./scene/senior.mjs";
+import { buildRiver } from "./scene/river.mjs";
+import { riverPose, tubeObject } from "./scene/river-view.mjs";
 import { seatState, seated, syncWheelchairs, clearWheelchairs } from "./scene/senior-view.mjs";
 import { Sky, SCENERY } from "./scene/sky.mjs";
 import { windUniforms } from "./scene/geom.mjs";
@@ -199,6 +201,33 @@ LIGHTING.senior = {
   glow: 0.25,
 };
 
+// The Lazy River: a jungle in the late morning. Sunlight through the canopy (a warm key, green bounce from below), a soft green
+// haze in the distance, the river's water clear and green-blue over a sandy bed (scene/river.mjs).
+LIGHTING.river = {
+  background: 0x8fd0c0,
+  exposure: 0.98,
+  hemi: [0xe6f6dc, 0x5f7f3c, 1.05],
+  sun: [0xfff0cc, 2.7, [-14, 30, 9]],
+  fill: [0xa6e0c4, 0.55, [14, 16, -16]],
+  env: 0.7,
+  envColors: ["#d2eedf", "#e6f0d2", "#6b8a4a"],
+  fog: [0xa3cfae, 52, 135],
+  water: {
+    shallow: [0.3, 0.8, 0.7],
+    deep: [0.04, 0.45, 0.47],
+    sky: [0.76, 0.93, 0.86],
+    glint: [1, 0.97, 0.86],
+    glow: 0,
+    clarity: 0.25, // (the sandy bed and its pebbles show through, until the water gets dirty)
+  },
+  glow: 0,
+  sky: [
+    [0, "#5fb4dd"],
+    [0.55, "#a9dff0"],
+    [1, "#e2f0cf"],
+  ],
+};
+
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const BUILDERS = {
@@ -210,6 +239,7 @@ const BUILDERS = {
   disco: buildDisco,
   kids: buildKids,
   senior: buildSenior,
+  river: buildRiver,
 };
 const defaultLighting = (venue) => venue.lighting || (venue.indoor ? "indoor" : "day");
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
@@ -292,6 +322,8 @@ export class PoolWorld extends SceneKit {
     this.lightShafts = null;
     this.stringLights = null;
     this.poolLamps = null;
+    this.riverHighlight = null;
+    this.riverRim = null;
     this.incidentLight = 1;
     this.lookKey = null;
     this.staticBackground = null;
@@ -329,16 +361,24 @@ export class PoolWorld extends SceneKit {
     this.selection = this.ring(0.62, 0xffda4f);
     this.scene.add(this.selection);
     this.selection.visible = false;
-    this.laneHighlights = venue.lanes.map((x) => {
-      const m = new THREE.Mesh(
-        new THREE.PlaneGeometry(3.0, 16),
-        new THREE.MeshBasicMaterial({ color: 0xffe58b, transparent: true, opacity: 0, depthWrite: false }),
-      );
-      m.rotation.x = -Math.PI / 2;
-      m.position.set(x, -0.17, 0);
-      this.scene.add(m);
-      return m;
-    });
+    // (The Lazy River's one "lane" is the river itself: its builder made the highlight in the river's shape.)
+    this.laneHighlights = this.riverHighlight
+      ? [this.riverHighlight]
+      : venue.lanes.map((x) => {
+          const m = new THREE.Mesh(
+            new THREE.PlaneGeometry(3.0, 16),
+            new THREE.MeshBasicMaterial({
+              color: 0xffe58b,
+              transparent: true,
+              opacity: 0,
+              depthWrite: false,
+            }),
+          );
+          m.rotation.x = -Math.PI / 2;
+          m.position.set(x, -0.17, 0);
+          this.scene.add(m);
+          return m;
+        });
     this.buildGuidance();
     this.incidentView = new IncidentView(this);
     const look = this.coachCam && {
@@ -531,20 +571,27 @@ export class PoolWorld extends SceneKit {
     this.guideAura.add(halo);
     this.guideAura.userData = { shell, halo };
     this.scene.add(this.guideAura);
-    this.laneRims = this.venue.lanes.map((x) => {
-      const points = [
-        [-1.43, -7.9],
-        [1.43, -7.9],
-        [1.43, 7.9],
-        [-1.43, 7.9],
-      ].map(([a, b]) => new THREE.Vector3(x + a, -0.13, b));
-      const rim = new THREE.LineLoop(
-        new THREE.BufferGeometry().setFromPoints(points),
-        new THREE.LineBasicMaterial({ color: 0xffdf52, transparent: true, opacity: 1, depthWrite: false }),
-      );
-      this.scene.add(rim);
-      return rim;
-    });
+    this.laneRims = this.riverRim
+      ? [this.riverRim]
+      : this.venue.lanes.map((x) => {
+          const points = [
+            [-1.43, -7.9],
+            [1.43, -7.9],
+            [1.43, 7.9],
+            [-1.43, 7.9],
+          ].map(([a, b]) => new THREE.Vector3(x + a, -0.13, b));
+          const rim = new THREE.LineLoop(
+            new THREE.BufferGeometry().setFromPoints(points),
+            new THREE.LineBasicMaterial({
+              color: 0xffdf52,
+              transparent: true,
+              opacity: 1,
+              depthWrite: false,
+            }),
+          );
+          this.scene.add(rim);
+          return rim;
+        });
     // Fixed, reusable speed streaks. No particle allocation in the dash loop.
     this.dashTrail = new THREE.Group();
     for (let i = 0; i < 4; i++) {
@@ -835,6 +882,8 @@ export class PoolWorld extends SceneKit {
 
   syncSwimmer(sim, p, g, time, dt = 0.016) {
     const u = g.userData;
+    // The Lazy River: a guest in a tube (or away round the loop) is the river view's (scene/river-view.mjs).
+    if (sim.venue?.river && riverPose(this, sim, p, g, time, dt)) return;
     // The crowd panics while a cannonball man is in the pool: a swimmer in the water is held where it is, upright, and hops with
     // its hands up like those who wait on the deck.
     const crowd = !!this.crowd,
@@ -875,7 +924,7 @@ export class PoolWorld extends SceneKit {
     u.root.rotation.set(0, 0, 0);
     u.root.position.set(0, 0, 0);
     u.legs.forEach((l) => (l.visible = !u.rig)); // a swimmer model's own legs show instead
-    u.f.visible = p.hasFins;
+    u.f.visible = p.hasFins && !sim.venue?.river; // (at the river it is a tube, under the arm)
     u.hit.position.y = swim ? 0.25 : 0.9;
     u.shadow.visible = !swim && !held && p.status !== "swim";
     u.bandage.visible = !!p.bandaged;
@@ -1081,7 +1130,12 @@ export class PoolWorld extends SceneKit {
     const item = this.incidentView.carryModel(kind);
     if (item) return item;
     const g = new THREE.Group();
-    if (kind === "fins") g.add(finsObject(this));
+    if (kind === "fins" && this.venue.river) {
+      // A tube, held on edge.
+      const tube = tubeObject(this, 0, 0.72);
+      tube.rotation.set(0, 0, Math.PI / 2);
+      g.add(tube);
+    } else if (kind === "fins") g.add(finsObject(this));
     else if (kind === "lifering") g.add(lifeRingObject(this));
     else if (kind === "skimmer") g.add(skimmerObject(this));
     else if (kind === "chlorine") bucket(this, 0, 0, 0, g);
@@ -1265,15 +1319,22 @@ export class PoolWorld extends SceneKit {
     for (const f of sim.clutter) {
       dropIds.add(f.id);
       if (!this.drops.has(f.id)) {
-        const g = f.type === "fins" ? finsObject(this) : new THREE.Group();
+        const tube = f.type === "fins" && this.venue.river;
+        const g = tube
+          ? tubeObject(this, f.id, 0.9)
+          : f.type === "fins"
+            ? finsObject(this)
+            : new THREE.Group();
         if (f.type === "goggles") {
           this.box(0.45, 0.1, 0.13, COLORS.navy, 0, 0, 0, 0.04, g);
           this.box(0.14, 0.11, 0.02, COLORS.blue, -0.12, 0, 0.08, 0.01, g);
           this.box(0.14, 0.11, 0.02, COLORS.blue, 0.12, 0, 0.08, 0.01, g);
         }
         g.position.set(f.x, 0.08, f.z);
-        g.rotation.x = -Math.PI / 2;
-        g.rotation.z = 0.5;
+        if (!tube) {
+          g.rotation.x = -Math.PI / 2;
+          g.rotation.z = 0.5;
+        } else g.rotation.y = f.id * 1.3;
         const hit = new THREE.Mesh(
           new THREE.SphereGeometry(0.52, 6, 5),
           new THREE.MeshBasicMaterial({ visible: false }),
@@ -1286,7 +1347,7 @@ export class PoolWorld extends SceneKit {
         this.drops.set(f.id, g);
       }
       const g = this.drops.get(f.id);
-      g.position.set(f.x, 0.08, f.z);
+      g.position.set(f.x, this.venue.river && f.type === "fins" ? 0.17 : 0.08, f.z);
     }
     for (const [id, g] of this.drops)
       if (!dropIds.has(id)) {
@@ -1681,7 +1742,12 @@ export class PoolWorld extends SceneKit {
     if (hits[0]) this.onPick(hits[0].object.userData);
   }
   handoff(from, to, item) {
-    const mesh = item === "fins" ? finsObject(this) : new THREE.Group();
+    const mesh =
+      item === "fins" && this.venue.river
+        ? tubeObject(this, 1, 0.7)
+        : item === "fins"
+          ? finsObject(this)
+          : new THREE.Group();
     if (item !== "fins")
       this.ball(
         0.15,
