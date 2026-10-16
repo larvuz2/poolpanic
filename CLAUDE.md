@@ -22,11 +22,13 @@ the same twice: see `docs/incidents.md`).
    Park, the Sunset Lagoon, the **Aquatic Centre** (indoor and competitive, where Marco "the Missile" always swims), the **Aqua
    Disco** (a party pool with no lanes: four zones of aqua dancers facing Valentina, the instructor, all on one dance routine and its
    own song, `dist/dance.mjs`, `dist/music.mjs`; every incident still comes), the **Kids Pool** (only kids, who run all over the deck
-   until the coach catches one, no lanes, one POOL button, chaotic paddling, floating toys, its own song; more wees and poos) and the
-   Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
+   until the coach catches one, no lanes, one POOL button, chaotic paddling, floating toys, its own song; more wees and poos),
+   **Senior Aqua Fit** (a Victorian glass conservatory, the premium-dressed venue: photographs and Tripo models, golden light, clear
+   water over a mosaic; only seniors, who walk stooped and slowly, a third in wheelchairs who stand up out of them when given a lane
+   and sit back down on the way out; glass doors, no lockers; a tea-dance song) and the Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
    running (the creator wants that). In every pool **one swimmer in five climbing out drips a wet spot** that never dries until the coach
    mops it (Q, `dist/incidents/wet.mjs`), and a tummy ache can be a poo or **a wee** (yellow water, chlorine only). **Marco swims in
-   more than half of all shifts, in every pool but the Kids Pool** (`STAR_CHANCE`), and **VIPs come in every
+   more than half of all shifts, in every pool but the Kids Pool** (`STAR_CHANCE`; at Senior Aqua Fit too), and **VIPs come in every
    shift**, more as the run goes on (the creator wants to see them often); incidents drawn by a director
    (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder). A shift not passed pays nothing but the week goes on. Marina's
    wishes for each shift, tips and a shop that never touch the Date Fund. Every level a run passes opens in **free play** (the level map,

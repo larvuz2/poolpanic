@@ -36,6 +36,11 @@ export const CLIPS = {
   danceRight: "DanceRight",
   danceLeft: "DanceLeft",
   danceBoth: "DanceBoth",
+  // Senior Aqua Fit's seniors (16 October 2026): sitting in a wheelchair, pushing its wheels, and getting up out of it (one shot,
+  // played at the time the simulation says; backwards to sit down again). Their stooped walk and stand are their `alias`es.
+  sit: "Sit",
+  push: "WheelPush",
+  standUp: "StandUp",
 };
 const DANCES = new Set(["danceRight", "danceLeft", "danceBoth"]);
 // A model must have these; one without Panic hops with the classic swimmer's poses instead, one without Swim swims with
@@ -145,6 +150,28 @@ export const FIGURES = [
     back: 0.15,
     needs: ["swim", "panic"],
   },
+  // Senior Aqua Fit's four seniors (16 October 2026): Meshy characters made from GPT Image 2.5 T-poses in the swimmers' style, on
+  // Coach Waters' skeleton, with his clips and five of their own (tools/blender/character_clips.py --character senior): a stooped
+  // walk and stand that take the place of the upright Walk, Run and idles (`alias`), sitting in a wheelchair, pushing it, and
+  // getting up out of it. `walk` is the stooped walk's own ground speed (feet planted), `toRun` keeps them from ever running.
+  ...[
+    ["senior-granny", 0.636, [1.302, 0.156], 0.165, 0.103],
+    ["senior-grandpa", 0.725, [1.411, 0.172], 0.107, 0.123],
+    ["senior-tallgran", 0.756, [1.394, 0.148], 0.149, 0.063],
+    ["senior-stout", 0.666, [1.361, 0.156], 0.18, 0.219],
+  ].map(([id, walk, eyes, front, back]) => ({
+    id,
+    file: "seniors/" + id + ".glb",
+    walk,
+    run: walk,
+    toRun: 9,
+    eyes,
+    front,
+    back,
+    senior: true,
+    needs: ["swim", "panic", "sit", "push", "standUp"],
+    alias: { idle: "StoopedIdle", scratch: "StoopedIdle", walk: "StoopedWalk", run: "StoopedWalk" },
+  })),
   // Valentina, the Aqua Disco's aqua-aerobics instructor (one of Anim Bench's named characters): she dances on the stage at the
   // far end of the pool, the class copying her. Not a swimmer of the simulation: the disco's scene puts her there (scene/disco.mjs).
   {
@@ -390,7 +417,11 @@ export class SwimmerRig {
     next.setEffectiveWeight(1);
     // (The Cannonball does not run by itself: update() sets its time from the incident, frame by frame.)
     next.setEffectiveTimeScale(
-      name === "cannonball" || name === "dump" || DANCES.has(name) ? 0 : RATED.has(name) ? this.rate : 1,
+      name === "cannonball" || name === "dump" || name === "standUp" || DANCES.has(name)
+        ? 0
+        : RATED.has(name)
+          ? this.rate
+          : 1,
     );
     next.play();
     // A crowd that panics does not hop in step.
@@ -417,6 +448,8 @@ export class SwimmerRig {
       carry = false,
       dump = null,
       dance = null, // {clip, time}: the Aqua Disco's routine (dance.mjs), the clip at the time the beat says
+      seat = null, // "sit" or "push": a senior in a wheelchair, still or rolling (scene/senior-view.mjs)
+      stand = null, // seconds into getting up out of the wheelchair (StandUp; sitting down plays it backwards)
     } = {},
   ) {
     let want;
@@ -465,10 +498,13 @@ export class SwimmerRig {
     if (dumping) want = "dump";
     const dancing = !!dance && !!this.actions[dance.clip] && !panic && !jumping;
     if (dancing) want = dance.clip;
+    const standing = stand !== null && !!this.actions.standUp && !swim;
+    if (seat && this.actions[seat] && !swim) want = seat;
+    if (standing) want = "standUp";
     // (The first stroke after the splash takes a moment to take over from the tuck.)
     this.to(
       want,
-      want === "panic" || want === "cannonball" || want === "dump" || DANCES.has(want)
+      want === "panic" || want === "cannonball" || want === "dump" || want === "standUp" || DANCES.has(want)
         ? 0.12
         : want === "swim" && this.current === "cannonball"
           ? 0.3
@@ -479,6 +515,7 @@ export class SwimmerRig {
     if (jumping) this.actions.cannonball.time = jump;
     if (dumping) this.actions.dump.time = dump;
     if (dancing) this.actions[dance.clip].time = dance.time;
+    if (standing) this.actions.standUp.time = stand;
     // The rate follows smoothly; the idles play as they are.
     this.rate += (rate - this.rate) * Math.min(1, dt * 12);
     if (RATED.has(this.current)) this.actions[this.current].setEffectiveTimeScale(this.rate);
@@ -689,10 +726,14 @@ export function attachSwimmerModel(group, p, choice = activeSwimmerChoice()) {
   }));
   const mixer = new THREE.AnimationMixer(model);
   const actions = {};
-  for (const [key, name] of Object.entries(CLIPS)) {
+  const used = new Set();
+  for (const [key, own] of Object.entries(CLIPS)) {
+    const name = look.alias?.[key] || own; // (a senior's walk is the stooped one)
     if (!t.clips[name]) continue;
-    const action = mixer.clipAction(t.clips[name]);
-    if (key === "scratch" || key === "cannonball" || key === "dump") {
+    // (Two keys on one clip, a senior's idle and head scratch both the stooped stand, need two actions: a copy of the clip.)
+    const action = mixer.clipAction(used.has(name) ? t.clips[name].clone() : t.clips[name]);
+    used.add(name);
+    if (key === "scratch" || key === "cannonball" || key === "dump" || key === "standUp") {
       action.setLoop(THREE.LoopOnce, 1);
       action.clampWhenFinished = true;
     }

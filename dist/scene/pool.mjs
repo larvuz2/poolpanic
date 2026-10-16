@@ -73,6 +73,7 @@ uniform vec3 uDeep;
 uniform vec3 uSky;
 uniform vec3 uGlint;
 uniform float uGlow;
+uniform float uClarity;
 varying vec3 vWorld;
 void main() {
   vec2 p = vWorld.xz;
@@ -104,7 +105,9 @@ void main() {
   float lamp = exp(-(uHalfX - abs(p.x)) * 0.9) * (0.35 + 0.65 * pow(abs(sin(p.y * 0.785398)), 8.0));
   color += vec3(0.3, 0.85, 1.0) * lamp * uGlow * 0.5 * (1.0 - uDirty * 0.6);
   color *= mix(0.22, 1.0, uLight);
-  gl_FragColor = vec4(color, 0.5 + fres * 0.2 + uDirty * 0.22 + uBrown * 0.2 + wall * 0.08);
+  // Clear water (a look's clarity) lets the basin show through, and clouds over as it gets dirty.
+  float clear = uClarity * (1.0 - max(max(uDirty, uBrown), uYellow));
+  gl_FragColor = vec4(color, (0.5 + fres * 0.2 + uDirty * 0.22 + uBrown * 0.2 + wall * 0.08) * (1.0 - clear * 0.55));
 }`;
 
 export function buildPool(
@@ -116,9 +119,12 @@ export function buildPool(
     sky = [0.7, 0.93, 0.95],
     glint = [1, 0.96, 0.86],
     glow = 0,
+    clarity = 0,
   } = {},
   // A pool's own dress (the Aquatic Centre's racing pool, the Aqua Disco's open water: `line`, `ropes` and `pennants` null leave
-  // them out, and a venue with `blocks: false` has no starting blocks); without it, the toy pool every venue had.
+  // them out, and a venue with `blocks: false` has no starting blocks); without it, the toy pool every venue had. Senior Aqua Fit
+  // brings its own pictures for the basin (`floorMap`, `wallMap`, repeats set by the caller), a marble `coping`, a frieze `band`
+  // at the waterline and brass `ladders`.
   {
     floorTiles = ["#5cc2cb", "#bfe9e6"],
     wallTiles = ["#72cdd2", "#cdeeea"],
@@ -126,6 +132,11 @@ export function buildPool(
     ropes = [0xffe3a2, 0x3593c1, 0xed7556],
     blockTop = COLORS.blue,
     pennants = [COLORS.coral, COLORS.cream, COLORS.teal],
+    floorMap = null,
+    wallMap = null,
+    coping: copingLook = null,
+    band: bandColor = 0x2d7f8c,
+    ladders = { color: 0xe4e9dc, metalness: 0.35, rung: 0xe7e9d8 },
   } = {},
 ) {
   const lanes = venue.lanes,
@@ -135,8 +146,8 @@ export function buildPool(
     width = halfX * 2;
   w.poolUniforms = { uTime: { value: 0 }, uCaustic: { value: 1 } };
   // Basin floor and walls in a caustic-lit mosaic.
-  const floorTex = mosaicTexture({ seed: 3, base: floorTiles[0], grout: floorTiles[1] });
-  floorTex.repeat.set(width / 2, (halfZ * 2) / 2);
+  const floorTex = floorMap || mosaicTexture({ seed: 3, base: floorTiles[0], grout: floorTiles[1] });
+  if (!floorMap) floorTex.repeat.set(width / 2, (halfZ * 2) / 2);
   w.textures.push(floorTex);
   const floorMat = withCaustics(
     new THREE.MeshStandardMaterial({ map: floorTex, color: 0xffffff, roughness: 0.55, envMapIntensity: 0.4 }),
@@ -147,8 +158,8 @@ export function buildPool(
   floor.position.set(0, -1.42, 0);
   floor.receiveShadow = true;
   w.scene.add(floor);
-  const wallTex = mosaicTexture({ seed: 17, base: wallTiles[0], grout: wallTiles[1] });
-  wallTex.repeat.set(4, 0.6);
+  const wallTex = wallMap || mosaicTexture({ seed: 17, base: wallTiles[0], grout: wallTiles[1] });
+  if (!wallMap) wallTex.repeat.set(4, 0.6);
   w.textures.push(wallTex);
   const wallMat = withCaustics(
     new THREE.MeshStandardMaterial({ map: wallTex, color: 0xffffff, roughness: 0.5, envMapIntensity: 0.4 }),
@@ -168,7 +179,7 @@ export function buildPool(
     w.scene.add(m);
   }
   // Classic dark waterline band just under the coping.
-  const band = w.mat(0x2d7f8c, { roughness: 0.35 });
+  const band = w.mat(bandColor, { roughness: 0.35 });
   for (const x of [-halfX + 0.11, halfX - 0.11]) w.box(0.03, 0.16, halfZ * 2, band, x, -0.36, 0, 0);
   for (const z of [-halfZ + 0.09, halfZ - 0.09]) w.box(width - 0.2, 0.16, 0.03, band, 0, -0.36, z, 0);
   if (line !== null) {
@@ -183,10 +194,13 @@ export function buildPool(
     }
   }
   // Rounded stone coping and drainage channels.
-  const stone = plasterTexture({ seed: 31, strength: 0.12 });
-  stone.repeat.set(3, 3);
+  const stone = copingLook?.map || plasterTexture({ seed: 31, strength: 0.12 });
+  if (!copingLook?.map) stone.repeat.set(3, 3);
   w.textures.push(stone);
-  const coping = w.mat(0xdcc394, { map: stone, roughness: 0.62 });
+  const coping = w.mat(copingLook?.color ?? 0xdcc394, {
+    map: stone,
+    roughness: copingLook?.roughness ?? 0.62,
+  });
   for (const x of [-halfX - 0.2, halfX + 0.2]) {
     w.box(0.35, 0.18, halfZ * 2 + 0.9, coping, x, 0.02, 0, 0.05);
     const gutter = x + (x > 0 ? 0.38 : -0.38);
@@ -217,6 +231,7 @@ export function buildPool(
         uSky: { value: new THREE.Vector3(...sky) },
         uGlint: { value: new THREE.Vector3(...glint) },
         uGlow: { value: glow },
+        uClarity: { value: clarity },
       },
       vertexShader: WATER_VERTEX,
       fragmentShader: WATER_FRAGMENT,
@@ -378,10 +393,10 @@ export function buildPool(
       ]);
       w.mesh(
         new THREE.TubeGeometry(curve, 16, 0.047, 7, false),
-        w.mat(0xe4e9dc, { roughness: 0.25, metalness: 0.35 }),
+        w.mat(ladders.color, { roughness: 0.25, metalness: ladders.metalness }),
       );
     }
-    for (const y of [-0.85, -0.45, -0.1]) w.rod([x, y, z - 0.45], [x, y, z + 0.45], 0.055, 0xe7e9d8);
+    for (const y of [-0.85, -0.45, -0.1]) w.rod([x, y, z - 0.45], [x, y, z + 0.45], 0.055, ladders.rung);
   }
 }
 
@@ -398,6 +413,9 @@ export function buildDeck(
     slab = 0x398d94,
     rim = 0xb28363,
     side = COLORS.tile,
+    // The foundation and its rim run solid under the whole room, so the basin's own floor is hidden in them and the water shows
+    // the slab; `openBasin` frames the basin with them instead, so a clear pool shows its floor (Senior Aqua Fit).
+    openBasin = false,
   },
 ) {
   const room = venue.room,
@@ -409,8 +427,23 @@ export function buildDeck(
     rw = room.maxX - room.minX,
     rd = room.maxZ - room.minZ;
   // Tabletop foundation.
-  w.box(rw + 0.6, 1.25, rd, slab, cx, -1.25, cz, 0.45);
-  w.box(rw + 0.5, 0.21, rd - 0.1, rim, cx, -0.59, cz, 0.2);
+  if (openBasin) {
+    const frame = (h, y, color, r, grow) => {
+      const x0 = room.minX - grow,
+        x1 = room.maxX + grow,
+        z0 = room.minZ - grow / 2,
+        z1 = room.maxZ + grow / 2;
+      w.box(-halfX - x0, h, z1 - z0, color, (x0 - halfX) / 2, y, (z0 + z1) / 2, r);
+      w.box(x1 - halfX, h, z1 - z0, color, (x1 + halfX) / 2, y, (z0 + z1) / 2, r);
+      w.box(halfX * 2 + 0.1, h, z1 - halfZ, color, 0, y, (z1 + halfZ) / 2, 0.02);
+      w.box(halfX * 2 + 0.1, h, -halfZ - z0, color, 0, y, (z0 - halfZ) / 2, 0.02);
+    };
+    frame(1.25, -1.25, slab, 0.2, 0.3);
+    frame(0.21, -0.59, rim, 0.1, 0.25);
+  } else {
+    w.box(rw + 0.6, 1.25, rd, slab, cx, -1.25, cz, 0.45);
+    w.box(rw + 0.5, 0.21, rd - 0.1, rim, cx, -0.59, cz, 0.2);
+  }
   // Solid slabs with tile-coloured sides.
   w.box(-halfX - room.minX, 0.45, rd, side, (room.minX - halfX) / 2, -0.25, cz, 0.14);
   w.box(room.maxX - halfX, 0.45, rd, side, (room.maxX + halfX) / 2, -0.25, cz, 0.14);

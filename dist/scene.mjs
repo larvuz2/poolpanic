@@ -10,6 +10,8 @@ import { buildArena } from "./scene/arena.mjs";
 import { buildAquatic } from "./scene/aquatic.mjs";
 import { buildDisco } from "./scene/disco.mjs";
 import { buildKids } from "./scene/kids.mjs";
+import { buildSenior } from "./scene/senior.mjs";
+import { seatState, seated, syncWheelchairs, clearWheelchairs } from "./scene/senior-view.mjs";
 import { Sky, SCENERY } from "./scene/sky.mjs";
 import { windUniforms } from "./scene/geom.mjs";
 import { dayLook, moodLook, DAY_TIMES } from "./scene/daylight.mjs";
@@ -175,6 +177,28 @@ LIGHTING.disco = {
   glow: 1,
 };
 
+// Senior Aqua Fit: a glass conservatory in the late afternoon. A low golden sun through the far end's glass (scene/senior.mjs,
+// `SUN`), warm cream bounce off the travertine, a cool fill from the garden side, the spa-green water lit softly from within.
+LIGHTING.senior = {
+  background: 0x6f8b6c,
+  exposure: 1.02,
+  hemi: [0xfff1dc, 0x8a7458, 1.05],
+  sun: [0xffcf8f, 2.85, [-6 * 1.35, 15 * 1.35, 21 * 1.35]],
+  fill: [0xbcd3f0, 0.55, [-16, 14, -10]],
+  env: 0.8,
+  envColors: ["#fff4de", "#f0e0c2", "#8a7656"],
+  fog: [0x9fb38f, 75, 210],
+  water: {
+    shallow: [0.3, 0.86, 0.84],
+    deep: [0.03, 0.46, 0.55],
+    sky: [1, 0.9, 0.76],
+    glint: [1, 0.9, 0.7],
+    glow: 0.35,
+    clarity: 0.55, // (clear water: the fan mosaic on the floor shows through, until it gets dirty)
+  },
+  glow: 0.25,
+};
+
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const BUILDERS = {
@@ -185,6 +209,7 @@ const BUILDERS = {
   aquatic: buildAquatic,
   disco: buildDisco,
   kids: buildKids,
+  senior: buildSenior,
 };
 const defaultLighting = (venue) => venue.lighting || (venue.indoor ? "indoor" : "day");
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
@@ -278,6 +303,7 @@ export class PoolWorld extends SceneKit {
     this.particles = [];
     this.flags = [];
     this.lockerDoors = [];
+    this.wheelchairs = null;
     this.labels = [];
     this.handoffs = [];
     this.bobs = [];
@@ -581,6 +607,7 @@ export class PoolWorld extends SceneKit {
   // not be picked up by the next.
   resetActors() {
     for (const id of [...this.people.keys()]) this.removePerson(id);
+    clearWheelchairs(this);
     this.incidentView.clearVisitors();
     this.introPlan = null; // the coach walks in again
   }
@@ -656,6 +683,7 @@ export class PoolWorld extends SceneKit {
       this.syncSwimmer(sim, p, g, time, dt);
     }
     for (const id of this.people.keys()) if (!active.has(id)) this.removePerson(id);
+    syncWheelchairs(this, sim); // (Senior Aqua Fit's chairs, with their seniors or parked: scene/senior-view.mjs)
     this.syncCoach(sim, time, dt);
     this.syncRescue(sim, time);
     for (let i = this.handoffs.length - 1; i >= 0; i--) {
@@ -795,6 +823,7 @@ export class PoolWorld extends SceneKit {
     u.uSky.value.set(...water.sky);
     u.uGlint.value.set(...water.glint);
     u.uGlow.value = water.glow || 0;
+    if (u.uClarity) u.uClarity.value = water.clarity || 0;
     if (dynamic && look.dome) {
       const d = look.dome;
       u.uSun.value.copy(d.sunDir.y > 0.05 ? d.sunDir : d.moonDir);
@@ -916,10 +945,11 @@ export class PoolWorld extends SceneKit {
     let panicClip = false,
       lift = 0; // (how high a hop takes the classic swimmer off its feet)
     if (
-      p.status === "panic" ||
-      ((sim.cleanup || crowd) && p.status === "queue") ||
-      held ||
-      p.status === "fleeing"
+      (p.status === "panic" ||
+        ((sim.cleanup || crowd) && p.status === "queue") ||
+        held ||
+        p.status === "fleeing") &&
+      !seated(p) // (a senior in a wheelchair does not hop)
     ) {
       const running = p.status === "fleeing" || p.panicStyle === "circles";
       // A swimmer model that has the Panic clip hops on the spot with it, arms and all (with reduced motion it stands with
@@ -1035,6 +1065,7 @@ export class PoolWorld extends SceneKit {
               : Math.max(0.4, Math.min(1.5, Math.max(p.actualSpeed, p.status === "switch" ? 2 : 0) * 0.32)),
         panic,
         dance,
+        ...seatState(p, u.footSpeed || 0),
         puppet: u.puppet,
         classic: u,
       });

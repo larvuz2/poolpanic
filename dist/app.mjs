@@ -32,6 +32,7 @@ import {
   freePlayGuests,
   CLASS_ROOM,
   KIDS_ROOM,
+  SENIOR_LOOKS,
 } from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
 import { activeChoice, chooseCoach, loadCoachModel, coachModelReady } from "./scene/coach-model.mjs";
@@ -218,14 +219,15 @@ let input,
   resumeState = "playing",
   helpResumeState = "playing";
 // The Aqua Disco's song follows the shift's clock (music.mjs): beat 0 at the go, as the class dances; it waits through the
-// countdown and goes when the power does.
+// countdown and goes when the power does. The Kids Pool and Senior Aqua Fit have songs of their own on the same clock.
 audio.clock = () =>
-  (sim?.venue?.class || sim?.venue?.kids) && (mode === "playing" || mode === "countdown")
+  (sim?.venue?.class || sim?.venue?.kids || sim?.venue?.seniors) &&
+  (mode === "playing" || mode === "countdown")
     ? {
         time: sim.time,
         running: mode === "playing" && !sim.clockHeld(),
         dark: sim.outage?.stage === "dark",
-        song: sim.venue.kids ? "kids" : "disco",
+        song: sim.venue.kids ? "kids" : sim.venue.seniors ? "senior" : "disco",
       }
     : null;
 let records = normalizeRecords();
@@ -1574,6 +1576,8 @@ function loadCannonballMan(s) {
 function loadFishKid(s) {
   // (The Kids Pool's children all wear his model: fetched as the shift begins there, whatever the incidents.)
   if (activeSwimmerChoice() === "models" && s.venue.kids) loadFigure("kid");
+  // (And Senior Aqua Fit's four seniors, about 4.5 MB together, fetched as a shift there begins.)
+  if (activeSwimmerChoice() === "models" && s.venue.seniors) for (const id of SENIOR_LOOKS) loadFigure(id);
   if (activeSwimmerChoice() !== "models" || !s.config.chaos?.some((e) => e.kinds.includes("fish"))) return;
   loadFigure("kid");
   loadFishModel(); // (and the fish he lets go: scene/fish-model.mjs)
@@ -2223,7 +2227,9 @@ function cardStatus(p) {
       ? "Daredevil · wants the trampoline"
       : p.finsFirst && !p.hasFins
         ? swimmerLook(p).label + " · wants fins first"
-        : swimmerLook(p).label;
+        : p.wheelchair && !p.chairParked
+          ? swimmerLook(p).label + " · ♿ in a wheelchair"
+          : swimmerLook(p).label;
   if (p.status === "injured") return p.healing ? "Being bandaged…" : "Hurt · needs the med kit";
   const where = p.lane == null ? "In the pool" : laneWord(sim) + " " + (p.lane + 1);
   return (

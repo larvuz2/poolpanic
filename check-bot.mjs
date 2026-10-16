@@ -63,6 +63,19 @@ export class CoachBot {
       s.select(p.id);
       if (p.queasy && p.sick) s.home();
       else if (s.venue.kids) s.assign(s.poolLane());
+      else if (p.type === "senior")
+        // Senior Aqua Fit: the emptiest open lane, and not Marco's (he is quick, they are not).
+        s.assign(
+          [...s.lanes.keys()]
+            .filter((l) => s.laneClosed() !== l)
+            .sort(
+              (a, b) =>
+                s.people.some((q) => q.type === "advanced" && q.lane === a) -
+                  s.people.some((q) => q.type === "advanced" && q.lane === b) ||
+                s.occupancy(a) - s.occupancy(b) ||
+                a - b,
+            )[0],
+        );
       else if (s.venue.class)
         // A class (the Aqua Disco): spread out, the emptiest open zone first.
         s.assign(
@@ -77,7 +90,7 @@ export class CoachBot {
           this.openLane(
             five
               ? { beginner: 0, aqua: 1, intermediate: 2, advanced: this.clearSplash ? 3 : 4 }[p.type]
-              : { beginner: 0, aqua: 0, intermediate: 1, advanced: 2 }[p.type],
+              : { beginner: 0, aqua: 0, intermediate: 1, advanced: s.lanes.length - 1 }[p.type],
           ),
         );
     }

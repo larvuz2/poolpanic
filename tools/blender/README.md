@@ -107,6 +107,16 @@ seconds each (the same input always gives the same GLB), and the same rig is wha
   (`ground_clips.py --only Panic`, which lifts the hips by 0.1 to 1 cm), list it in `characters.json` as `retargeted` and run
   `rig-check.mjs`, which compares it with the Coach's frame by frame (hips travel x0.50 on Nico, x1.15 on Marco). Start from the
   files without the clip: the tool will not overwrite one.
+- **The seniors' clips** (`--character senior` in `character_clips.py`, 16 October 2026: StoopedWalk, StoopedIdle, Sit, WheelPush,
+  StandUp) are Senior Aqua Fit's. Made on a scratch copy of the Coach, then put into each senior with `transplant_clips.py --only
+  StoopedWalk,StoopedIdle,Sit,WheelPush,StandUp` (after `retarget_clips.py --only Run,Walk,IdleScan,IdleScratch,Panic,Swim`, so the
+  Coach's SwimRing stays his) and grounded. **StoopedWalk** (28 frames, a short 22 cm stride with low steps) bends the spine 38
+  degrees forward (`STOOP`) with the head lifted back to look ahead and the hands held low in front; **StoopedIdle** (144 frames)
+  stands the same way, looking about. **Sit** (144 frames) is the wheelchair's seat: the hips 17 cm back and 33 cm down
+  (`SEAT`), the knees bent over the footrest, the hands on the armrests; **WheelPush** (24 frames) the hands grabbing the rims,
+  pushing forward and coming back; **StandUp** (40 frames, not a loop: `"loop": False`) goes from the seat to standing, and the
+  game plays it backwards to sit down. The four senior meshes (`dist/assets/seniors/`) are Meshy models from GPT Image T-poses
+  (`game_export.py --height` 1.55 to 1.68 m), rigged with `rig_from_template.py`.
 - **Panic** (`panic_clip()` in `character_clips.py`) is what every swimmer does when the pool closes or the queue is a mess:
   jumping on the spot without a pause, arms and hands thrown up and flapping, head tipped back and shaking. Two mirrored hops
   make the 24-frame loop (1 s at 24 fps, 0.5 s a hop): the hips follow a parabola 22 cm above standing on the Coach, the feet

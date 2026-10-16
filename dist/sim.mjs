@@ -14,6 +14,8 @@ export const TYPES = {
   // The Kids Pool's guests (16 October 2026): children, who run about the deck instead of queueing and paddle about anywhere in the
   // water instead of swimming laps.
   child: { label: "Kid", color: "#ff7eb3", speed: 0.42, icon: "🧒" },
+  // Senior Aqua Fit's guests (16 October 2026): slow, stooped walkers, some in wheelchairs, who swim steady lengths.
+  senior: { label: "Senior", color: "#e0a458", speed: 0.5, icon: "👵" },
 };
 // Marco "the Missile", the star VIP (16 October 2026, the creator: in every pool, in more than half the shifts, and always at the
 // Aquatic Centre). `STAR_CHANCE` is how often he swims in a shift of any other pool.
@@ -376,6 +378,11 @@ export const CLASS_ROOM = 4;
 // run about the deck (m/s) while they wait.
 export const KIDS_ROOM = 10;
 export const KID_RUN = [2.1, 3.1];
+// Senior Aqua Fit: how fast a senior walks (stooped), comes in from the door, walks out, and rolls a wheelchair (m/s; everyone else
+// walks at 3.3 to 5), how long getting up out of the chair takes (the StandUp clip; sitting back down is the same, reversed), what
+// share come in a wheelchair, and the four looks (scene/swimmer-models.mjs).
+export const SENIOR = { walk: 1.35, arrive: 1.45, exit: 1.6, roll: 1.5, stand: 40 / 24, wheelchairs: 0.34 };
+export const SENIOR_LOOKS = ["senior-granny", "senior-grandpa", "senior-tallgran", "senior-stout"];
 export function loopPosition(p, center = 0) {
   p = ((p % CIRCUIT) + CIRCUIT) % CIRCUIT;
   if (p < 14.4) return { x: center + 0.6, z: -7.2 + p, angle: 0 };
@@ -571,6 +578,51 @@ export class PoolSimulation extends ChaosController {
   emit(type, data = {}) {
     this.events.push({ type, ...data });
   }
+  // How fast someone goes on foot: Senior Aqua Fit's seniors walk slowly and stooped, and roll their wheelchairs (SENIOR);
+  // everyone else at the pace asked for.
+  pace(p, normal) {
+    if (p.type !== "senior") return normal;
+    if (p.wheelchair && !p.chairParked) return SENIOR.roll;
+    return p.status === "arriving" ? SENIOR.arrive : p.status === "exit" ? SENIOR.exit : SENIOR.walk;
+  }
+  // A senior with a wheelchair: getting up out of it (after being given a lane), going back to it on the way out (wherever they
+  // leave from: the water, the deck, a rescue), sitting down (the same moment) and rolling out in it. Returns true while the
+  // person is busy standing or sitting, so they stay where they are.
+  tickChair(p, dt) {
+    if (p.standUp > 0) {
+      p.standUp = Math.max(0, p.standUp - dt);
+      return true;
+    }
+    if (p.sitDown > 0) {
+      p.sitDown = Math.max(0, p.sitDown - dt);
+      if (p.sitDown === 0) {
+        const door = this.venue.arrival;
+        p.path = [
+          ...this.venue.route(p, { x: p.side * door.outsideX, z: door.doorZ }),
+          ...this.returnRoute(p.side),
+        ];
+      }
+      return true;
+    }
+    if (p.status === "exit" && p.chairParked && !p.toChair) {
+      const c = p.chair;
+      p.toChair = true;
+      p.path =
+        p.z < ENTRY.walkZ - 0.3
+          ? [{ x: c.x, z: c.z }]
+          : [...this.venue.route(p, { x: c.x, z: ENTRY.walkZ }), { x: c.x, z: c.z }];
+    }
+    return false;
+  }
+  reachChair(p) {
+    p.toChair = false;
+    p.chairParked = false;
+    p.x = p.chair.x;
+    p.z = p.chair.z;
+    p.angle = p.chair.angle;
+    p.sitDown = SENIOR.stand;
+    this.emit("sit-down", { id: p.id });
+  }
   director() {
     // Level 1's own four guests (a shift the week stretches to more swimmers draws them like any other level).
     if (this.level === 1 && this.config.total <= 4)
@@ -644,15 +696,23 @@ export class PoolSimulation extends ChaosController {
     // The Aqua Disco's class takes nobody but aqua-aerobics guests (VIPs and Marco included).
     const type = this.venue.kids
       ? "child"
-      : this.venue.class
-        ? "aqua"
-        : spec.type ||
-          (r < mix[0] ? "beginner" : r < mix[1] ? "intermediate" : r < mix[2] ? "advanced" : "aqua");
+      : this.venue.seniors
+        ? spec.star
+          ? "advanced"
+          : "senior"
+        : this.venue.class
+          ? "aqua"
+          : spec.type ||
+            (r < mix[0] ? "beginner" : r < mix[1] ? "intermediate" : r < mix[2] ? "advanced" : "aqua");
     const index = this.people.length;
     const side = index % 2 === 0 ? -1 : 1;
     const occupied = new Set(
       this.people
-        .filter((p) => ["queue", "arriving"].includes(p.status) && p.side === side)
+        .filter(
+          (p) =>
+            (["queue", "arriving"].includes(p.status) || (p.chairParked && p.status !== "gone")) &&
+            p.side === side,
+        )
         .map((p) => p.queueSlot),
     );
     let q = 0;
@@ -754,6 +814,16 @@ export class PoolSimulation extends ChaosController {
         crampAt: Infinity,
       });
       p.waitLimit *= 0.75;
+    }
+    if (type === "senior") {
+      // A senior: one of four looks, patient (they know the pool takes time), cramps more often, a steady swimmer of their own pace,
+      // and one in three comes in a wheelchair. Everything from numbers already drawn: no other roll of the shift moves.
+      p.figure = SENIOR_LOOKS[(index + p.skin) % SENIOR_LOOKS.length];
+      p.waitLimit *= 1.3;
+      p.desiredSpeed *= 0.8 + p.shape * 0.5;
+      p.wheelchair = (p.phase * 37.7) % 1 < SENIOR.wheelchairs;
+      if (p.crampAt === Infinity && this.level >= 2 && p.shape < 0.38 && !p.vip)
+        p.crampAt = 8 + (p.phase / 6.28) * 5;
     }
     if (type === "child") {
       // A child: the fish kid's model (`figure`), dressed in colours of their own (`tint`, scene/swimmer-models.mjs); no fins.
@@ -883,6 +953,13 @@ export class PoolSimulation extends ChaosController {
     p.p = 30;
     this.stats.totalWait += p.wait;
     this.walk(p, { x: this.lanes[lane] + 0.6, z: ENTRY.edgeZ });
+    if (p.wheelchair && !p.chairParked) {
+      // Out of the wheelchair first (a moment: the StandUp clip), then the walk; the chair stays where it was, for later.
+      p.chair = { x: p.x, z: p.z, angle: p.angle, side: p.side };
+      p.chairParked = true;
+      p.standUp = SENIOR.stand;
+      this.emit("stand-up", { id: p.id });
+    }
     this.emit("assigned", { id: p.id, lane });
     this.selected = null;
     return true;
@@ -1122,15 +1199,27 @@ export class PoolSimulation extends ChaosController {
     p.lane = null;
     if (this.selected === p.id) this.selected = null;
   }
+  // A door is a point every guest must cross exactly; a door in the back wall (crossed along z: the Kids Pool's gate, Senior Aqua
+  // Fit's glass doors) is passed once a guest is through it, so a few slow walkers arriving together cannot jostle each other off
+  // that point for ever.
+  passedWaypoint(entity) {
+    const at = entity.path[0],
+      next = entity.path[1],
+      door = this.venue.arrival,
+      dist = Math.hypot(at.x - entity.x, at.z - entity.z);
+    if (at.z !== door.doorZ) return dist < 0.58;
+    if (dist < 0.08) return true;
+    return (
+      door.insideZ !== door.doorZ &&
+      Math.abs(at.x - entity.x) < 0.6 &&
+      Math.abs(entity.z - door.doorZ) < 1.2 &&
+      (entity.z - door.doorZ) * (next.z - door.doorZ) > 0
+    );
+  }
   moveAlong(entity, dt, speed) {
     if (!entity.path.length) return true;
     // Shared corners are approach zones, not single points every body must occupy.
-    if (
-      entity.path.length > 1 &&
-      Math.hypot(entity.path[0].x - entity.x, entity.path[0].z - entity.z) <
-        (entity.path[0].z === this.venue.arrival.doorZ ? 0.08 : 0.58)
-    )
-      entity.path.shift();
+    if (entity.path.length > 1 && this.passedWaypoint(entity)) entity.path.shift();
     const target = entity.path[0],
       dx = target.x - entity.x,
       dz = target.z - entity.z,
@@ -1255,7 +1344,7 @@ export class PoolSimulation extends ChaosController {
       p.collisionCooldown = Math.max(0, p.collisionCooldown - dt);
       if (p.status === "arriving") {
         if (p.arrivalHold > 0) p.arrivalHold = Math.max(0, p.arrivalHold - dt);
-        else if (this.moveAlong(p, dt, this.venue.arrival.walkSpeed)) {
+        else if (this.moveAlong(p, dt, this.pace(p, this.venue.arrival.walkSpeed))) {
           p.status = "queue";
           p.angle = 0;
           this.emit("arrived", { id: p.id });
@@ -1266,13 +1355,15 @@ export class PoolSimulation extends ChaosController {
         p.h = clamp(100 - (p.wait / p.waitLimit) * 100 - (p.deckPenalty || 0), 0, 100);
         if (p.h <= 0) this.lose(p);
       } else if (p.status === "enter" || p.status === "exit") {
+        if (this.tickChair(p, dt)) continue;
         if (
           p.status === "exit" &&
           Math.hypot(p.x - p.side * this.venue.arrival.doorX, p.z - this.venue.arrival.doorZ) < 2.4
         )
           this.keepDoorOpen(p.side);
-        if (this.moveAlong(p, dt, p.status === "exit" ? 4.5 : 3.3)) {
-          if (p.status === "exit") {
+        if (this.moveAlong(p, dt, this.pace(p, p.status === "exit" ? 4.5 : 3.3))) {
+          if (p.status === "exit" && p.toChair) this.reachChair(p);
+          else if (p.status === "exit") {
             p.status = "gone";
             this.emit("gone", { id: p.id });
           } else {

@@ -626,8 +626,18 @@ chooseSwimmers("models");
 // ---- the cannonball men: Carl and the leopard man -----------------------------------------------------------------------
 assert.deepEqual(
   FIGURES.map((f) => f.id),
-  ["carl", "leopard", "kid", "marco", "valentina"],
-  "Carl, the leopard man, the fish kid, Marco and Valentina",
+  [
+    "carl",
+    "leopard",
+    "kid",
+    "marco",
+    "senior-granny",
+    "senior-grandpa",
+    "senior-tallgran",
+    "senior-stout",
+    "valentina",
+  ],
+  "Carl, the leopard man, the fish kid, Marco, the four seniors and Valentina",
 );
 {
   // Marco "the Missile" (the Aquatic Centre's star VIP): Anim Bench's own file, a swimmer's Swim and Panic, and the guest the
