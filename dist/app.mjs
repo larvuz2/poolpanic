@@ -22,7 +22,7 @@ import { DRILLS } from "./drills.mjs";
 import { offerBookings, BOOKINGS } from "./bookings.mjs";
 import { LevelMap } from "./map.mjs";
 import { guidanceState, cuePulse } from "./guidance.mjs";
-import { PoolSimulation, TYPES, SHIFTS, loopPosition, swimmerLook } from "./sim.mjs";
+import { PoolSimulation, TYPES, SHIFTS, loopPosition, swimmerLook, freePlayGuests } from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
 import { activeChoice, chooseCoach, loadCoachModel, coachModelReady } from "./scene/coach-model.mjs";
 import {
@@ -661,6 +661,7 @@ function showHuntResults() {
 // time, in every test), through the game's own frame loop. `?bot` plays a level 3 with a bot instead, and so does a page that
 // cannot fetch the recording.
 let replayRun = null; // {record, next, ticks} while a recorded shift is being fed to the simulation
+let shiftGuests = null; // the guests free play added to the shift being played (Marco, VIPs), or null
 let nextSeed = 0; // the seed the next shift starts with (a replayed one; else the clock decides)
 async function loadHuntShift() {
   try {
@@ -1117,6 +1118,7 @@ function beginPlaytestShift(drill) {
       booking: activeBooking || "",
       drill: drill?.id || "",
       man: forcedMan || "",
+      ...(shiftGuests && { guests: shiftGuests }),
       // A shift of the week was built, not looked up: the record carries what it was built from.
       ...(weekShift && { week: { config: weekShift.config, perks: weekShift.perks } }),
     });
@@ -1568,6 +1570,10 @@ function start(bookingId = null, week = null) {
   runSeed = nextSeed || Date.now();
   nextSeed = 0;
   const man = forcedMan && { cannonball: forcedMan };
+  // Free play's added guests (Marco, VIPs: freePlayGuests, from the seed); never in a trial or a hunt, which replay old recordings.
+  // The shift's record carries them, so a replay builds the same shift.
+  shiftGuests = !week && !drill && !testing ? freePlayGuests(runSeed, level) : null;
+  if (shiftGuests && !Object.keys(shiftGuests).length) shiftGuests = null;
   sim = week
     ? new PoolSimulation(week.tier, runSeed, {
         config: { ...week.config, ...man },
@@ -1578,7 +1584,7 @@ function start(bookingId = null, week = null) {
       ? new PoolSimulation(drill.tier, runSeed, { config: { ...drill.config, ...man }, drill: drill.id })
       : new PoolSimulation(level, runSeed, {
           booking: activeBooking,
-          ...(man && { config: { ...SHIFTS[level - 1], ...man } }),
+          config: { ...SHIFTS[level - 1], ...shiftGuests, ...man },
         });
   syncVenue(sim);
   world.resetActors();

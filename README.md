@@ -87,9 +87,17 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   steel roof. Its crowd is competitive: few beginners, no aqua aerobics guest written in, mostly Intermediates and Pros, one more VIP
   than anywhere else, a smaller crowd (0.8) since a crowd of lane swimmers fills five lanes fast, swim teams more often, no aqua class
   and no storm. **Marco "the Missile"** (one of Anim Bench's five named characters, now in the game: `dist/assets/models/marco.glb`)
-  always swims there: a VIP Pro of his own, 12% faster than any Pro, with his own model, tag ("🚀 VIP · The Missile") and toast.
-- **More VIPs.** Every shift after the first brings VIPs (`vipCount`: one from Tuesday of week 1, one more every four shifts, at most
-  five, the Aquatic Centre one more), at random times.
+  always swims there (and often elsewhere: below): a VIP Pro of his own, 12% faster than any Pro, with his own model, tag ("🚀 VIP ·
+  The Missile") and toast.
+- **VIPs in every shift** (the creator, 16 October 2026: "always"). `vipCount`: one even in the gentle first minute, two from the
+  next shift, one more every three shifts, at most six; the Aquatic Centre one more. In free play every level that had none gets
+  them too (one, and one more every six levels: `freePlayGuests`). A served VIP is worth +150 and a lost one costs 300: with more of
+  them the coach bot scores a little more in every pool, and the pools stay level with each other.
+- **Marco "the Missile" everywhere** (the creator, 16 October 2026: "more than half the time, in every location"). He always swims at
+  the Aquatic Centre, and in 60% of the shifts of every other pool (`STAR_CHANCE`, `MARCO` in `dist/sim.mjs`), at a moment of his
+  own: about 70% of a week's shifts in all. Free play has him in 60% of its shifts (not in level 1, whose four guests are written),
+  drawn from the shift's seed; the shift's record keeps the guests it added (`guests`), so `tools/replay.mjs` builds the same
+  shift, and a trial or a hunt (which replay old recordings) has none.
 - **The shifts are built, not written** (the **incident director**, `directShift`): the level is the blueprint (its length, crowd, star
   targets and features), and the incidents come from a budget that follows it with a little give either way, at random times, with its
   twists from the ones the pool allows (the storm only at the Sunset Lagoon, the aqua class only at the club). From a week's Thursday the

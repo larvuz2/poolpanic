@@ -37,9 +37,10 @@ export function makeSim(record) {
       booking: record.booking || null,
       perks: record.week.perks || {},
     });
+  // Free play: the level, with the guests the game added to it (Marco, VIPs: `guests`, kept in the record since 16 October 2026).
   return new PoolSimulation(record.level, record.seed, {
     booking: record.booking || null,
-    ...(man && { config: { ...SHIFTS[record.level - 1], ...man } }),
+    config: { ...SHIFTS[record.level - 1], ...record.guests, ...man },
   });
 }
 
