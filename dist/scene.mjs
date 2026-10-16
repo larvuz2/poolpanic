@@ -6,6 +6,7 @@ import { buildClub } from "./scene/club.mjs";
 import { buildResort } from "./scene/resort.mjs";
 import { buildLagoon } from "./scene/lagoon.mjs";
 import { buildArena } from "./scene/arena.mjs";
+import { buildAquatic } from "./scene/aquatic.mjs";
 import { Sky, SCENERY } from "./scene/sky.mjs";
 import { windUniforms } from "./scene/geom.mjs";
 import { dayLook, moodLook, DAY_TIMES } from "./scene/daylight.mjs";
@@ -130,9 +131,35 @@ LIGHTING.gala = {
   glow: 0.6,
 };
 
+// The Aquatic Centre: cool daylight through glass walls on white and blue, the underwater lamps of a racing pool lit.
+LIGHTING.aquatic = {
+  background: 0x24425c,
+  exposure: 1.02,
+  hemi: [0xeef7ff, 0x5b6b7a, 1.15],
+  sun: [0xf6fbff, 2.45, [-12, 30, 8]],
+  fill: [0xa6d8ff, 0.6, [14, 15, -16]],
+  env: 0.7,
+  envColors: ["#f2f9ff", "#d2e5f1", "#5f7183"],
+  fog: [0x24425c, 70, 170],
+  water: {
+    shallow: [0.2, 0.74, 0.95],
+    deep: [0.03, 0.4, 0.78],
+    sky: [0.86, 0.94, 1],
+    glint: [1, 1, 1],
+    glow: 0.4,
+  },
+  glow: 0.3,
+};
+
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-const BUILDERS = { club: buildClub, resort: buildResort, lagoon: buildLagoon, arena: buildArena };
+const BUILDERS = {
+  club: buildClub,
+  resort: buildResort,
+  lagoon: buildLagoon,
+  arena: buildArena,
+  aquatic: buildAquatic,
+};
 const defaultLighting = (venue) => venue.lighting || (venue.indoor ? "indoor" : "day");
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
 // dome's horizon takes the preset's own fog colour so the far ground melts into the sky without a seam.

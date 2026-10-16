@@ -62,7 +62,7 @@ export const BOOKINGS = {
 // setting on its own (`daylight`), or one held indoors.
 export function offerBookings(level, seed = 0, config = {}) {
   if (level < BOOKINGS_FROM_LEVEL) return [];
-  const fixedLight = config.daylight || config.venue === "arena";
+  const fixedLight = config.daylight || ["arena", "aquatic"].includes(config.venue);
   const pool = Object.values(BOOKINGS).filter(
     (b) => b.id !== "regular" && !(b.lighting && (fixedLight || b.lighting === config.lighting)),
   );

@@ -121,6 +121,127 @@ export const FIRST_SHIFT = { duration: 60, total: 7 };
 // VIPs (a big tip, short patience): none in the first shift, then one, then more as the run goes on (at most five).
 export const vipCount = (step) => (step <= 0 ? 0 : Math.min(5, 1 + Math.floor(step / 4)));
 
+// ---- the pools ---------------------------------------------------------------------------------------------------------
+
+// Where Coach Waters works. A week sends him round them in a mix (the creator, 16 October 2026: "place 1, place 2, place 3, then
+// place 1 again, then place 4, then place 2"): every pool at least once a week, never the same one two days running, in an order
+// drawn for the week. How hard a shift is comes from the run (`tierFor`), not from the pool: a pool gives the shift its look, its
+// crowd and its own trouble (Splash Park's trampoline, the lagoon's storm, the Aquatic Centre's star VIP), and the difficulty gives
+// it its length, crowd size, star targets and incidents. `levels` are the season's levels in that pool (their looks are borrowed);
+// `from` is the first week a pool is in the mix; `score` scales the star targets there (the coach bot's measure: a wide pool serves
+// a crowd faster than the club's three lanes, a narrow one slower).
+export const POOLS = {
+  club: { name: "Community Pool", icon: "🏫", levels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+  resort: { name: "Splash Park", icon: "🌴", levels: [11, 12, 13, 14, 15, 16] },
+  lagoon: { name: "Sunset Lagoon", icon: "🌅", levels: [17, 18, 19] },
+  aquatic: {
+    name: "Aquatic Centre",
+    icon: "🏅",
+    // A competitive pool: few beginners, nearly no aqua aerobics (none written in), mostly Intermediates and Pros, one more VIP
+    // than anywhere else, and always Marco "the Missile".
+    style: {
+      venue: "aquatic",
+      lighting: "aquatic",
+      mix: [0.08, 0.52, 0.97],
+      opening: ["intermediate", "advanced", "intermediate"],
+      aqua: false,
+      star: { id: "marco", name: "Marco", title: "Marco “the Missile”", at: 0.4 },
+    },
+    events: [
+      "Time trials",
+      "Masters meet",
+      "Relay night",
+      "Club championships",
+      "Qualifier heats",
+      "Record attempt",
+    ],
+    vipBonus: 1,
+    crowd: 0.8, // fewer swimmers than anywhere else, and faster: a crowd of lane swimmers fills five lanes quickly
+    twists: { team: 3 }, // swim teams train here: more likely than elsewhere
+  },
+  arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20], from: 3 },
+};
+export const POOL_IDS = Object.keys(POOLS);
+// The pools of a week (the arena joins from week 3).
+export const poolsOf = (chapter) => POOL_IDS.filter((id) => (POOLS[id].from || 1) <= chapter);
+
+// The week's itinerary: one pool a day. Every pool of the week once, then the days left from the others, no pool two days running;
+// the very first Monday of a run is the Community Pool (the gentle minute).
+export function weekPools(chapter, seed) {
+  const random = stream((seed ^ 0x51ed27) >>> 0),
+    pools = poolsOf(chapter),
+    shuffle = (list) => {
+      const a = [...list];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+  let best = null;
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const extra = shuffle(pools).slice(0, Math.max(0, SHIFTS_PER_WEEK - pools.length));
+    const days = shuffle([...pools, ...extra]).slice(0, SHIFTS_PER_WEEK);
+    if (chapter === 1) {
+      const i = days.indexOf("club");
+      [days[0], days[i]] = [days[i], days[0]];
+    }
+    best = days;
+    if (days.every((d, i) => i === 0 || d !== days[i - 1])) break;
+  }
+  return best;
+}
+
+// The look of a pool at a difficulty: the level of that pool whose own place in the season is nearest (Splash Park at an easy
+// difficulty borrows Splash landing's daylight, at a hard one Midnight rush's night), or the pool's own style.
+function poolLook(id, tier, random) {
+  const pool = POOLS[id];
+  if (pool.style) return { ...pool.style, label: pool.events[Math.floor(random() * pool.events.length)] };
+  const level = pool.levels.reduce((a, b) => (Math.abs(b - tier) < Math.abs(a - tier) ? b : a));
+  const L = SHIFTS[level - 1];
+  return {
+    venue: L.venue || "club",
+    ...(L.lighting && { lighting: L.lighting }),
+    ...(L.daylight && { daylight: L.daylight }),
+    ...(L.mix && { mix: L.mix }),
+    ...(L.jumpPatience && { jumpPatience: L.jumpPatience }),
+    daredevilAt: L.daredevilAt || null,
+    nativeTotal: L.total,
+    nativeVips: (L.vipAt || []).length,
+    label: L.name,
+  };
+}
+// Spread `count` arrivals out of a level's list of fractions (the first, the last, and evenly between).
+function pickFractions(list, count) {
+  if (!list?.length || count <= 0) return null;
+  if (count >= list.length) return list;
+  if (count === 1) return [list[Math.floor(list.length / 2)]];
+  return Array.from({ length: count }, (_, i) => list[Math.round((i * (list.length - 1)) / (count - 1))]);
+}
+// How the star targets scale in each pool against the season's own levels: 1 where a level was made for that floor plan (the
+// club's three lanes for levels 1 to 10, the five-lane plan for 11 to 20). Measured with the coach bot against the pools' own
+// levels (week-check.mjs keeps it in bounds): five lanes serve the club's crowds faster, three lanes serve the five-lane crowds
+// slower, and the Aquatic Centre's crowd of lane swimmers is the hardest to keep moving.
+export function scoreScale(venue, tier) {
+  const scale = SCORE_SCALE[venue] || SCORE_SCALE.resort;
+  return (scale.find(([upTo]) => tier <= upTo) || scale[scale.length - 1])[1];
+}
+const SCORE_SCALE = {
+  club: [
+    [10, 1],
+    [20, 0.85],
+  ],
+  resort: [
+    [10, 1.3],
+    [20, 1],
+  ],
+  aquatic: [
+    [10, 1.4],
+    [13, 1],
+    [20, 0.65],
+  ],
+};
+
 // ---- the shop --------------------------------------------------------------------------------------------------------
 
 // What the coach can buy with tips, for the rest of the week. `sim` perks are read by the simulation (sim.mjs `perks`), the
@@ -360,16 +481,6 @@ export function checkWishes(wishes, summary, stats = {}) {
 // ---- building a shift -------------------------------------------------------------------------------------------------
 
 const roundPay = (n) => Math.max(5, Math.round(n / 5) * 5);
-const scaleBlueprint = (bp, f) =>
-  f === 1
-    ? bp
-    : {
-        ...bp,
-        duration: Math.round(bp.duration * f),
-        total: Math.max(4, Math.round(bp.total * f)),
-        thresholds: bp.thresholds.map((t) => Math.round((t * f) / 50) * 50),
-      };
-
 // The director's draw for one shift. `known` are the incidents the player has met; one that is not yet known may come as a
 // surprise (`surprise`). `extraBudget` is the mystery card's. Returns { chaos, twist, incidents, surprise }.
 export function directShift({
@@ -381,6 +492,7 @@ export function directShift({
   heat = 0,
   extraBudget = 0,
   weights = {},
+  twistWeights = {},
   surprised = false,
 }) {
   const slots = (blueprint.chaos || []).length;
@@ -424,7 +536,7 @@ export function directShift({
   const allowed = Object.entries(TWIST_RULES)
     .filter(([, r]) => !r.venues || r.venues.includes(venue))
     .filter(([, r]) => !r.lighting || r.lighting.includes(blueprint.lighting))
-    .map(([kind, r]) => ({ kind, weight: r.weight }));
+    .map(([kind, r]) => ({ kind, weight: r.weight * (twistWeights[kind] ?? 1) }));
   const twistCount = (blueprint.twist || []).length + (heat > 1 && random() < 0.5 ? 1 : 0);
   const twist = [];
   for (let i = 0; i < twistCount && allowed.length; i++) {
@@ -448,7 +560,8 @@ export function shiftCards(index, random, known = [], blueprint = {}) {
     { id: "regular", icon: "🏊", name: "Regular day", note: "Just a normal shift", payout: 1, danger: 1 },
   ];
   if (index >= 2) {
-    const fixedLight = blueprint.daylight || blueprint.venue === "arena" || blueprint.lighting === "night";
+    const fixedLight =
+      blueprint.daylight || ["arena", "aquatic"].includes(blueprint.venue) || blueprint.lighting === "night";
     const bookings = Object.values(BOOKINGS).filter(
       (b) =>
         b.id !== "regular" &&
@@ -499,15 +612,48 @@ export function buildShift(week, card = null, known = week.known || []) {
     // Past the top level: a little more crowd and higher targets for every shift beyond it (at most half as much again).
     f = Math.min(1.5, 1 + 0.03 * over),
     heat = over > 0 ? 1 + Math.floor(over / SHIFTS_PER_WEEK) : 0;
-  let blueprint = scaleBlueprint({ ...SHIFTS[tier - 1], venue: SHIFTS[tier - 1].venue || "club" }, 1);
+  // The day's pool, and the shift: the difficulty's level for its length, crowd, star targets and the number of incidents and twists,
+  // in the pool's look.
+  const poolId = (week.pools || weekPools(week.chapter, week.seed))[index] || "club",
+    pool = POOLS[poolId],
+    look = poolLook(poolId, tier, stream((week.seed ^ Math.imul(index + 5, 1597334677)) >>> 0)),
+    ref = SHIFTS[tier - 1],
+    crowd = pool.crowd || 1,
+    k = scoreScale(look.venue, tier) * crowd;
+  let blueprint = {
+    name: ref.name,
+    duration: ref.duration,
+    total: Math.max(4, Math.round(ref.total * crowd)),
+    thresholds: ref.thresholds.map((t) => Math.round((t * k) / 50) * 50),
+    ...(ref.finChance !== undefined && { finChance: ref.finChance }),
+    ...(ref.chaos && { chaos: ref.chaos }),
+    ...(ref.twist && { twist: ref.twist }),
+    ...(ref.maxChaos && { maxChaos: ref.maxChaos }),
+    venue: look.venue,
+    ...(look.lighting && { lighting: look.lighting }),
+    ...(look.daylight && { daylight: look.daylight }),
+    ...(look.mix && { mix: look.mix }),
+    ...(look.jumpPatience && { jumpPatience: look.jumpPatience }),
+    ...(look.opening && { opening: look.opening }),
+    ...(look.aqua === false && { aqua: false }),
+    ...(look.star && { star: look.star }),
+  };
+  // Daredevils (Splash Park and the five-lane pools after it): as many as the pool's level has, for its crowd (one at least).
+  if (look.daredevilAt) {
+    const count = Math.max(1, Math.round((look.daredevilAt.length * ref.total) / look.nativeTotal));
+    blueprint.daredevilAt = pickFractions(look.daredevilAt, Math.min(count, look.daredevilAt.length));
+  }
   if (step <= 0) {
-    // The gentle minute: level 1 stretched, the same number of swimmers a minute, the star targets in proportion.
+    // The gentle minute: level 1 stretched, the same number of swimmers a minute, the star targets in proportion, and an easy
+    // line (no aqua guest standing in a lane).
     const k = FIRST_SHIFT.duration / blueprint.duration;
     blueprint = {
       ...blueprint,
       duration: FIRST_SHIFT.duration,
       total: FIRST_SHIFT.total,
       thresholds: blueprint.thresholds.map((t) => Math.round((t * k) / 50) * 50),
+      opening: ["beginner", "intermediate", "beginner"],
+      aqua: false,
     };
   } else if (f > 1)
     blueprint = {
@@ -527,16 +673,23 @@ export function buildShift(week, card = null, known = week.known || []) {
     heat,
     extraBudget: chosen?.mystery ? 1 : 0,
     weights: effects.director,
+    twistWeights: pool.twists,
     surprised: !!week.history[week.history.length - 1]?.surprise,
   });
   const { chaos: _c, twist: _t, intro: _i, booking: _b, payout: _p, ...rest } = blueprint;
-  const vips = Math.max((rest.vipAt || []).length, vipCount(step));
+  // VIPs: the run's count (none in the first shift), the lagoon's and arena's own share of their crowd, and the pool's extra.
+  const nativeVips = look.nativeVips ? Math.round((look.nativeVips * rest.total) / look.nativeTotal) : 0,
+    vips = step <= 0 ? 0 : Math.min(6, Math.max(vipCount(step), nativeVips) + (pool.vipBonus || 0));
   const config = {
     ...rest,
-    name: DAYS[index],
+    name: pool.name, // under the HUD's "WEEK 1 · MON · 1/6", and on the countdown
+    day: DAYS[index],
+    pool: poolId,
+    place: pool.name,
+    label: look.label,
     chaos: plan.chaos,
     twist: plan.twist,
-    ...(vips > (rest.vipAt || []).length && { vipAt: vipSlots(vips, random) }),
+    ...(vips > 0 && { vipAt: vipSlots(vips, random) }),
     ...(chosen?.mystery && { payout: 1.15 }),
     week: { chapter: week.chapter, shift: index },
   };
@@ -554,6 +707,10 @@ export function buildShift(week, card = null, known = week.known || []) {
     index,
     step,
     day: DAYS[index],
+    pool: poolId,
+    place: pool.name,
+    icon: pool.icon,
+    label: look.label,
     tier,
     chapter,
     config,
@@ -590,6 +747,7 @@ export function newWeek(save, seed = Date.now()) {
   return {
     chapter: save.chapter,
     seed: seed >>> 0 || 1,
+    pools: weekPools(save.chapter, seed >>> 0 || 1),
     shift: 0,
     fund: 0,
     tips: 0,
@@ -612,9 +770,11 @@ export function normalizeWeekSave(saved = {}) {
   const w = s.week;
   // A week saved by the old ten-shift version (two shifts a day) is not carried over: its shifts do not fit six days.
   if (w && typeof w === "object" && w.status === "playing" && s.v === 2) {
+    const seed = count(w.seed, 4294967295) || 1;
     week = {
       chapter,
-      seed: count(w.seed, 4294967295) || 1,
+      seed,
+      pools: weekPools(chapter, seed), // (drawn again from the seed, never read from the save)
       shift: count(w.shift, SHIFTS_PER_WEEK - 1),
       fund: count(w.fund),
       tips: count(w.tips, 1e4),

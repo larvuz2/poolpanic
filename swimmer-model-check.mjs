@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import * as THREE from "./dist/assets/three.module.js";
-import { PoolSimulation, loopPosition, swimmerLook } from "./dist/sim.mjs";
+import { PoolSimulation, SHIFTS, loopPosition, swimmerLook } from "./dist/sim.mjs";
 import {
   CLIPS,
   FIGURES,
@@ -625,10 +625,31 @@ chooseSwimmers("models");
 // ---- the cannonball men: Carl and the leopard man -----------------------------------------------------------------------
 assert.deepEqual(
   FIGURES.map((f) => f.id),
-  ["carl", "leopard", "kid"],
-  "Carl, the leopard man and the fish kid",
+  ["carl", "leopard", "kid", "marco"],
+  "Carl, the leopard man, the fish kid and Marco",
 );
-for (const look of FIGURES.filter((f) => f.id !== "kid")) {
+{
+  // Marco "the Missile" (the Aquatic Centre's star VIP): Anim Bench's own file, a swimmer's Swim and Panic, and the guest the
+  // simulation names for him gets his model.
+  const marco = FIGURES.find((f) => f.id === "marco");
+  assert.deepEqual(
+    readFileSync("dist/assets/" + marco.file),
+    readFileSync("tools/viewer/models/marco.glb"),
+    "the game's Marco is Anim Bench's",
+  );
+  assert.ok(marco.needs.includes("swim") && marco.needs.includes("panic"));
+  assert.ok(marco.run > marco.walk * 2 && marco.eyes[0] > 1.5, "a tall man who runs");
+  const config = { ...SHIFTS[4], total: 10, star: { id: "marco", name: "Marco", at: 0.4 } };
+  const s = new PoolSimulation(5, 3, { config });
+  const entry = s.schedule.find((e) => e.star === "marco");
+  assert.ok(entry && entry.vip && entry.type === "advanced", "Marco is a VIP Pro in the line");
+  const p = s.spawn({ ...entry });
+  assert.equal(p.name, "Marco");
+  assert.equal(p.figure, "marco", "his model");
+  assert.equal(swimmerLook(p).label, "VIP · The Missile");
+  assert.ok(p.desiredSpeed > 2.6 * 1.5, "faster than any Pro");
+}
+for (const look of FIGURES.filter((f) => ["carl", "leopard"].includes(f.id))) {
   assert.ok(look.run > look.walk * 2 && look.walk > 0.5, `${look.id}: a run covers more ground than a walk`);
   assert.ok(look.eyes[0] > 1.2 && look.eyes[1] > 0.1, `${look.id}: the eye line is on the head`);
   assert.ok(look.depth > 0.3, `${look.id}: a belly's depth`);

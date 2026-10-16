@@ -4942,6 +4942,10 @@ body:not(.menu) .fund-pill {
 .wk-day i {
   width: 30px;
 }
+.wk-day i.pool {
+  font-size: 13px;
+  opacity: 0.85;
+}
 .wk-day i.miss {
   background: #5a2626;
   border-color: #e0806b;

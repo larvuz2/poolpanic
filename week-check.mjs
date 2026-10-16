@@ -41,6 +41,11 @@ import {
   reroll,
   stream,
   textsPassed,
+  POOLS,
+  POOL_IDS,
+  poolsOf,
+  weekPools,
+  scoreScale,
 } from "./dist/week.mjs";
 import { scene, VIDEOS } from "./dist/marina.mjs";
 import { panelHtml } from "./dist/cinematic.mjs";
@@ -137,11 +142,78 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       "the same week builds the same shift",
     );
   }
-  const top = buildShift({ ...newWeek(freshSave(), 7), chapter: 4, shift: 5 }, null, INCIDENT_ORDER),
-    past = buildShift({ ...newWeek(freshSave(), 7), chapter: 9, shift: 5 }, null, INCIDENT_ORDER);
+  // (At Splash Park, whose star targets are the season's own at these levels.)
+  const at = (chapter) => ({ ...newWeek(freshSave(), 7), chapter, shift: 5, pools: Array(6).fill("resort") });
+  const top = buildShift(at(4), null, INCIDENT_ORDER),
+    past = buildShift(at(9), null, INCIDENT_ORDER);
   assert.ok(past.config.total > SHIFTS[past.tier - 1].total, "past the top: a bigger crowd");
   assert.ok(past.config.thresholds[0] > SHIFTS[past.tier - 1].thresholds[0], "and higher targets");
   assert.ok(top.step === 23 && past.step === 53);
+}
+
+// 1c) The pools: a week sends the coach round them in a mix (every pool of the week at least once, never one two days running, the
+// first Monday of a run at the Community Pool, the arena from week 3), the same order for the same week and a different one for
+// another. A shift is its pool's: the venue, the look, the crowd; the Aquatic Centre is a competitive pool (few beginners, no aqua
+// guest written in, more VIPs, smaller and faster crowds, no trampoline) where Marco "the Missile" always swims.
+{
+  assert.deepEqual(POOL_IDS, ["club", "resort", "lagoon", "aquatic", "arena"]);
+  assert.deepEqual(poolsOf(1), ["club", "resort", "lagoon", "aquatic"]);
+  assert.deepEqual(poolsOf(3), POOL_IDS);
+  const orders = new Set();
+  for (let chapter = 1; chapter <= 6; chapter++)
+    for (let seed = 1; seed <= 150; seed++) {
+      const days = weekPools(chapter, seed * 7919);
+      assert.equal(days.length, SHIFTS_PER_WEEK);
+      assert.deepEqual(new Set(days), new Set(poolsOf(chapter)), "every pool of the week, and only those");
+      assert.ok(
+        days.every((d, i) => i === 0 || d !== days[i - 1]),
+        "never the same pool two days running: " + days,
+      );
+      if (chapter === 1) assert.equal(days[0], "club", "the first Monday is the Community Pool");
+      assert.deepEqual(weekPools(chapter, seed * 7919), days, "the same week, the same order");
+      orders.add(days.join());
+    }
+  assert.ok(orders.size > 300, "a different mix most weeks (" + orders.size + ")");
+  // Every shift of a week plays in its day's pool.
+  const save = freshSave();
+  save.week = newWeek(save, 4242);
+  for (let i = 0; i < SHIFTS_PER_WEEK; i++) {
+    const sh = buildShift({ ...save.week, shift: i }, null, INCIDENT_ORDER);
+    assert.equal(sh.pool, save.week.pools[i]);
+    assert.equal(sh.config.venue, sh.pool === "club" ? "club" : sh.pool);
+    assert.equal(sh.config.name, POOLS[sh.pool].name, "the shift is named after its pool");
+  }
+  // The Aquatic Centre at every difficulty.
+  for (let step = 1; step < 30; step++) {
+    const w = {
+      ...newWeek(freshSave(), 300 + step),
+      chapter: Math.floor(step / 6) + 1,
+      shift: step % 6,
+      pools: Array(6).fill("aquatic"),
+    };
+    const sh = buildShift(w, null, INCIDENT_ORDER),
+      c = sh.config;
+    assert.equal(c.venue, "aquatic");
+    assert.equal(c.star.id, "marco", "Marco always swims here");
+    assert.equal(c.aqua, false);
+    assert.ok(c.mix[0] <= 0.1 && c.mix[2] - c.mix[0] >= 0.85, "mostly Intermediates and Pros");
+    assert.ok(!c.daredevilAt, "no trampoline, no daredevils");
+    assert.ok(!c.twist.some((t) => t.kind === "class" || t.kind === "storm"), "no aqua class, no storm");
+    assert.ok((c.vipAt || []).length >= vipCount(step) + 1, "one more VIP than anywhere else");
+    if (sh.step < TOP_TIER - 1)
+      assert.ok(c.total < SHIFTS[sh.tier - 1].total || c.total <= 6, "a smaller crowd than the level's");
+    const sim = new PoolSimulation(sh.tier, 5, { config: c }),
+      types = sim.schedule.map((e) => e.type);
+    assert.equal(sim.schedule.filter((e) => e.star === "marco").length, 1, "Marco once");
+    assert.ok(!types.includes("aqua") && !types.includes("daredevil"));
+    assert.equal(types[0], "intermediate", "the line opens with no beginner");
+  }
+  // Star targets: the season's own where a level was made for that floor plan, scaled elsewhere (the coach bot's measure).
+  for (let tier = 1; tier <= TOP_TIER; tier++) {
+    assert.equal(scoreScale(tier <= 10 ? "club" : "resort", tier), 1);
+    for (const v of ["club", "resort", "lagoon", "arena", "aquatic"])
+      assert.ok(scoreScale(v, tier) >= 0.6 && scoreScale(v, tier) <= 1.5, v + " " + tier);
+  }
 }
 
 // 2) The director: gentle at first, only incidents the player has met plus at most the next one in the order (never two surprises
@@ -518,7 +590,7 @@ const table = [];
     const tiers = [];
     for (let i = 0; i < SHIFTS_PER_WEEK; i++) {
       const sh = buildShift(save.week, null, save.known);
-      tiers.push(sh.tier);
+      tiers.push(POOLS[sh.pool].icon + sh.tier);
       const bot = new CoachBot(sh.tier, 31 + i * 7, { config: sh.config }).run(),
         s = bot.s,
         r = s.summary();

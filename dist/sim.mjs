@@ -14,6 +14,7 @@ export const TYPES = {
 // How a swimmer shows in the queue and over their head: their type, or a golden VIP crown.
 export function swimmerLook(p) {
   const t = TYPES[p.type];
+  if (p.star) return { ...t, icon: "🚀", label: "VIP · The Missile", color: "#e9a92b" };
   return p.vip ? { ...t, icon: "👑", label: "VIP · " + t.label, color: "#e9a92b" } : t;
 }
 // A season is a list of shifts. `chaos` entries pick one incident from `kinds` at a seeded time inside
@@ -416,7 +417,8 @@ export class PoolSimulation extends ChaosController {
     this.events.push({ type, ...data });
   }
   director() {
-    if (this.level === 1)
+    // Level 1's own four guests (a shift the week stretches to more swimmers draws them like any other level).
+    if (this.level === 1 && this.config.total <= 4)
       return ["beginner", "intermediate", "beginner", "intermediate"].map((type, i) => ({
         at: this.venue.arrival.firstDelay + i * 3,
         type,
@@ -426,11 +428,17 @@ export class PoolSimulation extends ChaosController {
       span = this.config.duration - 30,
       slot = (f) => Math.round(f * (n - 1)),
       daredevils = new Set((this.config.daredevilAt || []).map(slot)),
-      vips = new Set();
+      vips = new Set(),
+      // A named star guest (`config.star`, the Aquatic Centre's Marco "the Missile"): a VIP Pro of his own, in his slot.
+      star = this.config.star ? slot(this.config.star.at ?? 0.4) : -1,
+      // The first arrivals' types (a competitive pool opens with no beginner) and whether one aqua guest is written in.
+      opening = this.config.opening || ["beginner", "intermediate", "advanced"],
+      aquaSlot = this.config.aqua === false ? -1 : Math.floor(n * 0.45);
+    if (star >= 0) daredevils.delete(star);
     // A VIP whose slot a daredevil holds takes the next arrival, so `vipAt` always yields that many guests.
     for (const f of this.config.vipAt || []) {
       let i = slot(f);
-      while (i < n && (daredevils.has(i) || vips.has(i))) i++;
+      while (i < n && (daredevils.has(i) || vips.has(i) || i === star)) i++;
       if (i < n) vips.add(i);
     }
     return (
@@ -438,16 +446,7 @@ export class PoolSimulation extends ChaosController {
         at:
           this.venue.arrival.firstDelay +
           (i === 0 ? 0 : Math.max(2, (i * span) / (n - 1) + (this.random() - 0.5) * 3)),
-        type:
-          i === 0
-            ? "beginner"
-            : i === 1
-              ? "intermediate"
-              : i === 2
-                ? "advanced"
-                : i === Math.floor(n * 0.45)
-                  ? "aqua"
-                  : null,
+        type: i < opening.length ? opening[i] : i === aquaSlot ? "aqua" : null,
         sick: this.level >= 3 && i >= 2 && i < n - 2 && this.random() < 0.2,
       }))
         .map((entry, i) => (daredevils.has(i) ? { ...entry, type: "daredevil", sick: false } : entry))
@@ -461,6 +460,18 @@ export class PoolSimulation extends ChaosController {
                 type: ["beginner", "intermediate", "advanced"].includes(entry.type)
                   ? entry.type
                   : ["intermediate", "advanced"][i % 2],
+              }
+            : entry,
+        )
+        .map((entry, i) =>
+          i === star
+            ? {
+                ...entry,
+                vip: true,
+                sick: false,
+                type: "advanced",
+                star: this.config.star.id,
+                name: this.config.star.name,
               }
             : entry,
         )
@@ -493,7 +504,7 @@ export class PoolSimulation extends ChaosController {
       this.random() < (this.config.finChance ?? (this.level === 1 ? 0.24 : 0.38));
     const p = {
       id: ++this.uid,
-      name: NAMES[(index + Math.floor(this.random() * 5)) % NAMES.length],
+      name: NAMES[(index + Math.floor(this.random() * 5)) % NAMES.length], // (drawn for a star too: the same numbers follow)
       type,
       side,
       status: "queue",
@@ -560,6 +571,13 @@ export class PoolSimulation extends ChaosController {
         sick: false,
         crampAt: Infinity,
       });
+    if (spec.star) {
+      // The star: his own name and model (`figure`), and a little faster than any Pro ("the Missile").
+      p.name = spec.name || p.name;
+      p.star = spec.star;
+      p.figure = spec.star;
+      p.desiredSpeed *= 1.12;
+    }
     if (spec.vip) {
       Object.assign(p, {
         vip: true,
@@ -586,8 +604,14 @@ export class PoolSimulation extends ChaosController {
     this.people.push(p);
     this.emit("spawn", { id: p.id });
     if (p.vip) {
-      this.emit("vip", { id: p.id, name: p.name });
-      if (!this.vipIntro) {
+      this.emit("vip", { id: p.id, name: p.name, star: p.star || null });
+      if (p.star)
+        this.emit("toast", {
+          text:
+            (this.config.star.title || p.name) +
+            " is here! 🚀 The fastest VIP in town: give him a clear lane.",
+        });
+      else if (!this.vipIntro) {
         this.vipIntro = true;
         this.emit("toast", { text: "A VIP has arrived! 👑 Big tips, but they lose patience fast." });
       }
