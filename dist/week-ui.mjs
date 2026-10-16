@@ -13,6 +13,8 @@ import {
   normalizeWeekSave,
   newWeek,
   buildShift,
+  POOLS,
+  weekPools,
   finishShift,
   outlook,
   shopOffer,
@@ -43,6 +45,13 @@ export function installWeek({
   let result = null; // the last shift's result, until the player moves on
   let pickedCard = null;
   let inFreePlay = false; // the menu shows the level map (free play) instead of the week
+  // `?pool=aquatic` (a test): every shift of the week at that pool.
+  const forcedPool = POOLS[new URLSearchParams(globalThis.location?.search || "").get("pool")]
+    ? new URLSearchParams(globalThis.location.search).get("pool")
+    : null;
+  const itinerary = (w) =>
+    forcedPool ? Array(SHIFTS_PER_WEEK).fill(forcedPool) : w.pools || weekPools(w.chapter, w.seed);
+  const planned = (w) => ({ ...w, pools: itinerary(w) });
 
   function load() {
     try {
@@ -60,11 +69,13 @@ export function installWeek({
 
   // The six shifts, one a day, each with its stars once played (✗ for one not passed), and Sunday's date.
   function daysHtml(week) {
+    const pools = week ? itinerary(week) : null;
     const days = DAYS.map((d, i) => {
       const h = week?.history[i],
         now = week && i === week.shift && !h,
-        mark = h ? (h.passed === false ? "✗" : "★".repeat(h.stars) || "✓") : "";
-      return `<div class="wk-day${now ? " today" : ""}"><span><i class="${h ? (h.passed === false ? "miss" : "done") : ""}${now ? " now" : ""}">${mark}</i></span>${upper(d.slice(0, 3))}</div>`;
+        pool = pools && POOLS[pools[i]],
+        mark = h ? (h.passed === false ? "✗" : "★".repeat(h.stars) || "✓") : pool ? pool.icon : "";
+      return `<div class="wk-day${now ? " today" : ""}"${pool ? ` title="${esc(pool.name)}"` : ""}><span><i class="${h ? (h.passed === false ? "miss" : "done") : pool ? "pool" : ""}${now ? " now" : ""}">${mark}</i></span>${upper(d.slice(0, 3))}</div>`;
     });
     days.push(
       `<div class="wk-day date"><span><i>${chapterNow().date.icon}</i></span>${upper(DATE_DAY.slice(0, 3))}</div>`,
@@ -128,9 +139,10 @@ export function installWeek({
     const w = save.week;
     if (!w) return menu();
     const ch = chapterNow();
-    shift = buildShift(w, null, save.known);
+    shift = buildShift(planned(w), null, save.known);
     const o = outlook(w);
-    $("wd-title").textContent = "WEEK " + ch.id + " · " + upper(shift.day);
+    $("wd-title").textContent =
+      "WEEK " + ch.id + " · " + upper(shift.day) + " · " + shift.icon + " " + upper(shift.place);
     $("wd-count").textContent = `SHIFT ${w.shift + 1} OF ${SHIFTS_PER_WEEK}`;
     $("wd-date").textContent = ch.date.icon;
     $("wd-money").textContent = money(w.fund) + " / " + money(ch.goal);
@@ -153,18 +165,18 @@ export function installWeek({
           `<button class="booking-card${c.id === "regular" ? " regular" : ""}" data-card="${c.id}"><span class="b-icon" aria-hidden="true">${c.icon}</span><strong>${esc(c.name)}</strong><span class="b-pay">×${c.payout}<small>PAY</small></span><span class="b-note">${esc(c.note)}</span><span class="b-danger" aria-label="danger ${c.danger} of 3">${"🔥".repeat(c.danger)}</span></button>`,
       )
       .join("");
-    presence(`Week ${ch.id} · ${shift.day}`);
+    presence(`Week ${ch.id} · ${shift.day} · ${shift.place}`);
     $("week-dialog").showModal();
     $("wd-cards").firstElementChild?.focus();
   }
   function pick(cardId) {
     pickedCard = cardId;
-    shift = buildShift(save.week, cardId, save.known);
+    shift = buildShift(planned(save.week), cardId, save.known);
     $("week-dialog").close();
     hideMenu();
     crumb(
       "week",
-      `shift ${shift.index + 1} · ${shift.day} · step ${shift.step} · ${cardId} · tier ${shift.tier} · ` +
+      `shift ${shift.index + 1} · ${shift.day} · ${shift.pool} · step ${shift.step} · ${cardId} · tier ${shift.tier} · ` +
         `incidents ${shift.plan.incidents.join(",") || "none"}${shift.plan.surprise ? " · surprise " + shift.plan.surprise : ""} · pass ${shift.pass}`,
     );
     startShift(shift);

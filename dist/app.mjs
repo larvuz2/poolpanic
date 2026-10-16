@@ -1543,6 +1543,12 @@ function loadFishKid(s) {
   loadFigure("kid");
   loadFishModel(); // (and the fish he lets go: scene/fish-model.mjs)
 }
+// And a star guest (the Aquatic Centre's Marco): his model is fetched as the shift begins; until it is there he is a swimmer like
+// any other (the classic figure, then the model once loaded).
+function loadStar(s) {
+  if (activeSwimmerChoice() !== "models" || !s.config.star) return;
+  loadFigure(s.config.star.id);
+}
 // Begin the shift the map has selected: a level (with a booking from Splash Park on) or a chunk's drill.
 // The week (week.mjs, week-ui.mjs) is the main game: `week` is the shift it built (its blueprint tier, its config with the director's
 // incidents, a booking, the shop's perks). Without one, a level of the map (free play) or a drill.
@@ -1580,6 +1586,7 @@ function start(bookingId = null, week = null) {
   if (playtest) beginPlaytestShift(drill);
   loadCannonballMan(sim);
   loadFishKid(sim);
+  loadStar(sim);
   richPresence(
     week
       ? "Week " + week.chapter.id + " · " + week.day
@@ -1967,7 +1974,7 @@ function finishWeek() {
   if (!res) return returnMenu();
   if (res.won && res.chapter.date.id === "ocean" && !res.chapter.heat) achievements.fund();
   $("result-eyebrow").textContent =
-    `WEEK ${ws.chapter.id} · ${ws.day.toUpperCase()}` +
+    `WEEK ${ws.chapter.id} · ${ws.day.toUpperCase()} · ${ws.place.toUpperCase()}` +
     (ws.card && ws.card.id !== "regular" ? " · " + ws.card.name.toUpperCase() : "") +
     (res.failed ? " · NOT PASSED" : " · SHIFT COMPLETE");
   $("result-stars").textContent = Array.from({ length: 3 }, (_, i) => (i < r.stars ? "★" : "☆")).join(" ");

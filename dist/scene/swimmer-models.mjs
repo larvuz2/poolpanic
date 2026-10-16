@@ -127,6 +127,19 @@ export const FIGURES = [
     bucket: { height: 0.28 },
     dumpEnd: 19 / 24,
   },
+  // Marco "the Missile" (16 October 2026): the Aquatic Centre's star VIP, a tall, lean swimmer (1.15 of Coach Waters) and one of
+  // the five named characters of Anim Bench (tools/viewer). A swimmer like the others, with his Swim and Panic; his speeds are
+  // Anim Bench's Match (Run 4.67, Walk 1.50 m/s).
+  {
+    id: "marco",
+    file: "models/marco.glb",
+    walk: 1.5,
+    run: 4.67,
+    eyes: [1.595, 0.19],
+    front: 0.15,
+    back: 0.15,
+    needs: ["swim", "panic"],
+  },
 ];
 // The classic swimmer's head is a ball of this radius, 1.42 up; its crown, star and sore eyes are drawn for that head.
 const CLASSIC_HEAD = { y: 1.42, r: 0.34 };
@@ -159,7 +172,7 @@ export function chooseSwimmers(choice, remember = true) {
 // ---- loading -------------------------------------------------------------------------------------------------------
 
 const templates = new Map(); // swimmer id -> {scene, clips, clone, look, rest…}
-const figures = new Map(); // the same for the cannonball men, loaded one at a time: "carl" or "leopard"
+const figures = new Map(); // the same for the cannonball men, the fish kid and Marco, loaded one at a time when a shift needs one
 export const swimmerModelsReady = () => templates.size > 0;
 export const swimmerTemplateIds = () => [...templates.keys()];
 export const figureReady = (id) => figures.has(id);

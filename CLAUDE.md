@@ -15,8 +15,11 @@ the same twice: see `docs/incidents.md`).
 1. **The game (now).** Systems, mechanics, characters, incidents, the loop. It has to work *perfectly*. This is where effort goes. The loop
    is **the run** (restructured on 16 October 2026; README, "The week: the main loop"): one START on the main screen; six shifts a
    week, Monday to Saturday, then Sunday is a date with Marina if the Date Fund is full, and the next week is harder; short on Saturday
-   night is game over, and the next run starts at week 1. The first shift is a gentle minute; after it every shift is a random level
-   from a difficulty that rises every shift (`tierFor`), with more VIPs as the run goes on and incidents drawn by a director
+   night is game over, and the next run starts at week 1. The first shift is a gentle minute; after it every shift is a pool from the
+   week's mix (`weekPools`: every pool each week, never one two days running; since 16 October 2026) at a difficulty that rises every
+   shift (`tierFor`), with star targets made fair per pool by the coach bot (`scoreScale`). The pools: the Community Pool, Splash
+   Park, the Sunset Lagoon, the **Aquatic Centre** (indoor and competitive, where Marco "the Missile" always swims) and from week 3
+   the Grand Gala Arena. More VIPs as the run goes on, and incidents drawn by a director
    (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder). A shift not passed pays nothing but the week goes on. Marina's
    wishes for each shift, tips and a shop that never touch the Date Fund. Every level a run passes opens in **free play** (the level map,
    behind a small link under START, like a level select). Marina never appears on the deck: only in texts, wishes and full-screen

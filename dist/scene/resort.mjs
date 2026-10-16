@@ -78,8 +78,9 @@ export function commonStations(w, venue, { tower } = {}) {
   flashlightHolder(w, venue.fixtures.flashlight);
   fuseBox(w, venue.fixtures.fuseBox);
   medkitCabinet(w, venue.fixtures.medkit);
-  trampolineTower(w, venue.trampoline, tower);
   kioskTreats(w, venue.fixtures.treats);
+  if (!venue.trampoline) return; // (the Aquatic Centre has no tower)
+  trampolineTower(w, venue.trampoline, tower);
   w.textPlane(
     "NO DIVING · SPLASH ZONE LANE 5",
     5.2,

@@ -571,19 +571,40 @@ const emitted = (s, type, kind) => s.events.filter((e) => e.type === type && e.k
   assert.equal(lostPlain.t.score, -100);
 }
 {
-  // Four venues: Splash Park, the Sunset Lagoon and the Grand Gala Arena share one floor plan, so every check that
-  // reads positions, lanes or the deck works in all of them; the arena is indoors, the club too.
+  // Five venues: Splash Park, the Sunset Lagoon, the Grand Gala Arena and the Aquatic Centre share one floor plan, so every
+  // check that reads positions, lanes or the deck works in all of them; the arena, the Aquatic Centre and the club are indoors.
   const plan = (v) => JSON.stringify([v.pool, v.deck, v.lanes, v.arrival]);
-  assert.deepEqual(Object.keys(VENUES).sort(), ["arena", "club", "lagoon", "resort"]);
+  assert.deepEqual(Object.keys(VENUES).sort(), ["aquatic", "arena", "club", "lagoon", "resort"]);
   assert.equal(plan(VENUES.lagoon), plan(VENUES.resort));
   assert.equal(plan(VENUES.arena), plan(VENUES.resort));
+  assert.equal(plan(VENUES.aquatic), plan(VENUES.resort));
   assert.equal(VENUES.lagoon.name, "Sunset Lagoon");
   assert.equal(VENUES.arena.name, "Grand Gala Arena");
+  assert.equal(VENUES.aquatic.name, "Aquatic Centre");
   assert.deepEqual(
     Object.values(VENUES).map((v) => !!v.indoor),
-    [true, false, false, true],
-    "Club and arena are indoors",
+    [true, false, false, true, true],
+    "Club, arena and Aquatic Centre are indoors",
   );
+  // The Aquatic Centre has no trampoline: no tower and no stairs to walk round, a podium and a team bench instead, and every
+  // station, fixture, queue spot and pool edge spot still on the deck.
+  const aq = VENUES.aquatic;
+  assert.equal(aq.trampoline, null);
+  assert.ok(!aq.obstacles.some((o) => ["tower", "stairs"].includes(o.kind)));
+  assert.ok(
+    aq.obstacles.some((o) => o.kind === "podium") && aq.obstacles.some((o) => o.kind === "team-bench"),
+  );
+  for (const [name, at] of [...Object.entries(aq.stations), ...Object.entries(aq.fixtures)])
+    assert.ok(
+      aq.isDeck(at.x + (at.x > 0 ? -0.9 : 0.9), at.z, 3, 0.3) || aq.isDeck(at.x, at.z + 1.2, 3, 0.3),
+      name + " can be reached",
+    );
+  for (let slot = 0; slot < 12; slot++)
+    for (const side of [-1, 1]) {
+      const q = aq.queuePosition(side, slot);
+      assert.ok(aq.isDeck(q.x, q.z, 3, 0.2), "queue spot " + side + "/" + slot + " is on the deck");
+    }
+  assert.ok(aq.edgeSpots().length >= VENUES.resort.edgeSpots().length);
   for (const [i, shift] of SHIFTS.entries())
     assert.ok(VENUES[shift.venue || "club"], `Level ${i + 1} plays in a venue that exists`);
   // A sliding sky: `daylight` runs between two points on the day scale, forward in time, inside 0..1.

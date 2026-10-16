@@ -115,6 +115,15 @@ export function buildPool(
     glint = [1, 0.96, 0.86],
     glow = 0,
   } = {},
+  // A pool's own dress (the Aquatic Centre's racing pool); without it, the toy pool every venue had.
+  {
+    floorTiles = ["#5cc2cb", "#bfe9e6"],
+    wallTiles = ["#72cdd2", "#cdeeea"],
+    line = COLORS.navy,
+    ropes = [0xffe3a2, 0x3593c1, 0xed7556],
+    blockTop = COLORS.blue,
+    pennants = [COLORS.coral, COLORS.cream, COLORS.teal],
+  } = {},
 ) {
   const lanes = venue.lanes,
     P = venue.pool,
@@ -123,7 +132,7 @@ export function buildPool(
     width = halfX * 2;
   w.poolUniforms = { uTime: { value: 0 }, uCaustic: { value: 1 } };
   // Basin floor and walls in a caustic-lit mosaic.
-  const floorTex = mosaicTexture({ seed: 3, base: "#5cc2cb", grout: "#bfe9e6" });
+  const floorTex = mosaicTexture({ seed: 3, base: floorTiles[0], grout: floorTiles[1] });
   floorTex.repeat.set(width / 2, (halfZ * 2) / 2);
   w.textures.push(floorTex);
   const floorMat = withCaustics(
@@ -135,7 +144,7 @@ export function buildPool(
   floor.position.set(0, -1.42, 0);
   floor.receiveShadow = true;
   w.scene.add(floor);
-  const wallTex = mosaicTexture({ seed: 17, base: "#72cdd2", grout: "#cdeeea" });
+  const wallTex = mosaicTexture({ seed: 17, base: wallTiles[0], grout: wallTiles[1] });
   wallTex.repeat.set(4, 0.6);
   w.textures.push(wallTex);
   const wallMat = withCaustics(
@@ -161,11 +170,11 @@ export function buildPool(
   for (const z of [-halfZ + 0.09, halfZ - 0.09]) w.box(width - 0.2, 0.16, 0.03, band, 0, -0.36, z, 0);
   // Regulation lane lines, T ends and wall targets.
   for (const x of lanes) {
-    w.box(0.15, 0.016, 13.8, COLORS.navy, x, -1.33, 0, 0);
-    for (const z of [-6.9, 6.9]) w.box(1.65, 0.019, 0.18, COLORS.navy, x, -1.325, z, 0);
+    w.box(0.15, 0.016, 13.8, line, x, -1.33, 0, 0);
+    for (const z of [-6.9, 6.9]) w.box(1.65, 0.019, 0.18, line, x, -1.325, z, 0);
     for (const z of [-halfZ + 0.12, halfZ - 0.12]) {
-      w.box(0.16, 0.72, 0.03, COLORS.navy, x, -0.91, z, 0);
-      w.box(1.15, 0.16, 0.032, COLORS.navy, x, -0.74, z, 0);
+      w.box(0.16, 0.72, 0.03, line, x, -0.91, z, 0);
+      w.box(1.15, 0.16, 0.032, line, x, -0.74, z, 0);
     }
   }
   // Rounded stone coping and drainage channels.
@@ -249,7 +258,7 @@ export function buildPool(
     buckets.forEach((arr, k) => {
       const mesh = new THREE.InstancedMesh(
         floatGeo,
-        w.mat(k === 2 ? 0xed7556 : k === 0 ? 0xffe3a2 : 0x3593c1, { roughness: 0.4 }),
+        w.mat(k === 2 ? ropes[2] : k === 0 ? ropes[0] : ropes[1], { roughness: 0.4 }),
         arr.length,
       );
       const dummy = new THREE.Object3D();
@@ -266,7 +275,7 @@ export function buildPool(
   // Starting blocks with tilted tops, grips and visible lane numbers.
   lanes.forEach((x, i) => {
     w.box(0.65, 0.85, 0.75, 0xd1ded3, x, 0.48, -9.15, 0.07);
-    const top = w.box(1.18, 0.19, 1.1, w.mat(COLORS.blue, { roughness: 0.45 }), x, 0.97, -9.13, 0.08);
+    const top = w.box(1.18, 0.19, 1.1, w.mat(blockTop, { roughness: 0.45 }), x, 0.97, -9.13, 0.08);
     top.rotation.x = 0.12;
     w.box(0.18, 0.11, 0.88, 0xebc14e, x + 0.45, 1.09, -9.1, 0.02);
     w.rod([x - 0.38, 0.6, -8.85], [x + 0.38, 0.6, -8.85], 0.055, 0xdde8e0);
@@ -319,7 +328,7 @@ export function buildPool(
       const f = new THREE.Mesh(
         new THREE.ShapeGeometry(shape),
         new THREE.MeshStandardMaterial({
-          color: k % 3 === 0 ? COLORS.coral : k % 3 === 1 ? COLORS.cream : COLORS.teal,
+          color: pennants[k % 3],
           side: THREE.DoubleSide,
           roughness: 0.9,
         }),

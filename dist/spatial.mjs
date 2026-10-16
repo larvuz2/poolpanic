@@ -329,7 +329,26 @@ export const ARENA = makeVenue({
   lighting: "gala",
 });
 
-export const VENUES = { club: CLUB, resort: RESORT, lagoon: LAGOON, arena: ARENA };
+// The Aquatic Centre (16 October 2026): an indoor competition pool for serious swimmers. Splash Park's floor plan (the same five
+// lanes, doors, stations and kit, so every system plays as it does there) without the trampoline: a victory podium stands where
+// the tower was and the snack kiosk is the officials' table (it keeps the dog treats).
+const NOT_AQUATIC = new Set(["tower", "stairs", "palm", "lounger", "umbrella"]);
+export const AQUATIC = makeVenue({
+  ...RESORT_SPEC,
+  id: "aquatic",
+  name: "Aquatic Centre",
+  indoor: true,
+  lighting: "aquatic",
+  trampoline: null,
+  furniture: [
+    ...RESORT_SPEC.furniture.filter((f) => !NOT_AQUATIC.has(f.kind)),
+    { kind: "podium", x: 12.4, z: 4.8, hx: 1.35, hz: 0.62 },
+    { kind: "team-bench", x: -12.9, z: 10.6, angle: 0, hx: 1.5, hz: 0.42 },
+    { kind: "plant", x: 15.4, z: -11.2, hx: 0.5, hz: 0.5, scale: 0.9 },
+  ],
+});
+
+export const VENUES = { club: CLUB, resort: RESORT, lagoon: LAGOON, arena: ARENA, aquatic: AQUATIC };
 
 export function createCoach(venue = CLUB) {
   return {
