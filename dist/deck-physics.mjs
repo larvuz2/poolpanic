@@ -14,7 +14,8 @@ export function onDeck(p, venue = CLUB) {
     !(Math.abs(p.x) < venue.pool.deckX && Math.abs(p.z) < venue.pool.deckZ)
   );
 }
-const resting = (p) => p.status === "queue" || p.status === "panic";
+// (The Kids Pool's children wait running about the deck, not standing in line: sim.roamKid.)
+const resting = (p) => (p.status === "queue" && p.type !== "child") || p.status === "panic";
 
 // Corrections respect solid deck edges. Authored door/entry transitions retain their routes.
 function displace(p, x, z, sim) {

@@ -92,8 +92,12 @@ function segmentHitsBox(a, b, hx, minZ, maxZ) {
   return t1 - t0 > 1e-6;
 }
 
+// Where the mop bucket stands (incidents/wet.mjs) when a venue does not say: a free corner of the deck by the starting-block
+// end, right of the lockers, in every one of the first six pools.
+const MOP_SPOT = { x: 12.6, z: -11.6 };
 function makeVenue(spec) {
   const pool = poolGeometry(spec.lanes);
+  spec = { ...spec, fixtures: { mop: MOP_SPOT, ...spec.fixtures } };
   // A door is crossed along x (the side wall of a locker room: inside at insideX, out on the deck at outsideX, both at doorZ) or,
   // with `insideZ`, along z (a door in the back wall: inside at insideZ behind it, out on the deck at doorZ).
   const arrival = { ...ARRIVAL_TIMING, ...spec.doors };
@@ -105,6 +109,7 @@ function makeVenue(spec) {
       : spec.lanes.map((x) => ({ x, z: -9.15, hx: 0.6, hz: 0.56, kind: "block" }))),
     { ...spec.sanitation.bin, hx: 0.62, hz: 0.62, kind: "waste-bin", minLevel: 3 },
     ...spec.furniture.filter((f) => f.hx).map((f) => ({ x: f.x, z: f.z, hx: f.hx, hz: f.hz, kind: f.kind })),
+    { x: spec.fixtures.mop.x, z: spec.fixtures.mop.z, hx: 0.34, hz: 0.34, kind: "mop-bucket" },
   ];
   const venue = {
     ...spec,
@@ -114,7 +119,7 @@ function makeVenue(spec) {
     obstacles,
     laneCount: spec.lanes.length,
     // What the way out is called in a toast: the locker doors, or the Aqua Disco's one door.
-    doorWord: spec.lockers.length ? "a locker door" : "the door",
+    doorWord: spec.doorWord ?? (spec.lockers.length ? "a locker door" : "the door"),
     // Walkable deck test for a coach-sized body. Level-gated furniture (the waste bin) is absent early on.
     isDeck(x, z, level = 3, radius = COACH_TUNING.radius) {
       const d = spec.deck;
@@ -420,6 +425,60 @@ export const DISCO = makeVenue({
   ],
 });
 
+// The Kids Pool (16 October 2026): an outdoor paddling pool for children and nobody else. No lanes for the coach to pick (the
+// pool's three zones are only where the kids are counted: the coach sends a kid "into the pool"), no starting blocks; the kids do
+// not queue, they run all over the deck until the coach catches one (`kids`). One gate in the back fence (no locker rooms), a
+// slide, a lifeguard chair and a toy box, and toys floating in the water (scene/kids.mjs).
+export const KIDS = makeVenue({
+  id: "kids",
+  name: "Kids Pool",
+  doorWord: "the gate",
+  indoor: false,
+  scenery: "park",
+  lighting: "day",
+  kids: true,
+  blocks: false,
+  lanes: [-3.2, 0, 3.2],
+  deck: { minX: -14.1, maxX: 14.1, minZ: -15.2, maxZ: 12.65 },
+  room: { minX: -14.7, maxX: 14.7, minZ: -16.7, maxZ: 13.5 },
+  doors: { insideX: 0.62, doorX: 0.62, doorZ: -14.85, outsideX: 0.62, insideZ: -16.55 },
+  lockers: [],
+  queue: { outerX: 4.6, stepX: 1.1, startZ: -11.1, stepZ: 1.15 },
+  coachStart: { x: -6.6, z: 0 },
+  cameraFollow: { kx: 0.22, maxX: 2.4 },
+  props: ["mop", "mop-bucket", "duck", "swim-ring"],
+  stations: {
+    fins: { x: -10.3, z: 7.8 },
+    chlorine: { x: 10.8, z: 7.8 },
+    relief: { x: 10.8, z: 3.9 },
+  },
+  sanitation: { rack: { x: -13.5, z: -1.9 }, bin: { x: -12.5, z: 1.5 }, reach: 6.2 },
+  ringMounts: [
+    { x: -4, z: -15.7, angle: 0 },
+    { x: -14.35, z: -5, angle: Math.PI / 2 },
+    { x: 14.35, z: 5, angle: -Math.PI / 2 },
+  ],
+  rescue: { bench: { x: -10.2, z: -0.25 }, approach: { x: -8.9, z: -0.25 } },
+  fixtures: {
+    fishNet: { x: 14.35, z: -2.6, angle: -Math.PI / 2 },
+    treats: { x: -13.4, z: 8.4 },
+    flashlight: { x: 11.2, z: -7.3 },
+    fuseBox: { x: 14.4, z: 12.05, angle: -Math.PI / 2 },
+  },
+  trampoline: null,
+  furniture: [
+    { kind: "bench", x: -10.2, z: -0.9, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
+    { kind: "bench", x: 10.3, z: -0.5, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
+    { kind: "rack", x: -10.3, z: 7.8, hx: 0.48, hz: 1.03 },
+    { kind: "station", x: 10.8, z: 7.8, hx: 0.6, hz: 0.9 },
+    { kind: "station", x: 10.8, z: 3.9, hx: 0.9, hz: 0.6 },
+    { kind: "treat-table", x: -13.4, z: 8.4, hx: 0.36, hz: 0.36 },
+    { kind: "slide", x: -11.8, z: -8.4, hx: 0.75, hz: 1.9 },
+    { kind: "lifeguard", x: 12.6, z: 0.4, hx: 0.6, hz: 0.6 },
+    { kind: "toy-box", x: -12.9, z: 11.2, hx: 0.65, hz: 0.45 },
+  ],
+});
+
 export const VENUES = {
   club: CLUB,
   resort: RESORT,
@@ -427,6 +486,7 @@ export const VENUES = {
   arena: ARENA,
   aquatic: AQUATIC,
   disco: DISCO,
+  kids: KIDS,
 };
 
 export function createCoach(venue = CLUB) {

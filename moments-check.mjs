@@ -108,7 +108,15 @@ function diveAt(s, z) {
 {
   const s = shift(5);
   const p = s.spawn({ type: "intermediate", sick: true });
-  Object.assign(p, { status: "swim", lane: 0, p: 6, workTarget: 999, crampAt: Infinity, stomachDelay: 0.3 });
+  Object.assign(p, {
+    sickKind: "poo",
+    status: "swim",
+    lane: 0,
+    p: 6,
+    workTarget: 999,
+    crampAt: Infinity,
+    stomachDelay: 0.3,
+  });
   drain(s);
   for (let f = 0; f < 120 && !p.stomachWarning; f++) tick(s);
   assert.ok(p.stomachWarning);
@@ -129,7 +137,15 @@ function diveAt(s, z) {
   const s = shift(5);
   const others = [swimmer(s, 1), swimmer(s, 2)];
   const p = s.spawn({ type: "intermediate", sick: true });
-  Object.assign(p, { status: "swim", lane: 0, p: 6, workTarget: 999, crampAt: Infinity, stomachDelay: 99 });
+  Object.assign(p, {
+    sickKind: "poo",
+    status: "swim",
+    lane: 0,
+    p: 6,
+    workTarget: 999,
+    crampAt: Infinity,
+    stomachDelay: 99,
+  });
   tick(s, 2);
   drain(s);
   s.catastrophe(p);

@@ -22,6 +22,7 @@ export const INPUTS = [
   "assist",
   "assign",
   "assignTrampoline",
+  "mop",
   "fetch",
   "returnItem",
   "tidy",

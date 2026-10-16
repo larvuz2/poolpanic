@@ -3,6 +3,7 @@ import { waitingInWater, heldInWater } from "./rescue.mjs";
 import { ChaosController } from "./chaos.mjs";
 import { ENTRY, VENUES, createCoach } from "./spatial.mjs";
 import { BOOKINGS, applyBooking } from "./bookings.mjs";
+import { WetSpots, wetSpotAt, slippedInWet } from "./incidents/wet.mjs";
 export { LANES, STATIONS } from "./spatial.mjs";
 export const TYPES = {
   beginner: { label: "Beginner", color: "#71ba54", speed: 0.55, icon: "🐢" },
@@ -10,6 +11,9 @@ export const TYPES = {
   advanced: { label: "Pro", color: "#f26857", speed: 1.5, icon: "⚡" },
   aqua: { label: "Aqua aerobics", color: "#b782db", speed: 0, icon: "💦" },
   daredevil: { label: "Daredevil", color: "#f39a2b", speed: 0, icon: "🤸" },
+  // The Kids Pool's guests (16 October 2026): children, who run about the deck instead of queueing and paddle about anywhere in the
+  // water instead of swimming laps.
+  child: { label: "Kid", color: "#ff7eb3", speed: 0.42, icon: "🧒" },
 };
 // Marco "the Missile", the star VIP (16 October 2026, the creator: in every pool, in more than half the shifts, and always at the
 // Aquatic Centre). `STAR_CHANCE` is how often he swims in a shift of any other pool.
@@ -368,6 +372,10 @@ const NAMES = [
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // How many dancers a zone of the Aqua Disco holds before they crowd each other.
 export const CLASS_ROOM = 4;
+// The Kids Pool: how many children the pool holds before they start bumping into each other and getting cross, and how fast they
+// run about the deck (m/s) while they wait.
+export const KIDS_ROOM = 10;
+export const KID_RUN = [2.1, 3.1];
 export function loopPosition(p, center = 0) {
   p = ((p % CIRCUIT) + CIRCUIT) % CIRCUIT;
   if (p < 14.4) return { x: center + 0.6, z: -7.2 + p, angle: 0 };
@@ -398,6 +406,7 @@ export class PoolSimulation extends ChaosController {
     this.arrivalTime = 0;
     this.cleanup = null;
     this.waterBrown = 0;
+    this.waterYellow = 0; // (after a wee in the pool: sanitation.mjs)
     this.status = "ready";
     this.people = [];
     this.events = [];
@@ -436,6 +445,129 @@ export class PoolSimulation extends ChaosController {
     this.seed = (Math.imul(this.seed, 1664525) + 1013904223) >>> 0;
     return this.seed / 4294967296;
   }
+  // The Kids Pool's children (where they run, how they paddle) draw from a stream of their own, so the rest of a shift is the same.
+  kidRandom() {
+    this.kidSeed =
+      (Math.imul(this.kidSeed || ((this.config.seedKids ?? this.seed) ^ 0x2545f491) >>> 0 || 3, 1664525) +
+        1013904223) >>>
+      0;
+    return this.kidSeed / 4294967296;
+  }
+  // The Kids Pool has no lanes to choose: a kid sent "into the pool" goes to its emptiest zone (the middle first).
+  poolLane() {
+    const closed = this.laneClosed?.();
+    return (
+      [...this.lanes.keys()]
+        .filter((l) => l !== closed)
+        .sort((a, b) => this.occupancy(a) - this.occupancy(b) || Math.abs(a - 1) - Math.abs(b - 1))[0] ?? 0
+    );
+  }
+  // A child waiting at the Kids Pool does not stand in line: they run about the deck, from one place to the next, stopping now and
+  // then, until the coach catches one (selects them).
+  roamKid(p, dt) {
+    const r = (p.roam ||= { pause: 0, speed: KID_RUN[0] });
+    if (p.path.length) {
+      const x = p.x,
+        z = p.z;
+      if (this.moveAlong(p, dt, r.speed)) p.path = [];
+      // Held up (by someone in the way, or a bench) for a second: off somewhere else.
+      r.stuck = Math.hypot(p.x - x, p.z - z) < r.speed * dt * 0.2 ? (r.stuck || 0) + dt : 0;
+      if (r.stuck > 1) {
+        p.path = [];
+        r.stuck = 0;
+      }
+      return;
+    }
+    r.pause -= dt;
+    if (r.pause > 0) return;
+    const d = this.venue.deck;
+    for (let k = 0; k < 12; k++) {
+      const t = {
+        x: d.minX + 1 + this.kidRandom() * (d.maxX - d.minX - 2),
+        z: d.minZ + 1 + this.kidRandom() * (d.maxZ - d.minZ - 2),
+      };
+      if (!this.venue.isDeck(t.x, t.z, this.level, 0.45)) continue;
+      // The route steers round the pool only: a run that would cut through a bench, a station or the slide is not taken.
+      const path = this.venue.route(p, t);
+      let from = p,
+        clear = true;
+      for (const to of path) {
+        const steps = Math.ceil(Math.hypot(to.x - from.x, to.z - from.z) / 0.3);
+        for (let i = 1; i <= steps && clear; i++)
+          clear = this.venue.isDeck(
+            from.x + ((to.x - from.x) * i) / steps,
+            from.z + ((to.z - from.z) * i) / steps,
+            this.level,
+            0.3,
+          );
+        from = to;
+      }
+      if (!clear) continue;
+      p.path = path;
+      r.speed = KID_RUN[0] + this.kidRandom() * (KID_RUN[1] - KID_RUN[0]);
+      r.pause = 0.3 + this.kidRandom() * 1.4;
+      return;
+    }
+  }
+  // A child in the water paddles about anywhere in it, changing direction every second or two, bumping off the walls and the other
+  // children, until their time is up. More than KIDS_ROOM in the pool and they get in each other's way and get cross.
+  paddle(p, dt, inPool) {
+    const P = this.venue.pool,
+      k = (p.kid ||= { vx: 0, vz: 0, tx: 0, tz: 0, turn: 0 });
+    if (p.problem) {
+      p.actualSpeed = 0;
+      return;
+    }
+    k.turn -= dt;
+    if (k.turn <= 0) {
+      const a = this.kidRandom() * Math.PI * 2,
+        speed = 0.5 + this.kidRandom() * 0.9;
+      k.tx = Math.sin(a) * speed;
+      k.tz = Math.cos(a) * speed;
+      k.turn = 0.8 + this.kidRandom() * 2.2;
+    }
+    const ease = Math.min(1, dt * 2);
+    k.vx += (k.tx - k.vx) * ease;
+    k.vz += (k.tz - k.vz) * ease;
+    for (const o of inPool) {
+      if (o === p) continue;
+      const dx = p.x - o.x,
+        dz = p.z - o.z,
+        dd = Math.hypot(dx, dz);
+      if (dd > 0.001 && dd < 0.95) {
+        k.vx += (dx / dd) * dt * 2.5;
+        k.vz += (dz / dd) * dt * 2.5;
+      }
+    }
+    p.x += k.vx * dt;
+    p.z += k.vz * dt;
+    const X = P.swimX - 0.45,
+      Z = P.swimZ - 0.7;
+    if (Math.abs(p.x) > X) {
+      p.x = clamp(p.x, -X, X);
+      k.vx = -k.vx;
+      k.tx = -k.tx;
+    }
+    if (Math.abs(p.z) > Z) {
+      p.z = clamp(p.z, -Z, Z);
+      k.vz = -k.vz;
+      k.tz = -k.tz;
+    }
+    p.actualSpeed = Math.hypot(k.vx, k.vz);
+    p.traveled += p.actualSpeed * dt;
+    if (p.actualSpeed > 0.05) p.angle = Math.atan2(k.vx, k.vz);
+    const over = inPool.length - KIDS_ROOM;
+    if (over > 0) {
+      p.h -= dt * 0.8 * over;
+      if (!(this.time - (this.kidsCrowdToast ?? -99) < 20)) {
+        this.kidsCrowdToast = this.time;
+        this.emit("toast", {
+          text: "The pool is packed! The kids keep bumping into each other.",
+          warning: true,
+        });
+      }
+    }
+  }
   emit(type, data = {}) {
     this.events.push({ type, ...data });
   }
@@ -470,7 +602,7 @@ export class PoolSimulation extends ChaosController {
           this.venue.arrival.firstDelay +
           (i === 0 ? 0 : Math.max(2, (i * span) / (n - 1) + (this.random() - 0.5) * 3)),
         type: i < opening.length ? opening[i] : i === aquaSlot ? "aqua" : null,
-        sick: this.level >= 3 && i >= 2 && i < n - 2 && this.random() < 0.2,
+        sick: this.level >= 3 && i >= 2 && i < n - 2 && this.random() < (this.config.sickRate ?? 0.2),
       }))
         .map((entry, i) => (daredevils.has(i) ? { ...entry, type: "daredevil", sick: false } : entry))
         // VIP guests: a lap swimmer (never aqua or a daredevil) who tips well and will not wait.
@@ -510,10 +642,12 @@ export class PoolSimulation extends ChaosController {
     const r = this.random();
     const mix = this.mixOverride || this.config.mix || [0.29, 0.6, 0.83];
     // The Aqua Disco's class takes nobody but aqua-aerobics guests (VIPs and Marco included).
-    const type = this.venue.class
-      ? "aqua"
-      : spec.type ||
-        (r < mix[0] ? "beginner" : r < mix[1] ? "intermediate" : r < mix[2] ? "advanced" : "aqua");
+    const type = this.venue.kids
+      ? "child"
+      : this.venue.class
+        ? "aqua"
+        : spec.type ||
+          (r < mix[0] ? "beginner" : r < mix[1] ? "intermediate" : r < mix[2] ? "advanced" : "aqua");
     const index = this.people.length;
     const side = index % 2 === 0 ? -1 : 1;
     const occupied = new Set(
@@ -526,6 +660,7 @@ export class PoolSimulation extends ChaosController {
     const sick = this.level >= 3 && (spec.sick ?? (index > 2 && this.random() < 0.08));
     const need =
       type !== "aqua" &&
+      type !== "child" &&
       index > 2 &&
       this.random() < (this.config.finChance ?? (this.level === 1 ? 0.24 : 0.38));
     const p = {
@@ -545,7 +680,8 @@ export class PoolSimulation extends ChaosController {
       p: 0,
       traveled: 0,
       workTime: 0,
-      workTarget: type === "aqua" ? 23 + this.random() * 7 : CIRCUIT,
+      workTarget:
+        type === "aqua" ? 23 + this.random() * 7 : type === "child" ? 20 + this.random() * 8 : CIRCUIT,
       desiredSpeed: TYPES[type].speed * 2.6,
       actualSpeed: 0,
       blocked: 0,
@@ -577,6 +713,9 @@ export class PoolSimulation extends ChaosController {
       stationary: 0,
       crampDone: false,
     };
+    // A sick guest has a poo or a wee coming (16 October 2026), decided from a number already drawn so no other roll moves: a third
+    // of them a wee, half of them at the Kids Pool (`config.peeShare`).
+    p.sickKind = sick ? (p.phase < Math.PI * 2 * (this.config.peeShare ?? 0.35) ? "pee" : "poo") : null;
     p.crampAt =
       this.level >= 2 && ((this.level === 2 && index === 1) || p.shape < 0.25 * this.perks.cramp)
         ? 9 + (p.phase / 6.28) * 4
@@ -597,7 +736,7 @@ export class PoolSimulation extends ChaosController {
         sick: false,
         crampAt: Infinity,
       });
-    if (spec.star) {
+    if (spec.star && !this.venue.kids) {
       // The star: his own name and model (`figure`), and a little faster than any Pro ("the Missile").
       p.name = spec.name || p.name;
       p.star = spec.star;
@@ -615,6 +754,12 @@ export class PoolSimulation extends ChaosController {
         crampAt: Infinity,
       });
       p.waitLimit *= 0.75;
+    }
+    if (type === "child") {
+      // A child: the fish kid's model (`figure`), dressed in colours of their own (`tint`, scene/swimmer-models.mjs); no fins.
+      p.figure = "kid";
+      p.tint = index;
+      p.roam = { pause: 0, speed: KID_RUN[0] };
     }
     if (spec.entrance) {
       const door = this.venue.arrival;
@@ -878,7 +1023,15 @@ export class PoolSimulation extends ChaosController {
     if (fromWater) this.beginWaterExit(p);
     else
       p.path = fromQueue
-        ? this.returnRoute(p.side)
+        ? p.type === "child"
+          ? [
+              ...this.venue.route(p, {
+                x: p.side * this.venue.arrival.outsideX,
+                z: this.venue.arrival.doorZ,
+              }),
+              ...this.returnRoute(p.side),
+            ]
+          : this.returnRoute(p.side)
         : [{ x: p.side * this.venue.pool.corridorX, z: p.z }, ...this.returnRoute(p.side)];
     p.lane = null;
     if (this.selected === p.id) this.selected = null;
@@ -928,6 +1081,8 @@ export class PoolSimulation extends ChaosController {
         }
         this.dropFins(p);
         p.stunned = Math.max(p.stunned || 0, 1);
+        // One in five drips a wet spot where they got out (incidents/wet.mjs).
+        WetSpots.climbedOut(this, p, { x: p.x, z: p.exitEnd * (P.endWalkZ + 0.15) });
         // Reach the outside corner first, then follow the long side back to the locker.
         p.path = [
           { x: p.side * P.corridorX, z: p.exitEnd * P.endWalkZ },
@@ -989,6 +1144,16 @@ export class PoolSimulation extends ChaosController {
       const heading = deckHeading(this, entity, dx / dist, dz / dist);
       let x = entity.x + heading.x * speed * dt,
         z = entity.z + heading.z * speed * dt;
+      // A kid running about the deck keeps to open deck: a sidestep into the water or a bench is not taken (the straight step is,
+      // if that is clear; else they wait a moment).
+      if (entity.type === "child" && entity.status === "queue" && !this.venue.isDeck(x, z, this.level, 0)) {
+        x = entity.x + (dx / dist) * speed * dt;
+        z = entity.z + (dz / dist) * speed * dt;
+        if (!this.venue.isDeck(x, z, this.level, 0) && this.venue.isDeck(entity.x, entity.z, this.level, 0)) {
+          x = entity.x;
+          z = entity.z;
+        }
+      }
       // A passing sidestep on the return route must also stay outside the water.
       const P = this.venue.pool;
       if (
@@ -1018,6 +1183,7 @@ export class PoolSimulation extends ChaosController {
     if (
       !(
         ["enter", "exit", "arriving", "recovering", "evacuating"].includes(p.status) ||
+        (p.status === "queue" && p.type === "child") ||
         (p.status === "fleeing" && p.fleePhase === "run")
       ) ||
       p.evacWater ||
@@ -1031,13 +1197,16 @@ export class PoolSimulation extends ChaosController {
       return true;
     }
     p.stunned = Math.max(0, (p.stunned || 0) - dt);
-    if (!p.stunned && this.slipperyAt(p.x, p.z, 0.6)) {
+    // (Wet spots trip the guests; the coach, who mops them, walks on them carefully: incidents/wet.mjs.)
+    const wet = wetSpotAt(this, p.x, p.z);
+    if (!p.stunned && (wet || this.slipperyAt(p.x, p.z, 0.6))) {
       p.slipTime = 0.65;
       p.stunned = 3;
       p.annoyedTime = 0.85;
       p.deckPenalty = (p.deckPenalty || 0) + 6;
       p.h = Math.max(0, p.h - 6);
       this.emit("slip", { id: p.id, x: p.x, z: p.z });
+      if (wet) slippedInWet(this, p, wet);
       return true;
     }
     return false;
@@ -1092,6 +1261,7 @@ export class PoolSimulation extends ChaosController {
           this.emit("arrived", { id: p.id });
         }
       } else if (p.status === "queue") {
+        if (p.type === "child") this.roamKid(p, dt);
         p.wait += dt;
         p.h = clamp(100 - (p.wait / p.waitLimit) * 100 - (p.deckPenalty || 0), 0, 100);
         if (p.h <= 0) this.lose(p);
@@ -1182,7 +1352,8 @@ export class PoolSimulation extends ChaosController {
     const swimmers = this.lanePeople(i);
     if (!swimmers.length) return;
     const n = swimmers.length,
-      laps = swimmers.filter((p) => p.type !== "aqua"),
+      laps = swimmers.filter((p) => p.type !== "aqua" && p.type !== "child"),
+      kids = this.venue.kids ? this.people.filter((p) => p.status === "swim" && p.type === "child") : [],
       aqua = swimmers.filter((p) => p.type === "aqua");
     const circle = n >= 3;
     const ordered = [...laps].sort((a, b) => a.p - b.p);
@@ -1213,7 +1384,8 @@ export class PoolSimulation extends ChaosController {
       this.tickStomach(p, dt);
       if (this.cleanup) return;
       p.collisionTime = Math.max(0, p.collisionTime - dt);
-      if (p.type === "aqua" && this.venue.class) {
+      if (p.type === "child") this.paddle(p, dt, kids);
+      else if (p.type === "aqua" && this.venue.class) {
         // The Aqua Disco's class: two to a row, the front row nearest the stage first and the rest behind, down the whole zone,
         // everyone facing the stage (+z). More than
         // CLASS_ROOM in a zone and they bump elbows: everyone in it loses mood, the more the worse.
@@ -1317,7 +1489,7 @@ export class PoolSimulation extends ChaosController {
           this.emit("toast", { text: p.name + " has sore eyes. Fetch eye relief.", warning: true });
         }
       } else p.irritation = Math.max(0, p.irritation - dt * 0.8);
-      const crowd = Math.max(0, n - (p.type === "beginner" ? 3 : 4));
+      const crowd = p.type === "child" ? 0 : Math.max(0, n - (p.type === "beginner" ? 3 : 4));
       p.h -=
         dt *
         (crowd * 0.5 + Math.max(0, this.contamination - 35) * 0.025 + (p.problem ? 1.6 : 0)) *
@@ -1333,8 +1505,8 @@ export class PoolSimulation extends ChaosController {
         !p.stomachWarning &&
         (this.config.workoutSeconds
           ? p.workTime >= this.config.workoutSeconds
-          : (p.type === "aqua" && p.workTime >= p.workTarget) ||
-            (p.type !== "aqua" && p.traveled >= p.workTarget && p.workTime > 12))
+          : ((p.type === "aqua" || p.type === "child") && p.workTime >= p.workTarget) ||
+            (p.type !== "aqua" && p.type !== "child" && p.traveled >= p.workTarget && p.workTime > 12))
       )
         this.depart(p, true);
     }

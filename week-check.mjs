@@ -157,15 +157,27 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
 // another. A shift is its pool's: the venue, the look, the crowd; the Aquatic Centre is a competitive pool (few beginners, no aqua
 // guest written in, more VIPs, smaller and faster crowds, no trampoline) where Marco "the Missile" always swims.
 {
-  assert.deepEqual(POOL_IDS, ["club", "resort", "lagoon", "aquatic", "disco", "arena"]);
-  assert.deepEqual(poolsOf(1), ["club", "resort", "lagoon", "aquatic", "disco"]);
+  assert.deepEqual(POOL_IDS, ["club", "resort", "lagoon", "aquatic", "disco", "kids", "arena"]);
+  assert.deepEqual(poolsOf(1), ["club", "resort", "lagoon", "aquatic", "disco", "kids"]);
   assert.deepEqual(poolsOf(3), POOL_IDS);
+  const sitsOut = new Set();
   const orders = new Set();
   for (let chapter = 1; chapter <= 6; chapter++)
     for (let seed = 1; seed <= 150; seed++) {
       const days = weekPools(chapter, seed * 7919);
       assert.equal(days.length, SHIFTS_PER_WEEK);
-      assert.deepEqual(new Set(days), new Set(poolsOf(chapter)), "every pool of the week, and only those");
+      // Six days: every pool while there are six; from week 3 (seven pools) one sits the week out, never the same one every week.
+      const of = poolsOf(chapter);
+      assert.ok(
+        days.every((d) => of.includes(d)),
+        "only the week's pools",
+      );
+      assert.equal(
+        new Set(days).size,
+        Math.min(of.length, SHIFTS_PER_WEEK),
+        "every pool of the week but one at most",
+      );
+      if (of.length > SHIFTS_PER_WEEK) sitsOut.add(of.find((id) => !days.includes(id)));
       assert.ok(
         days.every((d, i) => i === 0 || d !== days[i - 1]),
         "never the same pool two days running: " + days,
@@ -175,6 +187,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       orders.add(days.join());
     }
   assert.ok(orders.size > 300, "a different mix most weeks (" + orders.size + ")");
+  assert.deepEqual([...sitsOut].sort(), [...POOL_IDS].sort(), "any pool may sit a week out");
   // Every shift of a week plays in its day's pool.
   const save = freshSave();
   save.week = newWeek(save, 4242);
@@ -248,6 +261,40 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     }
     for (const k of INCIDENT_ORDER) assert.ok(kinds.has(k), k + " happens in the disco");
   }
+  // The Kids Pool at every difficulty (16 October 2026): only kids (whatever the level's mix wrote), no Marco, no VIP written in
+  // as a grown-up (a VIP is a kid there too), more sick guests and half of them a wee, every incident still in the draw.
+  for (let step = 1; step < 30; step++) {
+    const w = {
+      ...newWeek(freshSave(), 1300 + step),
+      chapter: Math.floor(step / 6) + 1,
+      shift: step % 6,
+      pools: Array(6).fill("kids"),
+    };
+    const sh = buildShift(w, null, INCIDENT_ORDER),
+      c = sh.config;
+    assert.equal(c.venue, "kids");
+    assert.equal(sh.icon, "🦆");
+    assert.ok(!c.star, "no Marco at the Kids Pool");
+    assert.ok(c.sickRate > 0.2 && c.peeShare === 0.5, "more upset tummies, half of them a wee");
+    const sim = new PoolSimulation(sh.tier, 11, { config: c });
+    sim.start();
+    for (let i = 0; i < 1200 && sim.status === "playing"; i++) sim.tick(0.05);
+    const guests = sim.people.filter((p) => !p.chaos && p.type);
+    assert.ok(guests.length > 0);
+    assert.ok(
+      guests.every((p) => p.type === "child"),
+      "only kids at the Kids Pool",
+    );
+  }
+  {
+    const kinds = new Set();
+    for (let r = 0; r < 200; r++) {
+      const w = { ...newWeek({ chapter: 3 }, 91 + r * 13), shift: 3 + (r % 3), pools: Array(6).fill("kids") };
+      for (const e of buildShift(w, null, INCIDENT_ORDER).config.chaos || [])
+        e.kinds.forEach((k) => kinds.add(k));
+    }
+    for (const k of INCIDENT_ORDER) assert.ok(kinds.has(k), k + " happens at the Kids Pool");
+  }
   // Marco everywhere (the creator, 16 October 2026): in more than half the shifts of a week, at every pool, always at the Aquatic Centre;
   // and in more than half of free play's shifts too, from the seed (so a replay has him), with VIPs in every free-play level but the first.
   {
@@ -272,7 +319,11 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       marco / shifts > 0.55,
       "Marco in more than half the shifts (" + (marco / shifts).toFixed(2) + ")",
     );
-    assert.deepEqual(Object.keys(seen).sort(), [...POOL_IDS].sort(), "Marco at every pool");
+    assert.deepEqual(
+      Object.keys(seen).sort(),
+      POOL_IDS.filter((id) => id !== "kids").sort(),
+      "Marco at every pool but the Kids Pool",
+    );
     let free = 0;
     for (let i = 0; i < 1000; i++) if (freePlayGuests(1e6 + i * 7919, 1 + (i % 20)).star) free++;
     assert.ok(free / 1000 > 0.5, "Marco in more than half of free play");
@@ -286,7 +337,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   // Star targets: the season's own where a level was made for that floor plan, scaled elsewhere (the coach bot's measure).
   for (let tier = 1; tier <= TOP_TIER; tier++) {
     assert.equal(scoreScale(tier <= 10 ? "club" : "resort", tier), 1);
-    for (const v of ["club", "resort", "lagoon", "arena", "aquatic", "disco"])
+    for (const v of ["club", "resort", "lagoon", "arena", "aquatic", "disco", "kids"])
       assert.ok(scoreScale(v, tier) >= 0.6 && scoreScale(v, tier) <= 1.7, v + " " + tier);
   }
 }

@@ -1,5 +1,6 @@
 // Presentation layer: builds a venue with Three.js and mirrors simulation state every frame. Rendering never
 // advances gameplay; cosmetic motion (bobbing, flapping, wagging) never feeds back into the simulation.
+import { buildMopStation } from "./scene/wet-view.mjs";
 import { THREE, SceneKit, COLORS, disposeScene } from "./scene/kit.mjs";
 import { glowTexture, gradientTexture } from "./scene/textures.mjs";
 import { buildClub } from "./scene/club.mjs";
@@ -8,6 +9,7 @@ import { buildLagoon } from "./scene/lagoon.mjs";
 import { buildArena } from "./scene/arena.mjs";
 import { buildAquatic } from "./scene/aquatic.mjs";
 import { buildDisco } from "./scene/disco.mjs";
+import { buildKids } from "./scene/kids.mjs";
 import { Sky, SCENERY } from "./scene/sky.mjs";
 import { windUniforms } from "./scene/geom.mjs";
 import { dayLook, moodLook, DAY_TIMES } from "./scene/daylight.mjs";
@@ -182,6 +184,7 @@ const BUILDERS = {
   arena: buildArena,
   aquatic: buildAquatic,
   disco: buildDisco,
+  kids: buildKids,
 };
 const defaultLighting = (venue) => venue.lighting || (venue.indoor ? "indoor" : "day");
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
@@ -285,6 +288,7 @@ export class PoolWorld extends SceneKit {
     this.textures.push(this.glowMap);
     this.buildLights();
     (BUILDERS[venue.id] || buildClub)(this, venue, lighting);
+    buildMopStation(this, venue); // (every pool has the mop: incidents/wet.mjs)
     this.sky = venue.scenery ? new Sky(this, SCENERY[venue.scenery]) : null;
     this.sky?.setVisible(this.viewMode === "coach");
     this.hall?.setCoach(this.viewMode === "coach");
@@ -636,6 +640,7 @@ export class PoolWorld extends SceneKit {
     uniforms.uTime.value = time;
     uniforms.uDirty.value = sim.contamination / 100;
     uniforms.uBrown.value = sim.waterBrown || 0;
+    uniforms.uYellow.value = sim.waterYellow || 0;
     uniforms.uLight.value = light.water;
     this.poolUniforms.uTime.value = time;
     this.poolUniforms.uCaustic.value = light.caustic;
@@ -828,6 +833,7 @@ export class PoolWorld extends SceneKit {
       (p.status === "exit" && !["water", "climb"].includes(p.exitPhase)) ||
       (p.status === "evacuating" && !p.evacWater) ||
       (p.status === "arriving" && p.arrivalHold <= 0) ||
+      (p.status === "queue" && p.type === "child" && p.path?.length > 0) || // a kid running about the Kids Pool's deck
       (p.status === "recovering" && p.recoveryStage === "to-bench") ||
       (p.status === "fleeing" && p.fleePhase === "run") ||
       (p.status === "trampoline" && ["toStairs"].includes(p.jumpStage));
@@ -1277,6 +1283,19 @@ export class PoolWorld extends SceneKit {
       this.incident.position.y = -0.15 + Math.sin(time * 3) * 0.065;
       this.incident.rotation.y = q.elapsed * 0.55;
     } else if (this.incident) this.incident.visible = false;
+    // A wee in the pool: a yellow cloud spreading from where it happened, fading as the chlorine clears the water.
+    if (q?.kind === "pee") {
+      if (!this.peeCloud) {
+        this.peeCloud = this.decal(this.glowMap, 1, 1, 0xffe14a, 0.75, false);
+        this.peeCloud.rotation.x = -Math.PI / 2;
+        this.scene.add(this.peeCloud);
+      }
+      const r = Math.min(7, 1.2 + q.elapsed * 0.9);
+      this.peeCloud.visible = true;
+      this.peeCloud.position.set(q.x, 0.03, q.z);
+      this.peeCloud.scale.set(r * 2, r * 2, 1);
+      this.peeCloud.material.opacity = Math.min(0.8, (sim.waterYellow || 0) * 1.1);
+    } else if (this.peeCloud) this.peeCloud.visible = false;
     this.scoopCast.visible = !!(c.scoopTimer > 0 && c.scoopTarget);
     if (this.scoopCast.visible) {
       const from = new THREE.Vector3(c.x, 1.05, c.z),

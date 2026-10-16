@@ -208,7 +208,8 @@ export function character(w, p) {
     fish.rotation.x = -Math.PI / 2 + 0.3;
     kidBucket.add(fish);
   }
-  root.scale.setScalar(VISITOR_LOOKS[p.type]?.scale || 1);
+  // (A child of the Kids Pool is a small classic swimmer until the kid's model is in.)
+  root.scale.setScalar(VISITOR_LOOKS[p.type]?.scale || (p.type === "child" ? 0.7 : 1));
   g.userData = {
     soreEyes,
     bandage,

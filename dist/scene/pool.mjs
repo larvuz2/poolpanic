@@ -63,6 +63,7 @@ const WATER_FRAGMENT =
 uniform float uTime;
 uniform float uDirty;
 uniform float uBrown;
+uniform float uYellow;
 uniform float uLight;
 uniform float uHalfX;
 uniform float uHalfZ;
@@ -89,6 +90,7 @@ void main() {
   vec3 color = mix(uShallow, uDeep, deep);
   color = mix(color, vec3(0.40, 0.61, 0.24), uDirty);
   color = mix(color, vec3(0.38, 0.20, 0.07), uBrown * 0.88);
+  color = mix(color, vec3(0.93, 0.82, 0.18), uYellow * 0.7);
   vec3 H = normalize(normalize(uSun) + V);
   float glint = pow(max(dot(N, H), 0.0), 220.0) * 1.6;
   float sparkle = pow(max(0.0, sin(p.x * 3.3 + t * 1.1) * sin(p.y * 2.9 - t * 0.9)), 18.0) * 0.18;
@@ -205,6 +207,7 @@ export function buildPool(
         uTime: { value: 0 },
         uDirty: { value: 0 },
         uBrown: { value: 0 },
+        uYellow: { value: 0 },
         uLight: { value: 1 },
         uHalfX: { value: halfX },
         uHalfZ: { value: halfZ },

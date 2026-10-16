@@ -15,7 +15,7 @@ export class SanitationController extends CoachController {
         if (p.sick && p.stomachWarning && ["queue", "enter", "swim"].includes(p.status))
           alerts.push({
             kind: "stomach",
-            icon: "💩",
+            icon: p.sickKind === "pee" ? "🚽" : "💩",
             label: p.name,
             x: p.x,
             z: p.z,
@@ -251,10 +251,14 @@ export class SanitationController extends CoachController {
     p.stomachElapsed = (p.stomachElapsed || 0) + dt;
     if (!p.stomachWarning && p.stomachElapsed >= (p.stomachDelay ?? 5)) {
       p.stomachWarning = true;
-      this.emit("stomach-warning", { id: p.id });
-      this.incident("stomach", p, { id: p.id, name: p.name });
+      this.emit("stomach-warning", { id: p.id, kind: p.sickKind || "poo" });
+      // (A wee is the same trouble as a poo, with a 🚽 tag: incidents/README "pee", 16 October 2026.)
+      const pee = p.sickKind === "pee";
+      this.incident(pee ? "bladder" : "stomach", p, { id: p.id, name: p.name });
       this.emit("toast", {
-        text: p.name + " needs the locker room! Select the 💩 tag, then Send to locker.",
+        text: pee
+          ? p.name + " really needs a wee! Select the 🚽 tag, then Send to locker."
+          : p.name + " needs the locker room! Select the 💩 tag, then Send to locker.",
         warning: true,
       });
     }
@@ -265,6 +269,7 @@ export class SanitationController extends CoachController {
   }
   catastrophe(p) {
     if (this.cleanup || this.level < 3) return;
+    if (p.sickKind === "pee") return this.peeAccident(p);
     this.closed = 1;
     this.cleanup = {
       stage: "floating",
@@ -287,6 +292,39 @@ export class SanitationController extends CoachController {
     this.incident("spill", p, { name: p.name });
     this.emit("toast", {
       text: "Everybody out! Get the pool skimmer. The shift clock waits while you clean.",
+      warning: true,
+    });
+    for (const a of this.people)
+      if (["swim", "enter", "switch"].includes(a.status)) {
+        a.h = Math.max(35, a.h - 25);
+        this.evacuatePerson(a, a.id === p.id);
+      }
+  }
+  // Somebody weed in the pool (16 October 2026: the same trouble as a poo, seen differently): a yellow cloud spreads from them,
+  // the water turns yellow, everybody out. There is nothing to scoop: the chlorine is what clears it (one dose or two), and the pool
+  // opens again once the water has settled.
+  peeAccident(p) {
+    this.closed = 1;
+    this.cleanup = {
+      kind: "pee",
+      stage: "treat",
+      x: clamp(p.x, -this.venue.pool.entryX, this.venue.pool.entryX),
+      z: clamp(p.z, -this.venue.pool.entryZ, this.venue.pool.entryZ),
+      elapsed: 0,
+      settle: 0,
+    };
+    this.waterYellow = 0.25;
+    this.contamination = Math.max(55, this.contamination);
+    this.chlorine = Math.min(18, this.chlorine);
+    this.score -= 500;
+    this.streak = 0;
+    this.stats.catastrophes++;
+    this.stats.pees = (this.stats.pees || 0) + 1;
+    this.emit("catastrophe", { x: p.x, z: p.z, kind: "pee" });
+    this.emit("points", { x: p.x, z: p.z, value: -500 });
+    this.incident("pee", p, { name: p.name });
+    this.emit("toast", {
+      text: "Somebody weed in the pool! 💛 Everybody out. Bring the chlorine: the clock waits while you clean.",
       warning: true,
     });
     for (const a of this.people)
@@ -318,9 +356,15 @@ export class SanitationController extends CoachController {
     }
     if (!q) {
       this.waterBrown = Math.max(0, (this.waterBrown || 0) - dt * 0.15);
+      this.waterYellow = Math.max(0, (this.waterYellow || 0) - dt * 0.15);
       return;
     }
     q.elapsed += dt;
+    // The yellow follows the dirt: it spreads while the water is untreated and clears as the chlorine works.
+    if (q.kind === "pee") {
+      if (this.chlorine < 40) this.contamination = Math.min(100, this.contamination + dt * 1.2);
+      this.waterYellow = Math.min(0.85, Math.max(0.12, (this.contamination - 15) / 70));
+    }
     if (q.stage === "floating") {
       q.vx += Math.sin(q.elapsed * 0.7 + q.phase) * dt * 0.14;
       q.vz += Math.cos(q.elapsed * 0.6 + q.phase) * dt * 0.13;
@@ -352,6 +396,7 @@ export class SanitationController extends CoachController {
     if (q.settle >= 3) {
       this.cleanup = null;
       this.waterBrown = 0;
+      this.waterYellow = 0;
       this.reopenPool();
       this.save("cleanup", { x: 0, z: 0 });
       this.emit("toast", {

@@ -20,6 +20,20 @@ export const STINGS = {
     how: "A 💩 tag means an accident is coming. Send them to the locker room before it happens.",
     tone: "warning",
   },
+  bladder: {
+    icon: "🚽",
+    title: "GOTTA GO!",
+    verb: "Select {name} · Send to locker",
+    how: "A 🚽 tag means a wee is coming. Send them to the locker room before it ends up in the pool.",
+    tone: "warning",
+  },
+  pee: {
+    icon: "💛",
+    title: "WHO PEED?!",
+    verb: "Everybody out · chlorine the water",
+    how: "The water's gone yellow. Nothing to scoop: bring the chlorine and pour it in until the water is clear. The shift clock waits.",
+    tone: "danger",
+  },
   spill: {
     icon: "💩",
     title: "EVERYBODY OUT!",
@@ -126,6 +140,13 @@ export const STINGS = {
     how: "The deck is getting wet. Walk around puddles or jump over them: anyone who steps in one slips, and swimmers who slip lose happiness.",
     tone: "warning",
   },
+  wet: {
+    icon: "💧",
+    title: "WET SPOT!",
+    verb: "Grab the mop (Q) · mop it before someone slips",
+    how: "Swimmers climbing out drip on the deck. A wet spot never dries by itself: anyone who walks over it slips, gets cross and costs you points. Grab the mop from its yellow bucket and mop it up (E).",
+    tone: "warning",
+  },
   crash: {
     icon: "💥",
     title: "CRASH!",
@@ -150,6 +171,7 @@ export const SAVES = {
   lights: { stamp: "LIGHTS ON!", tier: 1 },
   landing: { stamp: "STUCK IT!", tier: 1 },
   healed: { stamp: "PATCHED UP!", tier: 1 },
+  mopped: { stamp: "SQUEAKY CLEAN!", tier: 1 },
 };
 
 export const MOMENT_TIMING = {
