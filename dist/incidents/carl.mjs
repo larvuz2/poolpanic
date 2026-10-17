@@ -386,7 +386,7 @@ function redCard(sim, k, v) {
       carl: true,
       figure: k.figure,
       // (At the Lazy River he still needs a tube like everyone else.)
-      needsFins: !!sim.venue.river,
+      needsFins: !!sim.venue.river || !!sim.venue.waves,
       midFins: false,
       crampAt: Infinity,
       x: v.x,

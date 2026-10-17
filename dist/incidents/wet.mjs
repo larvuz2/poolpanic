@@ -87,7 +87,7 @@ export const WetSpots = {
   },
   // A swimmer has just climbed out onto the deck at `where`: one in five drips a wet spot there.
   climbedOut(sim, p, where) {
-    if (wetRandom(sim) >= T.chance || sim.status !== "playing") return null;
+    if (wetRandom(sim) >= (sim.venue.wetChance ?? T.chance) || sim.status !== "playing") return null;
     return addWetSpot(sim, where.x, where.z);
   },
 };

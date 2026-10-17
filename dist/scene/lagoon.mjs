@@ -368,7 +368,7 @@ export function swayPalm(ctx, x, z, height = 4.4, seed = 0, y0 = 0) {
   }
   return g;
 }
-function finishPalms(ctx) {
+export function finishPalms(ctx) {
   const { w, live, fronds } = ctx;
   if (!fronds.length) return;
   const mesh = new THREE.Mesh(

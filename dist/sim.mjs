@@ -12,6 +12,17 @@ import {
   beginRiverExit,
   tickRiverExit,
 } from "./river-ride.mjs";
+import {
+  batherSpawn,
+  batherType,
+  walkToWaves,
+  tickWaveEnter,
+  updateWavePool,
+  beginWaveExit,
+  tickWaveExit,
+  toggleWaves,
+  createWaves,
+} from "./wave-pool.mjs";
 export { LANES, STATIONS } from "./spatial.mjs";
 export const TYPES = {
   beginner: { label: "Beginner", color: "#71ba54", speed: 0.55, icon: "🐢" },
@@ -435,7 +446,13 @@ export class PoolSimulation extends ChaosController {
     this.chlorine = 44;
     this.closed = 0;
     this.doors = { "-1": 0, 1: 0 };
-    this.finsAvailable = this.venue.tubes ?? 3; // (the Lazy River's rack holds its tubes: the fins' plumbing)
+    this.finsAvailable = this.venue.tubes ?? 3; // (the Lazy River's rack and the Wave Pool's hut hold tubes: the fins' plumbing)
+    // The Wave Pool's machine and its waves (waves.mjs), and the tubes lost in its water (wave-pool.mjs).
+    this.lostTubes = [];
+    if (this.venue.waves) {
+      this.waveSeed = (this.seed ^ 0x7f4a7c15) >>> 0 || 5;
+      this.waves = createWaves(this);
+    }
     this.clutter = [];
     this.uid = 0;
     this.coach = createCoach(this.venue);
@@ -706,16 +723,18 @@ export class PoolSimulation extends ChaosController {
     // The Aqua Disco's class takes nobody but aqua-aerobics guests (VIPs and Marco included).
     const type = this.venue.kids
       ? "child"
-      : this.venue.river
-        ? "rider"
-        : this.venue.seniors
-          ? spec.star
-            ? "advanced"
-            : "senior"
-          : this.venue.class
-            ? "aqua"
-            : spec.type ||
-              (r < mix[0] ? "beginner" : r < mix[1] ? "intermediate" : r < mix[2] ? "advanced" : "aqua");
+      : this.venue.waves
+        ? batherType(this, spec, r)
+        : this.venue.river
+          ? "rider"
+          : this.venue.seniors
+            ? spec.star
+              ? "advanced"
+              : "senior"
+            : this.venue.class
+              ? "aqua"
+              : spec.type ||
+                (r < mix[0] ? "beginner" : r < mix[1] ? "intermediate" : r < mix[2] ? "advanced" : "aqua");
     const index = this.people.length;
     const side = index % 2 === 0 ? -1 : 1;
     const occupied = new Set(
@@ -828,6 +847,7 @@ export class PoolSimulation extends ChaosController {
       p.waitLimit *= 0.75;
     }
     if (type === "rider") riderSpawn(this, p);
+    if (this.venue.waves) batherSpawn(this, p);
     if (type === "senior") {
       // A senior: one of four looks, patient (they know the pool takes time), cramps more often, a steady swimmer of their own pace,
       // and one in three comes in a wheelchair. Everything from numbers already drawn: no other roll of the shift moves.
@@ -852,6 +872,8 @@ export class PoolSimulation extends ChaosController {
       p.z = door.insideZ;
       p.arrivalHold = door.hold;
       p.path = [{ x: side * door.outsideX, z: door.doorZ }, p.queueTarget];
+      // (At the Wave Pool nobody queues: in through the gate, a step past it, and straight down to the beach.)
+      if (this.venue.waves) p.path[1] = p.queueTarget = { x: side * 1.3, z: door.doorZ + 1.5 };
       this.keepDoorOpen(side);
       this.emit("door-open", { side, x: side * door.doorX, z: door.doorZ });
     }
@@ -916,6 +938,8 @@ export class PoolSimulation extends ChaosController {
   walk(p, target, mode = "enter") {
     // (At the Lazy River every way into the water is the boarding dock.)
     if (this.venue.river) return walkToRiver(this, p, mode);
+    // (At the Wave Pool, down to the beach and into the waves.)
+    if (this.venue.waves) return walkToWaves(this, p, mode);
     p.status = mode;
     const side = Math.sign(p.x) || p.side || 1;
     p.path =
@@ -932,6 +956,12 @@ export class PoolSimulation extends ChaosController {
   assign(lane) {
     if (!Number.isInteger(lane) || lane < 0 || lane >= this.lanes.length) return false;
     if (this.status !== "playing") return false;
+    if (this.venue.waves) {
+      this.emit("toast", {
+        text: "Nobody needs sending in here: they walk straight into the waves. Meet them with a tube!",
+      });
+      return false;
+    }
     if (this.rescue) {
       this.emit("toast", { text: "Rescue in progress. Get the swimmer safely out first." });
       return false;
@@ -1126,7 +1156,7 @@ export class PoolSimulation extends ChaosController {
               ...this.returnRoute(p.side),
             ]
           : this.returnRoute(p.side)
-        : this.venue.river
+        : this.venue.river || this.venue.waves
           ? [
               ...this.venue.route(p, {
                 x: p.side * this.venue.arrival.outsideX,
@@ -1146,6 +1176,7 @@ export class PoolSimulation extends ChaosController {
   }
   beginWaterExit(p) {
     if (this.venue.river) return beginRiverExit(this, p);
+    if (this.venue.waves) return beginWaveExit(this, p);
     // Finish in the water at the nearer end, then climb out beside the blocks.
     const P = this.venue.pool;
     p.exitEnd = p.z >= 0 ? 1 : -1;
@@ -1167,6 +1198,7 @@ export class PoolSimulation extends ChaosController {
   }
   tickWaterExit(p, dt) {
     if (this.venue.river) return tickRiverExit(this, p, dt);
+    if (this.venue.waves) return tickWaveExit(this, p, dt);
     if (p.status !== "exit" || !["water", "climb"].includes(p.exitPhase)) return false;
     if (p.exitPhase === "water") {
       p.actualSpeed = Math.max(1.6, p.desiredSpeed || 2.1);
@@ -1382,12 +1414,18 @@ export class PoolSimulation extends ChaosController {
           this.emit("arrived", { id: p.id });
         }
       } else if (p.status === "queue") {
+        // (At the Wave Pool a guest only waits while the pool is closed; else straight down to the beach.)
+        if (this.venue.waves && !this.closed && !this.cleanup) {
+          walkToWaves(this, p);
+          continue;
+        }
         if (p.type === "child") this.roamKid(p, dt);
         p.wait += dt;
         p.h = clamp(100 - (p.wait / p.waitLimit) * 100 - (p.deckPenalty || 0), 0, 100);
         if (p.h <= 0) this.lose(p);
       } else if (p.status === "enter" || p.status === "exit") {
         if (this.venue.river && tickRiverEnter(this, p, dt)) continue;
+        if (this.venue.waves && tickWaveEnter(this, p, dt)) continue;
         if (this.tickChair(p, dt)) continue;
         if (
           p.status === "exit" &&
@@ -1429,6 +1467,7 @@ export class PoolSimulation extends ChaosController {
     }
     resolveDeck(this);
     if (this.venue.river) updateRiver(this, dt);
+    else if (this.venue.waves) updateWavePool(this, dt);
     else for (let i = 0; i < this.lanes.length; i++) this.updateLane(i, dt);
     if (this.closed === 0) {
       const swimmers = this.people.filter((p) => p.status === "swim").length;
@@ -1635,6 +1674,10 @@ export class PoolSimulation extends ChaosController {
       )
         this.depart(p, true);
     }
+  }
+  // The Wave Pool's WAVES button: stop the machine, or start it again (wave-pool.mjs).
+  toggleWaves() {
+    return this.venue.waves ? toggleWaves(this) : false;
   }
   summary() {
     const stars = this.config.thresholds.filter((t) => this.score >= t).length;

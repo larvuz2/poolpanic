@@ -1,5 +1,6 @@
 import { SanitationController } from "./sanitation.mjs";
 import { RESCUE as R, ENTRY } from "./spatial.mjs";
+import { benchOnBeach, tickBeachRecovery } from "./wave-pool.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const waitingInWater = (s, p) =>
@@ -439,6 +440,8 @@ export class RescueController extends SanitationController {
     p.stunned = 1;
     const P = this.venue.pool,
       bench = this.venue.rescue;
+    // (At the Wave Pool: a rest on a towel on the sand.)
+    if (this.venue.waves) return benchOnBeach(this, p);
     if (this.venue.river) {
       p.path = [...this.venue.route(p, bench.approach), { ...bench.bench }];
       return;
@@ -453,6 +456,7 @@ export class RescueController extends SanitationController {
   }
   tickRecovery(p, dt) {
     if (p.status !== "recovering") return false;
+    if (this.venue.waves) return tickBeachRecovery(this, p, dt, R.restSeconds);
     if (p.recoveryStage === "to-bench") {
       if (this.moveAlong(p, dt, 3.1)) {
         p.recoveryStage = "resting";

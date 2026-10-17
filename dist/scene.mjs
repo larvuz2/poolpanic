@@ -13,6 +13,9 @@ import { buildKids } from "./scene/kids.mjs";
 import { buildSenior } from "./scene/senior.mjs";
 import { buildRiver } from "./scene/river.mjs";
 import { riverPose, tubeObject } from "./scene/river-view.mjs";
+import { buildWave } from "./scene/wave.mjs";
+import { wavePose } from "./scene/wave-view.mjs";
+import { surfaceAt } from "./waves.mjs";
 import { seatState, seated, syncWheelchairs, clearWheelchairs } from "./scene/senior-view.mjs";
 import { Sky, SCENERY } from "./scene/sky.mjs";
 import { windUniforms } from "./scene/geom.mjs";
@@ -228,6 +231,33 @@ LIGHTING.river = {
   ],
 };
 
+// The Wave Pool: a tropical surf park at the height of the day. A high sun from behind the beach lights the wave house's mural; the
+// water is turquoise over the sand and deep blue against the wave house, clear in the shallows (scene/wave.mjs).
+LIGHTING.wave = {
+  background: 0x8fd3ee,
+  exposure: 1.0,
+  hemi: [0xe2f6ff, 0xc9a26f, 1.05],
+  sun: [0xfff3d6, 2.75, [-18, 30, -7]],
+  fill: [0x9fe0f0, 0.55, [14, 16, 12]],
+  env: 0.72,
+  envColors: ["#c4ecfa", "#f3efe0", "#d6b27c"],
+  fog: [0xa4dcec, 60, 150],
+  water: {
+    shallow: [0.38, 0.92, 0.86],
+    deep: [0.03, 0.47, 0.72],
+    sky: [0.76, 0.93, 1],
+    glint: [1, 0.97, 0.9],
+    glow: 0,
+    clarity: 0.3,
+  },
+  glow: 0,
+  sky: [
+    [0, "#4fb0e6"],
+    [0.55, "#a6e2f5"],
+    [1, "#fbf1d6"],
+  ],
+};
+
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const BUILDERS = {
@@ -240,6 +270,7 @@ const BUILDERS = {
   kids: buildKids,
   senior: buildSenior,
   river: buildRiver,
+  wave: buildWave,
 };
 const defaultLighting = (venue) => venue.lighting || (venue.indoor ? "indoor" : "day");
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
@@ -324,6 +355,8 @@ export class PoolWorld extends SceneKit {
     this.poolLamps = null;
     this.riverHighlight = null;
     this.riverRim = null;
+    this.waveBreak = null;
+    this.lostTubes = null;
     this.incidentLight = 1;
     this.lookKey = null;
     this.staticBackground = null;
@@ -884,6 +917,8 @@ export class PoolWorld extends SceneKit {
     const u = g.userData;
     // The Lazy River: a guest in a tube (or away round the loop) is the river view's (scene/river-view.mjs).
     if (sim.venue?.river && riverPose(this, sim, p, g, time, dt)) return;
+    // The Wave Pool: a bather in the waves rides them (scene/wave-view.mjs).
+    if (sim.venue?.waves && wavePose(this, sim, p, g, time, dt)) return;
     // The crowd panics while a cannonball man is in the pool: a swimmer in the water is held where it is, upright, and hops with
     // its hands up like those who wait on the deck.
     const crowd = !!this.crowd,
@@ -924,7 +959,7 @@ export class PoolWorld extends SceneKit {
     u.root.rotation.set(0, 0, 0);
     u.root.position.set(0, 0, 0);
     u.legs.forEach((l) => (l.visible = !u.rig)); // a swimmer model's own legs show instead
-    u.f.visible = p.hasFins && !sim.venue?.river; // (at the river it is a tube, under the arm)
+    u.f.visible = p.hasFins && !sim.venue?.river && !sim.venue?.waves; // (a tube there, under the arm)
     u.hit.position.y = swim ? 0.25 : 0.9;
     u.shadow.visible = !swim && !held && p.status !== "swim";
     u.bandage.visible = !!p.bandaged;
@@ -1130,7 +1165,7 @@ export class PoolWorld extends SceneKit {
     const item = this.incidentView.carryModel(kind);
     if (item) return item;
     const g = new THREE.Group();
-    if (kind === "fins" && this.venue.river) {
+    if (kind === "fins" && (this.venue.river || this.venue.waves)) {
       // A tube, held on edge.
       const tube = tubeObject(this, 0, 0.72);
       tube.rotation.set(0, 0, Math.PI / 2);
@@ -1166,6 +1201,8 @@ export class PoolWorld extends SceneKit {
     }
     cg.visible = !firstPerson;
     cg.position.set(intro ? intro.x : c.x, c.y || 0, intro ? intro.z : c.z);
+    // (Swimming in the Wave Pool, he rides the swell like everyone in it.)
+    if (sim.venue?.waves && c.swimming) cg.position.y += surfaceAt(sim.waves?.list || [], c.x);
     const angle = intro ? intro.angle : c.angle || 0;
     cg.rotation.y += Math.atan2(Math.sin(angle - cg.rotation.y), Math.cos(angle - cg.rotation.y)) * 0.3;
     const walking = Math.hypot(c.vx || 0, c.vz || 0) > 0.2,
@@ -1319,7 +1356,7 @@ export class PoolWorld extends SceneKit {
     for (const f of sim.clutter) {
       dropIds.add(f.id);
       if (!this.drops.has(f.id)) {
-        const tube = f.type === "fins" && this.venue.river;
+        const tube = f.type === "fins" && (this.venue.river || this.venue.waves);
         const g = tube
           ? tubeObject(this, f.id, 0.9)
           : f.type === "fins"
@@ -1347,7 +1384,7 @@ export class PoolWorld extends SceneKit {
         this.drops.set(f.id, g);
       }
       const g = this.drops.get(f.id);
-      g.position.set(f.x, this.venue.river && f.type === "fins" ? 0.17 : 0.08, f.z);
+      g.position.set(f.x, (this.venue.river || this.venue.waves) && f.type === "fins" ? 0.17 : 0.08, f.z);
     }
     for (const [id, g] of this.drops)
       if (!dropIds.has(id)) {
@@ -1743,7 +1780,7 @@ export class PoolWorld extends SceneKit {
   }
   handoff(from, to, item) {
     const mesh =
-      item === "fins" && this.venue.river
+      item === "fins" && (this.venue.river || this.venue.waves)
         ? tubeObject(this, 1, 0.7)
         : item === "fins"
           ? finsObject(this)

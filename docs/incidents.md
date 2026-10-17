@@ -50,6 +50,16 @@ river onto both banks (skimmed and dosed from a bank), sore eyes hold a rider at
 that bump only slow and spin (no collision penalty). The coach can also **fall in** himself, jumping short of a stepping stone: a splash, a
 swim with the current, a climb out onto a bank or a stone.
 
+**At the Wave Pool** (17 October 2026) the venue brings trouble of its own, on top of every incident: **dizziness** (every crest jolts
+every bather it passes, hardest where the waves break; a dizzy bather 💫 staggers for the beach: help them out from the water's
+edge, hand them a tube, or stop the waves), and **the knockout**, its failure: a crest that hits a bather already dizzy knocks them
+under (−150 and the cramp's rescue, the machine stopped). **The monster wave** (from level 5) is announced by a siren four seconds
+before it leaves the wave house: stopping the machine in time calls it off. Stopping the waves costs the crowd's patience instead
+(an "awww", then their mood drains and they chant for waves). Cramps are fewer (the waves bring rescues of their own), a poo, a wee
+or the fish empties the pool up the beach, sore eyes bring a bather into the shallows to wait for the coach, two bathers jolted
+side by side bump heads (a little dizzier and crosser, no penalty), and more bathers coming out drip a wet spot on the deck past
+the sand.
+
 ### Starts on the deck, ends in the pool
 
 | Incident | Levels | What happens |

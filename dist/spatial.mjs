@@ -1,5 +1,6 @@
 // Shared world geometry. Screen right is +Z, screen up is +X (the camera looks across the pool from -X).
 import { makeRiver, placeOn } from "./river.mjs";
+import { WAVE as WAVE_BASIN } from "./waves.mjs";
 //
 // Everything a system needs to know about a location lives in a venue: lanes, basin bounds, deck walking
 // corridors, doors, queue rows, stations, rescue fixtures and simple collision proxies. Scenes, routes,
@@ -37,35 +38,59 @@ export function doorOpening(remaining) {
 
 // Basin measurements derived from the lane count. Lane ropes sit 1.6 either side of each lane centre and
 // the basin wall is 0.2 beyond the outer rope. Length values are shared by every venue.
-function poolGeometry(lanes) {
-  const halfX = lanes.length * 1.6 + 0.2;
+function poolGeometry(lanes, basin = null) {
+  // (The Wave Pool's basin is not a lane pool's: it brings its own size, `basin`. A lane pool's lengths stay the literal numbers
+  // they always were, so its shifts replay to the last bit.)
+  const halfX = basin?.halfX ?? lanes.length * 1.6 + 0.2,
+    hz = basin?.halfZ,
+    along = hz
+      ? {
+          halfZ: hz,
+          turnZ: hz - 1.1,
+          solidZ: hz + 0.35,
+          keepOutZ: hz + 0.7,
+          deckZ: hz + 0.4,
+          edgeZ: hz + 0.25,
+          reachZ: hz + 0.35,
+          serviceZ: hz + 1.25,
+          endWalkZ: hz + 1.65,
+          walkZ: -(hz + 1.6),
+          climbZ: hz - 0.05,
+          swimZ: hz - 0.45,
+          entryZ: hz - 0.6,
+          floatZ: hz - 0.7,
+        }
+      : {
+          halfZ: 8.3,
+          turnZ: 7.2, // lap turn line
+          solidZ: 8.65,
+          keepOutZ: 9,
+          deckZ: 8.7,
+          edgeZ: 8.55,
+          reachZ: 8.65, // standing at either end
+          serviceZ: 9.55,
+          endWalkZ: 9.95, // deck path at either end after climbing out
+          walkZ: -9.9, // the walk behind the near end (ENTRY.walkZ)
+          climbZ: 8.25, // swimmer climb start at either end
+          swimZ: 7.85,
+          entryZ: 7.7,
+          floatZ: 7.6,
+        };
   return {
     halfX, // inner basin wall
-    halfZ: 8.3,
-    turnZ: 7.2, // lap turn line
     solidX: halfX + 0.3, // collision proxy (coping included)
-    solidZ: 8.65,
     keepOutX: halfX + 0.65, // walking routes never cut across this box
-    keepOutZ: 9,
     deckX: halfX + 0.5, // deck-contact physics treats anything inside as water
-    deckZ: 8.7,
     edgeX: halfX + 0.2, // coach "water point" clamp
-    edgeZ: 8.55,
     reachX: halfX + 0.3, // standing beside an outer lane
-    reachZ: 8.65, // standing at either end
     sideServiceX: halfX + 0.9,
-    serviceZ: 9.55,
     corridorX: halfX + 1.3, // long-side walking corridor
     evacX: halfX + 1.7, // first evacuation waiting column
     climbOutX: halfX + 1.2, // coach climb-out target beside the long sides
-    endWalkZ: 9.95, // deck path at either end after climbing out
-    climbZ: 8.25, // swimmer climb start at either end
     swimX: halfX - 0.45, // coach swimming bounds
-    swimZ: 7.85,
     entryX: halfX - 0.6, // dive landing clamp
-    entryZ: 7.7,
     floatX: halfX - 0.65, // floating objects bounce here
-    floatZ: 7.6,
+    ...along,
   };
 }
 
@@ -226,7 +251,7 @@ function riverPlace(spec) {
 // end, right of the lockers, in every one of the first six pools.
 const MOP_SPOT = { x: 12.6, z: -11.6 };
 function makeVenue(spec) {
-  const pool = poolGeometry(spec.lanes);
+  const pool = poolGeometry(spec.lanes, spec.basin);
   spec = { ...spec, fixtures: { mop: MOP_SPOT, ...spec.fixtures } };
   // The Lazy River has no basin: a river curves across the room (river.mjs), with its bridge, stepping stones and docks.
   const river = spec.river ? riverPlace(spec) : null;
@@ -299,7 +324,7 @@ function makeVenue(spec) {
       const blocked = (a, b) => segmentHitsBox(a, b, kx, minZ, kz);
       if (!blocked(from, to)) return [{ x: to.x, z: to.z }];
       const cx = pool.corridorX,
-        backZ = solid ? ENTRY.walkZ - 0.55 : ENTRY.walkZ,
+        backZ = solid ? pool.walkZ - 0.55 : pool.walkZ,
         corners = [
           { x: -cx, z: backZ },
           { x: cx, z: backZ },
@@ -337,6 +362,14 @@ function makeVenue(spec) {
     edgeSpots() {
       if (river) return river.edgeSpots(venue);
       const spots = [];
+      // The Wave Pool: along the beach at the water's edge and along both ends (the far side is the wave house).
+      if (spec.waves) {
+        for (let z = -8; z <= 8; z += 2) spots.push({ x: -(pool.solidX + 0.45), z, face: 1, axis: "x" });
+        for (const side of [-1, 1])
+          for (let x = -5.6; x <= 5.6; x += 2.8)
+            spots.push({ x, z: side * (pool.solidZ + 0.45), face: -side, axis: "z" });
+        return spots.filter((s) => venue.isDeck(s.x, s.z, 3, 0.3));
+      }
       for (const side of [-1, 1])
         for (let z = -6; z <= 6; z += 2)
           spots.push({ x: side * (pool.solidX + 0.45), z, face: -side, axis: "x" });
@@ -788,6 +821,82 @@ export const RIVER = makeVenue({
   ],
 });
 
+// The Wave Pool (17 October 2026, the creator: "a new venue with its unique mechanic… an amazing architecture and aesthetics… the
+// water needs to look amazing… we don't click on the swimmers and assign them… they just enter and go straight at it, so we need
+// to intercept the people and hand them the tubes… there are not a lot of tubes"): an outdoor surf park. A big basin with a
+// beach: the sand runs down into the water along the near side (screen bottom), the deep end is against the wave house on the far
+// side, which fills the far side of the room (`wave-house`, solid) and pushes the waves out of its chambers (waves.mjs). The gate
+// is in the left wall; a guest walks round the near end of the pool to the beach and straight into the waves (wave-pool.mjs), so
+// the coach meets them on the way with a tube from the tube hut by the beach corner (only five). The lifeguard tower stands on the
+// sand with a ring on it, towels to rest on beside it; the water care in the far corner by the gate, eye care at the right end.
+const WAVE_SAND_SPOTS = [-8.2, -7.0, -5.8, -4.6, -3.4, -2.2, 6.6, 7.8, 8.8].flatMap((z) =>
+  [-8.9, -9.9].map((x) => ({ x, z })),
+);
+export const WAVE = makeVenue({
+  id: "wave",
+  name: "Wave Pool",
+  indoor: false,
+  scenery: "surf",
+  sunAzimuth: 2.3,
+  lighting: "wave",
+  doorWord: "the surf gate",
+  waves: true,
+  basin: { halfX: WAVE_BASIN.halfX, halfZ: WAVE_BASIN.halfZ },
+  tubes: 5,
+  wetChance: 0.35, // everyone comes out soaked: more drips than anywhere
+  blocks: false,
+  lanes: [0],
+  deck: { minX: -14.6, maxX: 14.6, minZ: -15.2, maxZ: 12.65 },
+  room: { minX: -15.2, maxX: 15.2, minZ: -16.7, maxZ: 13.6 },
+  doors: { insideX: 0.62, doorX: 0.62, doorZ: -14.85, outsideX: 0.62, insideZ: -16.55 },
+  lockers: [],
+  // (Nobody queues: guests only wait here, inside the gate, while the pool is closed.)
+  queue: { outerX: 5.4, stepX: 1.15, startZ: -11.7, stepZ: 1.15, perRow: 4 },
+  coachStart: { x: -9.4, z: -6.4 },
+  cameraFollow: { kx: 0.22, maxX: 2.6 },
+  props: ["mop", "mop-bucket", "lifeguard-tower", "surfboard", "beach-umbrella", "deck-chair"],
+  stations: {
+    fins: { x: -12.5, z: -11.5 }, // the tube hut
+    chlorine: { x: 9.8, z: -12.7 },
+    relief: { x: 6.4, z: 11.5 },
+  },
+  sanitation: { rack: { x: -13.9, z: 6.4 }, bin: { x: -12.9, z: 9.0 }, reach: 6.2 },
+  ringMounts: [
+    { x: -14.85, z: -4.4, angle: Math.PI / 2 },
+    { x: -10.75, z: 2.0, angle: Math.PI / 2 }, // on the lifeguard tower
+    { x: -14.85, z: 9.6, angle: Math.PI / 2 },
+  ],
+  // The towels on the sand beside the tower: where a rescued or helped-out bather rests (wave-pool.mjs `towelSpot`).
+  rescue: { bench: { x: -9.6, z: 3.6 }, approach: { x: -9.0, z: 4.8 } },
+  evacSpots: WAVE_SAND_SPOTS,
+  fixtures: {
+    fishNet: { x: -14.85, z: -1.4, angle: Math.PI / 2 },
+    treats: { x: -11.4, z: 11.6 },
+    flashlight: { x: 3.4, z: -14.6 },
+    fuseBox: { x: 14.9, z: -12.2, angle: -Math.PI / 2 },
+    mop: { x: -6.6, z: -13.9 },
+  },
+  trampoline: null,
+  furniture: [
+    // The wave house: the whole far side, from the deep end's wall to the back of the room.
+    { kind: "wave-house", x: 11.05, z: 0, hx: 3.55, hz: 10.6 },
+    { kind: "lifeguard-tower", x: -11.6, z: 2.0, hx: 0.8, hz: 0.8 },
+    { kind: "tube-hut", x: -12.5, z: -11.5, hx: 0.75, hz: 1.05 },
+    { kind: "station", x: 9.8, z: -12.7, hx: 0.6, hz: 0.9 },
+    { kind: "station", x: 6.4, z: 11.5, hx: 0.9, hz: 0.6 },
+    { kind: "surf-shack", x: -12.1, z: 11.4, hx: 1.25, hz: 0.95 },
+    { kind: "umbrella", x: -12.9, z: -6.2, hx: 0.25, hz: 0.25 },
+    { kind: "umbrella", x: -12.9, z: 7.0, hx: 0.25, hz: 0.25 },
+    { kind: "deck-chair", x: -13.7, z: -7.4, angle: Math.PI / 2, hx: 0.45, hz: 0.4 },
+    { kind: "deck-chair", x: -13.7, z: -5.0, angle: Math.PI / 2, hx: 0.45, hz: 0.4 },
+    { kind: "deck-chair", x: -13.7, z: 5.8, angle: Math.PI / 2, hx: 0.45, hz: 0.4 },
+    { kind: "surf-rack", x: -4.0, z: -14.6, hx: 1.3, hz: 0.35 },
+    { kind: "palm", x: -14.0, z: -14.4, hx: 0.5, hz: 0.5 },
+    { kind: "palm", x: 13.8, z: 11.9, hx: 0.5, hz: 0.5 },
+    { kind: "palm", x: -14.1, z: 0.4, hx: 0.5, hz: 0.5 },
+  ],
+});
+
 export const VENUES = {
   club: CLUB,
   resort: RESORT,
@@ -798,6 +907,7 @@ export const VENUES = {
   kids: KIDS,
   senior: SENIOR,
   river: RIVER,
+  wave: WAVE,
 };
 
 export function createCoach(venue = CLUB) {

@@ -212,6 +212,17 @@ export const POOLS = {
     events: ["Jungle cruise", "Tube parade", "Monsoon float", "Explorer day", "Lazy Sunday", "Temple rapids"],
     twists: { team: 0, class: 0, closure: 0 },
   },
+  // The Wave Pool (17 October 2026): a surf park with a beach. Nobody queues and nobody is sent anywhere: guests walk in through the
+  // gate and straight down the beach into the waves, and the coach meets them with one of five tubes. The waves make the bathers
+  // dizzy, the coach stops the machine (and the bathers grumble) or helps them out, and a wave that hits a dizzy bather knocks them
+  // under. No lanes: no swim team, no class, no lane to close. Every incident still comes, Marco too (he surfs).
+  wave: {
+    name: "Wave Pool",
+    icon: "🌊",
+    style: { venue: "wave", lighting: "wave", aqua: false },
+    events: ["Surf's up", "Big wave Saturday", "Tidal party", "Swell season", "Beach bash", "Monster mash"],
+    twists: { team: 0, class: 0, closure: 0 },
+  },
   arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20] },
 };
 export const POOL_IDS = Object.keys(POOLS);
@@ -321,6 +332,13 @@ const SCORE_SCALE = {
     [10, 1],
     [13, 0.95],
     [20, 0.75],
+  ],
+  // The Wave Pool: guests walk straight in and have to be caught for a tube, and the waves knock them dizzy, so the stars ask less
+  // (on the plain targets the coach bot only just made two stars, and fell short late in a run; calibrated 17 October 2026).
+  wave: [
+    [10, 0.8],
+    [15, 0.75],
+    [20, 0.7],
   ],
 };
 

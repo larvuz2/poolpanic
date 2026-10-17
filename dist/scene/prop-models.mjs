@@ -22,6 +22,11 @@ export const PROP_FILES = {
   trolley: "props/trolley.glb",
   gramophone: "props/gramophone.glb",
   lounger: "props/lounger.glb",
+  // The Wave Pool (scene/wave.mjs)
+  "lifeguard-tower": "props/lifeguard-tower.glb",
+  surfboard: "props/surfboard.glb",
+  "beach-umbrella": "props/beach-umbrella.glb",
+  "deck-chair": "props/deck-chair.glb",
 };
 const templates = new Map(),
   loading = new Map(),

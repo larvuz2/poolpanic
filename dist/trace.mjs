@@ -32,6 +32,10 @@ const GEAR = ["fishNet", "flashlight", "medkit"];
 // Events that happen all the time and say nothing about how the shift is going (the log is short: these would fill it).
 const NOISY = new Set([
   "points",
+  "wave-launch",
+  "wave-hit",
+  "towel",
+  "wade-in",
   "splash",
   "collision",
   "countdown",

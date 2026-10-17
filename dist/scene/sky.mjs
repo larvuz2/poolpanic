@@ -40,6 +40,20 @@ export const SCENERY = {
     fireflies: 140,
     seed: 61,
   },
+  // The Wave Pool's surf park (17 October 2026): the sea beyond the beach side, palms all round, sails and gulls.
+  surf: {
+    sea: true,
+    shoreX: -40,
+    hills: [86, 108, 128],
+    palms: 90,
+    lighthouse: [-82, 26],
+    boats: 6,
+    birds: 14,
+    balloons: 1,
+    lanterns: 0,
+    fireflies: 40,
+    seed: 37,
+  },
   lagoon: {
     sea: true,
     shoreX: -38,

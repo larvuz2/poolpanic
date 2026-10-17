@@ -10,6 +10,8 @@ import { PowerOutage } from "./incidents/outage.mjs";
 import { Karen, annoyable } from "./incidents/karen.mjs";
 import { planTwists, startTwist } from "./incidents/twist.mjs";
 import { WetSpots, useMop } from "./incidents/wet.mjs";
+import { WaveMachine } from "./wave-pool.mjs";
+import { WAVE } from "./waves.mjs";
 import {
   Trampoline,
   tickJumper,
@@ -19,7 +21,17 @@ import {
 } from "./incidents/trampoline.mjs";
 
 // (The wet spots come last: a chore, so every incident's hint and alert come before theirs.)
-export const SYSTEMS = [PowerOutage, CannonballCarl, FishKid, LooseDog, Trampoline, Karen, WetSpots];
+// (The Wave Pool's machine is no incident either: its hints and alerts come after every incident's, before the wet spots'.)
+export const SYSTEMS = [
+  PowerOutage,
+  CannonballCarl,
+  FishKid,
+  LooseDog,
+  Trampoline,
+  Karen,
+  WaveMachine,
+  WetSpots,
+];
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -302,6 +314,13 @@ export class ChaosController extends RescueController {
         p.fleePhase = "run";
         p.panicCenter = this.panicSpot(p, { x: p.x, z: p.z });
       }
+      return;
+    }
+    if (this.venue.waves && Math.abs(p.x) < P.halfX + 0.4 && Math.abs(p.z) < P.halfZ) {
+      // Out of the waves: up the beach (the far side is the wave house).
+      p.fleePhase = "swim";
+      p.fleeTarget = { x: -WAVE.halfX + 0.2, z: p.z };
+      p.fleeLanding = { x: -WAVE.halfX - 1.4, z: p.z };
       return;
     }
     if (Math.abs(p.x) < P.halfX && Math.abs(p.z) < P.halfZ) {
