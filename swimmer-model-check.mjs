@@ -568,6 +568,25 @@ assert.ok(u.puppet.arms && u.puppet.legs, "a slip lays the model down with the c
 someone.slipTime = 0;
 step(2);
 assert.ok(!u.puppet.arms && !u.puppet.legs, "and the clips come back");
+{
+  // An aqua guest (the Aqua Disco, the club's class) warms up with aerobics arms standing in the queue, but walks in like
+  // everyone else: the Walk clip, arms and all, with no warm-up laid over it (that was the flailing "spaghetti" arms the
+  // creator saw at the disco, 17 October 2026).
+  const type = someone.type;
+  someone.type = "aqua";
+  step(30);
+  assert.ok(u.puppet.arms, "an aqua guest standing in the queue swings the aerobics arms");
+  Object.assign(someone, { status: "arriving", arrivalHold: 0 });
+  for (let i = 0; i < 40; i++) {
+    someone.x += 1.2 / 60;
+    step(1);
+  }
+  assert.equal(u.rig.current, "walk", "an aqua guest walking in plays the Walk clip");
+  assert.ok(!u.puppet.arms && u.rig.weights.arms < 0.05, "with its own arms: no aerobics on top of the walk");
+  someone.x -= 0.8;
+  Object.assign(someone, { status: "queue", type });
+  step(30);
+}
 someone.status = "swim";
 someone.lane = 1;
 someone.actualSpeed = 2;
