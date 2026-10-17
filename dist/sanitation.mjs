@@ -1,5 +1,6 @@
 import { CoachController } from "./coach.mjs";
 import { ENTRY } from "./spatial.mjs";
+import { WAVE } from "./waves.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export class SanitationController extends CoachController {
@@ -223,11 +224,19 @@ export class SanitationController extends CoachController {
       p.path = [deck.water, deck.deck];
       return;
     }
+    // (Out of the waves: up the beach.)
+    if (this.venue.waves && p.evacWater) {
+      p.path = [
+        { x: -WAVE.halfX + 0.1, z: p.z },
+        { x: -WAVE.halfX - 1.2, z: p.z },
+      ];
+      return;
+    }
     p.path = p.evacWater ? [{ x: p.x, z: ENTRY.waterZ }] : this.evacDeckRoute(p);
   }
   evacDeckRoute(p) {
-    if (this.venue.river) {
-      // The Lazy River's evacuees wait in a block on the near bank, beside the lounge.
+    if (this.venue.evacSpots) {
+      // The Lazy River's evacuees wait in a block on the near bank, beside the lounge; the Wave Pool's up the beach.
       const slot = this.people.filter(
           (a) => a.id < p.id && ["evacuating", "panic"].includes(a.status),
         ).length,

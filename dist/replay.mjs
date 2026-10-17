@@ -37,6 +37,7 @@ export const INPUTS = [
   "home",
   "triggerChaos",
   "startCramp",
+  "toggleWaves",
 ];
 export const REPLAY_LIMITS = { inputs: 4000, vectors: 200, checkEvery: 300 };
 

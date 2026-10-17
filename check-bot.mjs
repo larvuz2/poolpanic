@@ -59,6 +59,7 @@ export class CoachBot {
       s.home();
     }
     if (s.status !== "playing") return;
+    if (s.venue.waves) return this.manageWaves();
     for (const p of s.people.filter((p) => p.status === "queue" && !(p.finsFirst && !p.hasFins))) {
       s.select(p.id);
       if (p.queasy && p.sick) s.home();
@@ -104,6 +105,20 @@ export class CoachBot {
         s.assign(tr.lane - 1);
         s.selected = null;
       }
+  }
+
+  // The Wave Pool's machine, from the WAVES button (wave-pool.mjs): stop it when a monster is coming and someone is already seeing
+  // stars, or when two are dizzy at once; start it again once the water has calmed them (or the bathers grow too restless).
+  manageWaves() {
+    const s = this.s,
+      w = s.waves,
+      bathers = s.people.filter((p) => p.status === "swim"),
+      woozy = bathers.filter((p) => !p.hasFins && (p.dizzy || 0) >= 45).length,
+      dizzy = bathers.filter((p) => p.problem === "dizzy").length;
+    if (!this.proactive) return;
+    if (w.state === "stopped") {
+      if ((woozy === 0 && dizzy === 0 && w.stoppedFor > 2) || w.stoppedFor > 9) s.toggleWaves();
+    } else if (w.state !== "halted" && ((w.monster !== null && woozy > 0) || dizzy >= 2)) s.toggleWaves();
   }
 
   // ----------------------------------------------------------------------------------------------------
@@ -190,7 +205,8 @@ export class CoachBot {
       return s.coach.swimming;
     }
     const P = s.venue.pool,
-      side = Math.sign(point.x) || 1,
+      // (The Wave Pool is entered from its beach: the far side is the wave house.)
+      side = s.venue.waves ? -1 : Math.sign(point.x) || 1,
       edge = { x: side * (P.solidX + 0.7), z: Math.max(-P.turnZ, Math.min(P.turnZ, point.z)) };
     this.walkTo(edge, { until: () => s.coach.swimming || s.coach.waterTransition });
     for (let f = 0; f < 150 && !s.coach.swimming && !this.over; f++) {
@@ -211,6 +227,10 @@ export class CoachBot {
             ? near
             : river.bank(s.coach.x, s.coach.z, { side: 1, outside: 1 });
         this.steer(bank.deck);
+        if (f % 30 === 29) s.jump();
+      } else if (s.venue.waves) {
+        // Back to the beach (a press of Space on the way, in case he is already at the edge).
+        s.setMovement(-1, 0);
         if (f % 30 === 29) s.jump();
       } else s.setMovement(Math.sign(s.coach.x) || 1, 0);
       this.frame();
@@ -249,6 +269,8 @@ export class CoachBot {
     const s = this.s,
       c = s.coach;
     if (s.rescue?.kind === "crash" || s.people.some((p) => p.status === "injured")) return this.crash;
+    // (A wave knockout at the Wave Pool: the cramp's rescue, which the bot otherwise never meets.)
+    if (s.venue.waves && s.rescue?.stage === "stranded") return this.crash;
     if (s.fish?.stage === "loose") return this.fishLoose;
     if (c.netLoaded) return this.fishReturn;
     if (s.outage?.stage === "dark") return this.outage;
@@ -263,6 +285,15 @@ export class CoachBot {
       const karen = s.karen && s.visitor(s.karen.id);
       if (karen && ["marching", "ranting"].includes(karen.status)) return this.karen;
     }
+    // The Wave Pool: a dizzy bather is helped out before anything else that can wait; then the tubes.
+    if (s.venue.waves && this.proactive) {
+      if (this.dizzyBather()) return this.helpDizzy;
+      const wanted = this.tubeWanted();
+      if (wanted && (c.carry === "fins" || (!c.carry && (s.finsAvailable > 0 || this.spareTube()))))
+        return this.giveTube;
+      // A tube in hand and nobody to give it to: hold it at the beach corner, or put it back to go and mop.
+      if (c.carry === "fins") return s.wetSpots?.length ? this.putAway : this.giveTube;
+    }
     // Wet spots (incidents/wet.mjs): a proactive coach mops them as soon as nothing more urgent is going on.
     if (this.proactive && s.wetSpots?.length && (!c.carry || c.carry === "mop")) return this.mopWet;
     // Fins: a waiting swimmer who will not swim without them gets a pair (a pair in hand always goes to someone).
@@ -273,6 +304,75 @@ export class CoachBot {
     if (!c.carry && s.venue.river && this.spareTube()) return this.rackTube;
     if (c.carry) return this.putAway;
     return null;
+  }
+  // ---- the Wave Pool ----
+  // A dizzy bather in the water, staggering for the beach (the nearest first).
+  dizzyBather() {
+    const s = this.s;
+    return (
+      s.people
+        .filter((p) => p.status === "swim" && p.problem === "dizzy")
+        .sort((a, b) => distance(a, s.coach) - distance(b, s.coach))[0] || null
+    );
+  }
+  helpDizzy() {
+    const s = this.s,
+      c = s.coach,
+      p = this.dizzyBather();
+    if (!p) return this.wait(2);
+    if (c.carry === "fins" && !p.hasFins) return this.giveTube(p);
+    if (c.carry) return this.putAway();
+    this.chase(
+      () => s.servicePoint(p),
+      () => p.problem !== "dizzy" || p.status !== "swim" || s.nearestInteraction()?.kind === "assist",
+      600,
+    );
+    if (!this.use("assist")) this.wait(2);
+  }
+  // Who should have a tube: a guest walking down to the beach without one (a VIP first, then the timid), or a woozy bather in reach.
+  tubeWanted() {
+    const s = this.s,
+      rank = (p) => (p.vip ? 0 : p.type === "beginner" ? 1 : p.type === "intermediate" ? 2 : 3);
+    return (
+      s.people
+        .filter(
+          (p) =>
+            p.needsFins &&
+            !p.hasFins &&
+            (p.status === "enter" || (p.status === "swim" && (p.dizzy || 0) >= 45 && p.x < -3.5)),
+        )
+        .sort((a, b) => rank(a) - rank(b) || distance(a, s.coach) - distance(b, s.coach))[0] || null
+    );
+  }
+  giveTube(target = null) {
+    const s = this.s,
+      c = s.coach;
+    if (c.carry !== "fins") {
+      if (c.carry) return this.putAway();
+      const tube = this.spareTube();
+      if (tube && (!s.finsAvailable || distance(tube, c) < distance(s.venue.stations.fins, c))) {
+        this.walkTo(tube, { reach: 0.9, limit: 600 });
+        if (!this.use("pickup")) return this.wait(5);
+      } else if (s.finsAvailable) {
+        this.walkTo(s.venue.stations.fins, { reach: 1.5, limit: 600 });
+        s.fetch("fins");
+        this.waitBusy();
+      }
+      if (c.carry !== "fins") return this.wait(10);
+    }
+    const p = target || this.tubeWanted();
+    if (!p) {
+      // Nobody needs it now: wait at the beach corner with it, where everyone comes past.
+      this.walkTo({ x: -9.2, z: -8.6 }, { reach: 0.6, limit: 60 });
+      return this.wait(10);
+    }
+    this.chase(
+      () => s.servicePoint(p),
+      () => p.hasFins || !["enter", "swim"].includes(p.status) || s.nearestInteraction()?.kind === "deliver",
+      600,
+    );
+    if (s.nearestInteraction()?.kind === "deliver") this.use("deliver");
+    else this.wait(3);
   }
   // A used tube lying at the Lazy River's tube return (or anywhere on the deck).
   spareTube() {
@@ -461,7 +561,7 @@ export class CoachBot {
   crash() {
     const s = this.s,
       c = s.coach;
-    if (s.rescue?.kind === "crash") {
+    if (s.rescue?.kind === "crash" || (s.venue.waves && s.rescue)) {
       if (s.rescue.stage !== "stranded") return this.wait(1);
       if (c.swimming) return this.climbOut();
       if (c.carry !== "lifering") {

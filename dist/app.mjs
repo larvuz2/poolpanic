@@ -89,6 +89,8 @@ import {
 import { installWeek } from "./week-ui.mjs";
 import { passMark } from "./week.mjs";
 import { RIDE } from "./river-ride.mjs";
+import { waveBoard } from "./waves.mjs";
+import { BATHE } from "./wave-pool.mjs";
 import { Achievements } from "./achievements.mjs";
 import { isDesktop, quitGame, richPresence, unlockAchievement } from "./platform.mjs";
 import * as hunts from "./bisect.mjs";
@@ -223,13 +225,21 @@ let input,
 // countdown and goes when the power does. The Kids Pool, Senior Aqua Fit and the Lazy River have songs of their own on the same
 // clock.
 audio.clock = () =>
-  (sim?.venue?.class || sim?.venue?.kids || sim?.venue?.seniors || sim?.venue?.river) &&
+  (sim?.venue?.class || sim?.venue?.kids || sim?.venue?.seniors || sim?.venue?.river || sim?.venue?.waves) &&
   (mode === "playing" || mode === "countdown")
     ? {
         time: sim.time,
         running: mode === "playing" && !sim.clockHeld(),
         dark: sim.outage?.stage === "dark",
-        song: sim.venue.kids ? "kids" : sim.venue.seniors ? "senior" : sim.venue.river ? "river" : "disco",
+        song: sim.venue.kids
+          ? "kids"
+          : sim.venue.seniors
+            ? "senior"
+            : sim.venue.river
+              ? "river"
+              : sim.venue.waves
+                ? "wave"
+                : "disco",
       }
     : null;
 let records = normalizeRecords();
@@ -316,7 +326,9 @@ function targetLabel(d) {
     return "The river" + (sim.get(sim.selected)?.hasFins ? " · click to send them down it" : "");
   if (d.kind === "lane")
     return laneWord(sim) + " " + (d.lane + 1) + (sim.get(sim.selected) ? " · click to send them here" : "");
+  if (d.kind === "lane" && sim.venue.waves) return "The waves";
   if (d.kind === "station" && d.item === "fins" && sim.venue.river) return "Tube rack";
+  if (d.kind === "station" && d.item === "fins" && sim.venue.waves) return "Tube hut";
   if (d.kind === "station") return STATION_NAMES[d.item] || "";
   if (d.kind === "lifering") return "Life ring";
   if (d.kind === "sanitation") return d.item === "skimmer" ? "Pool skimmer" : "Waste bin";
@@ -1557,17 +1569,25 @@ function syncVenue(s) {
 // The Aqua Disco has zones of open water where the other pools have lanes (the same thing to the simulation).
 const laneWord = (sim) => (sim?.venue?.class ? "Zone" : "Lane");
 function renderLaneControls(venue) {
-  // The kit's names: the Lazy River's rack holds tubes, not fins.
-  $("fins").innerHTML = venue.river
+  // The kit's names: the Lazy River's rack and the Wave Pool's hut hold tubes, not fins.
+  const tubes = venue.river || venue.waves;
+  $("fins").innerHTML = tubes
     ? '<span>🛟</span>Tubes <b id="fin-count">' + (venue.tubes ?? 3) + "</b><kbd>F</kbd>"
     : '<span>🦶</span>Fins <b id="fin-count">3</b><kbd>F</kbd>';
-  $("fins").title = venue.river
-    ? "Walk to the tube rack · E to pick up"
+  $("fins").title = tubes
+    ? "Walk to the tube " + (venue.waves ? "hut" : "rack") + " · E to pick up"
     : "Walk to the fin rack · E to pick up";
   // The Lazy River has no lanes either: one button sends a guest with a tube off to the boarding dock.
   if (venue.river) {
     $("lane-controls").innerHTML =
       `<button class="lane-btn pool-btn river-btn" data-lane="river" aria-label="Send the selected guest down the river"><div class="lane-top"><span class="lane-no">🛟 RIVER</span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Hand a guest a tube</span><span class="lane-caps"></span></div></button>`;
+    $("lane-controls").classList.remove("five-lanes");
+    return;
+  }
+  // The Wave Pool has no lanes and nobody is sent in: one button stops the wave machine, or starts it again.
+  if (venue.waves) {
+    $("lane-controls").innerHTML =
+      `<button class="lane-btn pool-btn waves-btn" data-lane="waves" aria-label="Stop the waves, or start them again"><div class="lane-top"><span class="lane-no">🌊 WAVES</span><span class="lane-mode">ON</span></div><div class="lane-bottom"><span class="lane-count">Press 1 to stop</span><span class="lane-caps"></span></div></button>`;
     $("lane-controls").classList.remove("five-lanes");
     return;
   }
@@ -2214,7 +2234,7 @@ const CARRY_NAMES = {
 function carryName(c) {
   if (c.carry === "skimmer") return c.skimmerLoaded ? "loaded skimmer" : "pool skimmer";
   if (c.carry === "fishnet") return c.netLoaded ? "net with the fish 🐟" : "fish net";
-  if (c.carry === "fins" && sim?.venue?.river) return "a tube 🛟";
+  if (c.carry === "fins" && (sim?.venue?.river || sim?.venue?.waves)) return "a tube 🛟";
   return CARRY_NAMES[c.carry] || c.carry;
 }
 function moodColor(h) {
@@ -2227,10 +2247,12 @@ function problemIcon(p) {
   if (p.annoyedTime > 0) return "😠";
   if (sim.rescue && p.status === "swim" && p.problem !== "cramp") return "😱";
   if (p.stomachWarning) return p.sickKind === "pee" ? "🚽" : "💩";
+  if (p.problem === "dizzy") return "💫";
+  if (p.problem === "cramp" && p.under) return "🌊";
   if (p.status === "panic" || p.status === "evacuating" || p.status === "fleeing") return "😱";
   if (p.status === "queue" && sim.fish?.stage === "loose") return "😱";
   return p.problem === "fins"
-    ? sim.venue.river
+    ? sim.venue.river || sim.venue.waves
       ? "🛟"
       : "🦶"
     : p.problem === "eyes"
@@ -2263,13 +2285,21 @@ function cardStatus(p) {
             ? swimmerLook(p).label + " · ♿ in a wheelchair"
             : swimmerLook(p).label;
   if (p.status === "injured") return p.healing ? "Being bandaged…" : "Hurt · needs the med kit";
-  const where = sim.venue.river
-    ? p.away
-      ? "Round the bend"
-      : "On the river"
-    : p.lane == null
-      ? "In the pool"
-      : laneWord(sim) + " " + (p.lane + 1);
+  // (The Wave Pool's guests on their way down to the beach: the coach's chance to hand them a tube.)
+  if (p.status === "enter" && sim.venue.waves)
+    return (
+      swimmerLook(p).label +
+      (p.hasFins ? " · has a tube" : p.needsFins ? " · heading in · hand them a tube!" : " · heading in")
+    );
+  const where = sim.venue.waves
+    ? "In the waves"
+    : sim.venue.river
+      ? p.away
+        ? "Round the bend"
+        : "On the river"
+      : p.lane == null
+        ? "In the pool"
+        : laneWord(sim) + " " + (p.lane + 1);
   return (
     where +
     " · " +
@@ -2284,8 +2314,12 @@ function cardStatus(p) {
           : p.problem === "eyes"
             ? "Sore eyes"
             : p.problem === "cramp"
-              ? "Cramp"
-              : "Lost goggles")
+              ? p.under
+                ? "Knocked under!"
+                : "Cramp"
+              : p.problem === "dizzy"
+                ? "Dizzy! Get them out"
+                : "Lost goggles")
   );
 }
 function formatTime(t) {
@@ -2295,15 +2329,22 @@ function formatTime(t) {
 function updateQueue() {
   // At the Kids Pool the waiting kids are not listed: they run about the deck and the coach has to catch one (click them, or E).
   const loose = sim.venue.kids ? sim.people.filter((p) => p.status === "queue") : [];
+  // At the Wave Pool nobody waits: the cards are the guests walking down to the beach (the ones still without a tube first).
   const waiting = sim.venue.kids
       ? loose.filter((p) => p.id === sim.selected || p.stomachWarning)
-      : sim.people.filter((p) => p.status === "queue"),
+      : sim.venue.waves
+        ? sim.people
+            .filter((p) => p.status === "queue" || (p.status === "enter" && !p.resumingWorkout))
+            .sort((a, b) => (a.hasFins ? 1 : 0) - (b.hasFins ? 1 : 0))
+        : sim.people.filter((p) => p.status === "queue"),
     problems = sim.people.filter(
       (p) => (p.status === "swim" && (p.problem || p.stomachWarning)) || p.status === "injured",
     );
   $("queue-count").textContent = sim.venue.kids
     ? loose.length + " running loose"
-    : waiting.length + " waiting";
+    : sim.venue.waves
+      ? waiting.length + " coming in"
+      : waiting.length + " waiting";
   // Swimmers who need the coach come first so a long queue never hides them.
   const list = [...problems, ...waiting];
   const guide = guidanceState(sim);
@@ -2345,7 +2386,7 @@ function updateQueue() {
           : p.problem
             ? problemIcon(p)
             : p.needsFins && !p.hasFins
-              ? sim.venue.river
+              ? sim.venue.river || sim.venue.waves
                 ? "🛟"
                 : "🦶"
               : "";
@@ -2375,17 +2416,70 @@ function updateQueue() {
           ? p.status === "queue"
             ? "Caught! Send them INTO THE POOL · 1"
             : "Splashing about"
-          : p.status === "swim" && !p.problem
-            ? sim.venue.river
-              ? p.lap
-                ? "Floating to the exit dock"
-                : "Riding the river"
-              : "Pick a lane to move them"
-            : profile.speed
-              ? profile.speed + "× pace"
-              : "Aqua class") +
+          : p.status === "swim" && !p.problem && sim.venue.waves
+            ? (p.hasFins ? "Riding the waves in a tube" : "Riding the waves") +
+              ((p.dizzy || 0) >= BATHE.woozy ? " · 💫 woozy" : "")
+            : p.status === "swim" && !p.problem
+              ? sim.venue.river
+                ? p.lap
+                  ? "Floating to the exit dock"
+                  : "Riding the river"
+                : "Pick a lane to move them"
+              : profile.speed
+                ? profile.speed + "× pace"
+                : "Aqua class") +
       "</span>";
   }
+}
+// The Wave Pool's WAVES button (renderLaneControls): ON with the seconds left of the set, the calm's countdown to the next, the
+// horn, a monster on its way (red, flashing), STOPPED by the coach (and for how long: the bathers grow restless), or stopped for an
+// emergency. Its dots are the bathers in the water, red for the dizzy ones.
+function updateWavesButton(b) {
+  const board = waveBoard(sim.waves);
+  if (!board) return;
+  const bathers = sim.people.filter((q) => q.status === "swim"),
+    dizzy = bathers.filter((q) => q.problem === "dizzy").length,
+    secs = board.seconds !== undefined ? Math.max(0, Math.ceil(board.seconds)) : null;
+  b.classList.toggle("danger", board.state === "monster" || dizzy > 0);
+  b.classList.toggle("assignable", board.state === "stopped");
+  b.classList.toggle("waves-off", board.state === "stopped" || board.state === "halted");
+  b.querySelector(".lane-mode").textContent =
+    board.state === "running"
+      ? "ON"
+      : board.state === "monster"
+        ? "MONSTER!"
+        : board.state === "horn"
+          ? "HORN"
+          : board.state === "calm"
+            ? "CALM"
+            : board.state === "halted"
+              ? board.reason === "blackout"
+                ? "NO POWER"
+                : "STOPPED"
+              : "OFF";
+  b.querySelector(".lane-count").textContent =
+    board.state === "stopped"
+      ? (board.seconds > BATHE.grace ? "They want waves! " : "Stopped · ") + "press 1 to start"
+      : board.state === "halted"
+        ? board.reason === "rescue"
+          ? "Stopped for the rescue"
+          : board.reason === "blackout"
+            ? "Fix the power"
+            : "Stopped · pool closed"
+        : board.state === "monster"
+          ? "Monster in " + secs + " · 1 to stop!"
+          : board.state === "horn"
+            ? "Waves in " + secs
+            : board.state === "calm"
+              ? "Next set in " + secs + " · 1 stops"
+              : (dizzy ? dizzy + " dizzy · " : "") + secs + "s left · 1 stops";
+  b.querySelector(".lane-caps").innerHTML = bathers
+    .slice(0, 12)
+    .map(
+      (q) => '<i style="background:' + (q.problem === "dizzy" ? "#ef5a4a" : swimmerLook(q).color) + '"></i>',
+    )
+    .join("");
+  b.disabled = mode !== "playing";
 }
 function updateUI() {
   if (!sim) return;
@@ -2514,8 +2608,11 @@ function updateUI() {
       .join("");
     riverBtn.disabled = mode !== "playing" || !!sim.rescue;
   }
+  // The Wave Pool's one button: the machine's state, the clock to the next set, the bathers in the water and how many are dizzy.
+  const wavesBtn = document.querySelector('[data-lane="waves"]');
+  if (wavesBtn) updateWavesButton(wavesBtn);
   for (let i = 0; i < sim.lanes.length; i++) {
-    if (sim.venue.river) break;
+    if (sim.venue.river || sim.venue.waves) break;
     const people = sim.lanePeople(i),
       count = sim.occupancy(i),
       average = people.length ? people.reduce((sum, p) => sum + p.h, 0) / people.length : 100;
@@ -2626,7 +2723,7 @@ function updateUI() {
       : sim.coach.carry === "chlorine"
         ? "WALK TO THE POOL EDGE · E TO POUR"
         : sim.coach.carry === "fins"
-          ? sim.venue.river
+          ? sim.venue.river || sim.venue.waves
             ? "NEAR A GUEST · E TO GIVE THE TUBE / ELSE E TO DROP"
             : "NEAR SWIMMER · E TO GIVE / ELSE E TO DROP"
           : sim.coach.carry
@@ -3046,6 +3143,22 @@ function events() {
       } else if (e.type === "coach-fell") {
         world.bigSplash(e.x ?? sim.coach.x, e.z ?? sim.coach.z, 0.7);
         world.kick(0.3);
+      } else if (e.type === "wave-hit") {
+        // (A crest jolting a bather: the scene splashes them; only a hard hit sprays.)
+        if (e.s > 0.3) world.splash(e.x, -0.05, e.z, Math.round(4 + e.s * 10), true);
+      } else if (e.type === "wave-break") {
+        world.waveBreak?.(e);
+        if (e.kind === "monster") world.kick(0.55);
+      } else if (e.type === "knockout") {
+        world.bigSplash(e.x, e.z, 0.9);
+        world.kick(0.45);
+        queueKey = "";
+      } else if (e.type === "dizzy" || e.type === "dizzy-over" || e.type === "towel") {
+        queueKey = "";
+      } else if (e.type === "monster-warning") {
+        world.kick(0.15);
+      } else if (e.type === "tube-lost" || e.type === "bather-bump") {
+        world.splash(e.x, -0.05, e.z, 8, true);
       } else if (e.type === "tube-bump") {
         world.splash(e.x, -0.12, e.z, 6, true);
       } else if (e.type === "board") {
@@ -3080,7 +3193,7 @@ function events() {
       } else if (e.type === "coach-slip") toast("Whoops! Jump over fins, or pick them up with E.");
       else if (e.type === "ended") finish();
       if (world.viewMode === "coach") world.coachCam.react(e.type, e);
-      audio.effect(e.type);
+      audio.effect(e.type, e);
     } catch (err) {
       console.error("Pool Panic event error", e.type, err);
       crashlog.error("event:" + e.type, err);
@@ -3313,7 +3426,9 @@ function bind() {
     if (b.dataset.lane === "trampoline") pick({ kind: "trampoline" });
     else if (b.dataset.lane === "pool") pick({ kind: "lane", lane: sim.poolLane() });
     else if (b.dataset.lane === "river") pick({ kind: "lane", lane: 0 });
-    else pick({ kind: "lane", lane: Number(b.dataset.lane) });
+    else if (b.dataset.lane === "waves") {
+      if (mode === "playing") sim.toggleWaves();
+    } else pick({ kind: "lane", lane: Number(b.dataset.lane) });
   };
   $("world-labels").onclick = (e) => {
     const b = e.target.closest("button[data-swimmer]");
@@ -3523,6 +3638,7 @@ function bind() {
       }
       if (sim.venue.kids && key === "1") sim.assign(sim.poolLane());
       else if (sim.venue.river && key === "1") sim.assign(0);
+      else if (sim.venue.waves && key === "1") sim.toggleWaves();
       else if (/^[1-9]$/.test(key) && Number(key) <= sim.lanes.length) sim.assign(Number(key) - 1);
       if (key === "t" && sim.venue.trampoline) sim.assignTrampoline?.();
       if (key === "c") sim.fetch("chlorine");

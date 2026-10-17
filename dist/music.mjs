@@ -307,6 +307,120 @@ export function riverScore(step, panic = false) {
   return out;
 }
 
+// ---- the Wave Pool's song (17 October 2026) ----------------------------------------------------------------------------------
+// Surf rock at 144 BPM in A minor (Am G F E, a bar each, the old Andalusian walk down): a surf beat (kick on one and three, a
+// snappy snare on two and four, the floor tom galloping on the eighths), a picked bass on the eighths, staccato chord chops on the
+// off-beats, and the lead: a twangy guitar tremolo-picked (every sixteenth re-struck) through a spring reverb (an echo behind it).
+// Eight bars of the tune, then eight with the tune an octave up and the drums busier; a glissando dives down into each half. Two
+// bars of drums and bass to start.
+export const WAVE_BPM = 144;
+export const WAVE_STEP = 60 / WAVE_BPM / 4;
+export const WAVE_ROOTS = [45, 43, 41, 40]; // A2 G2 F2 E2
+const WAVE_CHORD = [
+  [0, 3, 7],
+  [0, 4, 7],
+  [0, 4, 7],
+  [0, 4, 7],
+];
+// The tune, a bar a line: [note, sixteenths].
+const WAVE_BARS = [
+  [
+    [76, 4],
+    [74, 2],
+    [72, 2],
+    [71, 4],
+    [69, 4],
+  ],
+  [
+    [67, 4],
+    [69, 2],
+    [71, 2],
+    [74, 4],
+    [71, 4],
+  ],
+  [
+    [72, 4],
+    [69, 2],
+    [65, 2],
+    [69, 4],
+    [72, 4],
+  ],
+  [
+    [71, 2],
+    [72, 2],
+    [71, 2],
+    [69, 2],
+    [68, 8],
+  ],
+  [
+    [69, 2],
+    [72, 2],
+    [76, 4],
+    [81, 4],
+    [79, 2],
+    [76, 2],
+  ],
+  [
+    [74, 4],
+    [71, 2],
+    [67, 2],
+    [71, 4],
+    [74, 4],
+  ],
+  [
+    [77, 4],
+    [76, 2],
+    [74, 2],
+    [72, 4],
+    [69, 4],
+  ],
+  [
+    [68, 4],
+    [71, 4],
+    [76, 8],
+  ],
+];
+// Every sixteenth of the tune: the note sounding (null for none), and whether it starts there.
+export const WAVE_TUNE = WAVE_BARS.flatMap((bar) =>
+  bar.flatMap(([note, len]) => Array.from({ length: len }, (_, i) => ({ note, start: i === 0 }))),
+);
+export const WAVE_INTRO = 2;
+export const WAVE_CYCLE = 16;
+export const waveSection = (bar) =>
+  bar < WAVE_INTRO ? "intro" : (bar - WAVE_INTRO) % WAVE_CYCLE < 8 ? "tune" : "high";
+export function waveScore(step, panic = false) {
+  const out = [],
+    bar = Math.floor(step / STEPS_PER_BAR),
+    s = step % STEPS_PER_BAR,
+    chord = bar % 4,
+    root = WAVE_ROOTS[chord],
+    part = waveSection(bar),
+    inCycle = bar < WAVE_INTRO ? bar : (bar - WAVE_INTRO) % WAVE_CYCLE,
+    beat = Math.floor(s / 4),
+    add = (voice, extra = {}) => out.push({ voice, ...extra });
+  // The surf beat.
+  if (s === 0 || s === 8 || (part === "high" && s === 10)) add("surfkick");
+  if (s === 4 || s === 12) add("surfsnare");
+  if (s % 2 === 0) add("tom", { vol: s % 4 === 0 ? 1 : 0.6 });
+  if (part === "high" && s % 2 === 1) add("hat", { vol: 0.6 });
+  if (bar > 0 && s === 0 && (bar - WAVE_INTRO) % 8 === 0) add("crash");
+  // The picked bass on the eighths: root, root, fifth, octave.
+  if (s % 2 === 0) {
+    const walk = [0, 0, 7, 12, 0, 0, 7, 10][s / 2];
+    add("surfbass", { note: root + walk, len: WAVE_STEP * 1.6 });
+  }
+  if (part === "intro") return out;
+  // Chord chops on the off-beats.
+  if (s % 4 === 2) add("chop", { notes: WAVE_CHORD[chord].map((n) => root + 12 + n) });
+  // A glissando diving into each half of the cycle.
+  if ((inCycle === 7 || inCycle === 15) && s === 12) add("gliss", { len: WAVE_STEP * 4 });
+  // The lead: tremolo-picked, every sixteenth re-struck; an octave up in the second half.
+  const t = WAVE_TUNE[(inCycle % 8) * STEPS_PER_BAR + s];
+  if (t?.note) add("twang", { note: t.note + (part === "high" ? 12 : 0), vol: t.start ? 1 : 0.62 });
+  if (panic && s % 4 === 0 && beat % 2 === 0) add("alarm", { note: beat === 0 ? 84 : 79 });
+  return out;
+}
+
 // The songs the player knows: the step length, the score, and how loud it plays.
 export const SONGS = {
   disco: { step: STEP, score: discoScore, level: 1 },
@@ -316,6 +430,8 @@ export const SONGS = {
   senior: { step: SENIOR_STEP, score: seniorScore, level: 2.35 },
   // (The jungle calypso, brought up to the kids' loudness the same way.)
   river: { step: RIVER_STEP, score: riverScore, level: 2.05 },
+  // (The surf rock, brought to the kids' loudness the same way.)
+  wave: { step: WAVE_STEP, score: waveScore, level: 1.36 },
 };
 
 const release = (...nodes) => {
@@ -581,6 +697,37 @@ export class DiscoMusic {
         this.voice("sine", 2600, t + 0.16, 0.1, 0.025, this.synth, 4000, 0.01);
         this.voice("sine", 3000, t + 0.3, 0.18, 0.02, this.synth, 2200, 0.01);
         break;
+      // The Wave Pool's song's own voices.
+      case "surfkick":
+        this.voice("sine", 130, t, 0.22, 0.42, this.drums, 48, 0.002);
+        break;
+      case "surfsnare":
+        this.hiss(t, 0.16, 0.11, 1800, "bandpass");
+        this.hiss(t, 0.09, 0.05, 5000);
+        this.voice("triangle", 210, t, 0.08, 0.08, this.drums, 160, 0.001);
+        break;
+      case "tom":
+        this.voice("sine", 98, t, 0.16, 0.12 * vol, this.drums, 70, 0.002);
+        break;
+      case "surfbass":
+        this.voice("triangle", midi(n.note), t, n.len, 0.14, this.drums, null, 0.003);
+        this.voice("sawtooth", midi(n.note), t, n.len * 0.6, 0.035, this.synth, null, 0.003);
+        break;
+      case "chop":
+        n.notes.forEach((note, i) =>
+          this.voice("square", midi(note), t + i * 0.006, 0.07, 0.022, this.synth, null, 0.002),
+        );
+        break;
+      case "twang":
+        // A twangy guitar note: a bright attack that drops in pitch a hair, a body, and the spring reverb's echo behind it.
+        this.voice("sawtooth", midi(n.note) * 1.01, t, 0.11, 0.045 * vol, this.synth, midi(n.note), 0.002);
+        this.voice("triangle", midi(n.note), t, 0.12, 0.05 * vol, this.synth, null, 0.002);
+        this.voice("triangle", midi(n.note), t + 0.13, 0.12, 0.018 * vol, this.synth, null, 0.004);
+        this.voice("triangle", midi(n.note), t + 0.26, 0.12, 0.008 * vol, this.synth, null, 0.004);
+        break;
+      case "gliss":
+        this.voice("sawtooth", midi(88), t, n.len, 0.05, this.synth, midi(52), 0.01);
+        break;
       case "alarm":
         this.voice("square", midi(n.note), t, 0.12, 0.05, this.drums);
         break;
@@ -592,7 +739,7 @@ export class DiscoMusic {
       // (The kids' song keeps its filter open; the tea dance a little warmer.)
       this.filter.frequency.cancelScheduledValues(t);
       this.filter.frequency.setValueAtTime(
-        song === SONGS.senior ? 2400 : song === SONGS.river ? 3000 : 3400,
+        song === SONGS.senior ? 2400 : song === SONGS.river ? 3000 : song === SONGS.wave ? 3800 : 3400,
         t,
       );
       return;

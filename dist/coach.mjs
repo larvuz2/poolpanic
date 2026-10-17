@@ -1,5 +1,6 @@
 import { ENTRY, COACH_TUNING as T } from "./spatial.mjs";
 import { riverServicePoint, riverWaterPoint } from "./river-ride.mjs";
+import { batherInReach, batherServicePoint } from "./wave-pool.mjs";
 const names = {
   fins: "fins",
   chlorine: "chlorine",
@@ -152,7 +153,7 @@ export class CoachController {
     c.state = c.slipTime
       ? "Whoops!"
       : c.carry
-        ? "Holding " + (c.carry === "fins" && this.venue.river ? "a tube" : names[c.carry])
+        ? "Holding " + (c.carry === "fins" && this.tubes() ? "a tube" : names[c.carry])
         : Math.hypot(c.vx, c.vz) > 0.2
           ? "On the move"
           : "Ready to help";
@@ -181,8 +182,12 @@ export class CoachController {
   // Anything underfoot that trips walkers: dropped fins here (a tube on the ground is easy to step round); wet puddles are added by
   // the chaos layer.
   slipperyAt(x, z, reach = 0.6) {
-    if (this.venue.river) return false;
+    if (this.tubes()) return false;
     return this.clutter.some((f) => f.type === "fins" && Math.hypot(x - f.x, z - f.z) < reach);
+  }
+  // The fins' plumbing carries tubes instead (the Lazy River, the Wave Pool).
+  tubes() {
+    return !!(this.venue.river || this.venue.waves);
   }
   guideTo(point, text) {
     this.coach.goal = { ...point, label: text };
@@ -232,6 +237,7 @@ export class CoachController {
   }
   servicePoint(p) {
     if (p.status === "swim" && this.venue.river) return riverServicePoint(this, p);
+    if (p.status === "swim" && this.venue.waves) return batherServicePoint(this, p);
     if (p.status !== "swim" || p.lane == null) return { x: p.x, z: p.z };
     const P = this.venue.pool,
       last = this.lanes.length - 1;
@@ -252,6 +258,8 @@ export class CoachController {
     if (p.status !== "swim") return true;
     // At the river: from the bank, never from the water.
     if (this.venue.river) return !this.coach.swimming && !p.away;
+    // At the Wave Pool: from the beach at the water's edge, or from either end.
+    if (this.venue.waves) return batherInReach(this);
     const c = this.coach,
       P = this.venue.pool;
     return (
@@ -302,7 +310,7 @@ export class CoachController {
         rank = distance(c, point) + (p.id === this.selected ? -0.4 : 0);
       let label, kind, run;
       if (c.carry === "fins" && p.needsFins && !p.hasFins) {
-        label = (this.venue.river ? "Hand a tube to " : "Give fins to ") + p.name;
+        label = (this.tubes() ? "Hand a tube to " : "Give fins to ") + p.name;
         kind = "deliver";
       } else if (c.carry === "relief" && p.problem === "eyes") {
         label = "Soothe " + p.name + "’s eyes";
@@ -344,10 +352,12 @@ export class CoachController {
           item,
           label:
             item === "fins"
-              ? this.venue.river
+              ? this.tubes()
                 ? this.finsAvailable
                   ? "Grab a tube"
-                  : "The tube rack is empty"
+                  : this.venue.waves
+                    ? "The tube hut is empty"
+                    : "The tube rack is empty"
                 : this.finsAvailable
                   ? "Pick up fins"
                   : "Fin rack is empty"
@@ -359,7 +369,7 @@ export class CoachController {
           run: () => this.fetch(item),
         });
       } else if (
-        (c.carry === item && (item !== "fins" || this.venue.river)) ||
+        (c.carry === item && (item !== "fins" || this.tubes())) ||
         (c.carry === "goggles" && item === "relief")
       )
         options.push({
@@ -376,7 +386,7 @@ export class CoachController {
           options.push({
             kind: "pickup",
             id: f.id,
-            label: f.type === "fins" && this.venue.river ? "Pick up the tube" : "Pick up " + names[f.type],
+            label: f.type === "fins" && this.tubes() ? "Pick up the tube" : "Pick up " + names[f.type],
             x: f.x,
             z: f.z,
             rank: distance(c, f) + 0.3,
@@ -385,7 +395,7 @@ export class CoachController {
     if (c.carry === "fins")
       options.push({
         kind: "drop-fins",
-        label: this.venue.river ? "Put the tube down" : "Drop fins on the floor",
+        label: this.tubes() ? "Put the tube down" : "Drop fins on the floor",
         x: c.x,
         z: c.z,
         rank: 99,
@@ -440,15 +450,23 @@ export class CoachController {
       return this.guideTo(
         station,
         "Walk to the " +
-          (item === "fins" ? (this.venue.river ? "tube rack" : "fin rack") : names[item] + " station") +
+          (item === "fins"
+            ? this.venue.waves
+              ? "tube hut"
+              : this.venue.river
+                ? "tube rack"
+                : "fin rack"
+            : names[item] + " station") +
           " and press E.",
       );
     if (!this.canInteract()) return false;
     if (item === "fins" && this.finsAvailable === 0) {
       this.emit("toast", {
-        text: this.venue.river
-          ? "No tubes left on the rack. Fetch the used ones from the tube return by the exit dock."
-          : "No fins left. Pick up a dropped pair from the deck.",
+        text: this.venue.waves
+          ? "No tubes left in the hut. Pick up the ones left on the beach."
+          : this.venue.river
+            ? "No tubes left on the rack. Fetch the used ones from the tube return by the exit dock."
+            : "No fins left. Pick up a dropped pair from the deck.",
         warning: true,
       });
       return false;
@@ -500,7 +518,7 @@ export class CoachController {
     }
     if (c.carry === "fins" && (!p.needsFins || p.hasFins)) {
       this.emit("toast", {
-        text: p.name + (this.venue.river ? " already has a tube." : " does not need fins."),
+        text: p.name + (this.tubes() ? " already has a tube." : " does not need fins."),
       });
       return false;
     }

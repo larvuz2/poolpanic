@@ -206,9 +206,10 @@ export class PoolAudio {
       this.next += 60 / (this.panic ? 154 : 108 + this.urgency * 18) / 4;
     }
   }
-  effect(type) {
+  effect(type, e = {}) {
     if (!this.ctx || !this.enabled) return;
     const t = this.ctx.currentTime;
+    if (this.waveEffect(type, e, t)) return;
     if (type === "dog-notice" || type === "dog-steal" || type === "dog-bowl") {
       const n = type === "dog-notice" ? 3 : 2;
       for (let i = 0; i < n; i++) {
@@ -365,12 +366,71 @@ export class PoolAudio {
       );
     }
   }
+  // The Wave Pool's sounds (wave-pool.mjs, waves.mjs). True when `type` was one of them.
+  waveEffect(type, e, t) {
+    if (type === "waves-horn") {
+      // The wave pool's horn: two long low blasts (a fifth apart, slightly out of tune with each other, like the real thing).
+      for (const [d, f] of [
+        [0, 110],
+        [0.75, 110],
+      ]) {
+        this.tone(f, t + d, 0.6, 0.11, "sawtooth", f * 0.99);
+        this.tone(f * 1.5, t + d, 0.6, 0.07, "sawtooth", f * 1.49);
+        this.tone(f * 2.01, t + d, 0.55, 0.04, "square");
+      }
+    } else if (type === "wave-launch") {
+      // The machine pushes a wave out of its chamber: a deep thump and a rush of water, bigger for a big one.
+      const k = e.kind === "monster" ? 2.2 : e.kind === "big" ? 1.4 : 1;
+      this.tone(70, t, 0.45 * k, 0.12 * Math.min(1.6, k), "sine", 40);
+      this.noise(t, 0.7 * k, 0.05 * k, 260);
+    } else if (type === "wave-break") {
+      // The crest breaks: a long hiss of white water, a crash for a big one.
+      const k = e.kind === "monster" ? 2 : e.kind === "big" ? 1.35 : 1;
+      this.noise(t, 1.1 * k, 0.07 * k, 420);
+      this.noise(t + 0.05, 0.5 * k, 0.05 * k, 1600);
+      if (k > 1) this.tone(90, t, 0.35, 0.1 * k, "sine", 50);
+    } else if (type === "monster-warning") {
+      // The siren: a wail up and down, twice.
+      for (const d of [0, 1.1]) {
+        this.tone(440, t + d, 0.55, 0.09, "sawtooth", 880);
+        this.tone(880, t + d + 0.55, 0.5, 0.08, "sawtooth", 440);
+      }
+    } else if (type === "dizzy") {
+      // Seeing stars: a wobbly boing, falling.
+      for (let i = 0; i < 5; i++) this.tone(760 - i * 70, t + i * 0.07, 0.09, 0.07, "sine", 900 - i * 90);
+    } else if (type === "knockout") {
+      // Under they go: a glug of bubbles.
+      for (let i = 0; i < 6; i++)
+        this.tone(300 + ((i * 137) % 260), t + 0.2 + i * 0.06, 0.06, 0.07, "sine", 900);
+      this.noise(t, 0.5, 0.12, 500);
+    } else if (type === "chant") {
+      // "WAVES! WAVES! WAVES!": the crowd's voices, three shouts.
+      for (let i = 0; i < 3; i++) {
+        this.noise(t + i * 0.42, 0.26, 0.09, 700);
+        this.tone(196, t + i * 0.42, 0.24, 0.05, "sawtooth", 175);
+        this.tone(247, t + i * 0.42, 0.24, 0.035, "sawtooth", 220);
+      }
+    } else if (type === "waves-stopped") {
+      // The machine winds down.
+      this.tone(220, t, 0.9, 0.09, "sawtooth", 55);
+      this.noise(t, 0.4, 0.04, 300);
+    } else if (type === "tube-lost" || type === "bather-bump") {
+      // A rubber squeak and a bonk.
+      this.tone(type === "tube-lost" ? 1100 : 260, t, 0.14, 0.09, "sine", type === "tube-lost" ? 600 : 150);
+      this.noise(t + 0.05, 0.2, 0.08, 800);
+    } else if (type === "tube-ashore") {
+      this.tone(320, t, 0.1, 0.07, "triangle", 220);
+    } else if (type === "towel") {
+      this.noise(t, 0.12, 0.04, 2400);
+    } else return false;
+    return true;
+  }
   // Incident sting: a brass-style stab under a short motif of its own, so each problem is recognisable by ear.
   // The first sighting gets a longer tail while the lesson is on screen.
   sting(kind, first = false) {
     if (!this.ctx || !this.enabled) return;
     const t = this.ctx.currentTime,
-      danger = ["cramp", "spill", "fish-loose", "blackout", "tower-go", "crash"].includes(kind);
+      danger = ["cramp", "spill", "fish-loose", "blackout", "tower-go", "crash", "knockout"].includes(kind);
     // The hit: a low thump, a burst of air, and a two-note stab (a tritone when someone is in danger).
     this.tone(95, t, 0.35, 0.3, "sine", 45);
     this.noise(t, 0.25, 0.12, 700);
@@ -430,6 +490,17 @@ export class PoolAudio {
           this.tone(92, at, 0.8, 0.16, "sawtooth", 46);
           [0.34, 0.5].forEach((d) => this.noise(at + d, 0.05, 0.08, 2400));
         },
+        dizzy: () =>
+          [0, 1, 2, 3].forEach((i) =>
+            this.tone(700 - i * 60, at + i * 0.09, 0.1, 0.09, "sine", 860 - i * 80),
+          ),
+        knockout: () => {
+          this.noise(at, 0.6, 0.16, 300);
+          [523, 392, 330, 262].forEach((f, i) =>
+            this.tone(f, at + 0.1 + i * 0.1, 0.12, 0.1, "sine", f * 0.7),
+          );
+        },
+        monster: () => [0, 0.45].forEach((d) => this.tone(440, at + d, 0.4, 0.1, "sawtooth", 880)),
         class: () =>
           [0, 1, 2, 3, 4].forEach((i) =>
             this.tone(500 + i * 90, at + i * 0.06, 0.1, 0.07, "sine", 900 + i * 60),

@@ -147,6 +147,28 @@ export const STINGS = {
     how: "Swimmers climbing out drip on the deck. A wet spot never dries by itself: anyone who walks over it slips, gets cross and costs you points. Grab the mop from its yellow bucket and mop it up (E).",
     tone: "warning",
   },
+  // The Wave Pool (wave-pool.mjs).
+  dizzy: {
+    icon: "💫",
+    title: "DIZZY SWIMMER!",
+    verb: "Stop the waves (1) · a tube · or help {name} out",
+    how: "Every wave makes a bather a little dizzy, most where the waves break. Someone dizzy staggers for the beach: if another wave hits them, they go under. Stop the waves, hand them a tube, or help them out from the water's edge (E).",
+    tone: "warning",
+  },
+  knockout: {
+    icon: "🌊",
+    title: "KNOCKED UNDER!",
+    verb: "Grab a life ring and dive in",
+    how: "A wave hit {name} while they were dizzy. Pick up a glowing ring and walk to the water's edge: you dive in and tow them to the beach. Stop the waves sooner next time!",
+    tone: "danger",
+  },
+  monster: {
+    icon: "🌊",
+    title: "MONSTER WAVE!",
+    verb: "Stop the waves (1) now · or brace!",
+    how: "The siren means a monster wave leaves the wave house in a few seconds. It knocks tubes off and leaves everyone dizzy: stop the machine before it goes, if anyone is already seeing stars. The bathers love it otherwise.",
+    tone: "warning",
+  },
   crash: {
     icon: "💥",
     title: "CRASH!",
@@ -172,6 +194,7 @@ export const SAVES = {
   landing: { stamp: "STUCK IT!", tier: 1 },
   healed: { stamp: "PATCHED UP!", tier: 1 },
   mopped: { stamp: "SQUEAKY CLEAN!", tier: 1 },
+  "helped-out": { stamp: "STEADY NOW!", tier: 1 },
 };
 
 export const MOMENT_TIMING = {
