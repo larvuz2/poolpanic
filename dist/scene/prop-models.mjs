@@ -43,6 +43,15 @@ export const PROP_FILES = {
   "ice-bucket": "props/ice-bucket.glb",
   lantern: "props/lantern.glb",
   "potted-plant": "props/potted-plant.glb",
+  // The cruise ship (scene/cruise.mjs): image-to-3D from product pictures, as the Rooftop Pool's.
+  "cruise-lounger": "props/cruise-lounger.glb",
+  "steamer-chair": "props/steamer-chair.glb",
+  lifeboat: "props/lifeboat.glb",
+  "pool-bar": "props/pool-bar.glb",
+  "towel-cart": "props/towel-cart.glb",
+  "ship-bell": "props/ship-bell.glb",
+  "lifejacket-box": "props/lifejacket-box.glb",
+  "deck-umbrella": "props/deck-umbrella.glb",
 };
 const templates = new Map(),
   loading = new Map(),

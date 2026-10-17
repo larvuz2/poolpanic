@@ -245,6 +245,15 @@ export const POOLS = {
     ],
     twists: { team: 0, class: 0, closure: 0 },
   },
+  // The cruise ship (18 October 2026): a pool deck at sea that rolls (ship.mjs): two lap lanes and free water to chill in, sun
+  // loungers that slide, the pool sloshing over its ends. Every incident still comes, Marco too (he has the lanes).
+  cruise: {
+    name: "Cruise Ship",
+    icon: "🛳️",
+    style: { venue: "cruise", lighting: "cruise" },
+    events: ["Bon voyage", "Captain's party", "Rough seas", "Island hopping", "Sail away", "Full steam ahead"],
+    twists: { class: 0, closure: 0 },
+  },
   arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20] },
 };
 export const POOL_IDS = Object.keys(POOLS);
@@ -369,6 +378,8 @@ const SCORE_SCALE = {
     [15, 1.6],
     [20, 1.25],
   ],
+  // The cruise ship (provisional until calibrated with the coach bot).
+  cruise: [[20, 1]],
 };
 
 // ---- the shop --------------------------------------------------------------------------------------------------------

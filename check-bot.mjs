@@ -5,6 +5,7 @@ import { PoolSimulation } from "./dist/sim.mjs";
 import { plan } from "./check-helpers.mjs";
 import { roofServicePoint } from "./dist/rooftop.mjs";
 import { ROOF, ROOF_BEDS } from "./dist/roof-plan.mjs";
+import { slide } from "./dist/ship.mjs";
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const CARL_CATCHABLE = ["walking", "windup", "charge", "running", "waiting"];
@@ -299,13 +300,21 @@ export class CoachBot {
       // A tube in hand and nobody to give it to: hold it at the beach corner, or put it back to go and mop.
       if (c.carry === "fins") return s.wetSpots?.length ? this.putAway : this.giveTube;
     }
-    // The Rooftop Pool: someone overboard or up on the edge before anything else that can wait; then the margaritas.
-    if (s.venue.roof && this.proactive) {
+    // The cruise ship: someone who slid into the pool is helped out before anything else that can wait.
+    if (s.ship && this.proactive && s.people.some((p) => p.status === "fell-in")) return this.helpFallen;
+    // The Rooftop Pool (and the cruise ship's chilling guests): someone overboard or up on the edge before anything else that can
+    // wait; then the margaritas.
+    if (s.venue.chill && this.proactive) {
       if (s.people.some((p) => p.status === "overboard")) return this.haulRoof;
       if (s.people.some((p) => p.problem === "selfie")) return this.stopRoofSelfie;
-      if (c.carry === "tray" || (!c.carry && s.people.some((p) => p.problem === "drink")))
-        return this.serveRoof;
+      const thirsty = s.people.some((p) => p.problem === "drink"),
+        // (On the cruise ship a tray with nobody to serve goes back when the deck needs the coach.)
+        chores = s.ship && (s.wetSpots?.length || s.roof.beds.some((b) => b.adrift || b.messy));
+      if ((c.carry === "tray" && (thirsty || !chores)) || (!c.carry && thirsty)) return this.serveRoof;
     }
+    // The cruise ship's loungers, slid out of place: a row put back while the deck is level (before the mop when several are out).
+    if (this.proactive && s.ship && !c.carry && !slide(s) && s.roof.beds.filter((b) => b.adrift).length >= 3)
+      return this.straighten;
     // Wet spots (incidents/wet.mjs): a proactive coach mops them as soon as nothing more urgent is going on.
     if (this.proactive && s.wetSpots?.length && (!c.carry || c.carry === "mop")) return this.mopWet;
     // Fins: a waiting swimmer who will not swim without them gets a pair (a pair in hand always goes to someone).
@@ -313,7 +322,10 @@ export class CoachBot {
     if (!c.carry && (s.finsAvailable > 0 || (s.venue.river && this.spareTube())) && this.finsWanted())
       return this.giveFins;
     // The Rooftop Pool's messy sunbeds, when the deck is dry.
-    if (this.proactive && s.venue.roof && !c.carry && s.roof.beds.some((b) => b.messy)) return this.tidyRoof;
+    if (this.proactive && s.venue.chill && !c.carry && s.roof.beds.some((b) => b.messy)) return this.tidyRoof;
+    // The cruise ship's loungers, slid out of place, straightened in a calm.
+    if (this.proactive && s.ship && !c.carry && !slide(s) && s.roof.beds.some((b) => b.adrift))
+      return this.straighten;
     // The Lazy River: used tubes go back to the rack when there is nothing more pressing.
     if (!c.carry && s.venue.river && this.spareTube()) return this.rackTube;
     if (c.carry) return this.putAway;
@@ -354,7 +366,10 @@ export class CoachBot {
     }
     if (!orders.length) {
       // Nobody waiting: hold on to the tray by the middle of the walk, where orders come from.
-      this.walkTo({ x: -4.4, z: 0 }, { reach: 0.8, limit: 40 });
+      this.walkTo(s.venue.roof ? { x: -4.4, z: 0 } : { x: s.venue.chill.edge.stand, z: 0 }, {
+        reach: 0.8,
+        limit: 40,
+      });
       return this.wait(10);
     }
     const p = orders.sort((a, b) => (b.vip ? 1 : 0) - (a.vip ? 1 : 0) || distance(a, c) - distance(b, c))[0];
@@ -371,10 +386,32 @@ export class CoachBot {
     const s = this.s,
       bed = s.roof.beds
         .filter((b) => b.messy)
-        .sort((a, b) => distance(ROOF_BEDS[a.id].foot, s.coach) - distance(ROOF_BEDS[b.id].foot, s.coach))[0];
+        .sort((a, b) => distance(s.venue.chill.bed(s, a.id).foot, s.coach) - distance(s.venue.chill.bed(s, b.id).foot, s.coach))[0];
     if (!bed) return this.wait(2);
-    this.walkTo(ROOF_BEDS[bed.id].foot, { reach: 0.6 });
+    this.walkTo(s.venue.chill.bed(s, bed.id).foot, { reach: 0.6 });
     if (!this.use("tidy")) this.wait(5);
+  }
+  // ---- the cruise ship ----
+  // Someone slid into the pool: to the edge by them, and help them out.
+  helpFallen() {
+    const s = this.s,
+      p = s.people
+        .filter((q) => q.status === "fell-in")
+        .sort((a, b) => distance(a.fallen.edge, s.coach) - distance(b.fallen.edge, s.coach))[0];
+    if (!p) return this.wait(2);
+    if (s.coach.carry) return this.putAway();
+    this.walkTo(p.fallen.edge, { reach: 0.7, until: () => p.status !== "fell-in" });
+    if (!this.use("assist")) this.wait(3);
+  }
+  // A row of loungers out of place: to the nearest one that is adrift, and straighten its row.
+  straighten() {
+    const s = this.s,
+      bed = s.roof.beds
+        .filter((b) => b.adrift)
+        .sort((a, b) => distance(s.venue.chill.bed(s, a.id).foot, s.coach) - distance(s.venue.chill.bed(s, b.id).foot, s.coach))[0];
+    if (!bed) return this.wait(2);
+    this.walkTo(s.venue.chill.bed(s, bed.id).foot, { reach: 0.6, until: () => !bed.adrift });
+    if (bed.adrift && !this.use("tidy")) this.wait(5);
   }
   // ---- the Wave Pool ----
   // A dizzy bather in the water, staggering for the beach (the nearest first).

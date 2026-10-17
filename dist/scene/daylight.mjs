@@ -295,6 +295,7 @@ export const DAY_TIMES = {
   river: 0.12,
   wave: 0.06,
   roof: 0.62,
+  cruise: 0.4,
 };
 
 // The storm palette every colour is pulled toward. `dim` darkens it after dark.

@@ -21,7 +21,7 @@
 // The DJ plays all shift, and every so often the set builds to **the drop** (the music's own bar line: 120 BPM, a bar is 2 s). On
 // the drop everyone in the water jumps and cheers, and the water slops over the near edge and the ends onto the deck: wet spots
 // to mop. Anyone up on the edge for a selfie when the drop hits goes straight over.
-import { ROOF, ROOF_BEDS, roofRoute } from "./roof-plan.mjs";
+import { ROOF } from "./roof-plan.mjs";
 import { WetSpots, addWetSpot } from "./incidents/wet.mjs";
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -90,18 +90,27 @@ export function roofRandom(sim) {
   return sim.roofSeed / 4294967296;
 }
 const between = (sim, [a, b]) => a + roofRandom(sim) * (b - a);
+// The venue's chill plan (roof-plan.mjs `ROOF_CHILL`, cruise-plan.mjs): where the water is, the edge the guests use, the beds.
+const planOf = (sim) => sim.venue.chill;
+const bedOf = (sim, id) => sim.venue.chill.bed(sim, id);
+// Into the water box, `m` in from its sides.
+const inWater = (sim, x, z, m = 0.45) => {
+  const W = sim.venue.chill.water;
+  return { x: clamp(x, W.x0 + m, W.x1 - m), z: clamp(z, W.z0 + m, W.z1 - m) };
+};
 
 // The roof's state for a shift: the beds, the chat groups, the DJ's drops (all of them, from the start: the music plays toward
 // them), the next selfie.
 export function createRoof(sim) {
   sim.roofSeed = (sim.seed ^ 0x2c1b3c6d) >>> 0 || 11;
   const drops = [];
-  for (let bar = Math.round(between(sim, CHILL.firstDrop)); bar * CHILL.bar < sim.config.duration - 6;) {
-    drops.push(bar);
-    bar += Math.round(between(sim, CHILL.dropEvery));
-  }
+  if (planOf(sim).dj)
+    for (let bar = Math.round(between(sim, CHILL.firstDrop)); bar * CHILL.bar < sim.config.duration - 6;) {
+      drops.push(bar);
+      bar += Math.round(between(sim, CHILL.dropEvery));
+    }
   return {
-    beds: ROOF_BEDS.map((b) => ({ id: b.id, guest: null, messy: false })),
+    beds: planOf(sim).beds.map((b) => ({ id: b.id, guest: null, messy: false })),
     groups: [],
     drops,
     nextDrop: 0,
@@ -123,6 +132,13 @@ export function guestType(sim, spec, r) {
 }
 export const GUEST_KIND = { beginner: "Sunbather", intermediate: "Socialite", advanced: "Party animal" };
 
+// Where only some guests chill (the cruise ship: the other half of its pool has lanes), whether this one does: `chill.share` of them,
+// never Marco (he swims), drawn from the chill stream so the rest of the shift is the same.
+export function chillGuest(sim, p) {
+  if (p.star || p.type === "aqua") return false;
+  return roofRandom(sim) < (sim.venue.chill.share ?? 1);
+}
+
 export function roofSpawn(sim, p) {
   Object.assign(p, {
     needsFins: false,
@@ -131,7 +147,8 @@ export function roofSpawn(sim, p) {
     hasFins: false,
     problem: null,
     crampAt: Infinity, // (nobody swims up here)
-    lane: 0,
+    lane: sim.venue.roof ? 0 : null, // (a chilling guest has no lane: the cruise ship's lanes are the swimmers')
+    chill: true,
     h: CHILL.start,
     drinks: 0,
     sipping: 0,
@@ -155,20 +172,21 @@ export function roofSpawn(sim, p) {
 export function walkToActivity(sim, p) {
   const what = p.plan[p.planStep] || "pool";
   p.status = "enter";
-  p.lane = 0;
+  p.lane = sim.venue.roof ? 0 : null;
   p.stepT = 0;
+  const P = planOf(sim);
   if (what === "bed") {
     const bed = pickBed(sim, p);
     if (bed) {
       p.bed = bed.id;
       bed.guest = p.id;
       p.goal = "bed";
-      p.path = roofRoute(p, ROOF_BEDS[bed.id].foot);
+      p.path = P.route(p, bedOf(sim, bed.id).foot);
       return;
     }
     p.goal = "waitbed";
     p.bedWaitT = 0;
-    p.path = roofRoute(p, waitSpot(sim, p));
+    p.path = P.route(p, waitSpot(sim, p));
     if (!sim.roof.bedsTold) {
       sim.roof.bedsTold = true;
       sim.emit("toast", {
@@ -181,21 +199,21 @@ export function walkToActivity(sim, p) {
   p.goal = "pool";
   p.group ??= joinGroup(sim, p);
   const g = group(sim, p.group),
-    z = clamp((g?.z ?? p.z) + (roofRandom(sim) - 0.5) * 1.6, -ROOF.halfZ + 0.8, ROOF.halfZ - 0.8);
-  p.path = roofRoute(p, { x: -ROOF.halfX - 0.75, z });
+    z = inWater(sim, 0, (g?.z ?? p.z) + (roofRandom(sim) - 0.5) * 1.6, 0.8).z;
+  p.path = P.route(p, { x: P.edge.stand, z });
 }
 
 // A free, tidy sunbed (a cabana for a VIP, if there is one; nobody else takes a cabana), the nearest.
 function pickBed(sim, p) {
-  const free = sim.roof.beds.filter((b) => !b.guest && !b.messy),
+  const free = sim.roof.beds.filter((b) => !b.guest && !b.messy && !b.adrift),
     near = (list) =>
-      list.sort((a, b) => distance(ROOF_BEDS[a.id], p) - distance(ROOF_BEDS[b.id], p) || a.id - b.id)[0];
+      list.sort((a, b) => distance(bedOf(sim, a.id), p) - distance(bedOf(sim, b.id), p) || a.id - b.id)[0];
   if (p.vip) {
-    const cabana = near(free.filter((b) => ROOF_BEDS[b.id].cabana));
+    const cabana = near(free.filter((b) => bedOf(sim, b.id).cabana));
     if (cabana) return cabana;
   }
-  const bed = near(free.filter((b) => !ROOF_BEDS[b.id].cabana));
-  if (bed && p.vip && !p.noCabanaTold) {
+  const bed = near(free.filter((b) => !bedOf(sim, b.id).cabana));
+  if (bed && p.vip && !p.noCabanaTold && planOf(sim).cabanas !== false) {
     p.noCabanaTold = true;
     p.h = Math.max(0, p.h - CHILL.noCabana);
     sim.emit("toast", {
@@ -207,9 +225,8 @@ function pickBed(sim, p) {
 }
 // Where a guest stands waiting for a sunbed: at the mouth of the aisle nearest them, on the walk.
 function waitSpot(sim, p) {
-  const aisle = ROOF.aisles.reduce((a, b) => (Math.abs(b - p.z) < Math.abs(a - p.z) ? b : a));
   const taken = sim.people.filter((q) => q !== p && q.goal === "waitbed" && q.status === "enter").length;
-  return { x: -5.0 - (taken % 2) * 0.7, z: aisle + (Math.floor(taken / 2) % 3) * 0.75 - 0.75 };
+  return planOf(sim).waitSpot(sim, p, taken);
 }
 
 // Walking to the water's edge, to a sunbed, or waiting for one; then a moment stepping in or lying down. True while it has them.
@@ -217,10 +234,11 @@ export function tickRoofEnter(sim, p, dt) {
   if (p.status !== "enter") return false;
   if (p.stepT > 0) {
     p.stepT = Math.max(0, p.stepT - dt);
-    const t = 1 - p.stepT / (p.goal === "bed" ? CHILL.lieDown : CHILL.step);
-    if (p.goal === "pool") p.x = -ROOF.halfX - 0.75 + t * 1.3;
+    const t = 1 - p.stepT / (p.goal === "bed" ? CHILL.lieDown : CHILL.step),
+      E = planOf(sim).edge;
+    if (p.goal === "pool") p.x = E.stand + E.dir * t * 1.3;
     else if (p.goal === "bed") {
-      const b = ROOF_BEDS[p.bed];
+      const b = bedOf(sim, p.bed);
       p.x = b.foot.x + (b.x - b.foot.x) * t;
       p.z = b.z;
     }
@@ -241,7 +259,7 @@ export function tickRoofEnter(sim, p, dt) {
       p.bed = bed.id;
       bed.guest = p.id;
       p.goal = "bed";
-      p.path = roofRoute(p, ROOF_BEDS[bed.id].foot);
+      p.path = planOf(sim).route(p, bedOf(sim, bed.id).foot);
     } else if (p.bedWaitT > CHILL.bedGiveUp) {
       // Fed up waiting: into the water if that is still to come, else home.
       const pool = p.plan.indexOf("pool", p.planStep);
@@ -254,30 +272,32 @@ export function tickRoofEnter(sim, p, dt) {
     }
   }
   if (sim.moveAlong(p, dt, sim.pace(p, 3.2))) {
+    const E = planOf(sim).edge;
     if (p.goal === "pool") {
       p.stepT = CHILL.step;
-      p.angle = Math.PI / 2;
+      p.angle = (E.dir * Math.PI) / 2;
     } else if (p.goal === "bed") {
       p.stepT = CHILL.lieDown;
-      p.angle = -Math.PI / 2;
-    } else p.angle = Math.PI / 2;
+      const b = bedOf(sim, p.bed);
+      p.angle = Math.atan2(b.x - p.x, b.z - p.z);
+    } else p.angle = planOf(sim).lookAngle;
   }
   return true;
 }
 function startChilling(sim, p) {
   p.status = "swim";
   p.goal = null;
-  p.x = -ROOF.halfX + 0.55;
+  p.x = planOf(sim).edge.inside;
   begin(sim, p, "pool");
   sim.emit("wade-in", { id: p.id, x: p.x, z: p.z });
 }
 function lieDown(sim, p) {
   p.status = "lounge";
   p.goal = null;
-  const b = ROOF_BEDS[p.bed];
+  const b = bedOf(sim, p.bed);
   p.x = b.x;
   p.z = b.z;
-  p.angle = Math.PI / 2; // (lying with the head to the near wall, looking at the water and the city)
+  p.angle = b.angle ?? planOf(sim).bedAngle;
   begin(sim, p, "bed");
   sim.emit("lie-down", { id: p.id, bed: p.bed, x: p.x, z: p.z });
 }
@@ -313,7 +333,10 @@ function joinGroup(sim, p) {
   let best = null,
     bestGap = -1;
   for (let k = 0; k < 8; k++) {
-    const spot = { x: -2.3 + roofRandom(sim) * 4.6, z: (roofRandom(sim) - 0.5) * 2 * (ROOF.halfZ - 1.2) };
+    const W = planOf(sim).water,
+      rx = roofRandom(sim),
+      rz = roofRandom(sim),
+      spot = { x: W.x0 + 1.1 + rx * (W.x1 - W.x0 - 2.2), z: W.z0 + 1.2 + rz * (W.z1 - W.z0 - 2.4) };
     const gap = Math.min(9, ...sim.roof.groups.map((g) => distance(g, spot)));
     if (gap > bestGap) {
       best = spot;
@@ -332,9 +355,9 @@ function joinGroup(sim, p) {
 export function updateRooftop(sim, dt) {
   const R = sim.roof,
     held = !!sim.rescue || sim.crowdPanic();
-  updateDJ(sim, dt);
+  if (planOf(sim).dj) updateDJ(sim, dt);
   R.groups = R.groups.filter((g) => sim.people.some((q) => q.group === g.id && q.status !== "gone"));
-  const bathers = sim.people.filter((p) => p.status === "swim");
+  const bathers = sim.people.filter((p) => p.status === "swim" && p.chill);
   for (const p of bathers) {
     if (held) continue;
     if (chill(sim, p, dt, bathers) === "stop") return;
@@ -343,7 +366,7 @@ export function updateRooftop(sim, dt) {
     if (p.status === "lounge") lounge(sim, p, dt);
     else if (p.status === "overboard") tickOverboard(sim, p, dt);
   }
-  if (!held) updateSelfies(sim, dt);
+  if (!held && planOf(sim).selfie) updateSelfies(sim, dt);
 }
 
 function chill(sim, p, dt, bathers) {
@@ -373,7 +396,7 @@ function chill(sim, p, dt, bathers) {
   const g = group(sim, p.group),
     company = g ? members(sim, g.id).length : 1;
   let target;
-  if (p.problem === "drink" || p.problem === "eyes") target = { x: -ROOF.halfX + 0.55, z: p.z };
+  if (p.problem === "drink" || p.problem === "eyes") target = { x: planOf(sim).edge.inside, z: p.z };
   else if (g && company > 1) {
     const dx = p.x - g.x,
       dz = p.z - g.z,
@@ -389,12 +412,12 @@ function chill(sim, p, dt, bathers) {
   // Facing: their group's middle while chatting, else the city.
   if (p.actualSpeed < 0.15) {
     if (g && company > 1) p.angle = Math.atan2(g.x - p.x, g.z - p.z);
-    else if (!p.problem) p.angle = Math.PI / 2;
+    else if (!p.problem) p.angle = planOf(sim).lookAngle;
   }
   p.chatting = !!g && company > 1 && !p.problem;
   // Mood: company (or the view), a margarita kept waiting, dirty water, sore eyes.
   const alone = !p.chatting && !p.problem,
-    gain = p.chatting ? CHILL.chat : alone && p.x > ROOF.halfX - 1.4 ? CHILL.view : CHILL.alone;
+    gain = p.chatting ? CHILL.chat : alone && planOf(sim).view(p) ? CHILL.view : CHILL.alone;
   // (Waiting for a margarita, nobody is enjoying anything.)
   if (p.problem !== "drink") p.h += dt * gain * (p.tipsy ? 1.2 : 1);
   p.h -= dt * (thirst(p) + Math.max(0, sim.contamination - 35) * 0.025 * (p.vip ? 1.4 : 1));
@@ -424,8 +447,9 @@ function wadeTo(sim, p, target, speed, dt, bathers) {
       vz += (oz / od) * (CHILL.room - od) * 1.1;
     }
   }
-  p.x = clamp(p.x + vx * dt, -ROOF.halfX + 0.4, ROOF.halfX - 0.4);
-  p.z = clamp(p.z + vz * dt, -ROOF.halfZ + 0.45, ROOF.halfZ - 0.45);
+  const W = planOf(sim).water;
+  p.x = clamp(p.x + vx * dt, W.x0 + 0.4, W.x1 - 0.4);
+  p.z = clamp(p.z + vz * dt, W.z0 + 0.45, W.z1 - 0.45);
   p.actualSpeed = Math.hypot(vx, vz);
   p.traveled += p.actualSpeed * dt;
   if (p.actualSpeed > 0.15) p.angle = Math.atan2(vx, vz);
@@ -473,10 +497,10 @@ export function getUp(sim, p) {
     bed.guest = null;
     if (p.status === "lounge") {
       bed.messy = true;
-      sim.emit("bed-messy", { bed: bed.id, ...ROOF_BEDS[bed.id] });
+      sim.emit("bed-messy", { bed: bed.id, ...bedOf(sim, bed.id) });
     }
   }
-  const b = ROOF_BEDS[p.bed];
+  const b = bedOf(sim, p.bed);
   if (p.status === "lounge") {
     p.x = b.foot.x;
     p.z = b.foot.z;
@@ -583,7 +607,7 @@ export function serveDrink(sim, p) {
 // ---- the sunbeds -------------------------------------------------------------------------------------------------------
 
 export function tidyBed(sim, bed) {
-  const b = ROOF_BEDS[bed.id];
+  const b = bedOf(sim, bed.id);
   if (!bed.messy) return false;
   if (distance(sim.coach, b.foot) > 1.4) return sim.guideTo(b.foot, "Walk to the messy sunbed and press E.");
   if (!sim.canInteract() || sim.coach.carry) return false;
@@ -735,7 +759,7 @@ function tickOverboard(sim, p, dt) {
   p.problem = null;
   const end = { x: (ROOF.gutter.x0 + ROOF.gutter.x1) / 2, z: Math.sign(p.z || 1) * (ROOF.halfZ + 0.9) };
   sim.lose(p);
-  p.path = [end, ...roofRoute(end, sim.venue.arrival.at(p.side, "outside")), ...sim.returnRoute(p.side)];
+  p.path = [end, ...planOf(sim).route(end, sim.venue.arrival.at(p.side, "outside")), ...sim.returnRoute(p.side)];
 }
 export function haulBack(sim, p) {
   if (!p || p.status !== "overboard") return false;
@@ -827,7 +851,7 @@ export function beginRoofExit(sim, p) {
   p.exitPhase = "water";
   p.exitProgress = 0;
   p.onEdge = false;
-  p.path = [{ x: -ROOF.halfX + 0.55, z: clamp(p.z, -ROOF.halfZ + 0.6, ROOF.halfZ - 0.6) }];
+  p.path = [{ x: planOf(sim).edge.inside, z: inWater(sim, 0, p.z, 0.6).z }];
   p.bumpTime = 0;
   p.slipTime = 0;
 }
@@ -844,8 +868,9 @@ export function tickRoofExit(sim, p, dt) {
   }
   p.exitProgress = Math.min(1, p.exitProgress + dt / CHILL.climb);
   const t = p.exitProgress * p.exitProgress * (3 - 2 * p.exitProgress);
-  p.x = p.climbFrom.x + (-ROOF.halfX - 0.8 - p.climbFrom.x) * t;
-  p.angle = -Math.PI / 2;
+  const E = planOf(sim).edge;
+  p.x = p.climbFrom.x + (E.out - p.climbFrom.x) * t;
+  p.angle = (-E.dir * Math.PI) / 2;
   if (p.exitProgress < 1) return true;
   p.actualSpeed = 0;
   p.exitPhase = "deck";
@@ -862,7 +887,7 @@ export function tickRoofExit(sim, p, dt) {
     return true;
   }
   p.stunned = Math.max(p.stunned || 0, 1);
-  p.path = [...roofRoute(p, sim.venue.arrival.at(p.side, "outside")), ...sim.returnRoute(p.side)];
+  p.path = [...planOf(sim).route(p, sim.venue.arrival.at(p.side, "outside")), ...sim.returnRoute(p.side)];
   return true;
 }
 
@@ -873,11 +898,12 @@ export const ROOF_REACH = 1.9;
 // Where the coach stands to serve a guest: on the walk at the near edge beside one in the water (or in the water by them, if
 // they are out of reach of the edge), at the foot of a sunbed.
 export function roofServicePoint(sim, p) {
-  if (p.status === "lounge" && p.bed != null) return ROOF_BEDS[p.bed].foot;
+  if (p.status === "lounge" && p.bed != null) return bedOf(sim, p.bed).foot;
   if (p.status === "overboard") return { x: ROOF.halfX - 0.3, z: p.z };
   if (p.status === "swim") {
-    const edge = { x: -ROOF.halfX - 0.75, z: p.z };
-    return distance(edge, p) <= ROOF_REACH ? edge : { x: p.x - 0.6, z: p.z };
+    const E = planOf(sim).edge,
+      edge = { x: E.stand, z: p.z };
+    return distance(edge, p) <= ROOF_REACH ? edge : { x: p.x - 0.6 * E.dir, z: p.z };
   }
   return { x: p.x, z: p.z };
 }
@@ -959,7 +985,7 @@ export const RooftopParty = {
           kind: "messy",
           icon: "🧺",
           label: "Messy sunbed",
-          ...ROOF_BEDS[b.id],
+          ...bedOf(sim, b.id),
           y: 1.1,
           urgency: 22,
         });
@@ -1026,11 +1052,11 @@ export const RooftopParty = {
     if (!c.carry)
       for (const b of R.beds) {
         if (!b.messy) continue;
-        const foot = ROOF_BEDS[b.id].foot;
+        const foot = bedOf(sim, b.id).foot;
         if (distance(c, foot) <= 1.4)
           options.push({
             kind: "tidy",
-            label: "Tidy the " + (ROOF_BEDS[b.id].cabana ? "cabana" : "sunbed"),
+            label: "Tidy the " + (bedOf(sim, b.id).cabana ? "cabana" : "sunbed"),
             ...foot,
             rank: distance(c, foot) + 0.5,
             run: () => tidyBed(sim, b),

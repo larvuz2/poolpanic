@@ -2,8 +2,8 @@ import { ENTRY, COACH_TUNING as T } from "./spatial.mjs";
 import { riverServicePoint, riverWaterPoint } from "./river-ride.mjs";
 import { batherInReach, batherServicePoint } from "./wave-pool.mjs";
 import { takeTray, roofServicePoint, ROOF_REACH } from "./rooftop.mjs";
-import { ROOF } from "./roof-plan.mjs";
 import { wetSpotAt, WET_TUNING } from "./incidents/wet.mjs";
+import { coachDrift } from "./ship.mjs";
 const names = {
   fins: "fins",
   chlorine: "chlorine",
@@ -127,20 +127,21 @@ export class CoachController {
     // the water (the stepping stones' jumps); where he comes down is another matter (below).
     const air = !!this.venue.river && (c.y > 0 || c.vy > 0),
       free = (x, z) => this.isDeck(x, z) || (air && this.overRiver(x, z)) || this.wadeable(x, z);
-    const slices = Math.max(1, Math.ceil((Math.max(Math.abs(c.vx), Math.abs(c.vz)) * dt) / 0.12));
+    // (On a rolling ship the deck carries him downhill too: ship.mjs.)
+    const drift = this.ship ? coachDrift(this) : 0;
+    const slices = Math.max(1, Math.ceil((Math.max(Math.abs(c.vx), Math.abs(c.vz + drift)) * dt) / 0.12));
     for (let i = 0; i < slices; i++) {
       const x = c.x + (c.vx * dt) / slices;
       if (free(x, c.z)) c.x = x;
       else c.vx = 0;
-      const z = c.z + (c.vz * dt) / slices;
+      const z = c.z + ((c.vz + drift) * dt) / slices;
       if (free(c.x, z)) c.z = z;
       else c.vz = 0;
     }
     if (c.lookAngle == null && Math.hypot(c.vx, c.vz) > 0.12) c.angle = Math.atan2(c.vx, c.vz);
-    // (In the rooftop pool's water, or out of it.)
-    if (this.venue.roof) {
-      const P = this.venue.pool,
-        wading = Math.abs(c.x) < P.solidX && Math.abs(c.z) < P.solidZ;
+    // (In the water a chill plan lets him wade in (the rooftop's pool, the cruise ship's free half), or out of it.)
+    if (this.venue.chill) {
+      const wading = this.venue.chill.wading(c.x, c.z);
       if (wading !== !!c.wading) {
         c.wading = wading;
         c.dashTime = 0;
@@ -194,10 +195,8 @@ export class CoachController {
   }
   // Where the coach may wade in the Rooftop Pool: the water up to just short of the infinity edge, and the coping he steps over.
   wadeable(x, z) {
-    if (!this.venue.roof) return false;
-    const P = this.venue.pool,
-      r = T.radius + 0.01;
-    return x > -P.solidX - r && x < ROOF.halfX - 0.25 && Math.abs(z) < P.solidZ + r;
+    if (!this.venue.chill) return false;
+    return this.venue.chill.wadeable(x, z, T.radius + 0.01);
   }
   // Over the river's open water, inside the deck's bounds (where a jumping coach may fly).
   overRiver(x, z) {
@@ -279,7 +278,7 @@ export class CoachController {
   servicePoint(p) {
     if (p.status === "swim" && this.venue.river) return riverServicePoint(this, p);
     if (p.status === "swim" && this.venue.waves) return batherServicePoint(this, p);
-    if (this.venue.roof) return roofServicePoint(this, p);
+    if (p.chill) return roofServicePoint(this, p);
     if (p.status !== "swim" || p.lane == null) return { x: p.x, z: p.z };
     const P = this.venue.pool,
       last = this.lanes.length - 1;
@@ -303,7 +302,7 @@ export class CoachController {
     // At the Wave Pool: from the beach at the water's edge, or from either end.
     if (this.venue.waves) return batherInReach(this);
     // On the roof: beside them, from the walk or wading.
-    if (this.venue.roof) return distance(this.coach, p) <= ROOF_REACH;
+    if (p.chill) return distance(this.coach, p) <= ROOF_REACH;
     const c = this.coach,
       P = this.venue.pool;
     return (

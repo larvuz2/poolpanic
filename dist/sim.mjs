@@ -27,6 +27,7 @@ import {
   createRoof,
   guestType,
   roofSpawn,
+  chillGuest,
   walkToActivity,
   tickRoofEnter,
   updateRooftop,
@@ -34,6 +35,7 @@ import {
   tickRoofExit,
   roofLeaving,
 } from "./rooftop.mjs";
+import { createShip, updateShip, driftDeck, swimLean } from "./ship.mjs";
 export { LANES, STATIONS } from "./spatial.mjs";
 export const TYPES = {
   beginner: { label: "Beginner", color: "#71ba54", speed: 0.55, icon: "🐢" },
@@ -466,7 +468,9 @@ export class PoolSimulation extends ChaosController {
       this.waves = createWaves(this);
     }
     // The Rooftop Pool's sunbeds, chat groups, DJ and selfies (rooftop.mjs), from a stream of their own.
-    if (this.venue.roof) this.roof = createRoof(this);
+    if (this.venue.chill) this.roof = createRoof(this);
+    // The cruise ship's roll, its loungers and its slosh (ship.mjs), from a stream of their own.
+    if (this.venue.cruise) this.ship = createShip(this);
     this.clutter = [];
     this.uid = 0;
     this.coach = createCoach(this.venue);
@@ -861,7 +865,7 @@ export class PoolSimulation extends ChaosController {
     }
     if (type === "rider") riderSpawn(this, p);
     if (this.venue.waves) batherSpawn(this, p);
-    if (this.venue.roof) roofSpawn(this, p);
+    if (this.venue.roof || (this.venue.chill && chillGuest(this, p))) roofSpawn(this, p);
     if (type === "senior") {
       // A senior: one of four looks, patient (they know the pool takes time), cramps more often, a steady swimmer of their own pace,
       // and one in three comes in a wheelchair. Everything from numbers already drawn: no other roll of the shift moves.
@@ -888,8 +892,7 @@ export class PoolSimulation extends ChaosController {
       // (At the Wave Pool nobody queues: in through the gate, a step past it, and straight down to the beach.)
       if (this.venue.waves) p.path[1] = p.queueTarget = { x: side * 1.3, z: door.doorZ + 1.5 };
       // (Up on the roof nobody queues either: out of the lift, a step onto the deck, and off to the water or a sunbed.)
-      if (this.venue.roof)
-        p.path[1] = p.queueTarget = { x: door.doorX + 0.4, z: side * (door.outsideZ - 1.3) };
+      if (p.chill) p.path[1] = p.queueTarget = this.venue.chill.arrive(door, side);
       this.keepDoorOpen(side);
       this.emit("door-open", { side, ...door.at(side, "door") });
     }
@@ -957,9 +960,14 @@ export class PoolSimulation extends ChaosController {
     // (At the Wave Pool, down to the beach and into the waves.)
     if (this.venue.waves) return walkToWaves(this, p, mode);
     // (On the roof, back to whatever their plan has them doing.)
-    if (this.venue.roof) return walkToActivity(this, p);
+    if (p.chill) return walkToActivity(this, p);
     p.status = mode;
     const side = Math.sign(p.x) || p.side || 1;
+    // (On the cruise ship the deck past the lanes is the free water and the far walk: round by the ship's own routes.)
+    if (this.venue.cruise && p.z > ENTRY.walkZ) {
+      p.path = [...this.venue.route(p, { x: target.x, z: ENTRY.walkZ }), target];
+      return;
+    }
     p.path =
       p.z <= ENTRY.walkZ
         ? [{ x: p.x, z: ENTRY.walkZ }, { x: target.x, z: ENTRY.walkZ }, target]
@@ -1131,7 +1139,7 @@ export class PoolSimulation extends ChaosController {
     return [door.at(side, "outside"), door.at(side, "inside")];
   }
   depart(p, served = true) {
-    if (this.venue.roof) roofLeaving(this, p);
+    if (p.chill) roofLeaving(this, p);
     p.served = served;
     const fromQueue = p.status === "queue";
     const fromWater = p.status === "swim";
@@ -1172,7 +1180,7 @@ export class PoolSimulation extends ChaosController {
         ? p.type === "child"
           ? [...this.venue.route(p, this.venue.arrival.at(p.side, "outside")), ...this.returnRoute(p.side)]
           : this.returnRoute(p.side)
-        : this.venue.river || this.venue.waves || this.venue.roof
+        : this.venue.river || this.venue.waves || this.venue.roof || p.chill || this.venue.cruise
           ? [...this.venue.route(p, this.venue.arrival.at(p.side, "outside")), ...this.returnRoute(p.side)]
           : [{ x: p.side * this.venue.pool.corridorX, z: p.z }, ...this.returnRoute(p.side)];
     p.lane = null;
@@ -1187,7 +1195,7 @@ export class PoolSimulation extends ChaosController {
   beginWaterExit(p) {
     if (this.venue.river) return beginRiverExit(this, p);
     if (this.venue.waves) return beginWaveExit(this, p);
-    if (this.venue.roof) return beginRoofExit(this, p);
+    if (p.chill) return beginRoofExit(this, p);
     // Finish in the water at the nearer end, then climb out beside the blocks.
     const P = this.venue.pool;
     p.exitEnd = p.z >= 0 ? 1 : -1;
@@ -1210,7 +1218,7 @@ export class PoolSimulation extends ChaosController {
   tickWaterExit(p, dt) {
     if (this.venue.river) return tickRiverExit(this, p, dt);
     if (this.venue.waves) return tickWaveExit(this, p, dt);
-    if (this.venue.roof) return tickRoofExit(this, p, dt);
+    if (p.chill) return tickRoofExit(this, p, dt);
     if (p.status !== "exit" || !["water", "climb"].includes(p.exitPhase)) return false;
     if (p.exitPhase === "water") {
       p.actualSpeed = Math.max(1.6, p.desiredSpeed || 2.1);
@@ -1235,7 +1243,15 @@ export class PoolSimulation extends ChaosController {
         p.stunned = Math.max(p.stunned || 0, 1);
         // One in five drips a wet spot where they got out (incidents/wet.mjs).
         WetSpots.climbedOut(this, p, { x: p.x, z: p.exitEnd * (P.endWalkZ + 0.15) });
-        // Reach the outside corner first, then follow the long side back to the locker.
+        // Reach the outside corner first, then follow the long side back to the locker (on the cruise ship, the ship's routes).
+        if (this.venue.cruise) {
+          p.path = [
+            ...this.venue.route(p, this.venue.arrival.at(p.side, "outside")),
+            ...this.returnRoute(p.side),
+          ];
+          this.emit("splash", { x: p.x, z: p.exitEnd * P.climbZ });
+          return true;
+        }
         p.path = [
           { x: p.side * P.corridorX, z: p.exitEnd * P.endWalkZ },
           { x: p.side * P.corridorX, z: this.venue.arrival.doorZ },
@@ -1247,7 +1263,7 @@ export class PoolSimulation extends ChaosController {
     return true;
   }
   lose(p) {
-    if (this.venue.roof) roofLeaving(this, p);
+    if (p.chill) roofLeaving(this, p);
     this.score -= p.vip ? 300 : 100;
     this.stats.lost++;
     this.streak = 0;
@@ -1394,6 +1410,7 @@ export class PoolSimulation extends ChaosController {
     while (this.nextArrival < this.schedule.length && this.arrivalTime >= this.schedule[this.nextArrival].at)
       this.spawn({ ...this.schedule[this.nextArrival++], entrance: true });
     this.updateRescue();
+    if (this.ship) updateShip(this, dt);
     prepareDeck(this, dt);
     this.updateCoach(dt);
     this.updateSanitation(dt);
@@ -1429,7 +1446,7 @@ export class PoolSimulation extends ChaosController {
           walkToWaves(this, p);
           continue;
         }
-        if (this.venue.roof && !this.closed && !this.cleanup) {
+        if (p.chill && !this.closed && !this.cleanup) {
           walkToActivity(this, p);
           continue;
         }
@@ -1440,7 +1457,7 @@ export class PoolSimulation extends ChaosController {
       } else if (p.status === "enter" || p.status === "exit") {
         if (this.venue.river && tickRiverEnter(this, p, dt)) continue;
         if (this.venue.waves && tickWaveEnter(this, p, dt)) continue;
-        if (this.venue.roof && tickRoofEnter(this, p, dt)) continue;
+        if (p.chill && tickRoofEnter(this, p, dt)) continue;
         if (this.tickChair(p, dt)) continue;
         if (
           p.status === "exit" &&
@@ -1483,11 +1500,14 @@ export class PoolSimulation extends ChaosController {
         }
       }
     }
+    if (this.ship) driftDeck(this, dt);
     resolveDeck(this);
     if (this.venue.river) updateRiver(this, dt);
     else if (this.venue.waves) updateWavePool(this, dt);
-    else if (this.venue.roof) updateRooftop(this, dt);
-    else for (let i = 0; i < this.lanes.length; i++) this.updateLane(i, dt);
+    else {
+      if (this.venue.chill) updateRooftop(this, dt);
+      if (!this.venue.roof) for (let i = 0; i < this.lanes.length; i++) this.updateLane(i, dt);
+    }
     if (this.closed === 0) {
       const swimmers = this.people.filter((p) => p.status === "swim").length;
       this.contamination = clamp(
@@ -1522,6 +1542,7 @@ export class PoolSimulation extends ChaosController {
             "trampoline",
             "lounge",
             "overboard",
+            "fell-in",
           ].includes(p.status)
         ) {
           this.stats.lost++;
@@ -1549,6 +1570,7 @@ export class PoolSimulation extends ChaosController {
       if (p.collisionTime > 0) speed = 0;
       const pos = loopPosition(p.p, this.lanes[i]);
       if (aqua.length && Math.abs(pos.z) < 2.1 + aqua.length * 0.2) speed = Math.min(speed, 0.55);
+      if (this.ship) speed *= swimLean(this, p.p);
       desired.set(p.id, speed);
     }
     // Propagate every restriction around the circle; movement is computed from a shared snapshot.

@@ -140,7 +140,7 @@ export function roofPose(w, sim, p, g, time, dt) {
   const inWater =
     p.status === "swim" ||
     (p.status === "exit" && ["water", "climb"].includes(p.exitPhase)) ||
-    (p.status === "evacuating" && p.evacWater && p.x > -ROOF.halfX - 0.3) ||
+    (p.status === "evacuating" && p.evacWater && sim.venue.chill.wading(p.x, p.z)) ||
     (p.status === "fleeing" && ["swim", "leap"].includes(p.fleePhase)) ||
     (p.status === "enter" && p.goal === "pool" && p.stepT > 0);
   const lying = p.status === "lounge" || (p.status === "enter" && p.goal === "bed" && p.stepT > 0);
@@ -164,19 +164,21 @@ export function roofPose(w, sim, p, g, time, dt) {
     if (motion && Math.random() < dt * 5) w.splash(p.x, GUTTER + 0.05, p.z, 2, true, 0xe8ffff);
   } else if (lying) {
     // On a sunbed: lying back on it, the feet to the pool, the head on the raised back.
-    const b = ROOF_BEDS[p.bed] || { x: p.x, z: p.z };
+    const b = (p.bed != null && sim.venue.chill.bed(sim, p.bed)) || { x: p.x, z: p.z, angle: Math.PI / 2 };
     const hips = u.hipsY ?? 0.82,
       k = p.status === "lounge" ? 1 : clamp(1 - p.stepT / CHILL.lieDown, 0, 1),
-      seat = 0.366 * hips;
-    const x = b.x + 0.25,
+      seat = 0.366 * hips,
+      face = b.angle ?? Math.PI / 2;
+    const x = b.x + 0.25 * Math.sin(face),
       z = b.z;
     g.position.set(p.x + (x - p.x) * k, (0.5 - seat) * k + 0 * (1 - k), p.z + (z - p.z) * k);
-    g.rotation.set(0, Math.PI / 2, 0);
+    g.rotation.set(0, face, 0);
     u.hit.position.y = 0.5;
     rig = k > 0.35 ? { tube: { float: true }, puppet: u.puppet, classic: u } : rig;
   } else {
     // Standing in the water, chest-deep: on the bench step by the near wall, on the floor further out.
-    let y = roofFloorAt(p.x);
+    const floorAt = w.chillFloorAt || roofFloorAt;
+    let y = floorAt(p.x);
     if (p.status === "enter")
       y = (1 - clamp(1 - p.stepT / CHILL.step, 0, 1)) * 0 + clamp(1 - p.stepT / CHILL.step, 0, 1) * BENCH;
     if (p.status === "exit" && p.exitPhase === "climb") y = BENCH + (0 - BENCH) * (p.exitProgress || 0);
@@ -190,7 +192,7 @@ export function roofPose(w, sim, p, g, time, dt) {
       // Up on the knife edge, facing the pool, phone up, leaning back over the drop.
       const climb = s.stage === "climbing" ? clamp(s.t / CHILL.climbUp, 0, 1) : 1,
         dread = s.stage === "posing" ? clamp(s.t / s.limit, 0, 1) : 0;
-      g.position.y = roofFloorAt(p.x) + (WATER + 0.02 - roofFloorAt(p.x)) * climb;
+      g.position.y = floorAt(p.x) + (WATER + 0.02 - floorAt(p.x)) * climb;
       facing = -Math.PI / 2;
       g.rotation.set(0, facing, 0);
       const lean = (0.08 + 0.3 * dread + Math.sin(time * (2.5 + dread * 4)) * (0.04 + 0.1 * dread)) * motion;
@@ -282,10 +284,14 @@ function towels(w, ctx) {
 
 export function buildRoofCast(w, venue, ctx) {
   towels(w, ctx);
+  buildCast(w, ctx);
+}
+// The DJ (at ctx.djSpot) and the bartender (at ctx.barSpot, facing ctx.barAngle): the cruise ship's Lido Bar has its own.
+export function buildCast(w, ctx) {
   ctx.cast = [];
   for (const who of [
     { id: "dj", name: "DJ", at: ctx.djSpot, y: 0.25, angle: Math.PI, type: "advanced" },
-    { id: "bartender", name: "Bartender", at: ctx.barSpot, y: 0, angle: 0, type: "intermediate" },
+    { id: "bartender", name: "Bartender", at: ctx.barSpot, y: 0, angle: ctx.barAngle ?? 0, type: "intermediate" },
   ]) {
     if (!who.at) continue;
     const person = {
@@ -344,7 +350,11 @@ export function syncRoof(w, sim, time, dt, ctx) {
     }
     w.water.material.uniforms.uSplash.value = R?.hype > 0 ? Math.min(1, R.hype / 2) : 0;
   }
-  // The DJ and the bartender.
+  syncCast(w, sim, time, dt, ctx);
+}
+// The DJ and the bartender, on the beat.
+export function syncCast(w, sim, time, dt, ctx) {
+  const R = sim?.roof;
   const d = danceAt(sim?.time || 0),
     dark = sim?.outage?.stage === "dark";
   for (const c of ctx.cast || []) {

@@ -16,6 +16,7 @@ import { riverPose, tubeObject } from "./scene/river-view.mjs";
 import { buildWave } from "./scene/wave.mjs";
 import { wavePose } from "./scene/wave-view.mjs";
 import { buildRooftop } from "./scene/rooftop.mjs";
+import { buildCruise, cruisePose } from "./scene/cruise.mjs";
 import { propModel } from "./scene/prop-models.mjs";
 import { roofPose, roofFloorAt } from "./scene/roof-view.mjs";
 import { surfaceAt } from "./waves.mjs";
@@ -293,6 +294,36 @@ LIGHTING.roof = {
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+// The cruise ship: a late afternoon at sea. A warm low sun from forward and to starboard, a cool blue fill from the open sky, the
+// sea a deep blue far below with haze toward the horizon (fog that starts far out: the deck is never in it), the pool's water bright
+// turquoise over its mosaic.
+LIGHTING.cruise = {
+  background: 0x9cc6e6,
+  exposure: 1.0,
+  hemi: [0xdcefff, 0x9a7a58, 1.1],
+  sun: [0xffe2b8, 2.75, [20, 19, 17]],
+  fill: [0xa9cdf0, 0.75, [-14, 16, -12]],
+  env: 0.75,
+  envColors: ["#cfe6f7", "#e9eef2", "#8f7656"],
+  fog: [0xc3d7e4, 420, 2500],
+  water: {
+    shallow: [0.22, 0.8, 0.88],
+    deep: [0.03, 0.48, 0.72],
+    sky: [0.78, 0.88, 0.97],
+    glint: [1, 0.9, 0.72],
+    glow: 0.1,
+    clarity: 0.55,
+  },
+  cruiseSea: { deep: 0x0b3a63, shallow: 0x1f6f9a, sky: 0x9cc6e6, haze: 0xc3d7e4 },
+  glow: 0.1,
+  sky: [
+    [0, "#3f78bd"],
+    [0.5, "#8fbde3"],
+    [0.85, "#cfe2ee"],
+    [1, "#f2dcc0"],
+  ],
+};
+
 const BUILDERS = {
   club: buildClub,
   resort: buildResort,
@@ -305,6 +336,7 @@ const BUILDERS = {
   river: buildRiver,
   wave: buildWave,
   roof: buildRooftop,
+  cruise: buildCruise,
 };
 const defaultLighting = (venue) => venue.lighting || (venue.indoor ? "indoor" : "day");
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
@@ -957,7 +989,9 @@ export class PoolWorld extends SceneKit {
     // The Wave Pool: a bather in the waves rides them (scene/wave-view.mjs).
     if (sim.venue?.waves && wavePose(this, sim, p, g, time, dt)) return;
     // The Rooftop Pool: chest-deep in the water, on a sunbed, up on the edge, in the gutter (scene/roof-view.mjs).
-    if (sim.venue?.roof && roofPose(this, sim, p, g, time, dt)) return;
+    if (p.chill && roofPose(this, sim, p, g, time, dt)) return;
+    // The cruise ship: someone who slid into the pool, treading water (scene/cruise.mjs).
+    if (sim.ship && cruisePose(this, sim, p, g, time, dt)) return;
     // The crowd panics while a cannonball man is in the pool: a swimmer in the water is held where it is, upright, and hops with
     // its hands up like those who wait on the deck.
     const crowd = !!this.crowd,
@@ -1248,7 +1282,7 @@ export class PoolWorld extends SceneKit {
     // (Swimming in the Wave Pool, he rides the swell like everyone in it.)
     if (sim.venue?.waves && c.swimming) cg.position.y += surfaceAt(sim.waves?.list || [], c.x);
     // (Wading in the rooftop pool: his feet on its floor.)
-    if (sim.venue?.roof && c.wading) cg.position.y = roofFloorAt(c.x);
+    if (sim.venue?.chill && c.wading) cg.position.y = (this.chillFloorAt || roofFloorAt)(c.x);
     const angle = intro ? intro.angle : c.angle || 0;
     cg.rotation.y += Math.atan2(Math.sin(angle - cg.rotation.y), Math.cos(angle - cg.rotation.y)) * 0.3;
     const walking = Math.hypot(c.vx || 0, c.vz || 0) > 0.2,
@@ -1850,7 +1884,7 @@ export class PoolWorld extends SceneKit {
   // Screen position of a world point, whether it is behind the camera (the Coach Cam can face away), and how far
   // it sits to the right (1) or left (-1) of the camera's back.
   screenPoint(x, y, z) {
-    const v = new THREE.Vector3(x, y, z),
+    const v = new THREE.Vector3(x, y, z).applyMatrix4(this.scene.matrixWorld),
       local = v.clone().applyMatrix4(this.camera.matrixWorldInverse);
     v.project(this.camera);
     return {
@@ -1861,7 +1895,8 @@ export class PoolWorld extends SceneKit {
     };
   }
   project(x, y, z) {
-    const v = new THREE.Vector3(x, y, z).project(this.camera);
+    // (The scene's own turn: the cruise ship's roll, scene/cruise.mjs; nothing anywhere else.)
+    const v = new THREE.Vector3(x, y, z).applyMatrix4(this.scene.matrixWorld).project(this.camera);
     return {
       x: (v.x * 0.5 + 0.5) * this.container.clientWidth,
       y: (-v.y * 0.5 + 0.5) * this.container.clientHeight,
