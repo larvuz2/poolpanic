@@ -3,6 +3,8 @@
 import assert from "node:assert/strict";
 import { PoolSimulation } from "./dist/sim.mjs";
 import { plan } from "./check-helpers.mjs";
+import { roofServicePoint } from "./dist/rooftop.mjs";
+import { ROOF, ROOF_BEDS } from "./dist/roof-plan.mjs";
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const CARL_CATCHABLE = ["walking", "windup", "charge", "running", "waiting"];
@@ -60,6 +62,8 @@ export class CoachBot {
     }
     if (s.status !== "playing") return;
     if (s.venue.waves) return this.manageWaves();
+    // (Up on the roof nobody is sent anywhere.)
+    if (s.venue.roof) return;
     for (const p of s.people.filter((p) => p.status === "queue" && !(p.finsFirst && !p.hasFins))) {
       s.select(p.id);
       if (p.queasy && p.sick) s.home();
@@ -249,6 +253,7 @@ export class CoachBot {
       treats: () => fx.treats,
       mop: () => fx.mop,
       lifering: () => this.wallPoint(s.lifeRings.find((r) => r.state === "coach").mount),
+      tray: () => s.venue.stations.bar,
     }[c.carry];
     if (!home) {
       // Fins have no hook to go back to: in a hurry they are left on the deck. Whatever else, time moves on.
@@ -294,16 +299,82 @@ export class CoachBot {
       // A tube in hand and nobody to give it to: hold it at the beach corner, or put it back to go and mop.
       if (c.carry === "fins") return s.wetSpots?.length ? this.putAway : this.giveTube;
     }
+    // The Rooftop Pool: someone overboard or up on the edge before anything else that can wait; then the margaritas.
+    if (s.venue.roof && this.proactive) {
+      if (s.people.some((p) => p.status === "overboard")) return this.haulRoof;
+      if (s.people.some((p) => p.problem === "selfie")) return this.stopRoofSelfie;
+      if (c.carry === "tray" || (!c.carry && s.people.some((p) => p.problem === "drink")))
+        return this.serveRoof;
+    }
     // Wet spots (incidents/wet.mjs): a proactive coach mops them as soon as nothing more urgent is going on.
     if (this.proactive && s.wetSpots?.length && (!c.carry || c.carry === "mop")) return this.mopWet;
     // Fins: a waiting swimmer who will not swim without them gets a pair (a pair in hand always goes to someone).
     if (c.carry === "fins") return this.giveFins;
     if (!c.carry && (s.finsAvailable > 0 || (s.venue.river && this.spareTube())) && this.finsWanted())
       return this.giveFins;
+    // The Rooftop Pool's messy sunbeds, when the deck is dry.
+    if (this.proactive && s.venue.roof && !c.carry && s.roof.beds.some((b) => b.messy)) return this.tidyRoof;
     // The Lazy River: used tubes go back to the rack when there is nothing more pressing.
     if (!c.carry && s.venue.river && this.spareTube()) return this.rackTube;
     if (c.carry) return this.putAway;
     return null;
+  }
+  // ---- the Rooftop Pool ----
+  // Haul a guest back over the infinity edge: wade to the edge beside them.
+  haulRoof() {
+    const s = this.s,
+      p = s.people.find((q) => q.status === "overboard");
+    if (!p) return this.wait(2);
+    this.walkTo({ x: ROOF.halfX - 0.5, z: p.z }, { reach: 0.6, until: () => p.status !== "overboard" });
+    if (!this.use("assist")) this.wait(3);
+  }
+  // Talk a guest down off the edge (or stop them on the way): wade over to them.
+  stopRoofSelfie() {
+    const s = this.s,
+      p = s.people.find((q) => q.problem === "selfie");
+    if (!p) return this.wait(2);
+    this.chase(
+      () => ({ x: Math.min(p.x - 0.5, ROOF.halfX - 0.8), z: p.z }),
+      () => p.problem !== "selfie" || s.nearestInteraction()?.kind === "assist",
+      900,
+    );
+    if (!this.use("assist")) this.wait(2);
+  }
+  // Margaritas: a tray from the bar, then the orders, nearest first (a VIP before anyone).
+  serveRoof() {
+    const s = this.s,
+      c = s.coach,
+      orders = s.people.filter((p) => p.problem === "drink");
+    if (c.carry && c.carry !== "tray") return this.putAway();
+    if (c.carry !== "tray") {
+      if (!orders.length) return this.wait(5);
+      this.walkTo(s.venue.stations.bar, { reach: 0.9 });
+      if (!this.use("fetch")) this.wait(5);
+      return;
+    }
+    if (!orders.length) {
+      // Nobody waiting: hold on to the tray by the middle of the walk, where orders come from.
+      this.walkTo({ x: -4.4, z: 0 }, { reach: 0.8, limit: 40 });
+      return this.wait(10);
+    }
+    const p = orders.sort((a, b) => (b.vip ? 1 : 0) - (a.vip ? 1 : 0) || distance(a, c) - distance(b, c))[0];
+    this.chase(
+      () => roofServicePoint(s, p),
+      () => p.problem !== "drink" || c.carry !== "tray" || s.nearestInteraction()?.kind === "deliver",
+      600,
+    );
+    if (s.nearestInteraction()?.kind === "deliver") this.use("deliver");
+    else this.wait(3);
+  }
+  // A messy sunbed, the nearest.
+  tidyRoof() {
+    const s = this.s,
+      bed = s.roof.beds
+        .filter((b) => b.messy)
+        .sort((a, b) => distance(ROOF_BEDS[a.id].foot, s.coach) - distance(ROOF_BEDS[b.id].foot, s.coach))[0];
+    if (!bed) return this.wait(2);
+    this.walkTo(ROOF_BEDS[bed.id].foot, { reach: 0.6 });
+    if (!this.use("tidy")) this.wait(5);
   }
   // ---- the Wave Pool ----
   // A dizzy bather in the water, staggering for the beach (the nearest first).
@@ -550,11 +621,11 @@ export class CoachBot {
     );
     if (s.dog?.stage !== "following") return;
     const door = s.venue.arrival,
-      side = Math.abs(s.coach.x + door.outsideX) < Math.abs(s.coach.x - door.outsideX) ? -1 : 1;
-    this.walkTo(
-      { x: side * door.outsideX, z: door.doorZ + 0.6 },
-      { until: () => s.dog?.stage !== "following" },
-    );
+      side = door.sideOf(s.coach),
+      out = door.at(side, "outside");
+    this.walkTo(door.alongZ ? { x: out.x + 0.6, z: out.z } : { x: out.x, z: out.z + 0.6 }, {
+      until: () => s.dog?.stage !== "following",
+    });
     for (let f = 0; f < 240 && s.dog?.stage === "following"; f++) this.frame();
   }
   // Trampoline crash: a ring for every victim, then the medical kit for everyone on the deck.

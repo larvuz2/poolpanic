@@ -37,7 +37,7 @@ export function planTwists(config) {
 export function startTwist(sim, entry) {
   const t = entry.twist,
     door = sim.venue.arrival,
-    doorSpot = { x: -door.doorX, z: door.doorZ };
+    doorSpot = door.at(-1, "door");
   if (t.kind === "rush") {
     const n = t.count ?? Math.max(T.rushMin, Math.round(sim.config.total * T.rushShare)),
       extras = Array.from({ length: n }, (_, i) => ({

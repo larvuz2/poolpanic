@@ -60,6 +60,16 @@ or the fish empties the pool up the beach, sore eyes bring a bather into the sha
 side by side bump heads (a little dizzier and crosser, no penalty), and more bathers coming out drip a wet spot on the deck past
 the sand.
 
+**At the Rooftop Pool** (17 October 2026) nobody swims, so the trouble is the party's (`dist/rooftop.mjs`): **the selfie at the
+edge** 📸 (from level 2; a tipsy guest most of all wades to the infinity edge, climbs up and leans out with a phone: the warning is
+the climb, the prevention window the seconds of posing, in which the coach wades over and talks them down; the failure is **over
+the edge**, −150, SPLOOSH into the catch gutter; the recovery is hauling them back over, E, before they storm off by the service
+stairs after 18 s). **Margaritas** 🍹 kept waiting make a guest cross, two make one tipsy 🥴; **messy sunbeds** 🛏️ keep the next
+guest waiting for a bed. **The DJ's drop**, announced four bars ahead, splashes the water over the near edge (wet spots to mop) and
+throws anyone up on the edge straight over. Every incident still comes: cramps, a poo or a wee (everybody out over the near edge),
+the fish kid, the cannonball man, the dog, Karen and the power cut; no twist that needs lanes, and no Marco (nobody swims). Nearly
+one guest in three climbing out drips a wet spot (`wetChance` 0.3).
+
 ### Starts on the deck, ends in the pool
 
 | Incident | Levels | What happens |

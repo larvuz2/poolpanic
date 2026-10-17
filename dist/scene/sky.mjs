@@ -54,6 +54,19 @@ export const SCENERY = {
     fireflies: 40,
     seed: 37,
   },
+  // The Rooftop Pool's skyline (17 October 2026): 185 m up, nothing on the horizon but the city's own (scene/city.mjs draws it, and
+  // the painted panorama beyond it); no hills, no sea, no palms down here, a few birds and clouds.
+  skyline: {
+    sea: false,
+    hills: [],
+    palms: 0,
+    boats: 0,
+    birds: 9,
+    balloons: 0,
+    lanterns: 0,
+    fireflies: 0,
+    seed: 57,
+  },
   lagoon: {
     sea: true,
     shoreX: -38,

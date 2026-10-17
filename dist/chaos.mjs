@@ -12,6 +12,7 @@ import { planTwists, startTwist } from "./incidents/twist.mjs";
 import { WetSpots, useMop } from "./incidents/wet.mjs";
 import { WaveMachine } from "./wave-pool.mjs";
 import { WAVE } from "./waves.mjs";
+import { RooftopParty } from "./rooftop.mjs";
 import {
   Trampoline,
   tickJumper,
@@ -21,7 +22,8 @@ import {
 } from "./incidents/trampoline.mjs";
 
 // (The wet spots come last: a chore, so every incident's hint and alert come before theirs.)
-// (The Wave Pool's machine is no incident either: its hints and alerts come after every incident's, before the wet spots'.)
+// (The Wave Pool's machine is no incident either: its hints and alerts come after every incident's, before the wet spots'. Nor is
+// the Rooftop Pool's party: its margaritas, sunbeds, selfies and the DJ's drop.)
 export const SYSTEMS = [
   PowerOutage,
   CannonballCarl,
@@ -30,6 +32,7 @@ export const SYSTEMS = [
   Trampoline,
   Karen,
   WaveMachine,
+  RooftopParty,
   WetSpots,
 ];
 
@@ -178,19 +181,18 @@ export class ChaosController extends RescueController {
       kind,
       type: kind,
       side,
-      x: side * door.insideX,
-      z: door.insideZ,
-      angle: door.insideZ === door.doorZ ? -side * (Math.PI / 2) : 0,
+      ...door.at(side, "inside"),
+      angle: door.enterAngle(side),
       status: "entering",
       hold: 0.4,
-      path: [{ x: side * door.outsideX, z: door.doorZ }],
+      path: [door.at(side, "outside")],
       skin: Math.floor(this.chaosRandom() * 5),
       phase: this.chaosRandom() * 6.28,
       ...extra,
     };
     this.visitors.push(v);
     this.keepDoorOpen(side);
-    this.emit("door-open", { side, x: side * door.doorX, z: door.doorZ });
+    this.emit("door-open", { side, ...door.at(side, "door") });
     return v;
   }
   visitor(id) {
@@ -199,10 +201,10 @@ export class ChaosController extends RescueController {
   // Leave through the nearer locker door; the door opens as they reach it.
   sendVisitorHome(v, status = "leaving") {
     const door = this.venue.arrival,
-      side = Math.abs(v.x + door.outsideX) < Math.abs(v.x - door.outsideX) ? -1 : 1;
+      side = door.sideOf(v);
     v.side = side;
     v.status = status;
-    v.path = [...this.venue.route(v, { x: side * door.outsideX, z: door.doorZ }), ...this.returnRoute(side)];
+    v.path = [...this.venue.route(v, door.at(side, "outside")), ...this.returnRoute(side)];
   }
   // Advance a visitor along its path. Returns true on arrival. Removes visitors who went through a door.
   walkVisitor(v, dt, speed) {
@@ -211,9 +213,10 @@ export class ChaosController extends RescueController {
       return false;
     }
     const door = this.venue.arrival;
-    if (Math.hypot(v.x - v.side * door.doorX, v.z - door.doorZ) < 2.4) this.keepDoorOpen(v.side);
+    const doorway = door.at(v.side, "door");
+    if (Math.hypot(v.x - doorway.x, v.z - doorway.z) < 2.4) this.keepDoorOpen(v.side);
     const arrived = this.moveAlong(v, dt, speed);
-    const inside = Math.abs(v.z - door.insideZ) < 0.2 && Math.abs(Math.abs(v.x) - door.insideX) < 0.2;
+    const inside = door.isInside(v);
     if (arrived && inside && ["leaving", "sulking", "happy", "carded"].includes(v.status)) {
       v.status = "gone";
       this.visitors = this.visitors.filter((a) => a !== v);
@@ -321,6 +324,18 @@ export class ChaosController extends RescueController {
       p.fleePhase = "swim";
       p.fleeTarget = { x: -WAVE.halfX + 0.2, z: p.z };
       p.fleeLanding = { x: -WAVE.halfX - 1.4, z: p.z };
+      return;
+    }
+    if (this.venue.roof && Math.abs(p.x) < P.halfX + 0.4 && Math.abs(p.z) < P.halfZ) {
+      // Out of the rooftop pool: over the near edge onto the walk, or out at the nearer end (the far side is the infinity edge).
+      const end = P.halfZ - Math.abs(p.z) < 1.6,
+        s = Math.sign(p.z) || 1,
+        x = clamp(p.x, -P.halfX + 0.5, P.halfX - 1.2);
+      p.fleePhase = "swim";
+      p.fleeTarget = end ? { x, z: s * (P.halfZ - 0.35) } : { x: -P.halfX + 0.35, z: p.z };
+      p.fleeLanding = end
+        ? { x: Math.min(x, 2.4), z: s * (P.solidZ + 0.75) }
+        : { x: -P.solidX - 0.7, z: p.z };
       return;
     }
     if (Math.abs(p.x) < P.halfX && Math.abs(p.z) < P.halfZ) {
@@ -595,9 +610,9 @@ export class ChaosController extends RescueController {
       if (this.coach.carry !== "treats")
         return this.guideTo(this.venue.fixtures.treats, "Grab the dog treats to lure the dog out.");
       const door = this.venue.arrival,
-        side = Math.sign(this.coach.x) || 1;
+        side = door.alongZ ? Math.sign(this.coach.z) || 1 : Math.sign(this.coach.x) || 1;
       return this.guideTo(
-        { x: side * door.outsideX, z: door.doorZ },
+        door.at(side, "outside"),
         `Lead the dog to ${this.venue.doorWord}. It follows the treats.`,
       );
     }

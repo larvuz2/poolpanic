@@ -1,6 +1,8 @@
 import { ENTRY, COACH_TUNING as T } from "./spatial.mjs";
 import { riverServicePoint, riverWaterPoint } from "./river-ride.mjs";
 import { batherInReach, batherServicePoint } from "./wave-pool.mjs";
+import { takeTray, roofServicePoint, ROOF_REACH } from "./rooftop.mjs";
+import { ROOF } from "./roof-plan.mjs";
 const names = {
   fins: "fins",
   chlorine: "chlorine",
@@ -8,7 +10,10 @@ const names = {
   goggles: "goggles",
   skimmer: "pool skimmer",
   lifering: "life ring",
+  tray: "tray of margaritas",
 };
+// The Rooftop Pool is shallow: the coach can wade in (`wading`), at about half his speed, with no dash and no jump.
+const WADE = 0.5;
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const approach = (v, target, amount) =>
   v < target ? Math.min(target, v + amount) : Math.max(target, v - amount);
@@ -31,11 +36,11 @@ export class CoachController {
     c.dashTime = 0;
   }
   jump() {
-    if (this.status === "playing" && !this.coach.busy) this.coach.jumpBuffer = 0.12;
+    if (this.status === "playing" && !this.coach.busy && !this.coach.wading) this.coach.jumpBuffer = 0.12;
   }
   dash() {
     const c = this.coach;
-    if (this.status !== "playing" || c.dashCooldown > 0 || c.slipTime > 0 || c.busy) return false;
+    if (this.status !== "playing" || c.dashCooldown > 0 || c.slipTime > 0 || c.busy || c.wading) return false;
     const n = Math.hypot(c.input.x, c.input.z);
     c.dashX = n ? c.input.x / n : Math.sin(c.angle);
     c.dashZ = n ? c.input.z / n : Math.cos(c.angle);
@@ -104,7 +109,7 @@ export class CoachController {
     const moving = c.slipTime === 0;
     const accel = c.input.x || c.input.z ? T.acceleration : T.braking;
     const dashing = c.dashTime > 0 && moving;
-    const speed = T.speed * (this.perks?.speed ?? 1),
+    const speed = T.speed * (this.perks?.speed ?? 1) * (c.wading ? WADE : 1),
       dx = (moving ? c.input.x * speed : 0) - c.vx,
       dz = (moving ? c.input.z * speed : 0) - c.vz;
     const velocityStep = Math.min(1, (accel * dt) / Math.max(0.000001, Math.hypot(dx, dz)));
@@ -120,7 +125,7 @@ export class CoachController {
     // Sliding collision resolution keeps diagonals and tight passages responsive. At the Lazy River a coach in the air can sail over
     // the water (the stepping stones' jumps); where he comes down is another matter (below).
     const air = !!this.venue.river && (c.y > 0 || c.vy > 0),
-      free = (x, z) => this.isDeck(x, z) || (air && this.overRiver(x, z));
+      free = (x, z) => this.isDeck(x, z) || (air && this.overRiver(x, z)) || this.wadeable(x, z);
     const slices = Math.max(1, Math.ceil((Math.max(Math.abs(c.vx), Math.abs(c.vz)) * dt) / 0.12));
     for (let i = 0; i < slices; i++) {
       const x = c.x + (c.vx * dt) / slices;
@@ -131,6 +136,16 @@ export class CoachController {
       else c.vz = 0;
     }
     if (c.lookAngle == null && Math.hypot(c.vx, c.vz) > 0.12) c.angle = Math.atan2(c.vx, c.vz);
+    // (In the rooftop pool's water, or out of it.)
+    if (this.venue.roof) {
+      const P = this.venue.pool,
+        wading = Math.abs(c.x) < P.solidX && Math.abs(c.z) < P.solidZ;
+      if (wading !== !!c.wading) {
+        c.wading = wading;
+        c.dashTime = 0;
+        this.emit(wading ? "wade-in" : "wade-out", { coach: true, x: c.x, z: c.z });
+      }
+    }
     if (c.y > 0 || c.vy > 0) {
       c.vy -= T.gravity * dt;
       c.y = Math.max(0, c.y + c.vy * dt);
@@ -152,11 +167,22 @@ export class CoachController {
     }
     c.state = c.slipTime
       ? "Whoops!"
-      : c.carry
-        ? "Holding " + (c.carry === "fins" && this.tubes() ? "a tube" : names[c.carry])
-        : Math.hypot(c.vx, c.vz) > 0.2
-          ? "On the move"
-          : "Ready to help";
+      : c.carry === "tray"
+        ? "Holding a tray (" + c.tray + " margarita" + (c.tray === 1 ? "" : "s") + ")"
+        : c.carry
+          ? "Holding " + (c.carry === "fins" && this.tubes() ? "a tube" : names[c.carry])
+          : c.wading
+            ? "Wading"
+            : Math.hypot(c.vx, c.vz) > 0.2
+              ? "On the move"
+              : "Ready to help";
+  }
+  // Where the coach may wade in the Rooftop Pool: the water up to just short of the infinity edge, and the coping he steps over.
+  wadeable(x, z) {
+    if (!this.venue.roof) return false;
+    const P = this.venue.pool,
+      r = T.radius + 0.01;
+    return x > -P.solidX - r && x < ROOF.halfX - 0.25 && Math.abs(z) < P.solidZ + r;
   }
   // Over the river's open water, inside the deck's bounds (where a jumping coach may fly).
   overRiver(x, z) {
@@ -238,6 +264,7 @@ export class CoachController {
   servicePoint(p) {
     if (p.status === "swim" && this.venue.river) return riverServicePoint(this, p);
     if (p.status === "swim" && this.venue.waves) return batherServicePoint(this, p);
+    if (this.venue.roof) return roofServicePoint(this, p);
     if (p.status !== "swim" || p.lane == null) return { x: p.x, z: p.z };
     const P = this.venue.pool,
       last = this.lanes.length - 1;
@@ -260,6 +287,8 @@ export class CoachController {
     if (this.venue.river) return !this.coach.swimming && !p.away;
     // At the Wave Pool: from the beach at the water's edge, or from either end.
     if (this.venue.waves) return batherInReach(this);
+    // On the roof: beside them, from the walk or wading.
+    if (this.venue.roof) return distance(this.coach, p) <= ROOF_REACH;
     const c = this.coach,
       P = this.venue.pool;
     return (
@@ -325,7 +354,7 @@ export class CoachController {
           this.select(p.id);
           return this.assist();
         };
-      } else if (!c.carry && p.status === "queue") {
+      } else if (!c.carry && p.status === "queue" && !this.venue.roof) {
         label = "Select " + p.name;
         kind = "select";
         run = () => {
@@ -345,7 +374,8 @@ export class CoachController {
         });
     }
     for (const [item, point] of Object.entries(this.venue.stations)) {
-      if (distance(c, point) > T.reach) continue;
+      // (The rooftop's bar is the party's own: rooftop.mjs offers its trays.)
+      if (distance(c, point) > T.reach || item === "bar") continue;
       if (!c.carry) {
         options.push({
           kind: "fetch",
@@ -437,6 +467,8 @@ export class CoachController {
     this.emit(type, { x: this.coach.x, z: this.coach.z, ...extra });
   }
   fetch(item) {
+    // (The Rooftop Pool's bar hands out trays of margaritas, rooftop.mjs.)
+    if (item === "bar" || item === "tray" || (item === "fins" && this.venue.roof)) return takeTray(this);
     const station = this.venue.stations[item];
     if (this.status !== "playing" || !station) return false;
     const c = this.coach;

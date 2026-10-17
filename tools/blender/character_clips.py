@@ -2,7 +2,9 @@
     tools/blender/run.sh tools/blender/character_clips.py -- in.glb out.glb --character marco [--only WaitWatch]
 (`--character shared` is the clips every character gets, made on Coach Waters: Panic and Swim. transplant_clips.py then
 moves them to the others. `--character coach` is the clip only Coach Waters has: SwimRing, swimming with the life ring.
-`--character tube` is the Lazy River's: TubeFloat and TubeBoard, lying back in a tube and sitting into it.)
+`--character tube` is the Lazy River's: TubeFloat and TubeBoard, lying back in a tube and sitting into it. `--character dj`
+is the Rooftop Pool's DJ: DJ, playing a set behind his booth, one bar at 120 BPM, made on his own body; `--character
+bartender` its bartender's Shake, a cocktail shaken and poured behind the bar, 2 s.)
 The clips of the file stay, the new ones are added under their own names, and each one loops (its last frame is its
 first again). The legs stay planted: the feet are held where they stand, and the knees bend to follow the hips. Every bone
 is keyed in every frame, like the other clips, so switching clips never leaves a bone behind.
@@ -13,7 +15,8 @@ the elbow points (two-bone IK), so the same pose fits a tall swimmer and a child
     "armL" / "armR"   {"space": "chest", "tgt": (x, y, z), "pole": (x, y, z), "twist": degrees}
                       chest: the wrist in fractions of the arm's reach from its shoulder, x out from the body, y back, z up;
                       head:  the wrist in fractions of the head's half sizes from its centre (a hand at the goggles).
-                      "hang" is the relaxed arm of the idle clips.
+                      "hang" is the relaxed arm of the idle clips. "level": 0..1 lays the hand flat, palm down (on a desk),
+                      instead of straight along the forearm (0 by default); "turn" then turns it about the vertical, degrees.
     "hips"            metres the hips move (x, y, z), "hips_turn" / "spine" / "head": (yaw, pitch, roll) degrees
                       (yaw + turns left, pitch + looks down, roll + tips the head to its left)
     "look"            0..1: how much the head looks at the left wrist ("look_wrist": "L"/"R") rather than where "head" points
@@ -426,6 +429,145 @@ def tube_board_clip():
     }
 
 
+# ---- the Rooftop Pool's DJ (17 October 2026) ----------------------------------------------------------------------------
+# The DJ plays behind a booth (a desk about 1.10 m high right in front of him): two decks, one at each hand, and the mixer
+# between them. Made on the DJ's own body (dist/assets/models/dj.glb), so the hands land on his desk; the targets are in
+# fractions of his reach, like every arm key. One bar at 120 BPM, like the dances: the game plays it in time with the music.
+DJ_DECK = (0.22, -0.70, -0.18)  # a hand on its own deck's jog wheel: in front of the shoulder, forward and down to the desk
+DJ_MIXER = (-0.20, -0.78, -0.16)  # a hand on the mixer, in the middle of the desk (in toward the other side)
+DJ_POLE = (0.75, 0.55, -0.35)  # the elbows out to the side and a little back, hanging
+DJ_UP = {"space": "chest", "tgt": (0.16, -0.10, 0.97), "pole": (0.9, 0.6, 0.0), "twist": 0, "level": 0.0}  # an arm thrown up in the air
+
+
+def dj_clip():
+    """DJ: playing a set behind the booth, one bar of four beats at 120 BPM (48 frames at 24 fps, a beat every 12 frames), so
+    the game can loop it in step with the music. Both hands work at desk height: for the first two beats the right hand rides
+    its deck's jog wheel (a small scratch back and forth every half beat) while the left turns a knob on the mixer (the hand
+    turning to and fro, flat on it); halfway through they swap (the left hand to its deck, the right to the mixer, by the third
+    beat); on the fourth beat the right arm is up in the air for the crowd, and it comes back down to its deck for the next bar
+    while the left goes back to the mixer. The hands lie flat, palms down (`"level"`), and no bone turns more than 40 degrees in
+    a frame (the arm going up takes 7 frames, and 7 to come down). The
+    head nods down on every beat and looks at the deck being played (up at the crowd with the arm), the body leans a little
+    over the booth, and the knees and shoulders bounce on the beat. The feet stay planted."""
+    frames, beat = 48, 12
+    tau = 2 * math.pi
+
+    def hand(where, turn=0.0):
+        return {"space": "chest", "tgt": where, "pole": DJ_POLE, "twist": 0, "level": 1.0, "turn": turn}
+
+    def deck(f):
+        """On the jog wheel: the hand pushes the record back and forth every half beat (a scratch), a hair up and down."""
+        s = math.sin(tau * f / (beat / 2))
+        x, y, z = DJ_DECK
+        return hand((x + 0.012 * s, y - 0.045 * s, z + 0.010 * abs(s)))
+
+    def mixer(f):
+        """On a knob: the hand turns it to and fro (about the vertical), rising off the desk a little between turns."""
+        s = math.sin(tau * f / beat)
+        x, y, z = DJ_MIXER
+        return hand((x + 0.015 * math.sin(tau * f / (2 * beat)), y, z + 0.012 * max(0.0, -s)), turn=22.0 * s)
+
+    # The two arms as key lists: each key is a pose for that frame; a span of frames where the arm does one job gets a key on
+    # every frame (the scratch and the knob are motions), a move between jobs is two keys eased into one another.
+    def keys_for(plan):
+        out = []
+        for start, end, job in plan:
+            for f in range(start, end + 1):
+                if out and out[-1][0] == f:
+                    continue
+                out.append((f, job(f) if callable(job) else job))
+        return out
+
+    arm_r = keys_for([(0, 18, deck), (24, 30, mixer), (37, 41, lambda f: DJ_UP), (48, 48, deck)])
+    arm_l = keys_for([(0, 18, mixer), (24, 42, deck), (48, 48, mixer)])
+
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "shrug", "footL", "footR")}
+
+    def at(points, f):
+        """Linear through (frame, value) points, eased at each point (the head's look from deck to deck)."""
+        for (f0, v0), (f1, v1) in zip(points, points[1:]):
+            if f0 <= f <= f1:
+                u = (f - f0) / (f1 - f0) if f1 > f0 else 0.0
+                u = u * u * (3 - 2 * u)
+                return v0 + (v1 - v0) * u
+        return points[-1][1]
+
+    look_yaw = [(0, -12.0), (16, -12.0), (24, 12.0), (30, 12.0), (35, 0.0), (43, 0.0), (48, -12.0)]  # + is to his left
+    look_up = [(0, 0.0), (31, 0.0), (36, 1.0), (42, 1.0), (47, 0.0), (48, 0.0)]  # 1 with the arm up: the head up at the crowd
+    for f in range(frames + 1):
+        within = (f % beat) / beat
+        bounce = math.sin(math.pi * min(1.0, within / 0.5)) if within < 0.5 else 0.0  # 0 to 1 and back in the first half beat
+        up = at(look_up, f)
+        keys["hips"].append((f, (0.008 * math.sin(math.pi * f / beat), 0.02, -0.022 * bounce)))
+        keys["hips_turn"].append((f, (0.0, 3.0, 2.0 * math.sin(math.pi * f / beat))))
+        keys["spine"].append((f, (0.4 * at(look_yaw, f), 9.0 - 6.0 * up + 2.0 * bounce, 0.0)))
+        nod = 10.0 * math.sin(math.pi * min(1.0, within / 0.45)) if within < 0.45 else 0.0  # down on the beat
+        keys["head"].append((f, (0.6 * at(look_yaw, f), 16.0 * (1 - up) - 14.0 * up + nod, 2.0 * math.sin(math.pi * f / beat))))
+        keys["shrug"].append((f, 0.25 * bounce))
+        keys["footL"].append((f, (0.0, 0.0, 0.0)))
+        keys["footR"].append((f, (0.0, 0.0, 0.0)))
+    return {"frames": frames, "breath": 0.0, **keys, "armL": arm_l, "armR": arm_r}
+
+
+# ---- the Rooftop Pool's bartender (17 October 2026) -----------------------------------------------------------------------
+# Behind the bar (a counter about 1.1 m high in front of him), shaking a cocktail and pouring it. Made on his own body
+# (dist/assets/models/bartender.glb), like the DJ's clip; the shaker itself is the game's to put in his right hand.
+BAR_TOP = {"space": "chest", "tgt": (0.12, -0.46, 0.22), "pole": (0.6, 0.2, -1.0), "twist": 0}  # right hand: the shaker's cap
+BAR_BOTTOM = {"space": "chest", "tgt": (-0.40, -0.62, -0.08), "pole": (0.4, 0.2, -1.0), "twist": 0}  # left hand: its base
+BAR_SHAKE = (0.0, -0.075, -0.045)  # the way the shaker goes on each shake: forward and down, then back up over the shoulder
+BAR_POUR = {"space": "chest", "tgt": (-0.30, -0.84, 0.22), "pole": (0.9, 0.3, -0.5), "twist": -70}  # tipped over the glass
+BAR_GLASS = {"space": "chest", "tgt": (-0.26, -0.86, -0.02), "pole": (0.8, 0.2, -0.6), "twist": 0}  # holding the glass steady
+
+
+def shake_clip():
+    """Shake: the bartender's cocktail, one 2 s loop (48 frames at 24 fps, four beats at 120 BPM, like the DJ's bar). For the
+    first beats both hands hold the shaker up by his right shoulder, the right on the cap and the left under the base, and
+    shake it hard along its length, two shakes a beat (a shake every 6 frames), the shoulders and the head going with it.
+    Then the shaker comes down in front of him, tipped over a glass on the counter, the left hand steadying the glass and the
+    head looking down at it; the pour rises a little as it goes (a flourish) and the hands go back up to shake the next one."""
+    frames = 48
+    tau = 2 * math.pi
+
+    def moved(spec, offset):
+        return {**spec, "tgt": tuple(a + b for a, b in zip(spec["tgt"], offset))}
+
+    def shaking(spec):
+        return lambda f: moved(spec, tuple(c * math.sin(tau * f / 6) for c in BAR_SHAKE))
+
+    def keys_for(plan):
+        out = []
+        for start, end, job in plan:
+            for f in range(start, end + 1):
+                if not out or out[-1][0] != f:
+                    out.append((f, job(f) if callable(job) else job))
+        return out
+
+    lift = (0.0, 0.0, 0.08)  # the pour rises as it goes
+    arm_r = keys_for([(0, 24, shaking(BAR_TOP)), (32, 32, BAR_POUR), (40, 40, moved(BAR_POUR, lift)), (48, 48, BAR_TOP)])
+    arm_l = keys_for([(0, 24, shaking(BAR_BOTTOM)), (31, 31, BAR_GLASS), (40, 40, BAR_GLASS), (48, 48, BAR_BOTTOM)])
+    pour = [(0, 0.0), (24, 0.0), (31, 1.0), (41, 1.0), (47, 0.0), (48, 0.0)]  # 1 while pouring
+
+    def at(points, f):
+        for (f0, v0), (f1, v1) in zip(points, points[1:]):
+            if f0 <= f <= f1:
+                u = (f - f0) / (f1 - f0) if f1 > f0 else 0.0
+                return v0 + (v1 - v0) * u * u * (3 - 2 * u)
+        return points[-1][1]
+
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "shrug", "footL", "footR")}
+    for f in range(frames + 1):
+        p = at(pour, f)
+        s = math.sin(tau * f / 6) * (1 - p)  # the shake, while shaking
+        keys["hips"].append((f, (0.004 * s, 0.0, -0.004 * abs(s))))
+        keys["hips_turn"].append((f, (-4.0 * (1 - p), 0.0, 0.0)))
+        keys["spine"].append((f, (-8.0 * (1 - p) + 2.0 * s, 4.0 + 4.0 * p, -2.0 * s)))
+        keys["head"].append((f, (6.0 * (1 - p) + 1.5 * s, 4.0 + 20.0 * p + 1.5 * s, 4.0 * (1 - p))))
+        keys["shrug"].append((f, (0.3 + 0.2 * s) * (1 - p)))
+        keys["footL"].append((f, (0.0, 0.0, 0.0)))
+        keys["footR"].append((f, (0.0, 0.0, 0.0)))
+    return {"frames": frames, "breath": 0.0, **keys, "armL": arm_l, "armR": arm_r}
+
+
 CLIPS = {
     # What every character does, made on the Coach and moved to the others (transplant_clips.py).
     "shared": {
@@ -448,6 +590,14 @@ CLIPS = {
     "tube": {
         "TubeFloat": tube_float_clip(),
         "TubeBoard": tube_board_clip(),
+    },
+    # The Rooftop Pool's DJ (17 October 2026): made on his own body, behind his booth.
+    "dj": {
+        "DJ": dj_clip(),
+    },
+    # The Rooftop Pool's bartender (17 October 2026): made on his own body, behind his bar.
+    "bartender": {
+        "Shake": shake_clip(),
     },
     # What only Coach Waters does.
     "coach": {
@@ -894,7 +1044,26 @@ def pose_frame(clip, t):
         aim(f["fore"], fore, pole, up, rd["fore"], ARM_POLE, rd["upper"], twist * 2 / 3)
         fore_orientation = rot_part(pose[f["fore"].name].matrix)
         hand_rest = fore_orientation @ rests[f["fore"].name].inverted() @ rests[f["hand"].name]
-        set_orientation(f["hand"], Matrix.Rotation(twist / 3, 3, fore) @ hand_rest)
+        hand_turn = Matrix.Rotation(twist / 3, 3, fore)
+        level = lerp(a.get("level", 0.0), b.get("level", 0.0), u)  # 1: the hand lies flat (on a desk), not along the forearm
+        if level > 0 and math.hypot(fore.x, fore.y) > 1e-3:
+            # Flat: the hand points along the forearm's line on the floor, and is rolled about its own length until the palm
+            # (which faces down in the T-pose) faces the floor again; "turn" then turns it about the vertical (a knob).
+            flat = Vector((fore.x, fore.y, 0.0)).normalized()
+            hand_turn = Quaternion((1, 0, 0, 0)).slerp(fore.rotation_difference(flat), level).to_matrix() @ hand_turn
+            orientation = hand_turn @ hand_rest
+            along = orientation.col[1].normalized()
+            palm = orientation @ (rests[f["hand"].name].inverted() @ Vector((0, 0, -1)))
+            down = Vector((0, 0, -1))
+            p_, d_ = palm - along * palm.dot(along), down - along * down.dot(along)
+            if p_.length > 1e-6 and d_.length > 1e-6:
+                p_.normalize()
+                d_.normalize()
+                roll = math.atan2(along.dot(p_.cross(d_)), p_.dot(d_))
+                hand_turn = Matrix.Rotation(level * roll, 3, along) @ hand_turn
+            turn = math.radians(lerp(a.get("turn", 0.0), b.get("turn", 0.0), u))
+            hand_turn = Matrix.Rotation(turn, 3, Vector((0, 0, 1))) @ hand_turn
+        set_orientation(f["hand"], hand_turn @ hand_rest)
 
     # legs: the feet stay where they stand (a foot may lift for a tap), the knees bend to the hips (forward, or toward the
     # clip's own `knee_pole`: up over a tube's rim)
