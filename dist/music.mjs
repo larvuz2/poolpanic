@@ -502,6 +502,77 @@ export function roofScore(step, panic = false, state = null) {
 }
 
 // The songs the player knows: the step length, the score, and how loud it plays.
+// ---- the Cruise Ship's song (18 October 2026) --------------------------------------------------------------------------------
+// Lido-deck yacht pop at 108 BPM in F (Fmaj7 Dm7 B♭maj7 C7, a bar each): a soft conga and shaker groove, the ride on the beats and a
+// brush on two and four, a smooth walking bass, electric-piano chords on the off-beats, and the tune on a steel pan. Eight bars of
+// the tune, then eight with vibes rolling up the chords and the pan answering low; the ship's bell rings in the first two bars.
+export const CRUISE_BPM = 108;
+export const CRUISE_STEP = 60 / CRUISE_BPM / 4;
+export const CRUISE_ROOTS = [41, 38, 46, 36]; // F2 D2 B♭2 C2
+const CRUISE_CHORD = [
+  [0, 4, 7, 11],
+  [0, 3, 7, 10],
+  [0, 4, 7, 11],
+  [0, 4, 7, 10],
+];
+// prettier-ignore
+export const CRUISE_TUNE = [
+  72, null, null, 69, null, 72, null, null, 77, null, 76, null, 72, null, null, null,
+  74, null, 72, null, 69, null, null, null, 65, null, 67, null, 69, null, null, null,
+  70, null, null, 74, null, 77, null, null, 81, null, 79, null, 77, null, null, null,
+  76, null, 74, null, 72, null, 70, null, 72, null, null, null, null, null, null, null,
+  77, null, null, 76, null, 77, null, 81, null, 79, null, 77, null, null, null, null,
+  74, null, 77, null, 74, null, 72, null, 69, null, null, null, 72, null, null, null,
+  70, null, 72, null, 74, null, 77, null, 79, null, 77, null, 74, null, 70, null,
+  72, null, 74, null, 76, null, 79, null, 77, null, null, null, null, null, null, null,
+];
+export const CRUISE_INTRO = 2;
+export const CRUISE_CYCLE = 16;
+export const cruiseSection = (bar) =>
+  bar < CRUISE_INTRO ? "intro" : (bar - CRUISE_INTRO) % CRUISE_CYCLE < 8 ? "tune" : "vibes";
+export function cruiseScore(step, panic = false) {
+  const out = [],
+    bar = Math.floor(step / STEPS_PER_BAR),
+    s = step % STEPS_PER_BAR,
+    chord = bar % 4,
+    root = CRUISE_ROOTS[chord],
+    tones = CRUISE_CHORD[chord],
+    part = cruiseSection(bar),
+    inCycle = bar < CRUISE_INTRO ? bar : (bar - CRUISE_INTRO) % CRUISE_CYCLE,
+    beat = Math.floor(s / 4),
+    add = (voice, extra = {}) => out.push({ voice, ...extra });
+  // The groove: shaker on the eighths, the ride on the beats, a brush on two and four, the congas.
+  if (s % 2 === 0) add("shaker", { vol: s % 4 === 2 ? 0.9 : 0.5 });
+  if (s % 4 === 0) add("ride", { vol: beat % 2 ? 0.7 : 1 });
+  if (s === 4 || s === 12) add("brush");
+  if (s === 0 || s === 7 || s === 10) add("conga", { note: s === 7 ? 64 : 57, vol: s === 0 ? 0.9 : 0.6 });
+  if (part === "intro") {
+    // The ship's bell: two double rings.
+    if (s === 0 || s === 3) add("bell", { note: 84, vol: 1.2 });
+    return out;
+  }
+  // The walking bass.
+  if (s === 0) add("walk", { note: root, len: CRUISE_STEP * 5 });
+  if (s === 6) add("walk", { note: root + 7, len: CRUISE_STEP * 2, vol: 0.8 });
+  if (s === 8) add("walk", { note: root + 12, len: CRUISE_STEP * 3, vol: 0.85 });
+  if (s === 12) add("walk", { note: root + (chord === 3 ? 10 : 9), len: CRUISE_STEP * 3, vol: 0.75 });
+  // Electric-piano chords on the off-beats.
+  if (s === 6 || s === 14 || (s === 3 && inCycle % 2))
+    add("comp", { notes: tones.map((n) => root + 24 + n), vol: s === 3 ? 0.6 : 0.85 });
+  if (part === "tune") {
+    const n = CRUISE_TUNE[(inCycle % 8) * STEPS_PER_BAR + s];
+    if (n !== null) add("steel", { note: n });
+  } else {
+    // The vibes roll up the chord in eighths; the pan answers with the tune's first bar, an octave down, every other bar.
+    if (s % 2 === 0) add("vibe", { note: root + 36 + tones[(s / 2) % 4], vol: 0.55 });
+    const n = CRUISE_TUNE[(inCycle % 8) * STEPS_PER_BAR + s];
+    if (inCycle % 2 === 0 && n !== null) add("steel", { note: n - 12, vol: 0.8 });
+  }
+  if (s === 0 && inCycle === 15) add("bell", { note: 84 });
+  if (panic && s % 4 === 0 && beat % 2 === 0) add("alarm", { note: beat === 0 ? 84 : 79 });
+  return out;
+}
+
 export const SONGS = {
   disco: { step: STEP, score: discoScore, level: 1 },
   // (The kids' lighter voices, brought up to the disco's loudness: measured from both songs rendered offline.)
@@ -514,6 +585,8 @@ export const SONGS = {
   wave: { step: WAVE_STEP, score: waveScore, level: 1.36 },
   // (The house set uses the disco's voices: as loud as the disco.)
   roof: { step: ROOF_STEP, score: roofScore, level: 1 },
+  // (The cruise's soft voices, set to the river's level: they share its pan and congas; not measured.)
+  cruise: { step: CRUISE_STEP, score: cruiseScore, level: 2.05 },
 };
 
 const release = (...nodes) => {
@@ -843,7 +916,13 @@ export class DiscoMusic {
       // (The kids' song keeps its filter open; the tea dance a little warmer.)
       this.filter.frequency.cancelScheduledValues(t);
       this.filter.frequency.setValueAtTime(
-        song === SONGS.senior ? 2400 : song === SONGS.river ? 3000 : song === SONGS.wave ? 3800 : 3400,
+        song === SONGS.senior || song === SONGS.cruise
+          ? 2400
+          : song === SONGS.river
+            ? 3000
+            : song === SONGS.wave
+              ? 3800
+              : 3400,
         t,
       );
       return;

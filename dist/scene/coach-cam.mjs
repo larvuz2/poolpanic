@@ -364,6 +364,11 @@ export class CoachCam {
       c.z + fz * 0.12 + fx * bobX + this.shake.z,
     );
     cam.rotation.set(this.pitch + this.tilt.x, this.yaw + Math.PI, this.roll.x, "YXZ");
+    // (On the rolling cruise ship the coach's eyes roll with the deck: scene/cruise.mjs turns the scene, and the horizon tips.)
+    if (w.scene.rotation.x) {
+      cam.position.applyMatrix4(w.scene.matrix);
+      cam.quaternion.premultiply(w.scene.quaternion);
+    }
     const fov = this.verticalFov(cam.aspect) + this.fovKick.x;
     if (Math.abs(cam.fov - fov) > 0.01) {
       cam.fov = fov;

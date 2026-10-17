@@ -211,6 +211,7 @@ export class PoolAudio {
     const t = this.ctx.currentTime;
     if (this.waveEffect(type, e, t)) return;
     if (this.roofEffect(type, e, t)) return;
+    if (this.shipEffect(type, e, t)) return;
     if (type === "dog-notice" || type === "dog-steal" || type === "dog-bowl") {
       const n = type === "dog-notice" ? 3 : 2;
       for (let i = 0; i < n; i++) {
@@ -465,6 +466,39 @@ export class PoolAudio {
       // Fresh towels: a flap and a pat.
       this.noise(t, 0.12, 0.06, 1800);
       this.noise(t + 0.15, 0.06, 0.05, 900);
+    } else return false;
+    return true;
+  }
+  // The Cruise Ship's sounds (ship.mjs). True when `type` was one of them.
+  shipEffect(type, e, t) {
+    if (type === "swell-warning") {
+      // The ship's bell, three double rings, and the foghorn under it.
+      for (let i = 0; i < 3; i++)
+        for (const d of [0, 0.22]) {
+          this.tone(1318, t + i * 0.7 + d, 0.9, 0.06, "sine");
+          this.tone(1318 * 2.76, t + i * 0.7 + d, 0.3, 0.012, "sine");
+        }
+      this.tone(98, t + 0.1, 1.6, 0.12, "sawtooth", 96);
+      this.tone(147, t + 0.1, 1.6, 0.06, "sawtooth", 145);
+    } else if (type === "roll") {
+      // The hull's timbers creak as she leans (louder in a big swell).
+      const vol = e.big ? 0.05 : 0.03;
+      for (let i = 0; i < 4; i++) this.tone(140 + i * 23, t + i * 0.19, 0.22, vol, "sawtooth", 95 + i * 17);
+    } else if (type === "loungers-slide") {
+      // Lounger feet scraping across the teak.
+      for (let i = 0; i < 5; i++) this.noise(t + i * 0.09, 0.12, 0.04, 700 + i * 80);
+    } else if (type === "spill") {
+      // A wash of water over the coping.
+      this.noise(t, 0.9, 0.12, 600);
+      this.noise(t + 0.1, 0.5, 0.06, 2200);
+    } else if (type === "fell-in") {
+      // "Whoa-oa!" and a splash.
+      this.tone(620, t, 0.32, 0.09, "triangle", 300);
+      this.noise(t + 0.3, 0.7, 0.16, 500);
+      this.tone(90, t + 0.3, 0.3, 0.12, "sine", 50);
+    } else if (type === "straightened") {
+      // The loungers knocked back into line: thunk, thunk, thunk.
+      for (let i = 0; i < 3; i++) this.tone(150, t + i * 0.12, 0.08, 0.1, "sine", 90);
     } else return false;
     return true;
   }

@@ -1,7 +1,8 @@
 // Shared world geometry. Screen right is +Z, screen up is +X (the camera looks across the pool from -X).
 import { makeRiver, placeOn } from "./river.mjs";
 import { WAVE as WAVE_BASIN } from "./waves.mjs";
-import { ROOF as ROOF_PLAN, ROOF_BEDS, roofRoute } from "./roof-plan.mjs";
+import { ROOF as ROOF_PLAN, ROOF_BEDS, ROOF_CHILL, roofRoute } from "./roof-plan.mjs";
+import { CRUISE as CRUISE_PLAN, CRUISE_CHILL, LOUNGERS, cruiseRoute } from "./cruise-plan.mjs";
 //
 // Everything a system needs to know about a location lives in a venue: lanes, basin bounds, deck walking
 // corridors, doors, queue rows, stations, rescue fixtures and simple collision proxies. Scenes, routes,
@@ -352,6 +353,8 @@ function makeVenue(spec) {
       if (river) return river.route(from, to);
       // (The Rooftop Pool: round the basin on the near side only, the sunbeds, the cabanas and the bar, roof-plan.mjs.)
       if (spec.roof) return roofRoute(from, to);
+      // (The cruise ship: round the whole pool (both halves), the rows of loungers, the bar and the lobbies, cruise-plan.mjs.)
+      if (spec.cruise) return cruiseRoute(from, to);
       // Solid bodies also collide with the starting-block row just behind the basin's left end.
       const kx = pool.keepOutX - 0.05,
         kz = pool.keepOutZ - 0.05,
@@ -403,6 +406,12 @@ function makeVenue(spec) {
         for (const side of [-1, 1])
           for (const x of [-2.2, 0, 2.2])
             spots.push({ x, z: side * (pool.solidZ + 0.45), face: -side, axis: "z" });
+        return spots.filter((s) => venue.isDeck(s.x, s.z, 3, 0.3));
+      }
+      // The cruise ship: along the near side and the lane half's ends (the far side of the lanes is the rope and the free water).
+      if (spec.cruise) {
+        for (let z = -6; z <= 6; z += 2) spots.push({ x: -(pool.solidX + 0.45), z, face: 1, axis: "x" });
+        for (const x of spec.lanes) spots.push({ x: x + 1.15, z: pool.solidZ + 0.45, face: -1, axis: "z" });
         return spots.filter((s) => venue.isDeck(s.x, s.z, 3, 0.3));
       }
       // The Wave Pool: along the beach at the water's edge and along both ends (the far side is the wave house).
@@ -961,6 +970,7 @@ export const ROOFTOP = makeVenue({
   lighting: "roof",
   doorWord: "a lift",
   roof: true,
+  chill: ROOF_CHILL, // (its guests chill: rooftop.mjs)
   basin: { halfX: RP.halfX, halfZ: RP.halfZ },
   tubes: 0, // (no fins and no tubes up here: the coach carries trays of margaritas, rooftop.mjs)
   wetChance: 0.3, // everyone climbs out dripping onto the walk
@@ -1070,6 +1080,111 @@ export const ROOFTOP = makeVenue({
   ],
 });
 
+// The cruise ship's pool deck (18 October 2026, cruise-plan.mjs): a pool across the deck, two lap lanes in its near half and free
+// water past a rope in its far half, rows of sun loungers that slide when the ship rolls (ship.mjs), the Lido Bar on the far deck,
+// and two stairway lobbies at the left end where the guests come up. The lane half is every venue's lane pool (two lanes), so the
+// swimmers play as anywhere; the free half is the Rooftop Pool's chilling (rooftop.mjs, `chill`).
+const CP = CRUISE_PLAN;
+const CRUISE_EVAC = [-5.3, -6.0].flatMap((x) =>
+  [-7.2, -5.8, -4.4, -3.0, -1.6, -0.2, 1.2, 2.6, 4.0, 5.4, 6.8].map((z) => ({ x, z })),
+);
+export const CRUISE = makeVenue({
+  id: "cruise",
+  name: "Cruise Ship",
+  indoor: false,
+  scenery: "ocean",
+  sunAzimuth: 2.4,
+  lighting: "cruise",
+  cruise: true,
+  chill: CRUISE_CHILL, // (half its guests chill in the free half or on a lounger: rooftop.mjs)
+  doorWord: "a stairway",
+  lanes: CP.lanes,
+  deck: CP.deck,
+  room: { minX: -15.8, maxX: 17.4, minZ: -16.4, maxZ: 16.4 },
+  doors: { insideX: 10.1, doorX: 9.35, doorZ: -14.4, outsideX: 8.5 },
+  lockers: [-11.6, 11.6], // (the stairway lobbies)
+  queue: { outerX: 4.6, stepX: 1.1, startZ: -11.1, stepZ: 1.15 },
+  coachStart: { x: -5.0, z: 0 },
+  cameraScale: 1.26, // (wide: the whole deck and the sea past its rails, to see her roll)
+  cameraFollow: { kx: 0.3, maxX: 4.4 },
+  props: [
+    "mop",
+    "mop-bucket",
+    "cruise-lounger",
+    "steamer-chair",
+    "lifeboat",
+    "pool-bar",
+    "towel-cart",
+    "ship-bell",
+    "lifejacket-box",
+    "deck-umbrella",
+    "margarita",
+    "bar-stool",
+    "palm-planter",
+    "potted-plant",
+  ],
+  beds: LOUNGERS,
+  stations: {
+    bar: { x: CP.bar.x - CP.bar.hx - 0.6, z: CP.bar.z }, // the trays of margaritas, on the far walk
+    fins: { x: -13.4, z: -9.4 },
+    chlorine: { x: -13.4, z: 10.6 },
+    relief: { x: -9.4, z: 11.9 },
+  },
+  sanitation: { rack: { x: -14.6, z: 0.6 }, bin: { x: -14.2, z: 2.6 }, reach: 6.2 },
+  ringMounts: [
+    { x: -4, z: -15.7, angle: 0 },
+    { x: -15.0, z: -10.6, angle: Math.PI / 2 },
+    { x: 6.5, z: 15.7, angle: Math.PI },
+  ],
+  rescue: { bench: { x: -9.6, z: -10.4 }, approach: { x: -8.3, z: -10.4 } },
+  evacSpots: CRUISE_EVAC,
+  fixtures: {
+    fishNet: { x: 3.0, z: 15.7, angle: Math.PI },
+    treats: { x: -5.6, z: 13.6 },
+    flashlight: { x: -13.9, z: 13.4 },
+    fuseBox: { x: 16.75, z: 6.2, angle: -Math.PI / 2 },
+    medkit: { x: -15.0, z: 6.0 },
+    mop: { x: 1.2, z: 12.6 },
+  },
+  trampoline: null,
+  furniture: [
+    // The free half of the pool, past the rope (water: nobody walks there; the coach may wade in, rooftop.mjs `chill`).
+    {
+      kind: "free-water",
+      x: (CP.free.x0 + CP.free.x1 + 0.3) / 2,
+      z: 0,
+      hx: (CP.free.x1 + 0.3 - CP.free.x0) / 2,
+      hz: CP.halfZ + 0.35,
+    },
+    // The rows of loungers (each lounger slides along its row: ship.mjs), the bar, the hot tub, the stairway lobbies.
+    ...CP.rows.map((r, i) => ({
+      kind: "lounger-row",
+      row: i,
+      x: r.x,
+      z: (r.z0 + r.z1) / 2,
+      hx: CP.lounger.hx + 0.05,
+      hz: (r.z1 - r.z0) / 2 + 0.1,
+    })),
+    { kind: "pool-bar", ...CP.bar },
+    ...CP.tubs.map((t) => ({ kind: "hot-tub", x: t.x, z: t.z, hx: t.r, hz: t.r, r: t.r })),
+    { kind: "lobby", side: -1, x: -11.6, z: -14.35, hx: 2.0, hz: 1.05 },
+    { kind: "lobby", side: 1, x: 11.6, z: -14.35, hx: 2.0, hz: 1.05 },
+    { kind: "bench", x: -9.6, z: -11.0, angle: Math.PI / 2, hx: 0.49, hz: 1.2 },
+    { kind: "rack", x: -13.4, z: -9.4, hx: 0.48, hz: 1.03 },
+    { kind: "station", x: -13.4, z: 10.6, hx: 0.6, hz: 0.9 },
+    { kind: "station", x: -9.4, z: 11.9, hx: 0.9, hz: 0.6 },
+    { kind: "medkit-cabinet", x: -15.0, z: 6.0, hx: 0.3, hz: 0.7 },
+    { kind: "treat-table", x: -5.6, z: 13.6, hx: 0.36, hz: 0.36 },
+    { kind: "ship-bell", x: -2.2, z: 14.6, hx: 0.35, hz: 0.35 },
+    { kind: "lifejacket-box", x: 7.6, z: 14.9, hx: 0.75, hz: 0.45 },
+    { kind: "lifejacket-box", x: -6.0, z: -15.0, hx: 0.75, hz: 0.45 },
+    { kind: "towel-cart", x: 15.6, z: -3.6, hx: 0.6, hz: 0.4 },
+    { kind: "palm", x: 16.0, z: 6.4, hx: 0.55, hz: 0.55 },
+    { kind: "palm", x: 16.0, z: -13.8, hx: 0.55, hz: 0.55 },
+    { kind: "palm", x: -14.6, z: 14.4, hx: 0.55, hz: 0.55 },
+  ],
+});
+
 export const VENUES = {
   club: CLUB,
   resort: RESORT,
@@ -1082,6 +1197,7 @@ export const VENUES = {
   river: RIVER,
   wave: WAVE,
   roof: ROOFTOP,
+  cruise: CRUISE,
 };
 
 export function createCoach(venue = CLUB) {

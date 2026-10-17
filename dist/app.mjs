@@ -92,6 +92,7 @@ import { RIDE } from "./river-ride.mjs";
 import { waveBoard } from "./waves.mjs";
 import { BATHE } from "./wave-pool.mjs";
 import { CHILL, GUEST_KIND, nextDrop } from "./rooftop.mjs";
+import { slide } from "./ship.mjs";
 import { Achievements } from "./achievements.mjs";
 import { isDesktop, quitGame, richPresence, unlockAchievement } from "./platform.mjs";
 import * as hunts from "./bisect.mjs";
@@ -231,7 +232,8 @@ audio.clock = () =>
     sim?.venue?.seniors ||
     sim?.venue?.river ||
     sim?.venue?.waves ||
-    sim?.venue?.roof) &&
+    sim?.venue?.roof ||
+    sim?.venue?.cruise) &&
   (mode === "playing" || mode === "countdown")
     ? {
         time: sim.time,
@@ -247,7 +249,9 @@ audio.clock = () =>
                 ? "wave"
                 : sim.venue.roof
                   ? "roof"
-                  : "disco",
+                  : sim.venue.cruise
+                    ? "cruise"
+                    : "disco",
         // (The Rooftop Pool's DJ builds to the drops the simulation has planned, on its bar lines: rooftop.mjs.)
         drops: sim.roof?.drops || null,
       }
@@ -1626,6 +1630,10 @@ function renderLaneControls(venue) {
           `<button class="lane-btn" data-lane="${i}" aria-label="Assign selected swimmer to ${word.toLowerCase()} ${i + 1}"><div class="lane-top"><span class="lane-no"><span class="lane-word">${word} </span>0${i + 1}</span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Jump on in</span><span class="lane-caps"></span></div></button>`,
       )
       .join("") +
+    (venue.cruise
+      ? `<button class="lane-btn pool-btn bar-btn" data-lane="bar" aria-label="Get a tray of margaritas from the bar"><div class="lane-top"><span class="lane-no">🍹<span class="lane-word"> BAR</span></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">No orders yet</span><span class="lane-caps"></span></div></button>` +
+        `<div class="lane-btn ship-gauge" aria-label="How far the ship is rolling"><div class="lane-top"><span class="lane-no">⚓<span class="lane-word"> SHIP</span></span><span class="lane-mode">STEADY</span></div><div class="lane-bottom"><span class="lane-count">0°</span><span class="ship-dial"><i></i></span></div></div>`
+      : "") +
     (venue.trampoline
       ? `<button class="lane-btn trampoline-btn" data-lane="trampoline" aria-label="Send selected daredevil to the trampoline"><div class="lane-top"><span class="lane-no">🤸<span class="lane-word"> TRAMP</span></span><span class="lane-mode">READY</span></div><div class="lane-bottom"><span class="lane-count">Daredevils only</span><span class="lane-caps"></span></div></button>`
       : "");
@@ -2273,7 +2281,8 @@ function problemIcon(p) {
   if (p.status === "overboard") return "🆘";
   if (p.problem === "selfie") return "📸";
   if (p.problem === "drink") return "🍹";
-  if (sim.venue.roof && p.goal === "waitbed" && p.status === "enter") return "🛏️";
+  if (p.status === "fell-in") return "🆘";
+  if ((sim.venue.roof || p.chill) && p.goal === "waitbed" && p.status === "enter") return "🛏️";
   if (p.problem === "cramp" && p.under) return "🌊";
   if (p.status === "panic" || p.status === "evacuating" || p.status === "fleeing") return "😱";
   if (p.status === "queue" && sim.fish?.stage === "loose") return "😱";
@@ -2313,7 +2322,8 @@ function cardStatus(p) {
             ? roofLook(p).label + " · ♿ in a wheelchair"
             : roofLook(p).label;
   if (p.status === "injured") return p.healing ? "Being bandaged…" : "Hurt · needs the med kit";
-  if (sim.venue.roof) return roofStatus(p);
+  if (p.status === "fell-in") return "In the pool! · help them out at the edge (E)";
+  if (sim.venue.roof || p.chill) return roofStatus(p);
   // (The Wave Pool's guests on their way down to the beach: the coach's chance to hand them a tube.)
   if (p.status === "enter" && sim.venue.waves)
     return (
@@ -2365,9 +2375,13 @@ function roofStatus(p) {
         ? "In the pool"
         : p.status === "enter"
           ? p.goal === "waitbed"
-            ? "Waiting for a free sunbed!"
+            ? sim.venue.cruise
+              ? "Waiting for a lounger!"
+              : "Waiting for a free sunbed!"
             : p.goal === "bed"
-              ? "Off to a sunbed"
+              ? sim.venue.cruise
+                ? "Off to a lounger"
+                : "Off to a sunbed"
               : "Off to the water"
           : p.status === "queue"
             ? "Waiting by the lift"
@@ -2383,11 +2397,18 @@ function roofStatus(p) {
           : "")
   );
 }
-const ROOF_BEDS_CABANA = (p) => (p.vip && p.bed >= 12 ? "In a cabana 👑" : "On a sunbed");
+const ROOF_BEDS_CABANA = (p) =>
+  sim.venue.cruise
+    ? sim.roof?.beds[p.bed]?.adrift
+      ? "On a lounger adrift! · straighten the row"
+      : "On a lounger"
+    : p.vip && p.bed >= 12
+      ? "In a cabana 👑"
+      : "On a sunbed";
 // What a guest is up on the roof: a sunbather, a socialite or a party animal (rooftop.mjs GUEST_KIND), a VIP of one of those.
 function roofLook(p) {
   const look = baseSwimmerLook(p);
-  if (!sim?.venue?.roof || !GUEST_KIND[p.type]) return look;
+  if (!(sim?.venue?.roof || p.chill) || !GUEST_KIND[p.type]) return look;
   return { ...look, label: (p.vip ? "VIP · " : "") + GUEST_KIND[p.type] };
 }
 function formatTime(t) {
@@ -2404,15 +2425,16 @@ function updateQueue() {
         ? sim.people
             .filter((p) => p.status === "queue" || (p.status === "enter" && !p.resumingWorkout))
             .sort((a, b) => (a.hasFins ? 1 : 0) - (b.hasFins ? 1 : 0))
-        : sim.venue.roof
+        : sim.venue.roof || sim.venue.chill
           ? sim.people.filter((p) => p.status === "queue" || (p.status === "enter" && p.goal === "waitbed"))
           : sim.people.filter((p) => p.status === "queue"),
     problems = sim.people.filter(
       (p) =>
-        ((p.status === "swim" || (sim.venue.roof && p.status === "lounge")) &&
+        ((p.status === "swim" || ((sim.venue.roof || p.chill) && p.status === "lounge")) &&
           (p.problem || p.stomachWarning)) ||
         p.status === "injured" ||
-        p.status === "overboard",
+        p.status === "overboard" ||
+        p.status === "fell-in",
     );
   $("queue-count").textContent = sim.venue.kids
     ? loose.length + " running loose"
@@ -2495,14 +2517,16 @@ function updateQueue() {
           ? p.status === "queue"
             ? "Caught! Send them INTO THE POOL · 1"
             : "Splashing about"
-          : sim.venue.roof
+          : sim.venue.roof || p.chill
             ? (p.status === "lounge"
                 ? "Lounging"
                 : p.status === "swim"
                   ? p.chatting
                     ? "Chatting in the pool"
                     : "Chilling in the pool"
-                  : "On the roof") +
+                  : sim.venue.cruise
+                    ? "On deck"
+                    : "On the roof") +
               (p.drinks ? " · " + p.drinks + " 🍹" : "") +
               (p.tipsy ? " · tipsy 🥴" : "")
             : p.status === "swim" && !p.problem && sim.venue.waves
@@ -2523,6 +2547,31 @@ function updateQueue() {
 // The Wave Pool's WAVES button (renderLaneControls): ON with the seconds left of the set, the calm's countdown to the next, the
 // horn, a monster on its way (red, flashing), STOPPED by the coach (and for how long: the bathers grow restless), or stopped for an
 // emergency. Its dots are the bathers in the water, red for the dizzy ones.
+function updateShipGauge(b) {
+  const S = sim.ship,
+    deg = (S.angle * 180) / Math.PI,
+    k = slide(sim),
+    warn = S.phase === "warn",
+    adrift = sim.roof?.beds.filter((q) => q.adrift).length || 0;
+  b.classList.toggle("danger", warn || Math.abs(k) > 0.3);
+  b.querySelector(".lane-mode").textContent = warn
+    ? "SWELL " + Math.max(1, Math.ceil(S.dur - S.t))
+    : k
+      ? deg > 0
+        ? "STBD ▶"
+        : "◀ PORT"
+      : "STEADY";
+  b.querySelector(".lane-count").textContent =
+    Math.abs(deg).toFixed(0) +
+    "°" +
+    (warn
+      ? " · 🔔 hold on!"
+      : adrift
+        ? " · " + adrift + " lounger" + (adrift > 1 ? "s" : "") + " adrift"
+        : "");
+  // (The dial's bar shows the deck: it tips the way she rolls, so the screen's left goes down when she leans to port.)
+  b.querySelector(".ship-dial i").style.transform = "rotate(" + (-deg * 2).toFixed(1) + "deg)";
+}
 function updateWavesButton(b) {
   const board = waveBoard(sim.waves);
   if (!board) return;
@@ -2716,7 +2765,7 @@ function updateUI() {
       ? orders.length + " margarita" + (orders.length > 1 ? "s" : "") + " ordered"
       : building
         ? "🎧 The drop is coming!"
-        : "No orders · press 1 for a tray";
+        : "No orders · press " + (sim.venue.cruise ? "3" : "1") + " for a tray";
     barBtn.querySelector(".lane-caps").innerHTML = orders
       .slice(0, 10)
       .map((q) => '<i style="background:' + (q.vip ? "#e9a92b" : "#9fe06a") + '"></i>')
@@ -2724,6 +2773,9 @@ function updateUI() {
     barBtn.classList.toggle("danger", building || orders.some((q) => (q.orderT || 0) > CHILL.grace * 3));
     barBtn.disabled = mode !== "playing";
   }
+  // The Cruise Ship's gauge: how far she rolls now (the bar tips with her), a big swell's countdown, what slid.
+  const gauge = document.querySelector(".ship-gauge");
+  if (gauge && sim.ship) updateShipGauge(gauge);
   // The Wave Pool's one button: the machine's state, the clock to the next set, the bathers in the water and how many are dizzy.
   const wavesBtn = document.querySelector('[data-lane="waves"]');
   if (wavesBtn) updateWavesButton(wavesBtn);
@@ -3287,6 +3339,19 @@ function events() {
             true,
             [0xff4fb4, 0xffd23f, 0x7fe0ff][k % 3],
           );
+      } else if (e.type === "swell-warning") {
+        world.kick(0.12);
+      } else if (e.type === "fell-in") {
+        world.bigSplash(e.x, e.z, 0.7);
+        world.kick(0.35);
+        queueKey = "";
+      } else if (e.type === "spill") {
+        // The pool slops over its low end onto the deck.
+        for (let k = 0; k < 4; k++) world.splash(e.x - 1.5 + k, 0.05, e.z, 9, true);
+        world.kick(0.12);
+      } else if (e.type === "straightened") {
+        world.sparkle(e.x, e.z);
+        queueKey = "";
       } else if (e.type === "overboard") {
         world.bigSplash(e.x, e.z, 0.8);
         world.kick(0.5);
@@ -3793,6 +3858,7 @@ function bind() {
       else if (sim.venue.river && key === "1") sim.assign(0);
       else if (sim.venue.waves && key === "1") sim.toggleWaves();
       else if (sim.venue.roof && key === "1") sim.fetch("bar");
+      else if (sim.venue.cruise && key === "3") sim.fetch("bar");
       else if (/^[1-9]$/.test(key) && Number(key) <= sim.lanes.length) sim.assign(Number(key) - 1);
       if (key === "t" && sim.venue.trampoline) sim.assignTrampoline?.();
       if (key === "c") sim.fetch("chlorine");

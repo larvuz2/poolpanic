@@ -111,45 +111,97 @@ function hitsBox(a, b, [x0, x1, z0, z1]) {
 }
 const inside = (p, [x0, x1, z0, z1]) => p.x > x0 && p.x < x1 && p.z > z0 && p.z < z1;
 
-// The corners a walker may turn at: just outside each block's corners (none past the glass rail: there is no deck there).
-const CORNERS = ROOF_BLOCKS.flatMap(([x0, x1, z0, z1]) =>
-  [
-    { x: x0 - PAD, z: z0 - PAD },
-    { x: x0 - PAD, z: z1 + PAD },
-    { x: x1 + PAD, z: z0 - PAD },
-    { x: x1 + PAD, z: z1 + PAD },
-  ].filter((c) => c.x < ROOF.rail - 0.3 && !ROOF_BLOCKS.some((box) => inside(c, box))),
-);
-
-// The shortest walk from `from` to `to` round everything (a straight line when nothing is in the way). A walker standing inside a
-// block (a guest getting off a sunbed) steps straight out of it first: the box it starts in does not count.
-export function roofRoute(from, to) {
-  const ignore = ROOF_BLOCKS.filter((box) => inside(from, box) || inside(to, box)),
-    blocks = ROOF_BLOCKS.filter((box) => !ignore.includes(box)),
-    blocked = (a, b) => blocks.some((box) => hitsBox(a, b, box));
-  if (!blocked(from, to)) return [{ x: to.x, z: to.z }];
-  const nodes = [from, ...CORNERS, to],
-    n = nodes.length,
-    dist = Array(n).fill(Infinity),
-    prev = Array(n).fill(-1),
-    done = Array(n).fill(false);
-  dist[0] = 0;
-  for (let k = 0; k < n; k++) {
-    let u = -1;
-    for (let i = 0; i < n; i++) if (!done[i] && (u < 0 || dist[i] < dist[u])) u = i;
-    if (u < 0 || dist[u] === Infinity || u === n - 1) break;
-    done[u] = true;
-    for (let v = 0; v < n; v++) {
-      if (done[v]) continue;
-      const d = dist[u] + Math.hypot(nodes[u].x - nodes[v].x, nodes[u].z - nodes[v].z);
-      if (d < dist[v] && !blocked(nodes[u], nodes[v])) {
-        dist[v] = d;
-        prev[v] = u;
+// A deck route round a set of blocks (boxes [x0, x1, z0, z1]): the shortest walk from `from` to `to`, turning only just outside the
+// blocks' corners (those `keep` allows), a straight line when nothing is in the way. A walker standing inside a block (a guest
+// getting off a sunbed) steps straight out of it first: the box it starts in (or ends in) does not count. The Rooftop Pool's and the
+// cruise ship's deck (cruise-plan.mjs).
+export function blockRoute(BLOCKS, keep = () => true) {
+  const corners = BLOCKS.flatMap(([x0, x1, z0, z1]) =>
+    [
+      { x: x0 - PAD, z: z0 - PAD },
+      { x: x0 - PAD, z: z1 + PAD },
+      { x: x1 + PAD, z: z0 - PAD },
+      { x: x1 + PAD, z: z1 + PAD },
+    ].filter((c) => keep(c) && !BLOCKS.some((box) => inside(c, box))),
+  );
+  return function route(from, to) {
+    const ignore = BLOCKS.filter((box) => inside(from, box) || inside(to, box)),
+      blocks = BLOCKS.filter((box) => !ignore.includes(box)),
+      blocked = (a, b) => blocks.some((box) => hitsBox(a, b, box));
+    if (!blocked(from, to)) return [{ x: to.x, z: to.z }];
+    const nodes = [from, ...corners, to],
+      n = nodes.length,
+      dist = Array(n).fill(Infinity),
+      prev = Array(n).fill(-1),
+      done = Array(n).fill(false);
+    dist[0] = 0;
+    for (let k = 0; k < n; k++) {
+      let u = -1;
+      for (let i = 0; i < n; i++) if (!done[i] && (u < 0 || dist[i] < dist[u])) u = i;
+      if (u < 0 || dist[u] === Infinity || u === n - 1) break;
+      done[u] = true;
+      for (let v = 0; v < n; v++) {
+        if (done[v]) continue;
+        const d = dist[u] + Math.hypot(nodes[u].x - nodes[v].x, nodes[u].z - nodes[v].z);
+        if (d < dist[v] && !blocked(nodes[u], nodes[v])) {
+          dist[v] = d;
+          prev[v] = u;
+        }
       }
     }
-  }
-  if (prev[n - 1] < 0) return [{ x: to.x, z: to.z }];
-  const path = [];
-  for (let i = n - 1; i > 0; i = prev[i]) path.unshift({ x: nodes[i].x, z: nodes[i].z });
-  return path;
+    if (prev[n - 1] < 0) return [{ x: to.x, z: to.z }];
+    const path = [];
+    for (let i = n - 1; i > 0; i = prev[i]) path.unshift({ x: nodes[i].x, z: nodes[i].z });
+    return path;
+  };
 }
+
+// The shortest walk from `from` to `to` round everything on the roof (no corner past the glass rail: there is no deck there).
+export const roofRoute = blockRoute(ROOF_BLOCKS, (c) => c.x < ROOF.rail - 0.3);
+
+// The Rooftop Pool as a place to chill (rooftop.mjs reads a venue's `chill` plan, so another venue can have chilling guests too:
+// the cruise ship's free half of the pool, cruise-plan.mjs). `water`: the box the guests stand in (chest-deep); `edge`: the side
+// they step in from and are served from (`stand` on the deck, `inside` a step into the water, `out` where they climb out to, `dir`
+// the way in, +1 along +x); `bed(sim, id)` where a sunbed is (its centre, its `foot`, `angle` the way its guest faces, `cabana`);
+// `waitSpot` where a guest waits for a free bed; `lookAngle` the way a guest alone in the water faces; `view(p)` whether they are
+// enjoying the view; `selfie` and `dj`: the rooftop's own trouble.
+export const ROOF_CHILL = {
+  water: { x0: -ROOF.halfX, x1: ROOF.halfX, z0: -ROOF.halfZ, z1: ROOF.halfZ },
+  edge: { stand: -ROOF.halfX - 0.75, inside: -ROOF.halfX + 0.55, out: -ROOF.halfX - 0.8, dir: 1 },
+  beds: ROOF_BEDS,
+  bed: (sim, id) => ROOF_BEDS[id],
+  route: roofRoute,
+  waitSpot(sim, p, taken) {
+    const aisle = ROOF.aisles.reduce((a, b) => (Math.abs(b - p.z) < Math.abs(a - p.z) ? b : a));
+    return { x: -5.0 - (taken % 2) * 0.7, z: aisle + (Math.floor(taken / 2) % 3) * 0.75 - 0.75 };
+  },
+  // (Out of a lift: a step onto the deck, beside the lift.)
+  arrive: (door, side) => ({ x: door.doorX + 0.4, z: side * (door.outsideZ - 1.3) }),
+  lookAngle: Math.PI / 2,
+  bedAngle: Math.PI / 2, // (lying with the head to the near wall, looking at the water and the city)
+  view: (p) => p.x > ROOF.halfX - 1.4,
+  selfie: true,
+  dj: true,
+  // Where the coach is in the water (wading), and where he may step (`r` his radius): the water and its coping on the near side and
+  // the ends, never past the infinity edge.
+  wading: (x, z) => Math.abs(x) < ROOF.halfX + 0.3 && Math.abs(z) < ROOF.halfZ + 0.35,
+  wadeable: (x, z, r) =>
+    x > -ROOF.halfX - 0.3 - r && x < ROOF.halfX - 0.25 && Math.abs(z) < ROOF.halfZ + 0.35 + r,
+  // Fleeing the water (the fish, Carl): over the near edge onto the walk, or out at the nearer end (the far side is the infinity
+  // edge). Null when the guest is not in the water. `P` is the venue's pool.
+  fleeOut(p, P) {
+    if (!(Math.abs(p.x) < P.halfX + 0.4 && Math.abs(p.z) < P.halfZ)) return null;
+    const end = P.halfZ - Math.abs(p.z) < 1.6,
+      s = Math.sign(p.z) || 1,
+      x = Math.max(-P.halfX + 0.5, Math.min(P.halfX - 1.2, p.x));
+    return {
+      target: end ? { x, z: s * (P.halfZ - 0.35) } : { x: -P.halfX + 0.35, z: p.z },
+      landing: end ? { x: Math.min(x, 2.4), z: s * (P.solidZ + 0.75) } : { x: -P.solidX - 0.7, z: p.z },
+    };
+  },
+  // Out of the water for a poo (sanitation.mjs): over the near edge onto the walk.
+  evacPath: (p, P) => [
+    { x: -P.halfX + 0.45, z: p.z },
+    { x: -P.solidX - 0.75, z: p.z },
+  ],
+};

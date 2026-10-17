@@ -70,6 +70,16 @@ throws anyone up on the edge straight over. Every incident still comes: cramps, 
 the fish kid, the cannonball man, the dog, Karen and the power cut; no twist that needs lanes, and no Marco (nobody swims). Nearly
 one guest in three climbing out drips a wet spot (`wetChance` 0.3).
 
+**On the Cruise Ship** (18 October 2026) the trouble is the sea's (`dist/ship.mjs`): the ship rolls, never in a rhythm, and a big
+swell is announced 2.6 s ahead (the ship's bell, the foghorn, a banner, the SHIP gauge). **Into the pool** 🌊: someone on the coping
+at the end of the pool when a big lean slides them that way goes in (the warning is the bell and the gauge, the prevention window
+the seconds before the lean, in which the coach keeps people off the ends; the failure is the splash, −40; the recovery is helping
+them out at the edge, E, +40, before they climb out by themselves after 10 s, furious and dripping). **Loungers adrift** 🛏️: in a
+lean past 5.5° the loungers slide along their rows and pile up at the low end; nobody takes one out of its place and a guest lying
+on one minds; the coach straightens the row (E). **The slosh**: in a big lean the pool slops over its low end, a wet spot to mop.
+Every incident still comes, Marco too (he has the lanes); half the guests chill in the free half or on a lounger and order
+margaritas, as on the roof.
+
 ### Starts on the deck, ends in the pool
 
 | Incident | Levels | What happens |

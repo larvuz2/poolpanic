@@ -38,10 +38,16 @@ the same twice: see `docs/incidents.md`).
    water or on sunbeds and cabanas; margaritas on a tray of three from the SKY BAR, messy sunbeds to tidy, a tipsy guest's selfie on
    the infinity edge to talk down before they go over into the gutter and must be hauled back, the DJ's drop that slops water onto
    the deck; the coach can wade; lots of VIPs; 14 Tripo props, a Meshy DJ and bartender; `dist/rooftop.mjs`, `dist/roof-plan.mjs`,
-   `dist/scene/rooftop.mjs`, `dist/scene/city.mjs`; deep house built round the drops) and the Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
+   `dist/scene/rooftop.mjs`, `dist/scene/city.mjs`; deep house built round the drops), the **Cruise Ship** (a physics level: the
+   pool deck of a ship at sea that rolls, never in a rhythm: calm spells, then a swell leans her to one side, the big ones announced
+   by the ship's bell; everything loose slides downhill, the people on deck, the coach, the sun loungers along their rows, which
+   end up adrift until the coach straightens a row (E); someone at the pool's end slides in and must be helped out (E); the pool
+   sloshes over its low end; a pool across the deck with two lap lanes and free water where half the guests chill as on the
+   rooftop, margaritas from the Lido Bar; `dist/ship.mjs`, `dist/cruise-plan.mjs`, `dist/scene/cruise.mjs`; yacht pop on a steel
+   pan) and the Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
    running (the creator wants that). In every pool **one swimmer in five climbing out drips a wet spot** that never dries until the coach
    mops it (Q, `dist/incidents/wet.mjs`; the coach slips in one too, down for 1.3 s, unless he jumps over it), and a tummy ache can be a poo or **a wee** (yellow water, chlorine only). **Marco swims in
-   more than half of all shifts, in every pool but the Kids Pool and the Rooftop Pool** (`STAR_CHANCE`, 0.66; at Senior Aqua Fit, the Lazy River and the Wave Pool too), and **VIPs come in every
+   more than half of all shifts, in every pool but the Kids Pool and the Rooftop Pool** (`STAR_CHANCE`, 0.66; at Senior Aqua Fit, the Lazy River, the Wave Pool and the Cruise Ship too), and **VIPs come in every
    shift**, more as the run goes on (the creator wants to see them often); incidents drawn by a director
    (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder: one new incident a shift from the first Tuesday, all five
    met in week 1, then a fair mix where one that just came is less likely, `RECENT`). A shift not passed pays nothing but the week goes on. Marina's

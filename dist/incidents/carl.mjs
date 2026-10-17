@@ -341,6 +341,8 @@ function cannonball(sim, k, v) {
         z: clamp(v.z + (sim.chaosRandom() - 0.5) * 5, -P.turnZ, P.turnZ),
       };
       if (!sim.isDeck(spot.x, spot.z)) spot = { x: side * (P.corridorX + 0.2), z: v.z };
+      // (Past the lanes on the cruise ship is the free water: they land on the near side.)
+      if (!sim.isDeck(spot.x, spot.z)) spot = { x: -(P.corridorX + 0.2), z: v.z };
       sim.clutter.push({ id: ++sim.uid, type: "goggles", owner: p.id, ...spot });
       sim.emit("drop", spot);
     }

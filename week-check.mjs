@@ -169,6 +169,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     "river",
     "wave",
     "roof",
+    "cruise",
     "arena",
   ]);
   const sitsOut = new Set(),
@@ -368,6 +369,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       "river",
       "wave",
       "roof",
+      "cruise",
     ])
       assert.ok(scoreScale(v, tier) >= 0.6 && scoreScale(v, tier) <= 1.7, v + " " + tier);
   }

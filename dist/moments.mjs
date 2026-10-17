@@ -184,6 +184,14 @@ export const STINGS = {
     how: "{name} went over the infinity edge into the catch gutter. Wade to the edge beside them and haul them back (E) before they storm out by the service stairs.",
     tone: "danger",
   },
+  // The Cruise Ship (ship.mjs).
+  "fell-in": {
+    icon: "🌊",
+    title: "MAN OVERBOARD… INTO THE POOL!",
+    verb: "Help {name} out at the edge · E",
+    how: "A big swell rolled the ship and {name} slid right off the deck into the pool. Get to the edge by them and help them out (E) before they climb out by themselves, soaked and furious. When the bell warns of a swell, keep people away from the pool's ends.",
+    tone: "danger",
+  },
   crash: {
     icon: "💥",
     title: "CRASH!",

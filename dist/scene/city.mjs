@@ -23,7 +23,7 @@ export function roofPicture(
   w,
   file,
   apply,
-  { repeat = [1, 1], wrap = THREE.RepeatWrapping, color = "#808080" } = {},
+  { repeat = [1, 1], wrap = THREE.RepeatWrapping, color = "#808080", dir = "rooftop" } = {},
 ) {
   const dress = (t) => {
     t.wrapS = t.wrapT = wrap;
@@ -42,22 +42,23 @@ export function roofPicture(
   stand.needsUpdate = true;
   apply(dress(stand), false);
   if (typeof Image !== "function") return;
-  if (!pictures.has(file))
+  const key = dir + "/" + file;
+  if (!pictures.has(key))
     pictures.set(
-      file,
+      key,
       new Promise((resolve, reject) => {
         const image = new Image();
         image.onload = () => resolve(image);
         image.onerror = reject;
-        image.src = new URL("../assets/rooftop/" + file, import.meta.url).href;
+        image.src = new URL("../assets/" + dir + "/" + file, import.meta.url).href;
       }).catch((error) => {
         console.warn("The picture " + file + " did not load; its stand-in stays.", error);
-        pictures.delete(file);
+        pictures.delete(key);
         return null;
       }),
     );
   const scene = w.scene;
-  pictures.get(file).then((image) => {
+  pictures.get(key).then((image) => {
     if (!image || w.scene !== scene) return;
     const t = new THREE.Texture(image);
     t.needsUpdate = true;

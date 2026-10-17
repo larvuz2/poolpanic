@@ -56,6 +56,19 @@ export const SCENERY = {
   },
   // The Rooftop Pool's skyline (17 October 2026): 185 m up, nothing on the horizon but the city's own (scene/city.mjs draws it, and
   // the painted panorama beyond it); no hills, no sea, no palms down here, a few birds and clouds.
+  // The cruise ship's open sea (18 October 2026): nothing on the horizon but the sea and the sky (the cruise scene draws its own sea
+  // far below, and the painted horizon); a few gulls following the ship, clouds.
+  ocean: {
+    sea: false,
+    hills: [],
+    palms: 0,
+    boats: 0,
+    birds: 12,
+    balloons: 0,
+    lanterns: 0,
+    fireflies: 0,
+    seed: 83,
+  },
   skyline: {
     sea: false,
     hills: [],

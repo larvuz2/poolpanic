@@ -13,6 +13,7 @@ import { WetSpots, useMop } from "./incidents/wet.mjs";
 import { WaveMachine } from "./wave-pool.mjs";
 import { WAVE } from "./waves.mjs";
 import { RooftopParty } from "./rooftop.mjs";
+import { ShipDeck } from "./ship.mjs";
 import {
   Trampoline,
   tickJumper,
@@ -33,6 +34,7 @@ export const SYSTEMS = [
   Karen,
   WaveMachine,
   RooftopParty,
+  ShipDeck,
   WetSpots,
 ];
 
@@ -326,20 +328,17 @@ export class ChaosController extends RescueController {
       p.fleeLanding = { x: -WAVE.halfX - 1.4, z: p.z };
       return;
     }
-    if (this.venue.roof && Math.abs(p.x) < P.halfX + 0.4 && Math.abs(p.z) < P.halfZ) {
-      // Out of the rooftop pool: over the near edge onto the walk, or out at the nearer end (the far side is the infinity edge).
-      const end = P.halfZ - Math.abs(p.z) < 1.6,
-        s = Math.sign(p.z) || 1,
-        x = clamp(p.x, -P.halfX + 0.5, P.halfX - 1.2);
+    // (A guest chilling in the water (the rooftop's pool, the cruise ship's free half): out the way their venue's plan says.)
+    const out = p.chill && this.venue.chill.fleeOut?.(p, P);
+    if (out) {
       p.fleePhase = "swim";
-      p.fleeTarget = end ? { x, z: s * (P.halfZ - 0.35) } : { x: -P.halfX + 0.35, z: p.z };
-      p.fleeLanding = end
-        ? { x: Math.min(x, 2.4), z: s * (P.solidZ + 0.75) }
-        : { x: -P.solidX - 0.7, z: p.z };
+      p.fleeTarget = out.target;
+      p.fleeLanding = out.landing;
       return;
     }
     if (Math.abs(p.x) < P.halfX && Math.abs(p.z) < P.halfZ) {
-      const side = P.halfX - Math.abs(p.x) < P.halfZ - Math.abs(p.z);
+      // (On the cruise ship the lanes' far side is the rope and the free water: out over the near side or at an end.)
+      const side = P.halfX - Math.abs(p.x) < P.halfZ - Math.abs(p.z) && !(this.venue.cruise && p.x > 0);
       p.fleePhase = "swim";
       if (side) {
         const s = Math.sign(p.x) || 1;
