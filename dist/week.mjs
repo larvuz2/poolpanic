@@ -26,19 +26,24 @@ export const SHIFTS_PER_WEEK = DAYS.length;
 
 // ---- the incident director -------------------------------------------------------------------------------------------
 
-// The order in which the roaming incidents first surprise a player. Change it freely: the director only ever brings in the
-// next one in this list, and only once the player has played a few shifts.
+// The order in which the roaming incidents first surprise a player. Change it freely: the director brings in the next one in
+// this list each shift from the first Tuesday (the creator, 17 October 2026: "I never got Karen, I never got the cannonballs…
+// make sure that we have a fair mix"), so a new player has met all five by the end of the first week.
 export const INCIDENT_ORDER = ["dog", "fish", "carl", "outage", "karen"];
 
 // Every roaming incident the director can draw: how heavy it is (`cost`, what it takes from a shift's budget) and how often
-// it comes (`weight`). All of them work in every pool.
+// it comes (`weight`: the same for all five since 17 October 2026, a fair mix). All of them work in every pool.
 export const INCIDENTS = {
   dog: { icon: "🐶", name: "Loose dog", cost: 2, weight: 3 },
   fish: { icon: "🐟", name: "Fish kid", cost: 3, weight: 3 },
   carl: { icon: "💣", name: "Cannonball man", cost: 3, weight: 3 },
-  outage: { icon: "⚡", name: "Power outage", cost: 3, weight: 2 },
-  karen: { icon: "😡", name: "Karen", cost: 2, weight: 2 },
+  outage: { icon: "⚡", name: "Power outage", cost: 3, weight: 3 },
+  karen: { icon: "😡", name: "Karen", cost: 2, weight: 3 },
 };
+// A fair mix: an incident that came in the last shift is less likely in this one, and one from the shift before a little less
+// (never ruled out: the same one two shifts running still happens, the creator wants that), and one already drawn for this shift
+// is much less likely to come twice in it.
+export const RECENT = { last: 0.4, before: 0.7, again: 0.2 };
 
 // The mid-shift twists, and where each may happen.
 export const TWIST_RULES = {
@@ -605,8 +610,10 @@ export function checkWishes(wishes, summary, stats = {}) {
 // ---- building a shift -------------------------------------------------------------------------------------------------
 
 const roundPay = (n) => Math.max(5, Math.round(n / 5) * 5);
-// The director's draw for one shift. `known` are the incidents the player has met; one that is not yet known may come as a
-// surprise (`surprise`). `extraBudget` is the mystery card's. Returns { chaos, twist, incidents, surprise }.
+// The director's draw for one shift. `known` are the incidents the player has met; the next one not yet known comes as a
+// surprise (`surprise`) in every shift from the first Tuesday until all are met. `recent` are the incidents of the shifts before
+// this one, the latest last (a list of lists), for the fair mix. `extraBudget` is the mystery card's. Returns { chaos, twist,
+// incidents, surprise }.
 export function directShift({
   blueprint,
   venue,
@@ -617,7 +624,7 @@ export function directShift({
   extraBudget = 0,
   weights = {},
   twistWeights = {},
-  surprised = false,
+  recent = [],
 }) {
   const slots = (blueprint.chaos || []).length;
   // Gentle at first: the first shifts of the first week have nothing, then the count follows the blueprint, with a little
@@ -625,22 +632,27 @@ export function directShift({
   let count = slots;
   if (slots > 0) count = Math.max(1, slots + (random() < 0.3 ? -1 : random() < 0.35 ? 1 : 0));
   count = Math.min(slots + heat + 1, count + extraBudget + heat);
-  // A surprise: the next incident in the order, once the player has a few shifts behind them, never two in a row.
+  // A surprise: the next incident in the order, in every shift from the first Tuesday until the player has met them all.
   const next = INCIDENT_ORDER.find((k) => !known.includes(k));
-  const roll = random();
-  const surprise = next && index >= 3 && !surprised && (roll < 0.55 || extraBudget > 0) ? next : null;
+  random(); // (the roll the surprise used to take: kept, so the rest of the draw stays as it was)
+  const surprise = next && index >= 1 ? next : null;
   if (surprise && count === 0) count = 1;
+  const last = new Set(recent[recent.length - 1] || []),
+    before = new Set(recent[recent.length - 2] || []);
   const pool = INCIDENT_ORDER.filter((k) => known.includes(k)).map((k) => ({
     kind: k,
-    weight: INCIDENTS[k].weight * (weights[k] ?? 1),
+    weight:
+      INCIDENTS[k].weight *
+      (weights[k] ?? 1) *
+      (last.has(k) ? RECENT.last : 1) *
+      (before.has(k) ? RECENT.before : 1),
   }));
   const kinds = [];
   if (surprise) kinds.push(surprise);
   while (kinds.length < count && pool.length) {
-    const last = kinds[kinds.length - 1];
     const choice = pickWeighted(
       random,
-      pool.map((p) => ({ ...p, weight: p.kind === last ? p.weight * 0.25 : p.weight })),
+      pool.map((p) => ({ ...p, weight: kinds.includes(p.kind) ? p.weight * RECENT.again : p.weight })),
     );
     kinds.push(choice.kind);
   }
@@ -808,7 +820,7 @@ export function buildShift(week, card = null, known = week.known || []) {
     extraBudget: chosen?.mystery ? 1 : 0,
     weights: effects.director,
     twistWeights: pool.twists,
-    surprised: !!week.history[week.history.length - 1]?.surprise,
+    recent: week.history.map((h) => (Array.isArray(h?.incidents) ? h.incidents : [])),
   });
   const { chaos: _c, twist: _t, intro: _i, booking: _b, payout: _p, ...rest } = blueprint;
   // VIPs: the run's count (none in the first shift), the lagoon's and arena's own share of their crowd, and the pool's extra.
@@ -973,6 +985,7 @@ export function finishShift(save, shift, summary, stats = {}) {
     gained,
     wishes: wishes.filter((w) => w.met).length,
     surprise: shift.plan.surprise || null,
+    incidents: shift.plan.incidents,
   });
   const last = week.shift >= SHIFTS_PER_WEEK - 1;
   const result = {

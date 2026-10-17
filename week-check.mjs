@@ -373,31 +373,28 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   }
 }
 
-// 2) The director: gentle at first, only incidents the player has met plus at most the next one in the order (never two surprises
-// in a row), spread over the shift and never in its last 20 s, twists only where the pool allows them, the same draw for the same
-// week, and a different one for another.
+// 2) The director: a gentle first Monday, then the next incident in the order every shift until all five are met (the creator,
+// 17 October 2026: "I never got Karen, I never got the cannonballs… a fair mix"), only incidents the player has met plus that one,
+// spread over the shift and never in its last 20 s, twists only where the pool allows them, the same draw for the same week, and
+// a different one for another.
 {
   let surprises = 0;
   const tuesdays = new Set();
   for (let seed = 1; seed <= 120; seed++) {
     const save = freshSave();
     save.week = newWeek(save, seed * 2654435761);
-    let lastSurprise = false;
     for (let i = 0; i < SHIFTS_PER_WEEK; i++) {
       const sh = buildShift(save.week, null, save.known);
       const kinds = sh.plan.chaos.map((c) => c.kinds[0]);
-      if (i < 3)
-        assert.equal(kinds.length, 0, "the first three shifts of the first week have no roaming incident");
+      if (i === 0) assert.equal(kinds.length, 0, "the gentle first Monday has no roaming incident");
       const next = INCIDENT_ORDER.find((k) => !save.known.includes(k));
       for (const k of kinds)
         assert.ok(save.known.includes(k) || k === next, `only met incidents, or the next (${k})`);
+      if (i >= 1) assert.equal(sh.plan.surprise, next, "a new incident every shift from Tuesday");
       if (sh.plan.surprise) {
-        assert.equal(sh.plan.surprise, next);
-        assert.ok(!lastSurprise, "never two surprises in a row");
-        assert.ok(i >= 3, "no surprise in the first shifts");
+        assert.ok(kinds.includes(sh.plan.surprise), "the surprise comes");
         surprises++;
       }
-      lastSurprise = !!sh.plan.surprise;
       for (const c of sh.plan.chaos) {
         assert.equal(c.kinds.length, 1);
         assert.ok(
@@ -421,7 +418,20 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       finishShift(save, sh, summary(sh.config.thresholds[1], 2), {});
     }
   }
-  assert.ok(surprises > 60, "surprises come along (" + surprises + " in 120 first weeks)");
+  assert.equal(surprises, 120 * 5, "all five incidents met in every first week");
+  for (let seed = 1; seed <= 20; seed++) {
+    const save = freshSave();
+    save.week = newWeek(save, seed * 7919);
+    for (let i = 0; i < SHIFTS_PER_WEEK; i++) {
+      const sh = buildShift(save.week, null, save.known);
+      finishShift(save, sh, summary(sh.config.thresholds[1], 2), {});
+    }
+    assert.deepEqual(
+      [...save.known].sort(),
+      [...INCIDENT_ORDER].sort(),
+      "every incident met by Saturday night",
+    );
+  }
   assert.ok(tuesdays.size >= 4, "Saturday is not the same twice (" + tuesdays.size + " kinds of Saturday)");
   // Later chapters: every incident can come, and the count follows the blueprint with a little give.
   const counts = new Set();
@@ -486,8 +496,46 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       before = kinds;
     }
   }
-  assert.ok(runs.carl > pairs * 0.1, "a cannonball two shifts running (" + runs.carl + " of " + pairs + ")");
+  assert.ok(runs.carl > pairs * 0.05, "a cannonball two shifts running (" + runs.carl + " of " + pairs + ")");
   for (const k of INCIDENT_ORDER) assert.ok(runs[k] > 0, k + " can come back the very next shift");
+}
+
+// 2c) A fair mix (the creator, 17 October 2026: "too many dogs… I never got Karen… make sure that we have a fair mix of incidents
+// throughout the gameplay"): over many weeks every incident comes about as often as any other, an incident is less likely right
+// after it came, and a whole week rarely goes by without one of them.
+{
+  const tally = Object.fromEntries(INCIDENT_ORDER.map((k) => [k, 0]));
+  let repeats = 0,
+    pairs = 0,
+    weeks = 0,
+    full = 0;
+  for (let r = 0; r < 300; r++) {
+    const save = { ...freshSave(), chapter: 3, known: [...INCIDENT_ORDER] };
+    save.week = newWeek(save, 9001 + r * 7919);
+    const seen = new Set();
+    let before = null;
+    for (let d = 0; d < SHIFTS_PER_WEEK; d++) {
+      const sh = buildShift(save.week, null, save.known);
+      const kinds = sh.plan.chaos.map((c) => c.kinds[0]);
+      for (const k of kinds) (tally[k]++, seen.add(k));
+      if (before) {
+        for (const k of new Set(kinds)) (pairs++, (repeats += before.has(k) ? 1 : 0));
+      }
+      before = new Set(kinds);
+      finishShift(save, sh, summary(sh.config.thresholds[1], 2), {});
+    }
+    weeks++;
+    if (seen.size === INCIDENT_ORDER.length) full++;
+  }
+  const counts = Object.values(tally),
+    mean = counts.reduce((a, b) => a + b, 0) / counts.length;
+  for (const k of INCIDENT_ORDER)
+    assert.ok(
+      tally[k] > mean * 0.8 && tally[k] < mean * 1.2,
+      k + " comes about as often as the others (" + JSON.stringify(tally) + ")",
+    );
+  assert.ok(repeats < pairs * 0.3, "fewer repeats right after (" + repeats + " of " + pairs + ")");
+  assert.ok(full > weeks * 0.7, "most weeks see all five (" + full + " of " + weeks + ")");
 }
 
 // 3) The cards: a regular day always, a booking only when its trouble is known, a mystery that brings one more.

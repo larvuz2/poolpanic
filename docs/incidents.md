@@ -134,8 +134,9 @@ Karen is only on level 4 today; it is the one incident with a level of its own.
 ## 4. Proposal: an incident director (built for the week, 11 October 2026)
 
 **Built** in `dist/week.mjs` (`directShift`) for the week, the game's main loop (README, "The week"): a registry (`INCIDENTS`, cost and
-weight), an order the creator can change (`INCIDENT_ORDER`: the next one in it surprises the player once a few shifts are behind them,
-never two shifts in a row), counts that follow each blueprint level with a little give, random windows, twists by pool, bookings and a
+weight), an order the creator can change (`INCIDENT_ORDER`: since 17 October 2026 the next one in it surprises the player in every shift
+from the first Tuesday, so all five are met in the first week; after that the five have the same weight and one that came in the
+last shift or two is less likely, a fair mix, `RECENT`), counts that follow each blueprint level with a little give, random windows, twists by pool, bookings and a
 mystery card adding trouble, signs from the shop lowering a weight. Since 16 October 2026 the week also mixes the pools (`POOLS`, `weekPools`): a shift's difficulty level sets how many incidents and twists it has, and the day's pool decides which twists may come (the aqua class only at the Community Pool, the storm only at the Sunset Lagoon, swim teams more often at the Aquatic Centre, neither swim teams nor an aqua class at the Aqua Disco, where the whole shift is a class; every incident can come in every pool, the disco included, where its lanes are called zones). Free play (the level map) still plays the slots below. What follows
 is the proposal as it was written; the ranking still decides the weights and costs.
 

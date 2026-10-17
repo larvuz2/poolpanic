@@ -1027,14 +1027,19 @@ export class PoolWorld extends SceneKit {
       u.root.position.z = 0;
       const tempo = walking ? time * (p.status === "fleeing" ? 14 : 9) : time * 2.2;
       const movement = walking ? 0.55 : p.type === "aqua" ? 0.8 : 0.09;
+      // An aqua guest warms up with aerobics arms while standing (in the queue, in the water); walking, they walk like
+      // everyone else: the model plays its Walk clip and the classic arms swing plainly (the warm-up laid over a walk was the
+      // flailing "spaghetti" arms the creator saw at the Aqua Disco, 17 October 2026).
+      const aerobics = p.type === "aqua" && !walking;
       u.arms.forEach((a, i) => {
         a.rotation.set(
           Math.sin(tempo + u.phase + i * Math.PI) * movement,
           0,
-          p.type === "aqua" ? Math.sin(tempo) * 0.9 * (i ? 1 : -1) : 0,
+          aerobics ? Math.sin(tempo) * 0.9 * (i ? 1 : -1) : 0,
         );
       });
-      if (p.type === "aqua") u.puppet.arms = true; // the aerobics arms are in none of the clips
+      // (The aerobics arms are in none of the clips; a dancer whose model has the routine's clip dances with it instead.)
+      if (aerobics && !(dancer && u.rig?.actions[move.clip])) u.puppet.arms = true;
       // The Aqua Disco's class dances the instructor's routine, on the beat: a model plays the dance clips (syncModel below), a
       // classic swimmer's arms follow the same moves.
       if (dancer) {
@@ -1323,7 +1328,7 @@ export class PoolWorld extends SceneKit {
       this.coachHalo.visible = false;
       this.dashTrail.visible = false;
     } else cu.shadow.visible = true;
-    if (!c.swimming && !c.waterTransition) this.slipPose(cu, c.slipTime, 0.7);
+    if (!c.swimming && !c.waterTransition) this.slipPose(cu, c.slipTime, c.slipLength || 0.7);
     if (c.carry === "skimmer") {
       const waste = cu.carry.getObjectByName("caught-waste");
       if (waste) waste.visible = !!c.skimmerLoaded;

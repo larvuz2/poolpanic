@@ -3,6 +3,7 @@ import { riverServicePoint, riverWaterPoint } from "./river-ride.mjs";
 import { batherInReach, batherServicePoint } from "./wave-pool.mjs";
 import { takeTray, roofServicePoint, ROOF_REACH } from "./rooftop.mjs";
 import { ROOF } from "./roof-plan.mjs";
+import { wetSpotAt, WET_TUNING } from "./incidents/wet.mjs";
 const names = {
   fins: "fins",
   chlorine: "chlorine",
@@ -157,8 +158,22 @@ export class CoachController {
         if (this.venue.river && !this.isDeck(c.x, c.z)) this.fallIn();
       }
     }
-    if (c.y < 0.18 && c.slipCooldown === 0 && this.slipperyAt(c.x, c.z, 0.58)) {
-      c.slipTime = 0.7;
+    // A wet spot not yet mopped (incidents/wet.mjs): the coach goes down on his back too, longer than on fins, and gets up again
+    // (the creator, 17 October 2026: "if the coach steps over them, the coach needs to slip… a second or a second and a half").
+    // Jumping over one is safe; once up he can step off the spot he fell in without falling again.
+    const wet = c.y < 0.18 && !c.wading && !c.swimming ? wetSpotAt(this, c.x, c.z) : null;
+    if (c.wetSpot && wet?.id !== c.wetSpot) c.wetSpot = null;
+    if (wet && c.slipTime === 0 && wet.id !== c.wetSpot && !c.busy) {
+      c.wetSpot = wet.id;
+      c.slipTime = c.slipLength = WET_TUNING.coachSlip;
+      c.slipCooldown = Math.max(c.slipCooldown, WET_TUNING.coachSlip + 0.6);
+      c.dashTime = 0;
+      c.vx *= 0.15;
+      c.vz *= 0.15;
+      this.stats.coachWetSlips = (this.stats.coachWetSlips || 0) + 1;
+      this.emit("coach-slip", { x: c.x, z: c.z, wet: true });
+    } else if (c.y < 0.18 && c.slipCooldown === 0 && this.slipperyAt(c.x, c.z, 0.58)) {
+      c.slipTime = c.slipLength = 0.7;
       c.slipCooldown = 2;
       c.dashTime = 0;
       c.vx *= 0.25;

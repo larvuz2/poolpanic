@@ -3337,7 +3337,12 @@ function events() {
       } else if (e.type === "select") {
         queueKey = "";
         updateUI();
-      } else if (e.type === "coach-slip") toast("Whoops! Jump over fins, or pick them up with E.");
+      } else if (e.type === "coach-slip")
+        toast(
+          e.wet
+            ? "Whoops! Coach Waters slipped on a wet spot. Mop it (Q), go round, or jump over it (Space)."
+            : "Whoops! Jump over fins, or pick them up with E.",
+        );
       else if (e.type === "ended") finish();
       if (world.viewMode === "coach") world.coachCam.react(e.type, e);
       audio.effect(e.type, e);
