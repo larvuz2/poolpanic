@@ -291,7 +291,14 @@ export function buildCast(w, ctx) {
   ctx.cast = [];
   for (const who of [
     { id: "dj", name: "DJ", at: ctx.djSpot, y: 0.25, angle: Math.PI, type: "advanced" },
-    { id: "bartender", name: "Bartender", at: ctx.barSpot, y: 0, angle: ctx.barAngle ?? 0, type: "intermediate" },
+    {
+      id: "bartender",
+      name: "Bartender",
+      at: ctx.barSpot,
+      y: 0,
+      angle: ctx.barAngle ?? 0,
+      type: "intermediate",
+    },
   ]) {
     if (!who.at) continue;
     const person = {

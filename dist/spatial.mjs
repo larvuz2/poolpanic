@@ -1149,7 +1149,13 @@ export const CRUISE = makeVenue({
   trampoline: null,
   furniture: [
     // The free half of the pool, past the rope (water: nobody walks there; the coach may wade in, rooftop.mjs `chill`).
-    { kind: "free-water", x: (CP.free.x0 + CP.free.x1 + 0.3) / 2, z: 0, hx: (CP.free.x1 + 0.3 - CP.free.x0) / 2, hz: CP.halfZ + 0.35 },
+    {
+      kind: "free-water",
+      x: (CP.free.x0 + CP.free.x1 + 0.3) / 2,
+      z: 0,
+      hx: (CP.free.x1 + 0.3 - CP.free.x0) / 2,
+      hz: CP.halfZ + 0.35,
+    },
     // The rows of loungers (each lounger slides along its row: ship.mjs), the bar, the hot tub, the stairway lobbies.
     ...CP.rows.map((r, i) => ({
       kind: "lounger-row",
@@ -1171,7 +1177,7 @@ export const CRUISE = makeVenue({
     { kind: "treat-table", x: -5.6, z: 13.6, hx: 0.36, hz: 0.36 },
     { kind: "ship-bell", x: -2.2, z: 14.6, hx: 0.35, hz: 0.35 },
     { kind: "lifejacket-box", x: 7.6, z: 14.9, hx: 0.75, hz: 0.45 },
-    { kind: "lifejacket-box", x: -7.6, z: -15.0, hx: 0.75, hz: 0.45 },
+    { kind: "lifejacket-box", x: -6.0, z: -15.0, hx: 0.75, hz: 0.45 },
     { kind: "towel-cart", x: 15.6, z: -3.6, hx: 0.6, hz: 0.4 },
     { kind: "palm", x: 16.0, z: 6.4, hx: 0.55, hz: 0.55 },
     { kind: "palm", x: 16.0, z: -13.8, hx: 0.55, hz: 0.55 },

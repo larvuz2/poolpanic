@@ -247,7 +247,7 @@ export function tickRoofEnter(sim, p, dt) {
   }
   if (p.goal === "waitbed") {
     p.bedWaitT += dt;
-    p.h = Math.max(0, p.h - dt * CHILL.bedWait * (p.vip ? 1.4 : 1));
+    p.h = Math.max(0, p.h - dt * CHILL.bedWait * (p.vip ? 1.4 : 1) * (planOf(sim).patience ?? 1));
     if (p.h <= 0) {
       sim.lose(p);
       return true;
@@ -420,7 +420,7 @@ function chill(sim, p, dt, bathers) {
     gain = p.chatting ? CHILL.chat : alone && planOf(sim).view(p) ? CHILL.view : CHILL.alone;
   // (Waiting for a margarita, nobody is enjoying anything.)
   if (p.problem !== "drink") p.h += dt * gain * (p.tipsy ? 1.2 : 1);
-  p.h -= dt * (thirst(p) + Math.max(0, sim.contamination - 35) * 0.025 * (p.vip ? 1.4 : 1));
+  p.h -= dt * (thirst(sim, p) + Math.max(0, sim.contamination - 35) * 0.025 * (p.vip ? 1.4 : 1));
   if (p.problem === "eyes") p.h -= dt * 1.6;
   p.h = clamp(p.h, 0, 100);
   if (p.h <= 0) {
@@ -459,7 +459,7 @@ function lounge(sim, p, dt) {
   p.sipping = Math.max(0, (p.sipping || 0) - dt);
   order(sim, p, dt);
   if (p.problem !== "drink") p.h += dt * CHILL.lounge;
-  p.h -= dt * thirst(p);
+  p.h -= dt * thirst(sim, p);
   p.h = clamp(p.h, 0, 100);
   if (p.h <= 0) {
     sim.lose(p);
@@ -468,9 +468,9 @@ function lounge(sim, p, dt) {
   if (p.workTime >= p.workTarget && !p.problem && !p.sipping) nextOrHome(sim, p);
 }
 // Mood a second lost waiting for a margarita (after the grace).
-function thirst(p) {
+function thirst(sim, p) {
   if (p.problem !== "drink") return 0;
-  return p.orderT > CHILL.grace ? (p.vip ? CHILL.vipThirst : CHILL.thirst) : 0;
+  return p.orderT > CHILL.grace ? (p.vip ? CHILL.vipThirst : CHILL.thirst) * (planOf(sim).patience ?? 1) : 0;
 }
 
 // Done with this part of their plan: on to the next, or home.
@@ -759,7 +759,11 @@ function tickOverboard(sim, p, dt) {
   p.problem = null;
   const end = { x: (ROOF.gutter.x0 + ROOF.gutter.x1) / 2, z: Math.sign(p.z || 1) * (ROOF.halfZ + 0.9) };
   sim.lose(p);
-  p.path = [end, ...planOf(sim).route(end, sim.venue.arrival.at(p.side, "outside")), ...sim.returnRoute(p.side)];
+  p.path = [
+    end,
+    ...planOf(sim).route(end, sim.venue.arrival.at(p.side, "outside")),
+    ...sim.returnRoute(p.side),
+  ];
 }
 export function haulBack(sim, p) {
   if (!p || p.status !== "overboard") return false;

@@ -31,7 +31,10 @@ const smooth = (t) => {
 
 export const SHIP = {
   firstSwell: [6, 9], // s before the first swell
-  calm: [[9, 15], [5, 9]], // s of calm between swells, at level 1 and at level 20
+  calm: [
+    [9, 15],
+    [5, 9],
+  ], // s of calm between swells, at level 1 and at level 20
   small: [3.5, 6.5], // degrees: a swell nobody announces
   big: [
     [7.5, 9.5],
@@ -74,8 +77,8 @@ export const SHIP = {
   sloshK: 7,
   sloshDamp: 2.2,
   sloshScale: 0.32,
-  spill: 0.36,
-  spillsPerSwell: 2,
+  spill: 0.42,
+  spillsPerSwell: 1,
 };
 const T = SHIP;
 
@@ -217,7 +220,16 @@ export function updateShip(sim, dt) {
 }
 
 // After everyone has moved: what is loose on the deck drifts downhill (the coach drifts in coach.mjs).
-const ON_DECK = new Set(["arriving", "queue", "enter", "exit", "fleeing", "evacuating", "recovering", "panic"]);
+const ON_DECK = new Set([
+  "arriving",
+  "queue",
+  "enter",
+  "exit",
+  "fleeing",
+  "evacuating",
+  "recovering",
+  "panic",
+]);
 export function driftDeck(sim, dt) {
   const S = sim.ship;
   if (!S) return;
@@ -242,7 +254,12 @@ export function driftDeck(sim, dt) {
       continue;
     }
     // Off the deck: into the pool in a big lean (at most a couple a swell), else they catch themselves at the edge.
-    if (inPool(p.x, z) && Math.abs(S.angle / DEG) >= T.fallFrom && S.falls < T.fallsPerSwell && canFall(sim, p))
+    if (
+      atTheEnd(p.x, z, dz) &&
+      Math.abs(S.angle / DEG) >= T.fallFrom &&
+      S.falls < T.fallsPerSwell &&
+      canFall(sim, p)
+    )
       fallIn(sim, p, dz);
   }
 }
@@ -253,8 +270,12 @@ function onDeck(sim, p) {
   if (p.status === "fleeing" && p.fleePhase !== "run") return false;
   return sim.venue.isDeck(p.x, p.z, sim.level, 0);
 }
-const inPool = (x, z) =>
-  Math.abs(z) < CRUISE.halfZ + 0.2 && x > -CRUISE.halfX - 0.2 && x < CRUISE.free.x1 + 0.2;
+// On the coping at one end of the pool, sliding towards the water (the deck stops there: the next step is the pool).
+const atTheEnd = (x, z, dz) =>
+  x > -CRUISE.halfX + 0.2 &&
+  x < CRUISE.free.x1 - 0.2 &&
+  Math.abs(z) < CRUISE.halfZ + 1.0 &&
+  Math.sign(z) === -Math.sign(dz);
 const canFall = (sim, p) => !p.vip || sim.level >= 6;
 // A guest who stood in the queue and was shoved out of it steps back to their place when the deck is level again.
 function backInLine(sim, p, dt) {
@@ -408,7 +429,10 @@ export function adriftRowNear(sim, at = sim.coach, reach = 1.6) {
   for (const bed of sim.roof.beds) {
     if (!bed.adrift) continue;
     const spot = loungerSpot(sim, bed.id);
-    if (distance(at, spot.foot) <= reach || distance(at, { x: spot.foot.x, z: LOUNGERS[bed.id].home }) <= reach)
+    if (
+      distance(at, spot.foot) <= reach ||
+      distance(at, { x: spot.foot.x, z: LOUNGERS[bed.id].home }) <= reach
+    )
       return LOUNGERS[bed.id].row;
   }
   return null;
@@ -435,7 +459,10 @@ function slosh(sim, dt) {
   sim.emit("spill", { side: s, x, z: s * (CRUISE.halfZ + 0.6) });
   if (spot && !S.spillTold) {
     S.spillTold = true;
-    sim.emit("toast", { text: "🌊 The pool sloshed over the end! A wet spot on the deck: mop it (Q).", warning: true });
+    sim.emit("toast", {
+      text: "🌊 The pool sloshed over the end! A wet spot on the deck: mop it (Q).",
+      warning: true,
+    });
   }
 }
 
@@ -471,7 +498,8 @@ function fallIn(sim, p, dz) {
   sim.emit("points", { x: p.x, z: p.z, value: -T.fallCost });
   sim.incident("fell-in", p, { id: p.id, name: p.name });
   sim.emit("toast", {
-    text: "SPLASH! " + p.name + " slid right into the pool! −" + T.fallCost + " · Help them out (E at the edge)!",
+    text:
+      "SPLASH! " + p.name + " slid right into the pool! −" + T.fallCost + " · Help them out (E at the edge)!",
     warning: true,
   });
 }
@@ -505,7 +533,8 @@ export function helpOut(sim, p) {
   if (!p || p.status !== "fell-in") return false;
   const c = sim.coach,
     at = p.fallen.edge;
-  if (distance(c, at) > T.reach) return sim.guideTo(at, "Get to the pool's edge by " + p.name + " and press E.");
+  if (distance(c, at) > T.reach)
+    return sim.guideTo(at, "Get to the pool's edge by " + p.name + " and press E.");
   if (!sim.canInteract()) return false;
   return sim.startBusy(
     "help-out",
@@ -536,7 +565,11 @@ export const ShipDeck = {
     const adrift = sim.roof?.beds.filter((b) => b.adrift).length || 0,
       fallen = sim.people.filter((p) => p.status === "fell-in").length;
     return (
-      (S.angle / DEG).toFixed(1) + "° " + S.phase + (adrift ? " · " + adrift + " adrift" : "") + (fallen ? " · " + fallen + " in" : "")
+      (S.angle / DEG).toFixed(1) +
+      "° " +
+      S.phase +
+      (adrift ? " · " + adrift + " adrift" : "") +
+      (fallen ? " · " + fallen + " in" : "")
     );
   },
   detail(sim) {
@@ -553,7 +586,16 @@ export const ShipDeck = {
     if (!sim.ship) return;
     for (const p of sim.people)
       if (p.status === "fell-in")
-        alerts.push({ kind: "fell-in", icon: "🆘", label: p.name, x: p.x, z: p.z, y: 1.2, urgency: 90, id: p.id });
+        alerts.push({
+          kind: "fell-in",
+          icon: "🆘",
+          label: p.name,
+          x: p.x,
+          z: p.z,
+          y: 1.2,
+          urgency: 90,
+          id: p.id,
+        });
     const rows = new Set(sim.roof?.beds.filter((b) => b.adrift).map((b) => LOUNGERS[b.id].row));
     for (const r of rows) {
       const row = CRUISE.rows[r];
@@ -596,10 +638,13 @@ export const ShipDeck = {
   hint(sim) {
     if (!sim.ship) return "";
     const fallen = sim.people.find((p) => p.status === "fell-in");
-    if (fallen) return "🆘 " + fallen.name + " slid into the pool! Get to the edge by them and help them out · E";
+    if (fallen)
+      return "🆘 " + fallen.name + " slid into the pool! Get to the edge by them and help them out · E";
     const adrift = sim.roof?.beds.filter((b) => b.adrift).length || 0;
     if (adrift && sim.ship.phase === "calm")
-      return "🛏️ " + adrift + " lounger" + (adrift > 1 ? "s" : "") + " out of place · straighten the row (E by it)";
+      return (
+        "🛏️ " + adrift + " lounger" + (adrift > 1 ? "s" : "") + " out of place · straighten the row (E by it)"
+      );
     return "";
   },
   panel(sim) {
@@ -608,7 +653,10 @@ export const ShipDeck = {
     return {
       icon: "🔔",
       title: "BIG SWELL IN " + Math.max(1, Math.ceil(S.dur - S.t)) + "!",
-      task: "The ship will roll to " + (S.side < 0 ? "port (left)" : "starboard (right)") + " · get people off the pool's ends",
+      task:
+        "The ship will roll to " +
+        (S.side < 0 ? "port (left)" : "starboard (right)") +
+        " · get people off the pool's ends",
     };
   },
 };

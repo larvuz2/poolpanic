@@ -5162,3 +5162,25 @@ body:not(.menu) .week-card {
 .quality-note:empty {
   display: none;
 }
+/* The Cruise Ship's gauge (app.mjs updateShipGauge): not a button, a dial whose bar tips as the ship rolls. */
+.ship-gauge {
+  cursor: default;
+}
+.ship-dial {
+  position: relative;
+  width: 46px;
+  height: 22px;
+  border-radius: 23px 23px 4px 4px;
+  background: linear-gradient(#0b303c, #15495a);
+  overflow: hidden;
+}
+.ship-dial i {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 5px;
+  height: 3px;
+  border-radius: 2px;
+  background: #ffe08a;
+  transition: transform 0.15s linear;
+}

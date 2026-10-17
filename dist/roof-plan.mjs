@@ -185,7 +185,8 @@ export const ROOF_CHILL = {
   // Where the coach is in the water (wading), and where he may step (`r` his radius): the water and its coping on the near side and
   // the ends, never past the infinity edge.
   wading: (x, z) => Math.abs(x) < ROOF.halfX + 0.3 && Math.abs(z) < ROOF.halfZ + 0.35,
-  wadeable: (x, z, r) => x > -ROOF.halfX - 0.3 - r && x < ROOF.halfX - 0.25 && Math.abs(z) < ROOF.halfZ + 0.35 + r,
+  wadeable: (x, z, r) =>
+    x > -ROOF.halfX - 0.3 - r && x < ROOF.halfX - 0.25 && Math.abs(z) < ROOF.halfZ + 0.35 + r,
   // Fleeing the water (the fish, Carl): over the near edge onto the walk, or out at the nearer end (the far side is the infinity
   // edge). Null when the guest is not in the water. `P` is the venue's pool.
   fleeOut(p, P) {

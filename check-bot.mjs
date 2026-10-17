@@ -386,7 +386,11 @@ export class CoachBot {
     const s = this.s,
       bed = s.roof.beds
         .filter((b) => b.messy)
-        .sort((a, b) => distance(s.venue.chill.bed(s, a.id).foot, s.coach) - distance(s.venue.chill.bed(s, b.id).foot, s.coach))[0];
+        .sort(
+          (a, b) =>
+            distance(s.venue.chill.bed(s, a.id).foot, s.coach) -
+            distance(s.venue.chill.bed(s, b.id).foot, s.coach),
+        )[0];
     if (!bed) return this.wait(2);
     this.walkTo(s.venue.chill.bed(s, bed.id).foot, { reach: 0.6 });
     if (!this.use("tidy")) this.wait(5);
@@ -408,7 +412,11 @@ export class CoachBot {
     const s = this.s,
       bed = s.roof.beds
         .filter((b) => b.adrift)
-        .sort((a, b) => distance(s.venue.chill.bed(s, a.id).foot, s.coach) - distance(s.venue.chill.bed(s, b.id).foot, s.coach))[0];
+        .sort(
+          (a, b) =>
+            distance(s.venue.chill.bed(s, a.id).foot, s.coach) -
+            distance(s.venue.chill.bed(s, b.id).foot, s.coach),
+        )[0];
     if (!bed) return this.wait(2);
     this.walkTo(s.venue.chill.bed(s, bed.id).foot, { reach: 0.6, until: () => !bed.adrift });
     if (bed.adrift && !this.use("tidy")) this.wait(5);

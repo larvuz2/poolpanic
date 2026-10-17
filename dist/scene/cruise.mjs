@@ -94,7 +94,7 @@ export function buildCruise(w, venue) {
   flashlightHolder(w, venue.fixtures.flashlight);
   fuseBox(w, venue.fixtures.fuseBox);
   treatsTable(w, venue.fixtures.treats);
-  ctx.barSpot = { x: P.bar.x + 0.75, z: P.bar.z };
+  ctx.barSpot = { x: P.bar.x - 0.3, z: P.bar.z }; // (behind the counter, inside the kiosk)
   ctx.barAngle = -Math.PI / 2;
   buildCast(w, ctx);
   w.updaters.push((time, dt, world, sim) => syncCruise(w, sim, time, dt, ctx));
@@ -176,6 +176,49 @@ function canvasTexture(ctx, width, height, draw, repeat = null) {
   }
   ctx.w.textures.push(t);
   return t;
+}
+// A tier's face, `width` × `height` m: white paint, a band of tall windows that hold the sky (pale at the top, deeper blue below,
+// a sun streak), white mullions every 1.6 m; `name` lettered in navy above the windows.
+function facadeTexture(ctx, width, height, name) {
+  const ppm = 48;
+  return canvasTexture(ctx, Math.round(width * ppm), Math.round(height * ppm), (g, W, H) => {
+    g.fillStyle = "#f3f5f6";
+    g.fillRect(0, 0, W, H);
+    const wy0 = H * (name ? 0.5 : 0.22),
+      wy1 = H * (name ? 0.86 : 0.78);
+    const sky = g.createLinearGradient(0, wy0, 0, wy1);
+    sky.addColorStop(0, "#cfe6f3");
+    sky.addColorStop(0.45, "#8fbfdc");
+    sky.addColorStop(1, "#4d84ab");
+    g.fillStyle = sky;
+    g.fillRect(0, wy0, W, wy1 - wy0);
+    // A diagonal sheen across the glass.
+    g.save();
+    g.globalAlpha = 0.22;
+    g.fillStyle = "#ffffff";
+    for (let x = -W; x < W * 2; x += 9 * ppm) {
+      g.beginPath();
+      g.moveTo(x, wy1);
+      g.lineTo(x + 1.6 * ppm, wy1);
+      g.lineTo(x + 3.4 * ppm, wy0);
+      g.lineTo(x + 1.8 * ppm, wy0);
+      g.fill();
+    }
+    g.restore();
+    g.fillStyle = "#f3f5f6";
+    for (let x = 0; x <= W; x += 1.6 * ppm) g.fillRect(x - 0.07 * ppm, wy0, 0.14 * ppm, wy1 - wy0);
+    g.fillRect(0, wy0 + (wy1 - wy0) * 0.72, W, 0.08 * ppm);
+    // A navy pinstripe under the windows.
+    g.fillStyle = "#1d3557";
+    g.fillRect(0, wy1 + 0.14 * ppm, W, 0.1 * ppm);
+    if (name) {
+      g.font = `bold ${Math.round(H * 0.3)}px Georgia, 'Times New Roman', serif`;
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillStyle = "#1d3557";
+      g.fillText(name.split("").join(String.fromCharCode(8202)), W / 2, H * 0.2);
+    }
+  });
 }
 const hasCanvas = () => typeof document !== "undefined" && !!document.createElement;
 
@@ -383,13 +426,15 @@ function deck(ctx) {
   slab(ctx.teak, px0, -HULL, px1, -pz, 0, s);
   slab(ctx.teak, px0, pz, px1, HULL, 0, s);
   // Blue-grey non-skid walks along the rails.
-  for (const z of [-1, 1]) slab(ctx.nonskid, STERN, z < 0 ? -HULL : HULL - 0.75, BOW, z < 0 ? -HULL + 0.75 : HULL, 0.004, s);
+  for (const z of [-1, 1])
+    slab(ctx.nonskid, STERN, z < 0 ? -HULL : HULL - 0.75, BOW, z < 0 ? -HULL + 0.75 : HULL, 0.004, s);
   // The coping round the whole pool: white, with a navy inlay.
   const c = ctx.white;
   w.box(0.3, 0.06, pz * 2, c, px0 + 0.15, 0.03, 0, 0.01);
   w.box(0.3, 0.06, pz * 2, c, px1 - 0.15, 0.03, 0, 0.01);
   for (const z of [-1, 1]) w.box(px1 - px0, 0.06, 0.3, c, (px0 + px1) / 2, 0.03, z * (pz - 0.15), 0.01);
-  for (const z of [-1, 1]) w.box(px1 - px0 - 0.6, 0.065, 0.05, ctx.navy, (px0 + px1) / 2, 0.035, z * (pz - 0.15), 0);
+  for (const z of [-1, 1])
+    w.box(px1 - px0 - 0.6, 0.065, 0.05, ctx.navy, (px0 + px1) / 2, 0.035, z * (pz - 0.15), 0);
   // The deck's name, painted on the near walk: LIDO DECK 14.
   if (hasCanvas()) {
     const sign = new THREE.MeshBasicMaterial({
@@ -437,9 +482,15 @@ function basin(ctx) {
     shader.uniforms.uCaustic = u.uCaustic;
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vTileW;")
-      .replace("#include <project_vertex>", "#include <project_vertex>\nvTileW = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+      .replace(
+        "#include <project_vertex>",
+        "#include <project_vertex>\nvTileW = (modelMatrix * vec4(transformed, 1.0)).xyz;",
+      );
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vTileW;\nuniform float uTime;\nuniform float uCaustic;\n" + CAUSTIC)
+      .replace(
+        "#include <common>",
+        "#include <common>\nvarying vec3 vTileW;\nuniform float uTime;\nuniform float uCaustic;\n" + CAUSTIC,
+      )
       .replace(
         "#include <emissivemap_fragment>",
         `#include <emissivemap_fragment>
@@ -511,6 +562,7 @@ function basin(ctx) {
 // The water: bright turquoise over the blue mosaic, sparkling, rings round everyone in it, and sloshing: the surface tips against
 // the roll and stands up at the low end (`uSlosh`, m at the +z end, from the ship's state).
 const MAX_RIPPLES = 16;
+const SLOSH_LOOK = 2.1; // the drawn rise at the end of the pool, per m of the ship's slosh
 const WATER_VERTEX = `
 uniform float uSlosh;
 uniform float uTime;
@@ -518,7 +570,10 @@ varying vec3 vWorld;
 void main() {
   vec3 p = position;
   float k = p.z / ${P.halfZ.toFixed(2)};
-  p.y += uSlosh * k + sin(k * 3.14159 * 1.5 + uTime * 2.2) * abs(uSlosh) * 0.12;
+  // The first mode of a sloshing tank (most of the rise at the ends), a ripple running along it, never higher than a lip of water
+  // over the coping (it spills there).
+  float rise = uSlosh * (0.55 * k + 0.45 * sin(k * 1.5708)) + sin(k * 3.14159 * 1.5 + uTime * 2.2) * abs(uSlosh) * 0.14;
+  p.y += min(rise, 0.24);
   vec4 world = modelMatrix * vec4(p, 1.0);
   vWorld = world.xyz;
   gl_Position = projectionMatrix * viewMatrix * world;
@@ -577,12 +632,17 @@ void main() {
   float glint = pow(max(dot(N, H), 0.0), 300.0) * 2.0 + pow(max(dot(N, H), 0.0), 40.0) * 0.15;
   color += uGlint * glint * clean * uLight;
   // White froth where the water stands up against the low end.
-  float edge = smoothstep(${(P.halfZ - 1.4).toFixed(2)}, ${P.halfZ.toFixed(2)}, p.y * sign(uSlosh)) * smoothstep(0.12, 0.4, abs(uSlosh));
-  color = mix(color, vec3(0.95, 1.0, 1.0) * uLight, edge * 0.6);
+  float up = p.y * sign(uSlosh);
+  float edge = smoothstep(${(P.halfZ - 3.4).toFixed(2)}, ${(P.halfZ - 0.2).toFixed(2)}, up) * smoothstep(0.08, 0.5, abs(uSlosh));
+  float streaks = 0.55 + 0.45 * sin(p.x * 5.0 + up * 2.0 - t * 3.0) * sin(p.x * 2.3 - t * 1.7);
+  color = mix(color, vec3(0.95, 1.0, 1.0) * uLight, clamp(edge * (0.5 + 0.45 * streaks), 0.0, 0.92));
+  // and the far end, where the water has drained away, a little darker (deeper shadow down the wall).
+  color *= 1.0 - smoothstep(${(P.halfZ - 2.0).toFixed(2)}, ${P.halfZ.toFixed(2)}, -up) * smoothstep(0.1, 0.6, abs(uSlosh)) * 0.3;
   color += vec3(0.3, 0.9, 1.0) * uGlow * 0.1;
   color *= mix(0.25, 1.0, uLight);
   float clear = uClarity * (1.0 - max(max(uDirty, uBrown), uYellow));
   float alpha = mix(0.82, 0.55, clear) + fres * 0.14 + uDirty * 0.2 + uBrown * 0.2;
+  alpha += edge * 0.3;
   gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
 }`;
 function water(ctx) {
@@ -695,13 +755,25 @@ function superstructure(ctx) {
   ];
   for (const [x, y0, y1, hz] of tiers) {
     w.box(18, y1 - y0, hz * 2, ctx.paint, x + 9, (y0 + y1) / 2, 0, 0.1);
-    // A band of blue glass along the face, a white sill under it.
-    w.box(0.08, (y1 - y0) * 0.5, hz * 2 - 1.2, ctx.darkGlass, x - 0.02, y0 + (y1 - y0) * 0.55, 0, 0);
-    w.box(0.3, 0.12, hz * 2, ctx.white, x - 0.1, y0 + (y1 - y0) * 0.27, 0, 0.03);
+    // The face: a row of tall windows (sky in the glass, white mullions), a white sill, and on the top tier the ship's name.
+    const top = y1 === tiers[2][2];
+    if (hasCanvas()) {
+      const face = new THREE.Mesh(
+        new THREE.PlaneGeometry(hz * 2, y1 - y0),
+        new THREE.MeshStandardMaterial({
+          roughness: 0.25,
+          metalness: 0.1,
+          map: facadeTexture(ctx, hz * 2, y1 - y0, top ? "PANIC OF THE SEAS" : ""),
+        }),
+      );
+      face.rotation.y = -Math.PI / 2;
+      face.position.set(x - 0.03, (y0 + y1) / 2, 0);
+      s.add(face);
+    } else w.box(0.08, (y1 - y0) * 0.5, hz * 2 - 1.2, ctx.darkGlass, x - 0.02, y0 + (y1 - y0) * 0.55, 0, 0);
+    w.box(0.34, 0.1, hz * 2, ctx.white, x - 0.12, y0 + 0.05, 0, 0.03);
   }
   // The café's glass front at deck level, with doors.
-  for (let z = -14; z <= 14; z += 2)
-    w.box(0.08, 3.6, 0.06, ctx.chrome, BOW - 0.05, 1.8, z, 0);
+  for (let z = -14; z <= 14; z += 2) w.box(0.08, 3.6, 0.06, ctx.chrome, BOW - 0.05, 1.8, z, 0);
   // The giant screen (16:9), on the second tier's face, the movie playing.
   const screenMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   roofPicture(w, "movie.jpg", (t) => ((screenMat.map = t), (screenMat.needsUpdate = true)), {
@@ -709,34 +781,14 @@ function superstructure(ctx) {
     color: "#e9a07a",
     wrap: THREE.ClampToEdgeWrapping,
   });
-  const sw = 12.8,
-    sh = 7.2;
+  const sw = 12,
+    sh = 6.75;
   w.box(0.4, sh + 0.5, sw + 0.5, 0x15181c, BOW + 0.9, 4.6 + sh / 2, 0, 0.08);
   const screen = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), screenMat);
   screen.rotation.y = -Math.PI / 2;
   screen.position.set(BOW + 0.68, 4.6 + sh / 2, 0);
   live.add(screen);
   ctx.screen = screenMat;
-  // The ship's name across the third tier.
-  if (hasCanvas()) {
-    const name = new THREE.Mesh(
-      new THREE.PlaneGeometry(16, 1.6),
-      new THREE.MeshBasicMaterial({
-        transparent: true,
-        map: canvasTexture(ctx, 1024, 102, (g, W, H) => {
-          g.clearRect(0, 0, W, H);
-          g.fillStyle = "#1d3557";
-          g.font = "bold 78px Georgia, serif";
-          g.textAlign = "center";
-          g.textBaseline = "middle";
-          g.fillText("PANIC OF THE SEAS", W / 2, H / 2 + 4);
-        }),
-      }),
-    );
-    name.rotation.y = -Math.PI / 2;
-    name.position.set(BOW + 2.5, 12.15, 0);
-    s.add(name);
-  }
   // The bridge across the top, its wings out past the sides, dark windows all round.
   const bx = BOW + 6;
   w.box(7, 3, 36, ctx.paint, bx + 3.5, 14.7, 0, 0.1);
@@ -764,7 +816,11 @@ function superstructure(ctx) {
       p.y -= Math.sin(t * Math.PI) * 2.4;
       const flag = new THREE.Mesh(
         new THREE.PlaneGeometry(0.55, 0.7),
-        new THREE.MeshStandardMaterial({ color: colors[(i + side) % colors.length], side: THREE.DoubleSide, roughness: 0.8 }),
+        new THREE.MeshStandardMaterial({
+          color: colors[(i + side) % colors.length],
+          side: THREE.DoubleSide,
+          roughness: 0.8,
+        }),
       );
       flag.position.copy(p);
       flag.position.y -= 0.35;
@@ -787,14 +843,23 @@ function superstructure(ctx) {
   band.position.set(fx - 0.25, 19.2, 0);
   band.rotation.z = 0.12;
   s.add(band);
-  const cap = new THREE.Mesh(new THREE.CylinderGeometry(1.95, 2.02, 0.9, 32), new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.6 }));
+  const cap = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.95, 2.02, 0.9, 32),
+    new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.6 }),
+  );
   cap.scale.set(1.45, 1, 1);
   cap.position.set(fx + 0.5, 24.45, 0);
   cap.rotation.z = 0.12;
   s.add(cap);
   ctx.funnelTop = new THREE.Vector3(fx + 0.6, 25.2, 0);
   // Smoke: soft puffs drifting aft from the funnel.
-  const smokeMat = new THREE.SpriteMaterial({ map: ctx.glow, color: 0xd9dde2, transparent: true, opacity: 0.4, depthWrite: false });
+  const smokeMat = new THREE.SpriteMaterial({
+    map: ctx.glow,
+    color: 0xd9dde2,
+    transparent: true,
+    opacity: 0.4,
+    depthWrite: false,
+  });
   ctx.smoke = Array.from({ length: 14 }, (_, i) => {
     const sp = new THREE.Sprite(smokeMat.clone());
     sp.userData.t = i / 14;
@@ -834,7 +899,8 @@ function lobbies(ctx) {
     back.position.set(x1, 1.4, (z0 + z1) / 2);
     w.scene.add(back);
     // The stairs inside, going down.
-    for (let i = 0; i < 5; i++) w.box(1.6, 0.12, 0.3, ctx.teak, cx + side * 0.6, -i * 0.28, z0 + 0.4 + i * 0.3, 0.01);
+    for (let i = 0; i < 5; i++)
+      w.box(1.6, 0.12, 0.3, ctx.teak, cx + side * 0.6, -i * 0.28, z0 + 0.4 + i * 0.3, 0.01);
     // A sign: STAIRS.
     if (hasCanvas()) {
       const sign = new THREE.Mesh(
@@ -940,12 +1006,16 @@ function bar(ctx) {
   kiosk.position.set(B.x, 0, B.z);
   live.add(kiosk);
   for (const dz of [-1.25, 1.25]) {
-    const stool = propModel("bar-stool", { height: 0.8 }, (st) => w.cyl(0.2, 0.2, 0.75, 0xb5874f, 0, 0.38, 0, st));
+    const stool = propModel("bar-stool", { height: 0.8 }, (st) =>
+      w.cyl(0.2, 0.2, 0.75, 0xb5874f, 0, 0.38, 0, st),
+    );
     stool.position.set(B.x - B.hx - 0.35, 0, B.z + dz);
     live.add(stool);
   }
   for (const dz of [-0.7, -0.3, 0.6]) {
-    const glass = propModel("margarita", { height: 0.18 }, (st) => w.cyl(0.07, 0.02, 0.12, 0xe8f2b0, 0, 0.1, 0, st, 10));
+    const glass = propModel("margarita", { height: 0.18 }, (st) =>
+      w.cyl(0.07, 0.02, 0.12, 0xe8f2b0, 0, 0.1, 0, st, 10),
+    );
     glass.position.set(B.x - 1.42, 1.18, B.z + dz);
     live.add(glass);
   }
@@ -957,7 +1027,13 @@ function hotTub(ctx) {
     w.cyl(t.r + 0.06, t.r + 0.06, 0.06, ctx.white, t.x, 0.56, t.z, w.scene, 32);
     const tub = new THREE.Mesh(
       new THREE.CircleGeometry(t.r - 0.12, 32),
-      new THREE.MeshStandardMaterial({ color: 0x7fe3f0, roughness: 0.1, metalness: 0.2, emissive: 0x1b8ea3, emissiveIntensity: 0.35 }),
+      new THREE.MeshStandardMaterial({
+        color: 0x7fe3f0,
+        roughness: 0.1,
+        metalness: 0.2,
+        emissive: 0x1b8ea3,
+        emissiveIntensity: 0.35,
+      }),
     );
     tub.rotation.x = -Math.PI / 2;
     tub.position.set(t.x, 0.5, t.z);
@@ -994,7 +1070,9 @@ function decor(ctx) {
         w.box(1.3, 0.8, 0.8, WHITE, 0, 0.4, 0, 0.06, st),
       );
     else if (f.kind === "towel-cart")
-      put("towel-cart", { height: 1.05 }, f.x, f.z, Math.PI / 2, (st) => w.box(1.2, 1.0, 0.6, CHROME, 0, 0.5, 0, 0.03, st));
+      put("towel-cart", { height: 1.05 }, f.x, f.z, Math.PI / 2, (st) =>
+        w.box(1.2, 1.0, 0.6, CHROME, 0, 0.5, 0, 0.03, st),
+      );
     else if (f.kind === "palm")
       put("palm-planter", { height: 3.6 }, f.x, f.z, f.x + f.z, (st) => {
         w.box(0.9, 0.9, 0.9, WHITE, 0, 0.45, 0, 0.04, st);
@@ -1007,7 +1085,8 @@ function decor(ctx) {
     [7.4, 12.2],
   ])
     put("deck-umbrella", { height: 2.6 }, x, z, 0.3, (st) => w.cyl(0.02, 1.2, 0.5, NAVY, 0, 2.3, 0, st, 10));
-  for (const x of [-8.2, 8.2]) put("potted-plant", { height: 1.3 }, x, -15.0, 0, (st) => w.ball(0.4, 0x2e6f5e, 0, 0.6, 0, st));
+  for (const x of [-8.2, 8.2])
+    put("potted-plant", { height: 1.3 }, x, -15.0, 0, (st) => w.ball(0.4, 0x2e6f5e, 0, 0.6, 0, st));
 }
 
 // Things that slide and roll about the deck as the ship rolls (on screen only): steamer chairs and beach balls, and a ball afloat
@@ -1076,11 +1155,17 @@ function syncCruise(w, sim, time, dt, ctx) {
   ctx.sea.material.uniforms.uLight.value = light;
   // The pool's water: the slosh, and the rings round everyone in it.
   if (w.water) {
-    w.water.material.uniforms.uSlosh.value = (S?.slosh || 0) * 1.6;
+    w.water.material.uniforms.uSlosh.value = (S?.slosh || 0) * SLOSH_LOOK;
     const ripples = ctx.ripples,
       stirring = (sim?.people || [])
-        .filter((p) => p.status === "swim" || p.status === "fell-in" || (p.status === "exit" && p.exitPhase === "water"))
-        .map((p) => ({ p, k: 0.3 + Math.min(1, (p.actualSpeed || 0) * 1.2) + (p.status === "fell-in" ? 1 : 0) }))
+        .filter(
+          (p) =>
+            p.status === "swim" || p.status === "fell-in" || (p.status === "exit" && p.exitPhase === "water"),
+        )
+        .map((p) => ({
+          p,
+          k: 0.3 + Math.min(1, (p.actualSpeed || 0) * 1.2) + (p.status === "fell-in" ? 1 : 0),
+        }))
         .sort((a, b) => b.k - a.k);
     for (let i = 0; i < ripples.length; i++) {
       const s = stirring[i];
@@ -1089,12 +1174,19 @@ function syncCruise(w, sim, time, dt, ctx) {
     }
   }
   // The ropes ride the slosh.
-  const slosh = (S?.slosh || 0) * 1.6;
+  const slosh = (S?.slosh || 0) * SLOSH_LOOK;
   for (const r of ctx.ropes || []) {
     const m = new THREE.Matrix4();
     for (let i = 0; i < r.n; i++) {
       const z = -P.halfZ + 0.16 + i * 0.32;
-      m.makeTranslation(r.x, CRUISE_WATER + 0.02 + slosh * (z / P.halfZ) + Math.sin(time * 1.6 + i * 0.5) * 0.015 * motion, z);
+      m.makeTranslation(
+        r.x,
+        CRUISE_WATER +
+          0.02 +
+          Math.min(0.24, slosh * (0.55 * (z / P.halfZ) + 0.45 * Math.sin((z / P.halfZ) * 1.5708))) +
+          Math.sin(time * 1.6 + i * 0.5) * 0.015 * motion,
+        z,
+      );
       r.mesh.setMatrixAt(i, m);
     }
     r.mesh.instanceMatrix.needsUpdate = true;
@@ -1117,11 +1209,16 @@ function syncCruise(w, sim, time, dt, ctx) {
     d.leaf.position.z = d.z - open * 1.15;
   }
   // The flags flutter, the radar turns, the smoke drifts aft, the bell swings when it rings.
-  for (const f of ctx.flagLines || []) f.flag.rotation.y = f.base + Math.sin(time * 6 + f.phase) * 0.35 * motion;
+  for (const f of ctx.flagLines || [])
+    f.flag.rotation.y = f.base + Math.sin(time * 6 + f.phase) * 0.35 * motion;
   if (ctx.radar) ctx.radar.rotation.y = time * 1.4 * motion;
   for (const sp of ctx.smoke || []) {
     const t = (sp.userData.t + time * 0.06) % 1;
-    sp.position.set(ctx.funnelTop.x - t * 22, ctx.funnelTop.y + t * 6 + Math.sin(t * 9) * 0.5, Math.sin(t * 5 + sp.userData.t * 9) * 1.5);
+    sp.position.set(
+      ctx.funnelTop.x - t * 22,
+      ctx.funnelTop.y + t * 6 + Math.sin(t * 9) * 0.5,
+      Math.sin(t * 5 + sp.userData.t * 9) * 1.5,
+    );
     sp.scale.setScalar(2 + t * 7);
     sp.material.opacity = 0.42 * (1 - t) * light;
   }
@@ -1138,7 +1235,11 @@ function syncCruise(w, sim, time, dt, ctx) {
       const a = i * 2.4,
         r = ((i * 0.37) % 1) * (t.r - 0.25),
         k = (time * 0.9 + i * 0.13) % 1;
-      m.makeTranslation(t.x + Math.cos(a + time * 0.3) * r, 0.5 + k * 0.08 * motion, t.z + Math.sin(a + time * 0.3) * r);
+      m.makeTranslation(
+        t.x + Math.cos(a + time * 0.3) * r,
+        0.5 + k * 0.08 * motion,
+        t.z + Math.sin(a + time * 0.3) * r,
+      );
       mesh.setMatrixAt(i, m);
     }
     mesh.instanceMatrix.needsUpdate = true;
@@ -1157,8 +1258,8 @@ function syncCruise(w, sim, time, dt, ctx) {
     }
     o.vz *= o.kind === "ball" ? 0.995 : 1;
     o.z += o.vz * dt;
-    if (o.z < o.lo) (o.z = o.lo), (o.vz = o.kind === "ball" ? -o.vz * 0.4 : 0);
-    if (o.z > o.hi) (o.z = o.hi), (o.vz = o.kind === "ball" ? -o.vz * 0.4 : 0);
+    if (o.z < o.lo) ((o.z = o.lo), (o.vz = o.kind === "ball" ? -o.vz * 0.4 : 0));
+    if (o.z > o.hi) ((o.z = o.hi), (o.vz = o.kind === "ball" ? -o.vz * 0.4 : 0));
     o.g.position.z = o.z;
     if (o.kind === "ball") o.g.rotation.x += (o.vz * dt) / 0.25;
   }
@@ -1166,7 +1267,11 @@ function syncCruise(w, sim, time, dt, ctx) {
     const a = ctx.afloat;
     a.vz += (sin * 2.2 - a.vz * 0.6) * dt;
     a.z = clamp(a.z + a.vz * dt, -P.halfZ + 0.5, P.halfZ - 0.5);
-    a.g.position.set(7.0 + Math.sin(time * 0.3) * 1.2, CRUISE_WATER + 0.12 + slosh * (a.z / P.halfZ) + Math.sin(time * 2) * 0.03, a.z);
+    a.g.position.set(
+      7.0 + Math.sin(time * 0.3) * 1.2,
+      CRUISE_WATER + 0.12 + slosh * (a.z / P.halfZ) + Math.sin(time * 2) * 0.03,
+      a.z,
+    );
   }
   syncCast(w, sim, time, dt, ctx);
 }

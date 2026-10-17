@@ -36,9 +36,9 @@ export const CRUISE = {
 
 // Every lounger: its row, its home (where it belongs, and stays when the ship is still) and the side its guest steps up from. Ids are
 // stable: the near row, the back row, the far row, each from left to right.
-export const LOUNGERS = CRUISE.rows.flatMap((row, r) =>
-  row.homes.map((z) => ({ row: r, home: z })),
-).map((l, id) => ({ id, ...l, cabana: false }));
+export const LOUNGERS = CRUISE.rows
+  .flatMap((row, r) => row.homes.map((z) => ({ row: r, home: z })))
+  .map((l, id) => ({ id, ...l, cabana: false }));
 
 // Where a lounger is now (`z`, from the ship's state when there is one, else its home) and where its guest steps up to it (`foot`).
 export function loungerSpot(sim, id) {
@@ -67,7 +67,8 @@ export const CRUISE_BLOCKS = (() => {
       [-H.halfX - 0.65, H.free.x1 + 0.65, -H.halfZ - 0.7, H.halfZ + 0.7],
       [-2.3, 2.3, -9.8, -8.5], // the starting blocks
     ];
-  for (const row of H.rows) blocks.push([row.x - L.hx - 0.15, row.x + L.hx + 0.15, row.z0 - 0.2, row.z1 + 0.2]);
+  for (const row of H.rows)
+    blocks.push([row.x - L.hx - 0.15, row.x + L.hx + 0.15, row.z0 - 0.2, row.z1 + 0.2]);
   blocks.push([H.bar.x - H.bar.hx, H.bar.x + H.bar.hx, H.bar.z - H.bar.hz, H.bar.z + H.bar.hz]);
   for (const t of H.tubs) blocks.push([t.x - t.r, t.x + t.r, t.z - t.r, t.z + t.r]);
   for (const s of [-1, 1]) blocks.push(s < 0 ? [-13.6, -9.6, -15.4, -13.3] : [9.6, 13.6, -15.4, -13.3]);
@@ -89,7 +90,10 @@ export const CRUISE_CHILL = {
   bed: (sim, id) => loungerSpot(sim, id),
   route: cruiseRoute,
   // Waiting for a free lounger: on the far walk by the bar.
-  waitSpot: (sim, p, taken) => ({ x: 11.3 + (taken % 2) * 0.6, z: -6.3 + (Math.floor(taken / 2) % 3) * 0.75 }),
+  waitSpot: (sim, p, taken) => ({
+    x: 11.3 + (taken % 2) * 0.6,
+    z: -6.3 + (Math.floor(taken / 2) % 3) * 0.75,
+  }),
   // (Out of a stairway lobby: a step onto the deck.)
   arrive: (door, side) => ({ x: side * (door.outsideX - 1.1), z: door.doorZ + 1.4 }),
   lookAngle: Math.PI / 2, // (a guest alone in the water watches the big screen)
@@ -99,6 +103,8 @@ export const CRUISE_CHILL = {
   dj: false,
   cabanas: false,
   share: 0.5,
+  // Calmer than the rooftop's crowd (mood lost waiting for a margarita or a lounger, ×): the coach has the lap lanes to run too.
+  patience: 0.5,
   wading: (x, z) => x > F.x0 && x < F.x1 + 0.3 && Math.abs(z) < CRUISE.halfZ + 0.35,
   wadeable: (x, z, r) => x > F.x0 + 0.3 && x < F.x1 + 0.3 + r && Math.abs(z) < CRUISE.halfZ + 0.35 + r,
   // Fleeing the free water: over the far edge onto the far walk, or out at the nearer end.

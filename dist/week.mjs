@@ -251,7 +251,14 @@ export const POOLS = {
     name: "Cruise Ship",
     icon: "🛳️",
     style: { venue: "cruise", lighting: "cruise" },
-    events: ["Bon voyage", "Captain's party", "Rough seas", "Island hopping", "Sail away", "Full steam ahead"],
+    events: [
+      "Bon voyage",
+      "Captain's party",
+      "Rough seas",
+      "Island hopping",
+      "Sail away",
+      "Full steam ahead",
+    ],
     twists: { class: 0, closure: 0 },
   },
   arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20] },
@@ -378,8 +385,14 @@ const SCORE_SCALE = {
     [15, 1.6],
     [20, 1.25],
   ],
-  // The cruise ship (provisional until calibrated with the coach bot).
-  cruise: [[20, 1]],
+  // The Cruise Ship: about Splash Park's at first; later in a run the big swells (loungers to straighten, guests in the pool, spills
+  // to mop) take more of the coach's time, so the stars ask less (the coach bot on the plain targets made about Splash Park's
+  // share of two stars to tier 12, about 0.7 of it by tier 18; calibrated 18 October 2026).
+  cruise: [
+    [10, 1],
+    [13, 0.95],
+    [20, 0.75],
+  ],
 };
 
 // ---- the shop --------------------------------------------------------------------------------------------------------
