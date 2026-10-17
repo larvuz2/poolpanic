@@ -453,10 +453,7 @@ function heal(sim, p) {
     p.status = "queue";
     sim.depart(p, false);
     const door = sim.venue.arrival;
-    p.path = [
-      ...sim.venue.route(p, { x: p.side * door.outsideX, z: door.doorZ }),
-      ...sim.returnRoute(p.side),
-    ];
+    p.path = [...sim.venue.route(p, door.at(p.side, "outside")), ...sim.returnRoute(p.side)];
   } else {
     // Back to their own lane (a neighbour if a daredevil holds the splash lane). The deck walk from the
     // climb-out is over, and while the pool is closed they wait on deck until it reopens.

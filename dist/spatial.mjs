@@ -1,6 +1,7 @@
 // Shared world geometry. Screen right is +Z, screen up is +X (the camera looks across the pool from -X).
 import { makeRiver, placeOn } from "./river.mjs";
 import { WAVE as WAVE_BASIN } from "./waves.mjs";
+import { ROOF as ROOF_PLAN, ROOF_BEDS, roofRoute } from "./roof-plan.mjs";
 //
 // Everything a system needs to know about a location lives in a venue: lanes, basin bounds, deck walking
 // corridors, doors, queue rows, stations, rescue fixtures and simple collision proxies. Scenes, routes,
@@ -259,6 +260,31 @@ function makeVenue(spec) {
   // with `insideZ`, along z (a door in the back wall: inside at insideZ behind it, out on the deck at doorZ).
   const arrival = { ...ARRIVAL_TIMING, ...spec.doors };
   arrival.insideZ ??= arrival.doorZ;
+  // Where each side's door is (side -1 or 1): `inside` (the locker room, the lift), `door` (the doorway) and `outside` (a step out on
+  // the deck). The two doors mirror each other across x in every venue but the Rooftop Pool, whose two lifts face each other from
+  // the two ends of the deck (`alongZ`: the same x, side × z, each crossed along z). Everything that walks through a door asks here.
+  if (arrival.alongZ) {
+    const x = arrival.doorX;
+    arrival.at = (side, where) => ({ x, z: side * arrival[where + "Z"] });
+    arrival.sideOf = (p) => (Math.abs(p.z + arrival.outsideZ) < Math.abs(p.z - arrival.outsideZ) ? -1 : 1);
+    arrival.isInside = (p) => Math.abs(p.x - x) < 0.2 && Math.abs(Math.abs(p.z) - arrival.insideZ) < 0.2;
+    arrival.isDoorPoint = (at) => Math.abs(at.z) === arrival.doorZ;
+    arrival.crossesZ = true;
+    arrival.enterAngle = (side) => (side > 0 ? Math.PI : 0);
+  } else {
+    arrival.at = (side, where) =>
+      where === "inside"
+        ? { x: side * arrival.insideX, z: arrival.insideZ }
+        : where === "door"
+          ? { x: side * arrival.doorX, z: arrival.doorZ }
+          : { x: side * arrival.outsideX, z: arrival.doorZ };
+    arrival.sideOf = (p) => (Math.abs(p.x + arrival.outsideX) < Math.abs(p.x - arrival.outsideX) ? -1 : 1);
+    arrival.isInside = (p) =>
+      Math.abs(p.z - arrival.insideZ) < 0.2 && Math.abs(Math.abs(p.x) - arrival.insideX) < 0.2;
+    arrival.isDoorPoint = (at) => at.z === arrival.doorZ;
+    arrival.crossesZ = arrival.insideZ !== arrival.doorZ;
+    arrival.enterAngle = (side) => (arrival.insideZ === arrival.doorZ ? -side * (Math.PI / 2) : 0);
+  }
   const obstacles = [
     ...(river ? [] : [{ x: 0, z: 0, hx: pool.solidX, hz: pool.solidZ, kind: "pool" }]),
     ...(spec.blocks === false
@@ -294,6 +320,7 @@ function makeVenue(spec) {
     },
     // Out of the doorway and on the deck (a guest or a visitor who came in has cleared the door).
     pastDoor(v) {
+      if (arrival.alongZ) return Math.abs(v.z) <= arrival.outsideZ + 0.2;
       return arrival.insideZ === arrival.doorZ
         ? Math.abs(v.x) <= arrival.outsideX + 0.2
         : v.z >= arrival.doorZ - 0.2;
@@ -302,6 +329,12 @@ function makeVenue(spec) {
     queuePosition(side, slot) {
       const q = spec.queue,
         row = q.perRow ?? 4;
+      // (The Rooftop Pool's lifts face each other from the two ends: each side waits in rows by its own lift, `alongZ`.)
+      if (q.alongZ)
+        return {
+          x: q.startX + (slot % row) * q.stepX,
+          z: side * (q.startZ - Math.floor(slot / row) * q.stepZ),
+        };
       // (The Lazy River's lounge is all on one side of its door: both sides fill blocks of their own, `blockX`.)
       if (q.blockX)
         return {
@@ -317,6 +350,8 @@ function makeVenue(spec) {
     // Coach-sized bodies collide with the starting blocks, so `solid` routes pass further behind them.
     route(from, to, { solid = false } = {}) {
       if (river) return river.route(from, to);
+      // (The Rooftop Pool: round the basin on the near side only, the sunbeds, the cabanas and the bar, roof-plan.mjs.)
+      if (spec.roof) return roofRoute(from, to);
       // Solid bodies also collide with the starting-block row just behind the basin's left end.
       const kx = pool.keepOutX - 0.05,
         kz = pool.keepOutZ - 0.05,
@@ -362,6 +397,14 @@ function makeVenue(spec) {
     edgeSpots() {
       if (river) return river.edgeSpots(venue);
       const spots = [];
+      // The Rooftop Pool: along the near side and both ends (the far side is the infinity edge).
+      if (spec.roof) {
+        for (let z = -8; z <= 8; z += 2) spots.push({ x: -(pool.solidX + 0.45), z, face: 1, axis: "x" });
+        for (const side of [-1, 1])
+          for (const x of [-2.2, 0, 2.2])
+            spots.push({ x, z: side * (pool.solidZ + 0.45), face: -side, axis: "z" });
+        return spots.filter((s) => venue.isDeck(s.x, s.z, 3, 0.3));
+      }
       // The Wave Pool: along the beach at the water's edge and along both ends (the far side is the wave house).
       if (spec.waves) {
         for (let z = -8; z <= 8; z += 2) spots.push({ x: -(pool.solidX + 0.45), z, face: 1, axis: "x" });
@@ -897,6 +940,136 @@ export const WAVE = makeVenue({
   ],
 });
 
+// The Rooftop Pool (17 October 2026, the creator: "the rooftop pool… it has to be epic… Marina Bay Sands… infinity pool… umbrellas
+// and chairs… guests from opposite sides… they just chill… they talk to each other inside the pool… margaritas… a DJ set on the far
+// right… the buildings down below… no swimmers… some lay down… the water spilling on the floor, you have to mop"): a shallow
+// infinity pool on the roof of a tower, the city far below past its far edge. Nobody swims and nobody is sent anywhere: guests
+// come up in the lifts at both ends and go to the water to chat, or to a sunbed (rooftop.mjs). The plan is roof-plan.mjs.
+const RP = ROOF_PLAN;
+const ROOF_EVAC = [-4.5, -5.1].flatMap((x) =>
+  [-9.6, -8.4, -7.2, -6.0, -4.8, -3.6, -2.4, -1.2, 0, 1.2, 2.4, 3.6, 4.8, 6.0, 7.2, 8.4, 9.6].map((z) => ({
+    x,
+    z,
+  })),
+);
+export const ROOFTOP = makeVenue({
+  id: "roof",
+  name: "Rooftop Pool",
+  indoor: false,
+  scenery: "skyline",
+  sunAzimuth: 0.35,
+  lighting: "roof",
+  doorWord: "a lift",
+  roof: true,
+  basin: { halfX: RP.halfX, halfZ: RP.halfZ },
+  tubes: 0, // (no fins and no tubes up here: the coach carries trays of margaritas, rooftop.mjs)
+  wetChance: 0.3, // everyone climbs out dripping onto the walk
+  blocks: false,
+  lanes: [0],
+  deck: { minX: -14.6, maxX: 4.55, minZ: -15.2, maxZ: 15.2 },
+  room: { minX: -15.2, maxX: 5.0, minZ: -16.9, maxZ: 16.9 },
+  doors: {
+    alongZ: true,
+    doorX: RP.lift.x,
+    insideX: RP.lift.x,
+    outsideX: RP.lift.x,
+    insideZ: RP.lift.insideZ,
+    doorZ: RP.lift.doorZ,
+    outsideZ: RP.lift.outsideZ,
+  },
+  lockers: [],
+  // (Nobody queues: guests only wait here, by their lift, while the pool is closed.)
+  queue: { alongZ: true, startX: -9.0, stepX: 1.1, startZ: 12.8, stepZ: 1.1, perRow: 3 },
+  coachStart: { x: -4.7, z: -1.5 },
+  cameraFollow: { kx: 0.22, maxX: 2.4 },
+  props: [
+    "mop",
+    "mop-bucket",
+    "sunbed",
+    "cabana",
+    "parasol",
+    "dj-booth",
+    "speaker",
+    "bar-counter",
+    "bar-stool",
+    "margarita",
+    "palm-planter",
+    "side-table",
+    "lounge-sofa",
+    "ice-bucket",
+    "lantern",
+    "potted-plant",
+  ],
+  beds: ROOF_BEDS,
+  stations: {
+    bar: { x: RP.bar.x, z: RP.bar.z + RP.bar.hz + 0.75 }, // the trays of margaritas
+    chlorine: { x: -13.3, z: 12.2 },
+    relief: { x: -13.3, z: -12.2 },
+  },
+  sanitation: { rack: { x: -14.4, z: 6.4 }, bin: { x: -13.5, z: 7.9 }, reach: 6.2 },
+  ringMounts: [
+    { x: -10.6, z: -15.4, angle: 0 },
+    { x: -14.55, z: -0.2, angle: Math.PI / 2 },
+    { x: -10.6, z: 15.4, angle: Math.PI },
+  ],
+  rescue: { bench: { x: -9.3, z: 0.9 }, approach: { x: -8.7, z: 0.9 } },
+  evacSpots: ROOF_EVAC,
+  fixtures: {
+    fishNet: { x: -14.55, z: -6.2, angle: Math.PI / 2 },
+    treats: { x: -12.6, z: 13.8 },
+    flashlight: { x: -9.4, z: -15.0 },
+    fuseBox: { x: -14.55, z: 11.0, angle: Math.PI / 2 },
+    mop: { x: -11.2, z: -14.3 },
+  },
+  trampoline: null,
+  furniture: [
+    // The catch gutter past the infinity edge, and the glass rail: nobody walks there.
+    { kind: "infinity-gutter", x: 4.15, z: 0, hx: 0.6, hz: RP.halfZ + 0.7 },
+    ...ROOF_BEDS.filter((b) => !b.cabana).map((b) => ({
+      kind: "sunbed",
+      bed: b.id,
+      x: b.x,
+      z: b.z,
+      hx: RP.bed.hx,
+      hz: RP.bed.hz,
+    })),
+    ...[
+      [RP.rowA, RP.pairsA],
+      [RP.rowB, RP.pairsB],
+    ].flatMap(([x, pairs]) =>
+      pairs.flatMap((z) => [
+        { kind: "parasol", x: x - RP.bed.hx - 0.22, z, hx: 0.22, hz: 0.22 },
+        { kind: "side-table", x: x + 0.45, z, hx: 0.2, hz: 0.2 },
+      ]),
+    ),
+    ...ROOF_BEDS.filter((b) => b.cabana).map((b) => ({
+      kind: "cabana",
+      bed: b.id,
+      x: b.x,
+      z: b.z,
+      hx: RP.cabana.hx,
+      hz: RP.cabana.hz,
+    })),
+    { kind: "lounge", ...RP.lounge },
+    { kind: "bar", ...RP.bar },
+    { kind: "bar-back", x: RP.bar.x, z: -15.0, hx: 2.2, hz: 0.25 },
+    { kind: "dj-booth", ...RP.dj },
+    { kind: "dj-riser", x: RP.dj.x, z: 14.75, hx: 1.7, hz: 0.5 },
+    { kind: "speaker", x: 4.0, z: 13.2, hx: 0.35, hz: 0.35 },
+    { kind: "speaker", x: -0.85, z: 13.4, hx: 0.35, hz: 0.35 },
+    { kind: "station", x: -13.3, z: 12.2, hx: 0.6, hz: 0.9 },
+    { kind: "station", x: -13.3, z: -12.2, hx: 0.6, hz: 0.9 },
+    ...[
+      [-13.9, -9.6],
+      [-13.9, -3.2],
+      [-13.9, 3.2],
+      [-13.9, 9.6],
+      [-2.6, -14.6],
+      [-2.6, 14.6],
+    ].map(([x, z]) => ({ kind: "palm", x, z, hx: 0.55, hz: 0.55 })),
+  ],
+});
+
 export const VENUES = {
   club: CLUB,
   resort: RESORT,
@@ -908,6 +1081,7 @@ export const VENUES = {
   senior: SENIOR,
   river: RIVER,
   wave: WAVE,
+  roof: ROOFTOP,
 };
 
 export function createCoach(venue = CLUB) {

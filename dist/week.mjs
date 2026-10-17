@@ -223,6 +223,23 @@ export const POOLS = {
     events: ["Surf's up", "Big wave Saturday", "Tidal party", "Swell season", "Beach bash", "Monster mash"],
     twists: { team: 0, class: 0, closure: 0 },
   },
+  // The Rooftop Pool (17 October 2026): an infinity pool on a tower 185 m up, at sunset (rooftop.mjs). Nobody swims (no Marco), and
+  // lots of VIPs (the creator: "we got lots of VIPs"): two more than the run's count.
+  roof: {
+    name: "Rooftop Pool",
+    icon: "🌇",
+    vipBonus: 2,
+    style: { venue: "roof", lighting: "roof", aqua: false, noStar: true },
+    events: [
+      "Sunset session",
+      "Sky high soirée",
+      "Golden hour",
+      "Rooftop takeover",
+      "Penthouse party",
+      "DJ all night",
+    ],
+    twists: { team: 0, class: 0, closure: 0 },
+  },
   arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20] },
 };
 export const POOL_IDS = Object.keys(POOLS);
@@ -339,6 +356,13 @@ const SCORE_SCALE = {
     [10, 0.8],
     [15, 0.75],
     [20, 0.7],
+  ],
+  // The Rooftop Pool: margaritas tip well and the VIPs are many, so the stars ask more (on the plain targets the coach bot made
+  // about 1.6 times Splash Park's share of two stars; scaled, about the same as there; calibrated 17 October 2026).
+  roof: [
+    [10, 1.7],
+    [15, 1.6],
+    [20, 1.25],
   ],
 };
 

@@ -131,6 +131,26 @@ seconds each (the same input always gives the same GLB), and the same rig is wha
   pushing forward and coming back; **StandUp** (40 frames, not a loop: `"loop": False`) goes from the seat to standing, and the
   game plays it backwards to sit down. The four senior meshes (`dist/assets/seniors/`) are Meshy models from GPT Image T-poses
   (`game_export.py --height` 1.55 to 1.68 m), rigged with `rig_from_template.py`.
+- **The Rooftop Pool's DJ and bartender** (17 October 2026: `dist/assets/models/dj.glb`, `bartender.glb`) are Meshy 7 meshes from
+  GPT Image 2.5 T-poses (`openai/gpt-image-2.5/sunburst/edit` on fal, with front renders of Valentina and the tall swimmer as
+  style references), `game_export.py --height` 1.78 and 1.75, `rig_from_template.py` (the bartender with `--set y_crotch=0.68`:
+  his apron hides where the legs part, and the landmark came out at 0.41), `retarget_clips.py --only
+  Run,Walk,IdleScan,IdleScratch,Panic,Swim` (hip travel x1.03 and x1.01), the DJ's three dances by `transplant_clips.py` from
+  Valentina, one clip of their own each from `character_clips.py`, then `ground_clips.py`. Both own clips are made on the
+  character's own body (`--character dj`, `--character bartender`), since a hand has to land on a desk of a given height, and both
+  are 48 frames (2 s, one bar of four beats at 120 BPM) so the game can play them in time with the music.
+  **DJ** stands behind a booth whose top is about 1.00 m high (his shoulders are at 1.21 m: the stylised big head puts them
+  low): the right hand scratches on its deck (back and forth every half beat) while the left turns a knob on the mixer, they
+  swap by the third beat, the right arm is up in the air on the fourth beat and back down to its deck for the next bar, the head
+  nods down on every beat and looks at the deck being played, the knees and shoulders bounce, the feet stay planted. The hands
+  lie flat on the desk, palms down: an arm key's `"level": 1` turns the hand out of the forearm's line until it lies flat and
+  rolls it until the palm faces the floor, and `"turn"` then turns it about the vertical (the knob). On a desk the hands' lowest
+  point is at 1.00 to 1.04 m, 0.43 to 0.50 m in front of him (his chest's front is 0.14), the deck hands 0.29 m either side of
+  the middle and the mixer hand in the middle. **Shake** is the bartender behind a counter about 1.1 m high: two hard shakes a
+  beat by his right shoulder (the right hand on the shaker's cap at 1.38 m, the left under its base at 1.21 m), then the shaker
+  tipped over a glass on the counter (the pouring hand at 1.29 to 1.33 m, the glass hand on the counter at 1.08 m, 0.46 m in
+  front of him), the pour rising a little, and back up. No prop is in either file: the game puts the shaker in his right hand.
+  The fastest bone turns 36 degrees a frame in the DJ and 20 in the Shake.
 - **Panic** (`panic_clip()` in `character_clips.py`) is what every swimmer does when the pool closes or the queue is a mess:
   jumping on the spot without a pause, arms and hands thrown up and flapping, head tipped back and shaking. Two mirrored hops
   make the 24-frame loop (1 s at 24 fps, 0.5 s a hop): the hips follow a parabola 22 cm above standing on the Coach, the feet

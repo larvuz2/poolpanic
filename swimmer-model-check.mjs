@@ -636,8 +636,10 @@ assert.deepEqual(
     "senior-tallgran",
     "senior-stout",
     "valentina",
+    "dj",
+    "bartender",
   ],
-  "Carl, the leopard man, the fish kid, Marco, the four seniors and Valentina",
+  "Carl, the leopard man, the fish kid, Marco, the four seniors, Valentina, and the Rooftop Pool's DJ and bartender",
 );
 {
   // Marco "the Missile" (the Aquatic Centre's star VIP): Anim Bench's own file, a swimmer's Swim and Panic, and the guest the

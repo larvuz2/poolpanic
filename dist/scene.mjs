@@ -15,6 +15,9 @@ import { buildRiver } from "./scene/river.mjs";
 import { riverPose, tubeObject } from "./scene/river-view.mjs";
 import { buildWave } from "./scene/wave.mjs";
 import { wavePose } from "./scene/wave-view.mjs";
+import { buildRooftop } from "./scene/rooftop.mjs";
+import { propModel } from "./scene/prop-models.mjs";
+import { roofPose, roofFloorAt } from "./scene/roof-view.mjs";
 import { surfaceAt } from "./waves.mjs";
 import { seatState, seated, syncWheelchairs, clearWheelchairs } from "./scene/senior-view.mjs";
 import { Sky, SCENERY } from "./scene/sky.mjs";
@@ -258,6 +261,36 @@ LIGHTING.wave = {
   ],
 };
 
+// The Rooftop Pool: golden hour going to dusk, 185 m up. A low warm sun over the city past the infinity edge, a lavender fill from
+// the sky behind the camera, the water dark teal and glassy, mirroring the sunset (`roofSky`, its zenith and horizon), the haze
+// over the city far below (fog that starts far out: the deck is never in it).
+LIGHTING.roof = {
+  background: 0xe7a07c,
+  exposure: 1.02,
+  hemi: [0xffd9c2, 0x6b5a73, 1.15],
+  sun: [0xffb36b, 2.55, [22, 13, 9]],
+  fill: [0xb7a6e8, 0.85, [-16, 15, -8]],
+  env: 0.7,
+  envColors: ["#f6b996", "#f3d4bd", "#6f5a6a"],
+  fog: [0xe9a585, 260, 1900],
+  water: {
+    shallow: [0.1, 0.42, 0.44],
+    deep: [0.02, 0.24, 0.3],
+    sky: [1, 0.72, 0.56],
+    glint: [1, 0.78, 0.5],
+    glow: 0.5,
+    clarity: 0.2,
+  },
+  roofSky: { zenith: 0x5f62ad, horizon: 0xffa97c },
+  glow: 0.45,
+  sky: [
+    [0, "#4f5aa6"],
+    [0.45, "#d98b8c"],
+    [0.8, "#ffb07a"],
+    [1, "#ffd9a8"],
+  ],
+};
+
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const BUILDERS = {
@@ -271,6 +304,7 @@ const BUILDERS = {
   senior: buildSenior,
   river: buildRiver,
   wave: buildWave,
+  roof: buildRooftop,
 };
 const defaultLighting = (venue) => venue.lighting || (venue.indoor ? "indoor" : "day");
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
@@ -378,6 +412,9 @@ export class PoolWorld extends SceneKit {
     this.glowMap = glowTexture();
     this.textures.push(this.glowMap);
     this.buildLights();
+    // (The Rooftop Pool's builder sees a city 2 km out; everywhere else the room is all there is.)
+    this.camera.far = 180;
+    this.camera.updateProjectionMatrix();
     (BUILDERS[venue.id] || buildClub)(this, venue, lighting);
     buildMopStation(this, venue); // (every pool has the mop: incidents/wet.mjs)
     this.sky = venue.scenery ? new Sky(this, SCENERY[venue.scenery]) : null;
@@ -919,6 +956,8 @@ export class PoolWorld extends SceneKit {
     if (sim.venue?.river && riverPose(this, sim, p, g, time, dt)) return;
     // The Wave Pool: a bather in the waves rides them (scene/wave-view.mjs).
     if (sim.venue?.waves && wavePose(this, sim, p, g, time, dt)) return;
+    // The Rooftop Pool: chest-deep in the water, on a sunbed, up on the edge, in the gutter (scene/roof-view.mjs).
+    if (sim.venue?.roof && roofPose(this, sim, p, g, time, dt)) return;
     // The crowd panics while a cannonball man is in the pool: a swimmer in the water is held where it is, upright, and hops with
     // its hands up like those who wait on the deck.
     const crowd = !!this.crowd,
@@ -1203,6 +1242,8 @@ export class PoolWorld extends SceneKit {
     cg.position.set(intro ? intro.x : c.x, c.y || 0, intro ? intro.z : c.z);
     // (Swimming in the Wave Pool, he rides the swell like everyone in it.)
     if (sim.venue?.waves && c.swimming) cg.position.y += surfaceAt(sim.waves?.list || [], c.x);
+    // (Wading in the rooftop pool: his feet on its floor.)
+    if (sim.venue?.roof && c.wading) cg.position.y = roofFloorAt(c.x);
     const angle = intro ? intro.angle : c.angle || 0;
     cg.rotation.y += Math.atan2(Math.sin(angle - cg.rotation.y), Math.cos(angle - cg.rotation.y)) * 0.3;
     const walking = Math.hypot(c.vx || 0, c.vz || 0) > 0.2,
@@ -1780,12 +1821,16 @@ export class PoolWorld extends SceneKit {
   }
   handoff(from, to, item) {
     const mesh =
-      item === "fins" && (this.venue.river || this.venue.waves)
-        ? tubeObject(this, 1, 0.7)
-        : item === "fins"
-          ? finsObject(this)
-          : new THREE.Group();
-    if (item !== "fins")
+      item === "margarita"
+        ? propModel("margarita", { height: 0.22 }, (s) =>
+            this.cyl(0.08, 0.02, 0.12, 0xe8f2b0, 0, 0.1, 0, s, 10),
+          )
+        : item === "fins" && (this.venue.river || this.venue.waves)
+          ? tubeObject(this, 1, 0.7)
+          : item === "fins"
+            ? finsObject(this)
+            : new THREE.Group();
+    if (item !== "fins" && item !== "margarita")
       this.ball(
         0.15,
         item === "relief" ? 0x78c7ce : item === "medkit" ? 0xe0513f : COLORS.navy,

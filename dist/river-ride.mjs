@@ -305,7 +305,7 @@ export function tickRiverExit(sim, p, dt) {
 function homeFromRiver(sim, p) {
   p.exitPhase = "deck";
   const door = sim.venue.arrival;
-  p.path = [...sim.venue.route(p, { x: p.side * door.outsideX, z: door.doorZ }), ...sim.returnRoute(p.side)];
+  p.path = [...sim.venue.route(p, door.at(p.side, "outside")), ...sim.returnRoute(p.side)];
 }
 
 // Where the coach serves a rider from: the bank beside them (the nearer one).

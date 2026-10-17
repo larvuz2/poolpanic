@@ -169,6 +169,21 @@ export const STINGS = {
     how: "The siren means a monster wave leaves the wave house in a few seconds. It knocks tubes off and leaves everyone dizzy: stop the machine before it goes, if anyone is already seeing stars. The bathers love it otherwise.",
     tone: "warning",
   },
+  // The Rooftop Pool (rooftop.mjs).
+  selfie: {
+    icon: "📸",
+    title: "SELFIE ON THE EDGE!",
+    verb: "Wade over and get {name} down · E",
+    how: "{name} has climbed up on the infinity edge for a selfie, leaning out over the city. The pool is shallow: wade in (slowly) and talk them down before they lean too far, and never let the DJ's drop catch them up there.",
+    tone: "warning",
+  },
+  overboard: {
+    icon: "🆘",
+    title: "OVERBOARD!",
+    verb: "Haul {name} back over the edge · E",
+    how: "{name} went over the infinity edge into the catch gutter. Wade to the edge beside them and haul them back (E) before they storm out by the service stairs.",
+    tone: "danger",
+  },
   crash: {
     icon: "💥",
     title: "CRASH!",
@@ -195,6 +210,9 @@ export const SAVES = {
   healed: { stamp: "PATCHED UP!", tier: 1 },
   mopped: { stamp: "SQUEAKY CLEAN!", tier: 1 },
   "helped-out": { stamp: "STEADY NOW!", tier: 1 },
+  "selfie-stopped": { stamp: "NOT TODAY!", tier: 2 },
+  hauled: { stamp: "HAULED BACK!", tier: 2 },
+  margarita: { stamp: "CHEERS!", tier: 1 },
 };
 
 export const MOMENT_TIMING = {

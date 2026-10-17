@@ -210,6 +210,7 @@ export class PoolAudio {
     if (!this.ctx || !this.enabled) return;
     const t = this.ctx.currentTime;
     if (this.waveEffect(type, e, t)) return;
+    if (this.roofEffect(type, e, t)) return;
     if (type === "dog-notice" || type === "dog-steal" || type === "dog-bowl") {
       const n = type === "dog-notice" ? 3 : 2;
       for (let i = 0; i < n; i++) {
@@ -425,12 +426,63 @@ export class PoolAudio {
     } else return false;
     return true;
   }
+  // The Rooftop Pool's sounds (rooftop.mjs). True when `type` was one of them.
+  roofEffect(type, e, t) {
+    if (type === "order") {
+      // A guest orders: a little service bell.
+      this.tone(1568, t, 0.5, 0.06, "sine");
+      this.tone(2349, t, 0.35, 0.025, "sine");
+    } else if (type === "serve") {
+      // Served: the clink of a glass, and an "ahh".
+      this.tone(2637, t, 0.25, 0.07, "sine");
+      this.tone(3520, t + 0.02, 0.18, 0.04, "sine");
+      this.tone(330, t + 0.12, 0.3, 0.04, "triangle", 260);
+    } else if (type === "tray") {
+      // A tray off the bar: glasses chinking.
+      for (let i = 0; i < 3; i++) this.tone(2200 + i * 330, t + i * 0.05, 0.12, 0.04, "sine");
+    } else if (type === "tipsy") {
+      // Hic!
+      this.tone(520, t, 0.08, 0.1, "square", 880);
+      this.noise(t, 0.05, 0.05, 2000);
+    } else if (type === "selfie-start") {
+      // A phone camera's shutter, twice.
+      for (const d of [0, 0.18]) {
+        this.noise(t + d, 0.04, 0.12, 4200);
+        this.tone(1900, t + d + 0.02, 0.03, 0.05, "square");
+      }
+    } else if (type === "overboard") {
+      // A falling wail and a big splash below.
+      this.tone(900, t, 0.6, 0.1, "sawtooth", 250);
+      this.noise(t + 0.55, 0.8, 0.18, 380);
+      this.tone(80, t + 0.55, 0.4, 0.14, "sine", 45);
+    } else if (type === "drop") {
+      // The drop: the crowd's "WOO!" over the bass (the song plays the drop itself).
+      this.noise(t, 0.9, 0.08, 1200);
+      for (const f of [330, 392, 494]) this.tone(f, t, 0.7, 0.03, "sawtooth", f * 1.25);
+    } else if (type === "drop-splash") {
+      this.noise(t, 0.6, 0.1, 500);
+    } else if (type === "tidy") {
+      // Fresh towels: a flap and a pat.
+      this.noise(t, 0.12, 0.06, 1800);
+      this.noise(t + 0.15, 0.06, 0.05, 900);
+    } else return false;
+    return true;
+  }
   // Incident sting: a brass-style stab under a short motif of its own, so each problem is recognisable by ear.
   // The first sighting gets a longer tail while the lesson is on screen.
   sting(kind, first = false) {
     if (!this.ctx || !this.enabled) return;
     const t = this.ctx.currentTime,
-      danger = ["cramp", "spill", "fish-loose", "blackout", "tower-go", "crash", "knockout"].includes(kind);
+      danger = [
+        "cramp",
+        "spill",
+        "fish-loose",
+        "blackout",
+        "tower-go",
+        "crash",
+        "knockout",
+        "overboard",
+      ].includes(kind);
     // The hit: a low thump, a burst of air, and a two-note stab (a tritone when someone is in danger).
     this.tone(95, t, 0.35, 0.3, "sine", 45);
     this.noise(t, 0.25, 0.12, 700);
@@ -501,6 +553,15 @@ export class PoolAudio {
           );
         },
         monster: () => [0, 0.45].forEach((d) => this.tone(440, at + d, 0.4, 0.1, "sawtooth", 880)),
+        selfie: () =>
+          [0, 0.16, 0.32].forEach((d) => {
+            this.noise(at + d, 0.04, 0.12, 4200);
+            this.tone(1900, at + d + 0.02, 0.03, 0.05, "square");
+          }),
+        overboard: () => {
+          this.tone(1200, at, 0.55, 0.1, "sine", 300);
+          this.noise(at + 0.5, 0.5, 0.14, 420);
+        },
         class: () =>
           [0, 1, 2, 3, 4].forEach((i) =>
             this.tone(500 + i * 90, at + i * 0.06, 0.1, 0.07, "sine", 900 + i * 60),

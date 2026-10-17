@@ -58,7 +58,8 @@ export class IncidentView {
     this.doorBeacons = [-1, 1].map((side) => {
       const m = w.decal(w.glowMap, 2.4, 2.4, 0x9dff9a, 0, true);
       m.rotation.x = -Math.PI / 2;
-      m.position.set(side * w.venue.arrival.outsideX, 0.05, w.venue.arrival.doorZ);
+      const at = w.venue.arrival.at(side, "outside");
+      m.position.set(at.x, 0.05, at.z);
       w.scene.add(m);
       return m;
     });

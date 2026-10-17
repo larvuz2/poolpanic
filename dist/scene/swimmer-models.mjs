@@ -45,8 +45,12 @@ export const CLIPS = {
   // simulation says; backwards to climb out). Every guest who rides has them (scene/river-view.mjs).
   tubeFloat: "TubeFloat",
   tubeBoard: "TubeBoard",
+  // The Rooftop Pool's DJ at the decks and bartender with the shaker (17 October 2026): loops of one bar at 120 BPM, played at the
+  // time the beat says, like the dances (scene/roof-view.mjs).
+  dj: "DJ",
+  shake: "Shake",
 };
-const DANCES = new Set(["danceRight", "danceLeft", "danceBoth"]);
+const DANCES = new Set(["danceRight", "danceLeft", "danceBoth", "dj", "shake"]);
 // A model must have these; one without Panic hops with the classic swimmer's poses instead, one without Swim swims with
 // the Run clip, and one without Cannonball is the classic Carl.
 const REQUIRED = ["idle", "scratch", "walk", "run"];
@@ -187,6 +191,29 @@ export const FIGURES = [
     front: 0.14,
     back: 0.13,
     needs: ["danceRight", "danceLeft", "danceBoth"],
+  },
+  // The Rooftop Pool's DJ and bartender (17 October 2026): Meshy characters on Coach Waters' skeleton with a clip of their own
+  // each (tools/blender/character_clips.py: DJ, hands on the decks and a nod to the beat; Shake, a cocktail shaker over the
+  // shoulder). Not guests of the simulation: the rooftop's scene stands them behind the booth and the bar (scene/roof-view.mjs).
+  {
+    id: "dj",
+    file: "models/dj.glb",
+    walk: 1.26,
+    run: 3.986,
+    eyes: [1.47, 0.146],
+    front: 0.15,
+    back: 0.154,
+    needs: ["dj", "danceBoth"],
+  },
+  {
+    id: "bartender",
+    file: "models/bartender.glb",
+    walk: 1.315,
+    run: 4.183,
+    eyes: [1.475, 0.133],
+    front: 0.133,
+    back: 0.14,
+    needs: ["shake"],
   },
 ];
 // The classic swimmer's head is a ball of this radius, 1.42 up; its crown, star and sore eyes are drawn for that head.

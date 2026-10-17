@@ -232,6 +232,15 @@ export class SanitationController extends CoachController {
       ];
       return;
     }
+    // (Out of the rooftop pool: over the near edge onto the walk.)
+    if (this.venue.roof && p.evacWater) {
+      const P = this.venue.pool;
+      p.path = [
+        { x: -P.halfX + 0.45, z: p.z },
+        { x: -P.solidX - 0.75, z: p.z },
+      ];
+      return;
+    }
     p.path = p.evacWater ? [{ x: p.x, z: ENTRY.waterZ }] : this.evacDeckRoute(p);
   }
   evacDeckRoute(p) {

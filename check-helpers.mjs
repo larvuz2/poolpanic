@@ -3,8 +3,12 @@ export const tick = (s, n = 1) => {
   for (let i = 0; i < n; i++) s.tick(1 / 60);
 };
 
-// Grid A* over the walkable deck (coach-sized body), smoothed by line of sight. Cached per venue/level.
+// Grid A* over the walkable deck (coach-sized body), smoothed by line of sight. Cached per venue/level. The Rooftop Pool's water
+// is walkable too (the coach wades in it at half speed: coach.mjs `wadeable`), at a cost that keeps him on the deck when the
+// deck is about as quick.
 const grids = new Map();
+const WATER = 2.2;
+const wet = (s, x, z) => !!s.wadeable?.(x, z) && !s.venue.isDeck(x, z, s.level, 0.36);
 function grid(s) {
   const key = s.venue.id + ":" + s.level;
   if (grids.has(key)) return grids.get(key);
@@ -15,16 +19,22 @@ function grid(s) {
     free = new Uint8Array(nx * nz);
   for (let i = 0; i < nx; i++)
     for (let j = 0; j < nz; j++)
-      free[i * nz + j] = s.venue.isDeck(d.minX + i * step, d.minZ + j * step, s.level, 0.36) ? 1 : 0;
+      free[i * nz + j] = s.venue.isDeck(d.minX + i * step, d.minZ + j * step, s.level, 0.36)
+        ? 1
+        : wet(s, d.minX + i * step, d.minZ + j * step)
+          ? 2
+          : 0;
   const g = { d, step, nx, nz, free };
   grids.set(key, g);
   return g;
 }
-function clear(s, a, b) {
+function clear(s, a, b, water = false) {
   const n = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.15);
   for (let k = 1; k < n; k++) {
-    const t = k / n;
-    if (!s.venue.isDeck(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t, s.level, 0.34)) return false;
+    const t = k / n,
+      x = a.x + (b.x - a.x) * t,
+      z = a.z + (b.z - a.z) * t;
+    if (!s.venue.isDeck(x, z, s.level, 0.34) && !(water && s.wadeable?.(x, z))) return false;
   }
   return true;
 }
@@ -64,7 +74,7 @@ export function plan(s, to) {
           vj = uj + b;
         if (vi < 0 || vj < 0 || vi >= g.nx || vj >= g.nz || !g.free[vi * g.nz + vj]) continue;
         const v = vi * g.nz + vj,
-          c = cost[u] + Math.hypot(a, b);
+          c = cost[u] + Math.hypot(a, b) * (g.free[v] === 2 ? WATER : 1);
         if (c < cost[v]) {
           cost[v] = c;
           prev[v] = u;
@@ -79,14 +89,15 @@ export function plan(s, to) {
     z: g.d.minZ + (v % g.nz) * g.step,
   }));
   points.push(to);
-  // Line-of-sight smoothing.
-  const out = [];
+  // Line-of-sight smoothing (through the water only where the path wades anyway).
+  const out = [],
+    wading = points.map((p) => wet(s, p.x, p.z));
   let anchor = { x: from.x, z: from.z },
     k = 0;
   while (k < points.length) {
     let far = k;
     for (let m = points.length - 1; m > k; m--)
-      if (clear(s, anchor, points[m])) {
+      if (clear(s, anchor, points[m], wading.slice(k, m + 1).some(Boolean) || wet(s, anchor.x, anchor.z))) {
         far = m;
         break;
       }

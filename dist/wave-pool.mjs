@@ -496,7 +496,7 @@ export function tickWaveExit(sim, p, dt) {
   }
   p.stunned = Math.max(p.stunned || 0, 1);
   const door = sim.venue.arrival;
-  p.path = [...sim.venue.route(p, { x: p.side * door.outsideX, z: door.doorZ }), ...sim.returnRoute(p.side)];
+  p.path = [...sim.venue.route(p, door.at(p.side, "outside")), ...sim.returnRoute(p.side)];
   // Dripping: the first stretch of deck past the sand on the way out gets the wet spot (incidents/wet.mjs), if any.
   const drip = dripPoint(sim, p);
   if (drip) WetSpots.climbedOut(sim, p, drip);

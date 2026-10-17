@@ -168,6 +168,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     "senior",
     "river",
     "wave",
+    "roof",
     "arena",
   ]);
   const sitsOut = new Set(),
@@ -339,8 +340,8 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     );
     assert.deepEqual(
       Object.keys(seen).sort(),
-      POOL_IDS.filter((id) => id !== "kids").sort(),
-      "Marco at every pool but the Kids Pool",
+      POOL_IDS.filter((id) => id !== "kids" && id !== "roof").sort(),
+      "Marco at every pool but the Kids Pool and the Rooftop Pool (nobody swims there)",
     );
     let free = 0;
     for (let i = 0; i < 1000; i++) if (freePlayGuests(1e6 + i * 7919, 1 + (i % 20)).star) free++;
@@ -366,6 +367,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       "senior",
       "river",
       "wave",
+      "roof",
     ])
       assert.ok(scoreScale(v, tier) >= 0.6 && scoreScale(v, tier) <= 1.7, v + " " + tier);
   }

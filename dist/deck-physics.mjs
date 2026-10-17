@@ -115,7 +115,7 @@ export function resolveDeck(sim) {
         displace(a, -nx * overlap, -nz * overlap, sim);
         displace(b, nx * overlap, nz * overlap, sim);
       }
-    if (coach.y >= 0.5 || coach.swimming || coach.waterTransition) continue;
+    if (coach.y >= 0.5 || coach.swimming || coach.waterTransition || coach.wading) continue;
     for (const p of people) {
       const dx = p.x - coach.x,
         dz = p.z - coach.z,

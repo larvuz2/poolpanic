@@ -421,6 +421,86 @@ export function waveScore(step, panic = false) {
   return out;
 }
 
+// ---- the Rooftop Pool's house set (17 October 2026) ----
+// The DJ's deep house at 120 BPM in A minor (Am7 Dm7 Fmaj7 Em7), built round the drops the simulation has planned (rooftop.mjs:
+// `drops`, bar numbers, handed over in the clock's state). Four bars before each drop the build-up: the bass drops out, a snare
+// roll speeds up from quarters to sixteenths, a noise riser climbs and the filter opens, and the last half bar is silence. Then
+// THE DROP: an impact, a crash, a driving offbeat bass an octave up, stabs and a lead hook for eight bars. In between, the groove:
+// kick, clap, open hats on the offbeats, a pumping bass and soft pads, and an arpeggio in every second four bars.
+const ROOF_STEP = 60 / 120 / 4;
+const ROOF_ROOTS = [45, 50, 41, 40]; // A2 D3 F2 E2
+const ROOF_CHORDS = [
+  [0, 3, 7, 10],
+  [0, 3, 7, 10],
+  [0, 4, 7, 11],
+  [0, 3, 7, 10],
+];
+// The drop's hook: two bars of sixteenths (MIDI notes, null a rest), A minor pentatonic.
+const ROOF_HOOK = [
+  [81, null, null, 79, null, null, 76, null, 79, null, 81, null, null, 84, null, null],
+  [81, null, null, 79, null, null, 76, null, 74, null, 72, null, 74, null, 76, null],
+];
+// Where the set is at a bar: the build-up (bars left to the drop), the drop (bars since it), the intro, or the groove.
+export function roofSection(bar, drops = []) {
+  let next = Infinity,
+    last = -Infinity;
+  for (const d of drops || []) {
+    if (d > bar && d < next) next = d;
+    if (d <= bar && d > last) last = d;
+  }
+  if (bar >= next - 4) return { part: "build", left: next - bar };
+  if (bar - last < 8) return { part: "drop", since: bar - last };
+  if (bar < 4) return { part: "intro" };
+  return { part: "groove" };
+}
+export function roofScore(step, panic = false, state = null) {
+  const out = [],
+    bar = Math.floor(step / STEPS_PER_BAR),
+    s = step % STEPS_PER_BAR,
+    chord = bar % 4,
+    root = ROOF_ROOTS[chord],
+    where = roofSection(bar, state?.drops),
+    add = (voice, extra = {}) => out.push({ voice, ...extra });
+  if (where.part === "build") {
+    const left = where.left,
+      last = left === 1;
+    if (last && s >= 8) return out; // (the half bar of silence before the drop)
+    if (s % 4 === 0) add("kick", { vol: last ? 0.7 : 1 });
+    const every = left >= 4 ? 4 : left === 3 ? 2 : 1;
+    if (s % every === 0) add("clap", { vol: 0.35 + (4 - left) * 0.2 + s / 48 });
+    if (left === 4 && s === 0) add("sweep", { len: ROOF_STEP * 16 * 3.5 });
+    if (left > 2 && s % 4 === 2) add("bass", { note: root, len: ROOF_STEP * 1.5, vol: 0.7 });
+    if (s % 2 === 1) add("hat", { vol: 0.5 + (4 - left) * 0.15 });
+    return out;
+  }
+  const drop = where.part === "drop";
+  if (s % 4 === 0) add("kick");
+  if (drop && where.since === 0 && s === 0) {
+    add("impact");
+    add("crash");
+  }
+  if (where.part !== "intro" && (s === 4 || s === 12)) add("clap");
+  if (s % 4 === 2) add("open");
+  if (s % 2 === 1 && (drop || bar % 2 === 1)) add("hat", { vol: 0.7 });
+  if (where.part === "intro") return out;
+  // The bass on the offbeats, pumping (an octave up and harder in the drop).
+  if (s % 4 === 2 || (drop && s % 4 === 3))
+    add("bass", {
+      note: root + (drop ? 12 : 0),
+      len: ROOF_STEP * (drop ? 0.9 : 1.6),
+      vol: drop ? 1.05 : 0.85,
+    });
+  const chordNotes = ROOF_CHORDS[chord].map((n) => root + 24 + n);
+  if (!drop && s === 0) add("pad", { notes: chordNotes, len: ROOF_STEP * 15 });
+  if (drop && [3, 6, 10, 14].includes(s)) add("stab", { notes: chordNotes, vol: 1.1 });
+  if (drop) {
+    const n = ROOF_HOOK[bar % 2][s];
+    if (n != null) add("lead", { note: n, vol: 0.9 });
+  } else if (bar % 8 >= 4 && s % 2 === 0) add("arp", { note: chordNotes[(s / 2) % 4] + 12 });
+  if (panic && s % 4 === 0 && Math.floor(s / 4) % 2 === 0) add("alarm", { note: s === 0 ? 84 : 79 });
+  return out;
+}
+
 // The songs the player knows: the step length, the score, and how loud it plays.
 export const SONGS = {
   disco: { step: STEP, score: discoScore, level: 1 },
@@ -432,6 +512,8 @@ export const SONGS = {
   river: { step: RIVER_STEP, score: riverScore, level: 2.05 },
   // (The surf rock, brought to the kids' loudness the same way.)
   wave: { step: WAVE_STEP, score: waveScore, level: 1.36 },
+  // (The house set uses the disco's voices: as loud as the disco.)
+  roof: { step: ROOF_STEP, score: roofScore, level: 1 },
 };
 
 const release = (...nodes) => {
@@ -510,8 +592,8 @@ export class DiscoMusic {
       const step = ++this.done,
         t = Math.max(now, this.anchor + step * STEP);
       if (this.dark) continue;
-      if (step % STEPS_PER_BAR === 0) this.barFilter(step / STEPS_PER_BAR, t, song);
-      for (const n of song.score(step, a.panic)) this.play(n, t + (n.delay || 0));
+      if (step % STEPS_PER_BAR === 0) this.barFilter(step / STEPS_PER_BAR, t, song, state);
+      for (const n of song.score(step, a.panic, state)) this.play(n, t + (n.delay || 0));
     }
     return true;
   }
@@ -731,10 +813,32 @@ export class DiscoMusic {
       case "alarm":
         this.voice("square", midi(n.note), t, 0.12, 0.05, this.drums);
         break;
+      // The Rooftop Pool's drop: a deep boom with a burst of noise.
+      case "impact":
+        this.voice("sine", 70, t, 1.4, 0.6, this.drums, 28, 0.002);
+        this.hiss(t, 0.5, 0.12, 900, "lowpass");
+        break;
     }
   }
   // Where the synths' filter sits each bar: open in the groove and the hook, shut in the breakdown, opening through the build.
-  barFilter(bar, t, song = SONGS.disco) {
+  barFilter(bar, t, song = SONGS.disco, state = null) {
+    if (song === SONGS.roof) {
+      // The house set: deep and warm in the groove, opening all the way through the build-up, wide open in the drop.
+      const where = roofSection(bar, state?.drops),
+        f = this.filter.frequency,
+        target =
+          where.part === "build"
+            ? 700 + (4 - where.left) * 1500
+            : where.part === "drop"
+              ? 7000
+              : where.part === "intro"
+                ? 900
+                : 1900;
+      f.cancelScheduledValues(t);
+      f.setValueAtTime(f.value, t);
+      f.exponentialRampToValueAtTime(target, t + (where.part === "build" ? STEP * STEPS_PER_BAR : 0.2));
+      return;
+    }
     if (song !== SONGS.disco) {
       // (The kids' song keeps its filter open; the tea dance a little warmer.)
       this.filter.frequency.cancelScheduledValues(t);

@@ -130,7 +130,7 @@ export const LooseDog = {
     if (d.stage === "following") {
       const door = sim.venue.arrival,
         exit = [-1, 1]
-          .map((side) => ({ x: side * door.outsideX, z: door.doorZ }))
+          .map((side) => door.at(side, "outside"))
           .sort((a, b) => distance(a, c) - distance(b, c))[0];
       alerts.push({
         kind: "dog",
@@ -501,7 +501,7 @@ function follow(sim, d, v, dt, lured) {
   }
   const door = sim.venue.arrival;
   for (const side of [-1, 1]) {
-    const exit = { x: side * door.outsideX, z: door.doorZ };
+    const exit = door.at(side, "outside");
     const coachAtDoor = distance(c, exit) < 1.9 && distance(v, exit) < 4.5;
     if (coachAtDoor || (distance(v, exit) < T.exitReach && distance(c, exit) < T.exitReach + 2.5)) {
       c.carry = null;

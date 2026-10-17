@@ -489,6 +489,62 @@
       ]
     },
     {
+      "id": "dj",
+      "name": "The DJ",
+      "file": "../../dist/assets/models/dj.glb",
+      "note": "The Rooftop Pool's DJ, 1.78 m. Dark quiff and a short beard, black sunglasses, big black headphones round his neck, a thin gold chain, an open short-sleeve shirt with a teal and coral leaf print over a white tee, beige chinos rolled at the ankle, white sneakers. No mouth. Meshy 7 mesh (fal meshy/v7/image-to-3d) from a GPT Image 2.5 T-pose made in the game's style (the swimmers and Valentina as references), about 10k tris. Rigged on Coach Waters' own 24-bone skeleton (rig_from_template.py), with the Coach's clips retargeted onto it (retarget_clips.py: Walk, Run, IdleScan, IdleScratch, Panic, Swim): the same motion, hip travel x1.03. The three dances transplanted from Valentina (transplant_clips.py). Feet put on the floor by ground_clips.py. Own clip DJ (character_clips.py --character dj), made on his body: one bar at 120 BPM (48 frames, 2 s), played behind a booth whose top is about 1.00 m high: the right hand scratches on its deck while the left turns a knob on the mixer, the hands lie flat and swap halfway, the right arm goes up in the air on the fourth beat and back down, the head nods on every beat, the knees and shoulders bounce, the feet stay planted.",
+      "skeleton": "coach-panic",
+      "clips": {
+        "Run": {
+          "pop": true,
+          "why": "the knee swings about 42 degrees a frame in a fast run, as in the Coach's own clip"
+        },
+        "Swim": {
+          "prone": true
+        }
+      },
+      "retargeted": [
+        "IdleScan",
+        "IdleScratch",
+        "Panic",
+        "Run",
+        "Swim",
+        "Walk"
+      ],
+      "own": [
+        "DJ"
+      ],
+      "premium": true
+    },
+    {
+      "id": "bartender",
+      "name": "The bartender",
+      "file": "../../dist/assets/models/bartender.glb",
+      "note": "The Rooftop Pool's bartender, 1.75 m. Slicked-back dark hair, a curled handlebar moustache, big white cartoon eyes, a white shirt with the sleeves rolled up, a black waistcoat and bow tie, a charcoal bistro apron to the knees, black trousers and shoes. No mouth. Meshy 7 mesh (fal meshy/v7/image-to-3d) from a GPT Image 2.5 T-pose made in the game's style (the swimmers and Valentina as references), about 10k tris. Rigged on Coach Waters' own 24-bone skeleton (rig_from_template.py --set y_crotch=0.68: the apron hides where the legs part), with the Coach's clips retargeted onto it (retarget_clips.py: Walk, Run, IdleScan, IdleScratch, Panic, Swim): the same motion, hip travel x1.01. The apron is skinned to the thighs, so it follows them like trousers in a run. Feet put on the floor by ground_clips.py. Own clip Shake (character_clips.py --character bartender), made on his body behind a counter about 1.1 m high: 2 s (48 frames), two hard shakes a beat by his right shoulder (the right hand on the cap, the left under the base), then the shaker tipped over a glass on the counter, the left hand steadying it, the pour rising, and back up. The shaker itself is the game's to put in his right hand.",
+      "skeleton": "coach-panic",
+      "clips": {
+        "Run": {
+          "pop": true,
+          "why": "the knee swings about 42 degrees a frame in a fast run, as in the Coach's own clip"
+        },
+        "Swim": {
+          "prone": true
+        }
+      },
+      "retargeted": [
+        "IdleScan",
+        "IdleScratch",
+        "Panic",
+        "Run",
+        "Swim",
+        "Walk"
+      ],
+      "own": [
+        "Shake"
+      ],
+      "premium": true
+    },
+    {
       "id": "karen",
       "name": "Karen",
       "file": "../../dist/assets/models/karen.glb",
