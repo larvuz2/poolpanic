@@ -1360,7 +1360,7 @@ export class PoolSimulation extends ChaosController {
       return true;
     }
     p.stunned = Math.max(0, (p.stunned || 0) - dt);
-    // (Wet spots trip the guests; the coach, who mops them, walks on them carefully: incidents/wet.mjs.)
+    // (Wet spots trip the guests here; the coach slips in them in coach.mjs: incidents/wet.mjs.)
     const wet = wetSpotAt(this, p.x, p.z);
     if (!p.stunned && (wet || this.slipperyAt(p.x, p.z, 0.6))) {
       p.slipTime = 0.65;

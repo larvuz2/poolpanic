@@ -40,10 +40,11 @@ the same twice: see `docs/incidents.md`).
    the deck; the coach can wade; lots of VIPs; 14 Tripo props, a Meshy DJ and bartender; `dist/rooftop.mjs`, `dist/roof-plan.mjs`,
    `dist/scene/rooftop.mjs`, `dist/scene/city.mjs`; deep house built round the drops) and the Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
    running (the creator wants that). In every pool **one swimmer in five climbing out drips a wet spot** that never dries until the coach
-   mops it (Q, `dist/incidents/wet.mjs`), and a tummy ache can be a poo or **a wee** (yellow water, chlorine only). **Marco swims in
+   mops it (Q, `dist/incidents/wet.mjs`; the coach slips in one too, down for 1.3 s, unless he jumps over it), and a tummy ache can be a poo or **a wee** (yellow water, chlorine only). **Marco swims in
    more than half of all shifts, in every pool but the Kids Pool and the Rooftop Pool** (`STAR_CHANCE`, 0.66; at Senior Aqua Fit, the Lazy River and the Wave Pool too), and **VIPs come in every
    shift**, more as the run goes on (the creator wants to see them often); incidents drawn by a director
-   (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder). A shift not passed pays nothing but the week goes on. Marina's
+   (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder: one new incident a shift from the first Tuesday, all five
+   met in week 1, then a fair mix where one that just came is less likely, `RECENT`). A shift not passed pays nothing but the week goes on. Marina's
    wishes for each shift, tips and a shop that never touch the Date Fund. Every level a run passes opens in **free play** (the level map,
    behind a small link under START, like a level select). Marina never appears on the deck: only in texts, wishes and full-screen
    scenes, whose videos the creator will add (`VIDEOS` in `dist/marina.mjs`); until then each scene shows a still (`ART` in

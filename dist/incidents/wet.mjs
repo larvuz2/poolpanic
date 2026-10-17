@@ -1,7 +1,8 @@
 // 💧 Wet spots and the mop (16 October 2026, the creator: "a new mechanic that I want as a whole", in every pool). One in five
 // swimmers who climb out of the pool leave a wet spot on the deck where they got out (`WET_TUNING.chance`, from a random stream of
 // its own so nothing else in the shift moves). A spot never dries: it stays until the coach mops it. Anyone who walks or runs over
-// one slips, gets cross and costs points (a failed little incident), so the coach grabs the mop from its bucket (the mop fixture),
+// one slips, gets cross and costs points (a failed little incident), and the coach who steps in one goes down for a moment too
+// (coach.mjs, `coachSlip`), so the coach grabs the mop from its bucket (the mop fixture),
 // walks over and mops (E). It is a chore, not an incident: it never counts towards the incidents a shift may run at once, and it
 // never holds the clock.
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -16,6 +17,7 @@ export const WET_TUNING = {
   bonus: 10, // points for a spot mopped
   spacing: 1.1, // a new spot this close to an old one just makes the old one wetter
   max: 10, // spots on the deck at once
+  coachSlip: 1.3, // seconds the coach is down when he steps in one (jump over it, or go round)
 };
 const T = WET_TUNING;
 

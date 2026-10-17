@@ -1,5 +1,5 @@
 // Wet spots and the mop (dist/incidents/wet.mjs, 16 October 2026, in every pool): one in five swimmers climbing out drips a wet spot
-// where they got out; it never dries; a guest who walks over it slips, is cross and costs points; the coach (who does not slip on it)
+// where they got out; it never dries; a guest who walks over it slips, is cross and costs points; the coach slips in it too (down for a second; he can jump over it) and
 // grabs the mop from its bucket, mops it with E and puts the mop back; it is a chore, never an incident; the bot does it too.
 import assert from "node:assert/strict";
 import { PoolSimulation, SHIFTS } from "./dist/sim.mjs";
@@ -95,7 +95,7 @@ assert.ok(INPUTS.includes("mop"), "the mop button is an input a replay plays bac
   assert.ok(stays.wetSpots.includes(spot), "two minutes later it is still there");
 }
 
-// 4) A guest who walks over a spot slips, loses more happiness than in a puddle, and it costs points; the coach does not slip on it.
+// 4) A guest who walks over a spot slips, loses more happiness than in a puddle, and it costs points.
 {
   const s = quiet();
   const spot = addWetSpot(s, 9, -10.2);
@@ -112,8 +112,61 @@ assert.ok(INPUTS.includes("mop"), "the mop button is an input a replay plays bac
   );
   assert.ok(s.events.some((e) => e.type === "points" && e.value === -T.penalty));
   assert.equal(s.stats.wetSlips, 1);
-  assert.equal(s.slipperyAt(spot.x, spot.z, 0.6), false, "the coach walks over it");
   assert.equal(wetSpotAt(s, spot.x, spot.z), spot);
+}
+
+// 4b) The coach slips too (the creator, 17 October 2026: "if the coach steps over them, the coach needs to slip… a second or a
+// second and a half"): walking into a spot he goes down for WET_TUNING.coachSlip seconds and cannot move, gets up, and walks
+// off it without falling again; jumping over one is safe.
+{
+  const s = quiet();
+  const spot = addWetSpot(s, -9, -10.2);
+  const c = s.coach;
+  Object.assign(c, { x: spot.x - 2, z: spot.z, vx: 0, vz: 0 });
+  s.events.length = 0;
+  let f = 0;
+  while (!c.slipTime && f++ < 300) {
+    s.setMovement(1, 0);
+    tick(s);
+  }
+  assert.ok(c.slipTime > 0, "he slips in it");
+  assert.ok(
+    s.events.some((e) => e.type === "coach-slip" && e.wet),
+    "a wet slip",
+  );
+  assert.ok(T.coachSlip >= 1 && T.coachSlip <= 1.5, "down for a second or so");
+  const at = { x: c.x, z: c.z },
+    t0 = s.time;
+  while (c.slipTime > 0) {
+    s.setMovement(1, 0);
+    tick(s);
+  }
+  assert.ok(Math.abs(s.time - t0 - T.coachSlip) < 0.05, "down for " + (s.time - t0).toFixed(2) + " s");
+  assert.ok(Math.hypot(c.x - at.x, c.z - at.z) < 0.15, "he does not move while down");
+  s.events.length = 0;
+  for (let i = 0; i < 120; i++) {
+    s.setMovement(1, 0);
+    tick(s);
+  }
+  assert.ok(c.x > spot.x + spot.r, "back up, he walks off it");
+  assert.ok(!s.events.some((e) => e.type === "coach-slip"), "without falling again");
+  assert.equal(s.stats.coachWetSlips, 1);
+  assert.equal(s.score, quiet().score, "it costs time, not points");
+  // Jumping over it.
+  const j = quiet();
+  const wet = addWetSpot(j, -9, -10.2);
+  Object.assign(j.coach, { x: wet.x - 3, z: wet.z, vx: 0, vz: 0 });
+  for (let i = 0; i < 200 && j.coach.x < wet.x - wet.r - 0.7; i++) {
+    j.setMovement(1, 0);
+    tick(j);
+  }
+  j.jump();
+  for (let i = 0; i < 60; i++) {
+    j.setMovement(1, 0);
+    tick(j);
+  }
+  assert.ok(j.coach.x > wet.x + wet.r, "over it");
+  assert.equal(j.stats.coachWetSlips || 0, 0, "a jump clears it");
 }
 
 // 5) The mop: grab it from the bucket (E), walk onto the spot, mop it (E, a short while), put it back. The button (Q) does the same.
@@ -171,5 +224,5 @@ for (const venue of ["club", "resort", "disco"]) {
   assert.ok(s.wetSpots.length <= 2, venue + ": and left the deck nearly dry");
 }
 console.log(
-  "Wet checks passed: a mop bucket in every pool, one in five swimmers climbing out dripping a spot that never dries, a slip, a cross guest and lost points for whoever walks over one (never the coach), the mop grabbed, used and put back (E or Q), spots that merge, and the bot mopping in every pool.",
+  "Wet checks passed: a mop bucket in every pool, one in five swimmers climbing out dripping a spot that never dries, a slip, a cross guest and lost points for a guest who walks over one, the coach down on his back for a second if he steps in one (a jump clears it), the mop grabbed, used and put back (E or Q), spots that merge, and the bot mopping in every pool.",
 );

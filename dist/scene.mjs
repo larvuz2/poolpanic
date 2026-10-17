@@ -1323,7 +1323,7 @@ export class PoolWorld extends SceneKit {
       this.coachHalo.visible = false;
       this.dashTrail.visible = false;
     } else cu.shadow.visible = true;
-    if (!c.swimming && !c.waterTransition) this.slipPose(cu, c.slipTime, 0.7);
+    if (!c.swimming && !c.waterTransition) this.slipPose(cu, c.slipTime, c.slipLength || 0.7);
     if (c.carry === "skimmer") {
       const waste = cu.carry.getObjectByName("caught-waste");
       if (waste) waste.visible = !!c.skimmerLoaded;
