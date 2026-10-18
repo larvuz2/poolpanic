@@ -212,6 +212,7 @@ export class PoolAudio {
     if (this.waveEffect(type, e, t)) return;
     if (this.roofEffect(type, e, t)) return;
     if (this.shipEffect(type, e, t)) return;
+    if (this.onsenEffect(type, e, t)) return;
     if (type === "dog-notice" || type === "dog-steal" || type === "dog-bowl") {
       const n = type === "dog-notice" ? 3 : 2;
       for (let i = 0; i < n; i++) {
@@ -502,6 +503,31 @@ export class PoolAudio {
     } else return false;
     return true;
   }
+  // The Mountain Hot Springs' sounds (onsen.mjs). True when `type` was one of them.
+  onsenEffect(type, e, t) {
+    if (type === "monkey") {
+      // A snow monkey out of the woods: a quick "ook-ook-ook" chatter.
+      for (let i = 0; i < 3; i++) this.tone(640 + i * 40, t + i * 0.11, 0.08, 0.07, "triangle", 980 + i * 60);
+    } else if (type === "monkey-in") {
+      // In it goes: a plop, and a happy hoot.
+      this.noise(t, 0.35, 0.12, 600);
+      this.tone(70, t, 0.25, 0.1, "sine", 45);
+      this.tone(520, t + 0.25, 0.3, 0.07, "triangle", 900);
+    } else if (type === "monkey-shooed") {
+      // A screech and a scamper through the snow.
+      this.tone(1400, t, 0.18, 0.07, "sawtooth", 2100);
+      for (let i = 0; i < 5; i++) this.noise(t + 0.15 + i * 0.07, 0.05, 0.05, 1500);
+      if (e.out) this.noise(t, 0.3, 0.1, 700);
+    } else if (type === "step-in") {
+      // Stepping down into the hot water.
+      this.noise(t, 0.25, 0.05, 700);
+    } else if (type === "sit-in") {
+      // Settling in up to the shoulders: a contented "ahh".
+      this.tone(330, t, 0.5, 0.03, "triangle", 262);
+      this.noise(t, 0.4, 0.03, 500);
+    } else return false;
+    return true;
+  }
   // Incident sting: a brass-style stab under a short motif of its own, so each problem is recognisable by ear.
   // The first sighting gets a longer tail while the lesson is on screen.
   sting(kind, first = false) {
@@ -516,6 +542,7 @@ export class PoolAudio {
         "crash",
         "knockout",
         "overboard",
+        "monkey-in",
       ].includes(kind);
     // The hit: a low thump, a burst of air, and a two-note stab (a tritone when someone is in danger).
     this.tone(95, t, 0.35, 0.3, "sine", 45);
@@ -595,6 +622,16 @@ export class PoolAudio {
         overboard: () => {
           this.tone(1200, at, 0.55, 0.1, "sine", 300);
           this.noise(at + 0.5, 0.5, 0.14, 420);
+        },
+        monkey: () =>
+          [0, 1, 2, 3].forEach((i) =>
+            this.tone(700 + (i % 2) * 180, at + i * 0.09, 0.08, 0.09, "triangle", 1100),
+          ),
+        "monkey-in": () => {
+          this.noise(at, 0.4, 0.14, 500);
+          [1200, 1500, 1200].forEach((f, i) =>
+            this.tone(f, at + 0.2 + i * 0.1, 0.09, 0.08, "sawtooth", f * 1.3),
+          );
         },
         class: () =>
           [0, 1, 2, 3, 4].forEach((i) =>

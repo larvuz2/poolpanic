@@ -109,18 +109,35 @@ export function plan(s, to) {
 }
 
 // Walk to a point with real input along a planned path.
+// On ice (the hot springs: `venue.ice`) a straight push overshoots and slides past, so the bot steers like a skater: it aims a
+// velocity at the point, no faster than it can brake from (pushing against the slide grips at `ice.grip`), and pushes the
+// difference. Anywhere else it pushes straight at the point, as before.
+export function steer(s, point, last = true) {
+  const c = s.coach,
+    dx = point.x - c.x,
+    dz = point.z - c.z,
+    n = Math.hypot(dx, dz) || 1,
+    ice = s.venue.ice;
+  if (!ice || c.wading || c.swimming) return s.setMovement(dx / n, dz / n);
+  const top = 7.6 * ice.top,
+    room = last ? n : n + 1.2,
+    want = Math.min(top, Math.sqrt(2 * ice.grip * 0.55 * Math.max(0, room - 0.05))),
+    vx = (dx / n) * want,
+    vz = (dz / n) * want;
+  s.setMovement((vx + (vx - c.vx) * 1.6) / top, (vz + (vz - c.vz) * 1.6) / top);
+}
 export function go(s, x, z, limit = 1500) {
-  for (const point of plan(s, { x, z })) {
+  const path = plan(s, { x, z });
+  path.forEach((point, k) => {
     let f = 0;
-    while (Math.hypot(s.coach.x - point.x, s.coach.z - point.z) > 0.12 && f++ < limit) {
-      const dx = point.x - s.coach.x,
-        dz = point.z - s.coach.z,
-        n = Math.hypot(dx, dz);
-      s.setMovement(dx / n, dz / n);
+    const last = k === path.length - 1,
+      near = s.venue.ice && !last ? 0.45 : 0.12;
+    while (Math.hypot(s.coach.x - point.x, s.coach.z - point.z) > near && f++ < limit) {
+      steer(s, point, last);
       tick(s);
       if (s.coach.swimming || s.coach.waterTransition) break;
     }
-  }
+  });
   s.clearInput();
 }
 // Chase a moving target, re-planning often, until `done()` or the frame limit.
@@ -133,11 +150,7 @@ export function pursue(s, target, done, limit = 1200) {
       replan = 8;
     }
     while (path.length > 1 && Math.hypot(path[0].x - s.coach.x, path[0].z - s.coach.z) < 0.3) path.shift();
-    const next = path[0],
-      dx = next.x - s.coach.x,
-      dz = next.z - s.coach.z,
-      n = Math.hypot(dx, dz) || 1;
-    s.setMovement(dx / n, dz / n);
+    steer(s, path[0], path.length === 1);
     tick(s);
   }
   s.clearInput();

@@ -513,8 +513,10 @@ const launch = (s, kind) => {
     "no lanes: no swim team, class or closed lane",
   );
   let drawn = 0;
-  for (let c = 1; c <= 30; c++) if (weekPools(c, 777).includes("wave")) drawn++;
-  assert.ok(drawn >= 10, "drawn into the weeks (" + drawn + " of 30)");
+  // (Over 300 weeks: six of the pools a week, so about 6 in 13 of them; at least 3 in 10.)
+  for (let seed = 1; seed <= 10; seed++)
+    for (let c = 1; c <= 30; c++) if (weekPools(c, seed * 7717).includes("wave")) drawn++;
+  assert.ok(drawn >= 90, "drawn into the weeks (" + drawn + " of 300)");
   assert.ok(scoreScale("wave", 5) > 0 && scoreScale("wave", 18) > 0);
   const song = SONGS.wave;
   assert.ok(song && song.score === waveScore && song.level > 0);

@@ -573,6 +573,115 @@ export function cruiseScore(step, panic = false) {
   return out;
 }
 
+// ---- the Mountain Hot Springs' song (18 October 2026) -------------------------------------------------------------------------
+// A slow, steamy piece at 72 BPM on the Japanese in scale from D (D E♭ G A B♭): a low drone that changes each bar (D, B♭, G, A),
+// a taiko on the bar and a soft one on beat three, wind chimes now and then. Eight bars of the tune on a plucked koto, with the
+// shakuhachi holding a long note under each bar; then eight with the shakuhachi singing the tune, breathy and gliding, and the koto
+// rippling up the chord. A temple bell in the first bar of each cycle.
+export const ONSEN_BPM = 72;
+export const ONSEN_STEP = 60 / ONSEN_BPM / 4;
+export const ONSEN_ROOTS = [38, 34, 43, 45]; // D2 B♭1 G2 A2
+const ONSEN_ARP = [
+  [0, 7, 12, 13, 19],
+  [0, 7, 12, 17, 19],
+  [0, 7, 12, 14, 19],
+  [0, 7, 12, 13, 17],
+];
+// The tune: eight bars of [MIDI note (null a rest), sixteenths].
+const ONSEN_BARS = [
+  [
+    [74, 4],
+    [75, 2],
+    [74, 2],
+    [70, 4],
+    [69, 4],
+  ],
+  [
+    [67, 6],
+    [69, 2],
+    [70, 4],
+    [null, 4],
+  ],
+  [
+    [74, 2],
+    [79, 2],
+    [75, 4],
+    [74, 4],
+    [70, 4],
+  ],
+  [
+    [69, 8],
+    [null, 8],
+  ],
+  [
+    [62, 2],
+    [63, 2],
+    [67, 4],
+    [69, 2],
+    [70, 2],
+    [74, 4],
+  ],
+  [
+    [75, 4],
+    [74, 2],
+    [70, 2],
+    [69, 8],
+  ],
+  [
+    [70, 4],
+    [69, 2],
+    [67, 2],
+    [63, 4],
+    [62, 4],
+  ],
+  [
+    [62, 12],
+    [null, 4],
+  ],
+];
+export const ONSEN_TUNE = ONSEN_BARS.flatMap((bar) =>
+  bar.flatMap(([note, len]) => Array.from({ length: len }, (_, i) => ({ note, start: i === 0, len }))),
+);
+export const ONSEN_INTRO = 2;
+export const ONSEN_CYCLE = 16;
+export const onsenSection = (bar) =>
+  bar < ONSEN_INTRO ? "intro" : (bar - ONSEN_INTRO) % ONSEN_CYCLE < 8 ? "koto" : "flute";
+export function onsenScore(step, panic = false) {
+  const out = [],
+    bar = Math.floor(step / STEPS_PER_BAR),
+    s = step % STEPS_PER_BAR,
+    chord = bar % 4,
+    root = ONSEN_ROOTS[chord],
+    part = onsenSection(bar),
+    inCycle = bar < ONSEN_INTRO ? bar : (bar - ONSEN_INTRO) % ONSEN_CYCLE,
+    add = (voice, extra = {}) => out.push({ voice, ...extra });
+  // The drone and the taiko.
+  if (s === 0) add("drone", { notes: [root, root + 7], len: ONSEN_STEP * 16 });
+  if (s === 0) add("taiko", { vol: 1 });
+  if (s === 8 && part !== "intro") add("taiko", { vol: 0.45 });
+  if (inCycle === 7 && (s === 12 || s === 14)) add("taiko", { vol: 0.6 });
+  // Wind chimes: a few soft high notes here and there.
+  if ((s === 6 && bar % 3 === 1) || (s === 13 && bar % 4 === 2))
+    add("chime", { note: 86 + ((bar * 5) % 3) * 3 });
+  if (part !== "intro" && inCycle === 0 && s === 0) add("temple", { note: 50 });
+  if (part === "intro") {
+    if (s === 0 && bar === 0) add("temple", { note: 50 });
+    return out;
+  }
+  const t = ONSEN_TUNE[(inCycle % 8) * STEPS_PER_BAR + s];
+  if (part === "koto") {
+    if (t?.note && t.start) add("koto", { note: t.note });
+    // The shakuhachi under the bar: one long low note.
+    if (s === 0) add("flute", { note: root + 24 + 7, len: ONSEN_STEP * 14, vol: 0.45 });
+  } else {
+    if (t?.note && t.start) add("flute", { note: t.note, len: ONSEN_STEP * Math.max(2, t.len) * 1.1 });
+    // The koto ripples up the chord on the eighths.
+    if (s % 2 === 0) add("koto", { note: root + 24 + ONSEN_ARP[chord][(s / 2) % 5], vol: 0.45 });
+  }
+  if (panic && s % 4 === 0 && Math.floor(s / 4) % 2 === 0) add("alarm", { note: s === 0 ? 84 : 79 });
+  return out;
+}
+
 export const SONGS = {
   disco: { step: STEP, score: discoScore, level: 1 },
   // (The kids' lighter voices, brought up to the disco's loudness: measured from both songs rendered offline.)
@@ -587,6 +696,8 @@ export const SONGS = {
   roof: { step: ROOF_STEP, score: roofScore, level: 1 },
   // (The cruise's soft voices, set to the river's level: they share its pan and congas; not measured.)
   cruise: { step: CRUISE_STEP, score: cruiseScore, level: 2.05 },
+  // (The hot springs' soft voices, set to the river's level; not measured.)
+  onsen: { step: ONSEN_STEP, score: onsenScore, level: 2.05 },
 };
 
 const release = (...nodes) => {
@@ -886,6 +997,36 @@ export class DiscoMusic {
       case "alarm":
         this.voice("square", midi(n.note), t, 0.12, 0.05, this.drums);
         break;
+      // The hot springs' song's own voices.
+      case "drone":
+        n.notes.forEach((note) => this.voice("triangle", midi(note), t, n.len, 0.06, this.synth, null, 0.6));
+        break;
+      case "taiko":
+        // A big drum: a low skin with a slap on top.
+        this.voice("sine", 82, t, 0.7, 0.4 * vol, this.drums, 48, 0.003);
+        this.hiss(t, 0.08, 0.05 * vol, 600, "bandpass");
+        break;
+      case "chime":
+        this.voice("sine", midi(n.note), t, 1.4, 0.022, this.synth, null, 0.002);
+        this.voice("sine", midi(n.note) * 2.76, t, 0.5, 0.006, this.synth, null, 0.002);
+        break;
+      case "temple":
+        // A temple bell, long and low, its overtones beating.
+        this.voice("sine", midi(n.note), t, 4, 0.08, this.synth, null, 0.004);
+        this.voice("sine", midi(n.note) * 2.01, t, 3, 0.03, this.synth, null, 0.004);
+        this.voice("sine", midi(n.note) * 2.98, t, 1.6, 0.015, this.synth, null, 0.004);
+        break;
+      case "koto":
+        // A plucked string: a bright attack bending down onto the note, and a quick fall.
+        this.voice("triangle", midi(n.note) * 1.012, t, 0.55, 0.07 * vol, this.synth, midi(n.note), 0.002);
+        this.voice("sawtooth", midi(n.note), t, 0.12, 0.018 * vol, this.synth, null, 0.001);
+        this.voice("sine", midi(n.note) * 2, t, 0.25, 0.02 * vol, this.synth, null, 0.002);
+        break;
+      case "flute":
+        // The shakuhachi: a slow, breathy sine sliding up onto the note.
+        this.voice("sine", midi(n.note) * 0.97, t, n.len, 0.05 * vol, this.synth, midi(n.note), 0.12);
+        this.hiss(t, Math.min(0.6, n.len), 0.012 * vol, midi(n.note) * 2, "bandpass", this.synth);
+        break;
       // The Rooftop Pool's drop: a deep boom with a burst of noise.
       case "impact":
         this.voice("sine", 70, t, 1.4, 0.6, this.drums, 28, 0.002);
@@ -916,7 +1057,7 @@ export class DiscoMusic {
       // (The kids' song keeps its filter open; the tea dance a little warmer.)
       this.filter.frequency.cancelScheduledValues(t);
       this.filter.frequency.setValueAtTime(
-        song === SONGS.senior || song === SONGS.cruise
+        song === SONGS.senior || song === SONGS.cruise || song === SONGS.onsen
           ? 2400
           : song === SONGS.river
             ? 3000

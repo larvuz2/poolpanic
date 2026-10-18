@@ -192,6 +192,21 @@ export const STINGS = {
     how: "A big swell rolled the ship and {name} slid right off the deck into the pool. Get to the edge by them and help them out (E) before they climb out by themselves, soaked and furious. When the bell warns of a swell, keep people away from the pool's ends.",
     tone: "danger",
   },
+  // The Mountain Hot Springs (onsen.mjs).
+  monkey: {
+    icon: "🐒",
+    title: "SNOW MONKEY!",
+    verb: "Run into it before it reaches Spring {spring}",
+    how: "A snow monkey has come out of the forest for the hot water. Get to it before it hops into Spring {spring}: run into it (or press E beside it) and it scampers back into the woods. Mind the ice: you slide!",
+    tone: "warning",
+  },
+  "monkey-in": {
+    icon: "🐒",
+    title: "MONKEY IN THE SPRING!",
+    verb: "Shoo it out · E at the rim",
+    how: "A monkey got into Spring {spring} and everyone in it is panicking. Go to the rim beside it and press E (or wade in up to it) to shoo it out before the guests storm off.",
+    tone: "danger",
+  },
   crash: {
     icon: "💥",
     title: "CRASH!",
@@ -221,6 +236,8 @@ export const SAVES = {
   "selfie-stopped": { stamp: "NOT TODAY!", tier: 2 },
   hauled: { stamp: "HAULED BACK!", tier: 2 },
   margarita: { stamp: "CHEERS!", tier: 1 },
+  "monkey-shooed": { stamp: "SHOO!", tier: 1 },
+  "monkey-out": { stamp: "OUT YOU GO!", tier: 2 },
 };
 
 export const MOMENT_TIMING = {

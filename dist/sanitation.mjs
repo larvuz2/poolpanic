@@ -1,6 +1,7 @@
 import { CoachController } from "./coach.mjs";
 import { ENTRY } from "./spatial.mjs";
 import { WAVE } from "./waves.mjs";
+import { onsenOutPath, onsenWaterSpot, keepInSpring } from "./onsen.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export class SanitationController extends CoachController {
@@ -224,6 +225,11 @@ export class SanitationController extends CoachController {
       p.path = [deck.water, deck.deck];
       return;
     }
+    // (Out of a hot spring: to the rim beside them, or out by its steps if a boulder is there.)
+    if (this.venue.onsen && p.evacWater) {
+      p.path = onsenOutPath(this, p);
+      return;
+    }
     // (Out of the waves: up the beach.)
     if (this.venue.waves && p.evacWater) {
       p.path = [
@@ -303,6 +309,7 @@ export class SanitationController extends CoachController {
   waterSpot(p) {
     const river = this.venue.river,
       P = this.venue.pool;
+    if (this.venue.onsen) return onsenWaterSpot(p);
     return river
       ? river.clamp(p.x, p.z, 0.9)
       : { x: clamp(p.x, -P.entryX, P.entryX), z: clamp(p.z, -P.entryZ, P.entryZ) };
@@ -316,6 +323,7 @@ export class SanitationController extends CoachController {
       stage: "floating",
       x: at.x,
       z: at.z,
+      spring: at.spring, // (the hot springs: which one it is in)
       vx: 0.48,
       vz: 0.62,
       phase: this.random() * 6.28,
@@ -352,6 +360,7 @@ export class SanitationController extends CoachController {
       stage: "treat",
       x: at.x,
       z: at.z,
+      spring: at.spring,
       elapsed: 0,
       settle: 0,
     };
@@ -419,7 +428,8 @@ export class SanitationController extends CoachController {
       q.z += q.vz * dt;
       const P = this.venue.pool,
         river = this.venue.river;
-      if (river) {
+      if (this.venue.onsen) keepInSpring(q);
+      else if (river) {
         // Kept in the river's channel: off a bank it turns back into the water.
         if (river.clearance(q.x, q.z, 0.9) < 0) {
           const back = river.clamp(q.x, q.z, 0.9);

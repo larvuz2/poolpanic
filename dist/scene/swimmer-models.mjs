@@ -49,6 +49,9 @@ export const CLIPS = {
   // time the beat says, like the dances (scene/roof-view.mjs).
   dj: "DJ",
   shake: "Shake",
+  // The hot springs (18 October 2026): waiting in the snow, cold through, arms crossed tight and hugging themselves, shivering
+  // (the five swimmers and Marco).
+  cold: "ColdHug",
 };
 const DANCES = new Set(["danceRight", "danceLeft", "danceBoth", "dj", "shake"]);
 // A model must have these; one without Panic hops with the classic swimmer's poses instead, one without Swim swims with
@@ -486,6 +489,7 @@ export class SwimmerRig {
       seat = null, // "sit" or "push": a senior in a wheelchair, still or rolling (scene/senior-view.mjs)
       stand = null, // seconds into getting up out of the wheelchair (StandUp; sitting down plays it backwards)
       tube = null, // the Lazy River: {float: true} lying back in a tube, {board: seconds} into TubeBoard (scene/river-view.mjs)
+      cold = false, // the hot springs: cold through, waiting in the snow (ColdHug when standing)
     } = {},
   ) {
     let want;
@@ -530,6 +534,7 @@ export class SwimmerRig {
       this.scratchAfter = SwimmerRig.scratchDelay();
     }
     if (carrying) want = { idle: "carry", walk: "carryWalk", run: "carryRun" }[want] || want;
+    if (cold && this.actions.cold && (want === "idle" || want === "scratch")) want = "cold";
     const dumping = dump !== null && !!this.actions.dump;
     if (dumping) want = "dump";
     const dancing = !!dance && !!this.actions[dance.clip] && !panic && !jumping;

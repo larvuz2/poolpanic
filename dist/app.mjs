@@ -93,6 +93,8 @@ import { waveBoard } from "./waves.mjs";
 import { BATHE } from "./wave-pool.mjs";
 import { CHILL, GUEST_KIND, nextDrop } from "./rooftop.mjs";
 import { slide } from "./ship.mjs";
+import { SOAK, springGuests, monkeyIn } from "./onsen.mjs";
+import { SPRINGS } from "./onsen-plan.mjs";
 import { Achievements } from "./achievements.mjs";
 import { isDesktop, quitGame, richPresence, unlockAchievement } from "./platform.mjs";
 import * as hunts from "./bisect.mjs";
@@ -233,7 +235,8 @@ audio.clock = () =>
     sim?.venue?.river ||
     sim?.venue?.waves ||
     sim?.venue?.roof ||
-    sim?.venue?.cruise) &&
+    sim?.venue?.cruise ||
+    sim?.venue?.onsen) &&
   (mode === "playing" || mode === "countdown")
     ? {
         time: sim.time,
@@ -251,7 +254,9 @@ audio.clock = () =>
                   ? "roof"
                   : sim.venue.cruise
                     ? "cruise"
-                    : "disco",
+                    : sim.venue.onsen
+                      ? "onsen"
+                      : "disco",
         // (The Rooftop Pool's DJ builds to the drops the simulation has planned, on its bar lines: rooftop.mjs.)
         drops: sim.roof?.drops || null,
       }
@@ -1581,7 +1586,7 @@ function syncVenue(s) {
   }
 }
 // The Aqua Disco has zones of open water where the other pools have lanes (the same thing to the simulation).
-const laneWord = (sim) => (sim?.venue?.class ? "Zone" : "Lane");
+const laneWord = (sim) => (sim?.venue?.class ? "Zone" : sim?.venue?.onsen ? "Spring" : "Lane");
 function renderLaneControls(venue) {
   // The kit's names: the Lazy River's rack and the Wave Pool's hut hold tubes, not fins.
   const tubes = venue.river || venue.waves;
@@ -1622,7 +1627,7 @@ function renderLaneControls(venue) {
     $("lane-controls").classList.remove("five-lanes");
     return;
   }
-  const word = venue.class ? "ZONE" : "LANE";
+  const word = venue.class ? "ZONE" : venue.onsen ? "SPRING" : "LANE";
   $("lane-controls").innerHTML =
     venue.lanes
       .map(
@@ -2286,6 +2291,9 @@ function problemIcon(p) {
   if (p.problem === "cramp" && p.under) return "🌊";
   if (p.status === "panic" || p.status === "evacuating" || p.status === "fleeing") return "😱";
   if (p.status === "queue" && sim.fish?.stage === "loose") return "😱";
+  // (The hot springs: a monkey in their spring, or freezing in the snow.)
+  if (p.monkeyScare && p.status === "swim") return "😱";
+  if (sim.venue.onsen && p.status === "queue" && (p.cold || 0) > SOAK.coldFrom) return "🥶";
   return p.problem === "fins"
     ? sim.venue.river || sim.venue.waves
       ? "🛟"
@@ -2311,6 +2319,22 @@ function problemIcon(p) {
                       : "🙂";
 }
 function cardStatus(p) {
+  // The hot springs: how cold they are getting in the snow, where they are off to, a monkey in their spring.
+  if (sim.venue.onsen && !p.stomachWarning && !p.problem) {
+    const cold = p.cold || 0;
+    if (p.status === "queue")
+      return (
+        roofLook(p).label +
+        (cold > 0.75
+          ? " · ❄️ FREEZING! Send them to a spring"
+          : cold > SOAK.coldFrom
+            ? " · ❄️ getting cold"
+            : "")
+      );
+    if (p.status === "enter") return "Off to Spring " + (p.lane + 1);
+    if (p.status === "swim")
+      return "Spring " + (p.lane + 1) + (p.monkeyScare ? " · 🐒 A MONKEY! Panicking" : " · soaking ♨️");
+  }
   if (p.status === "queue")
     return p.type === "daredevil"
       ? "Daredevil · wants the trampoline"
@@ -2537,7 +2561,9 @@ function updateQueue() {
                   ? p.lap
                     ? "Floating to the exit dock"
                     : "Riding the river"
-                  : "Pick a lane to move them"
+                  : sim.venue.onsen
+                    ? "Soaking in Spring " + (p.lane + 1) + ((p.cold || 0) > 0.1 ? " · warming up" : "")
+                    : "Pick a lane to move them"
                 : profile.speed
                   ? profile.speed + "× pace"
                   : "Aqua class") +
@@ -2803,6 +2829,29 @@ function updateUI() {
     b.classList.toggle("danger", average < 50 || people.some((p) => p.blocked > 3));
     // (At the Aqua Disco a zone holds CLASS_ROOM dancers; more and they crowd each other.)
     const zone = !!sim.venue.class;
+    // (At the hot springs a spring has its seats: FULL when they are all taken, MONKEY! when one is sitting in it.)
+    if (sim.venue.onsen) {
+      const guests = springGuests(sim, i),
+        cap = SPRINGS[i].cap,
+        monkey = !!monkeyIn(sim, i);
+      b.classList.toggle("danger", monkey || average < 50);
+      b.classList.toggle("assignable", b.classList.contains("assignable") && guests.length < cap);
+      b.querySelector(".lane-mode").textContent = monkey
+        ? "MONKEY!"
+        : guests.length >= cap
+          ? "FULL"
+          : guests.length === 0
+            ? "OPEN"
+            : "ROOM";
+      b.querySelector(".lane-count").textContent = monkey
+        ? "🐒 Shoo it out!"
+        : guests.length + " of " + cap + " seats";
+      b.querySelector(".lane-caps").innerHTML = guests
+        .map((p) => '<i style="background:' + roofLook(p).color + '"></i>')
+        .join("");
+      b.disabled = mode !== "playing" || !!sim.rescue;
+      continue;
+    }
     b.querySelector(".lane-mode").textContent = closed
       ? "CLOSED"
       : splash

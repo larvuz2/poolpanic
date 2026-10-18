@@ -14,6 +14,8 @@ import { WaveMachine } from "./wave-pool.mjs";
 import { WAVE } from "./waves.mjs";
 import { RooftopParty } from "./rooftop.mjs";
 import { ShipDeck } from "./ship.mjs";
+import { SnowMonkeys, onsenOutPath } from "./onsen.mjs";
+import { nearestSpring } from "./onsen-plan.mjs";
 import {
   Trampoline,
   tickJumper,
@@ -35,6 +37,7 @@ export const SYSTEMS = [
   WaveMachine,
   RooftopParty,
   ShipDeck,
+  SnowMonkeys,
   WetSpots,
 ];
 
@@ -306,6 +309,19 @@ export class ChaosController extends RescueController {
     p.circleDir = this.chaosRandom() < 0.5 ? -1 : 1;
     p.circleAngle = this.chaosRandom() * Math.PI * 2;
     const river = this.venue.river;
+    if (this.venue.onsen) {
+      // Out of a hot spring: to the rim beside them (or its steps), up onto it, then the panic.
+      if (this.venue.onsen.inWater(p.x, p.z, -0.2)) {
+        const [water, deck] = onsenOutPath(this, p);
+        p.fleePhase = "swim";
+        p.fleeTarget = water;
+        p.fleeLanding = deck;
+      } else {
+        p.fleePhase = "run";
+        p.panicCenter = this.panicSpot(p, { x: p.x, z: p.z });
+      }
+      return;
+    }
     if (river) {
       // Out of the river: to the nearer bank (the near one if the far one is no deck there), up onto it, then the panic.
       if (river.inWater(p.x, p.z, -0.2)) {
@@ -359,6 +375,16 @@ export class ChaosController extends RescueController {
   }
   panicSpot(p, from) {
     const river = this.venue.river;
+    if (this.venue.onsen) {
+      // Away from the spring, out on the snow.
+      const s = nearestSpring(from),
+        d = Math.hypot(from.x - s.x, from.z - s.z) || 1;
+      for (const push of [1.5, 1.0, 0.5, 0]) {
+        const spot = { x: from.x + ((from.x - s.x) / d) * push, z: from.z + ((from.z - s.z) / d) * push };
+        if (this.venue.isDeck(spot.x, spot.z, this.level, 0.95)) return spot;
+      }
+      return { x: from.x, z: from.z };
+    }
     if (river) {
       // Away from the river, up the bank.
       const q = river.locate(from.x, from.z),

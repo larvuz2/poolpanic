@@ -2,10 +2,12 @@
 // and presses E through every incident, using only the real input the player has. Shared by season-check.mjs.
 import assert from "node:assert/strict";
 import { PoolSimulation } from "./dist/sim.mjs";
-import { plan } from "./check-helpers.mjs";
+import { plan, steer } from "./check-helpers.mjs";
 import { roofServicePoint } from "./dist/rooftop.mjs";
 import { ROOF, ROOF_BEDS } from "./dist/roof-plan.mjs";
 import { slide } from "./dist/ship.mjs";
+import { SPRINGS, ONSEN_WATER } from "./dist/onsen-plan.mjs";
+import { springGuests, onsenOutPath } from "./dist/onsen.mjs";
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const CARL_CATCHABLE = ["walking", "windup", "charge", "running", "waiting"];
@@ -65,6 +67,7 @@ export class CoachBot {
     if (s.venue.waves) return this.manageWaves();
     // (Up on the roof nobody is sent anywhere.)
     if (s.venue.roof) return;
+    if (s.venue.onsen) return this.manageSprings();
     for (const p of s.people.filter((p) => p.status === "queue" && !(p.finsFirst && !p.hasFins))) {
       s.select(p.id);
       if (p.queasy && p.sick) s.home();
@@ -112,6 +115,30 @@ export class CoachBot {
       }
   }
 
+  // The hot springs: everyone waiting goes to the spring with the most room (none with a monkey in it), the coldest first.
+  manageSprings() {
+    const s = this.s;
+    if (s.closed || s.cleanup) return;
+    const waiting = s.people
+      .filter((p) => p.status === "queue")
+      .sort((a, b) => (b.vip ? 1 : 0) - (a.vip ? 1 : 0) || (b.cold || 0) - (a.cold || 0));
+    for (const p of waiting) {
+      const k = SPRINGS.map((sp) => sp.id)
+        .filter((k) => s.laneClosed() !== k && springGuests(s, k).length < SPRINGS[k].cap)
+        .sort(
+          (a, b) =>
+            !!s.onsen.monkeys.find((m) => m.stage === "soak" && m.spring === a) -
+              !!s.onsen.monkeys.find((m) => m.stage === "soak" && m.spring === b) ||
+            SPRINGS[b].cap - springGuests(s, b).length - (SPRINGS[a].cap - springGuests(s, a).length) ||
+            a - b,
+        )[0];
+      if (k == null) break;
+      s.select(p.id);
+      s.assign(k);
+    }
+    s.selected = null;
+  }
+
   // The Wave Pool's machine, from the WAVES button (wave-pool.mjs): stop it when a monster is coming and someone is already seeing
   // stars, or when two are dizzy at once; start it again once the water has calmed them (or the bathers grow too restless).
   manageWaves() {
@@ -128,12 +155,9 @@ export class CoachBot {
 
   // ----------------------------------------------------------------------------------------------------
   // Movement with real input.
-  steer(to) {
-    const s = this.s,
-      dx = to.x - s.coach.x,
-      dz = to.z - s.coach.z,
-      m = Math.hypot(dx, dz) || 1;
-    s.setMovement(dx / m, dz / m);
+  // (On the hot springs' ice the shared helper steers like a skater: check-helpers.mjs `steer`.)
+  steer(to, last = true) {
+    steer(this.s, to, last);
   }
   walkTo(to, { reach = 0.2, limit = 1500, until = null } = {}) {
     const s = this.s;
@@ -141,9 +165,9 @@ export class CoachBot {
     for (let f = 0; f < limit && !this.over; f++) {
       if (until?.() || s.coach.swimming || s.coach.waterTransition) break;
       if (distance(s.coach, to) < reach) break;
-      while (path.length > 1 && distance(path[0], s.coach) < 0.25) path.shift();
+      while (path.length > 1 && distance(path[0], s.coach) < (s.venue.ice ? 0.45 : 0.25)) path.shift();
       if (!path.length || (path.length === 1 && distance(path[0], s.coach) < 0.12)) break;
-      this.steer(path[0]);
+      this.steer(path[0], path.length === 1);
       this.frame();
       if (f % 24 === 23) path = plan(s, to);
     }
@@ -155,8 +179,8 @@ export class CoachBot {
     let path = [];
     for (let f = 0; f < limit && !this.over && !done(); f++) {
       if (f % 8 === 0 || !path.length) path = plan(s, target());
-      while (path.length > 1 && distance(path[0], s.coach) < 0.3) path.shift();
-      if (path.length) this.steer(path[0]);
+      while (path.length > 1 && distance(path[0], s.coach) < (s.venue.ice ? 0.45 : 0.3)) path.shift();
+      if (path.length) this.steer(path[0], path.length === 1);
       this.frame();
     }
     s.clearInput();
@@ -209,6 +233,17 @@ export class CoachBot {
       s.clearInput();
       return s.coach.swimming;
     }
+    if (s.venue.onsen) {
+      // The rim of the spring nearest the point, then on into the water.
+      const bank = ONSEN_WATER.bank(point.x, point.z, { inside: 0.8, outside: 0.6 });
+      this.walkTo(bank.deck, { until: () => s.coach.swimming || s.coach.waterTransition });
+      for (let f = 0; f < 150 && !s.coach.swimming && !this.over; f++) {
+        this.steer(bank.water);
+        this.frame();
+      }
+      s.clearInput();
+      return s.coach.swimming;
+    }
     const P = s.venue.pool,
       // (The Wave Pool is entered from its beach: the far side is the wave house.)
       side = s.venue.waves ? -1 : Math.sign(point.x) || 1,
@@ -232,6 +267,10 @@ export class CoachBot {
             ? near
             : river.bank(s.coach.x, s.coach.z, { side: 1, outside: 1 });
         this.steer(bank.deck);
+        if (f % 30 === 29) s.jump();
+      } else if (s.venue.onsen) {
+        // Over to the rim beside him (or the steps), and out.
+        this.steer(onsenOutPath(s, s.coach)[1]);
         if (f % 30 === 29) s.jump();
       } else if (s.venue.waves) {
         // Back to the beach (a press of Space on the way, in case he is already at the edge).
@@ -291,6 +330,10 @@ export class CoachBot {
       const karen = s.karen && s.visitor(s.karen.id);
       if (karen && ["marching", "ranting"].includes(karen.status)) return this.karen;
     }
+    // The hot springs: a monkey in the water is shooed out at once (whoever the coach is); one on its way, met before it gets there.
+    if (s.onsen?.monkeys.some((m) => m.stage === "soak")) return this.monkeyOut;
+    if (this.proactive && s.onsen?.monkeys.some((m) => ["approach", "pause"].includes(m.stage)))
+      return this.monkey;
     // The Wave Pool: a dizzy bather is helped out before anything else that can wait; then the tubes.
     if (s.venue.waves && this.proactive) {
       if (this.dizzyBather()) return this.helpDizzy;
@@ -330,6 +373,29 @@ export class CoachBot {
     if (!c.carry && s.venue.river && this.spareTube()) return this.rackTube;
     if (c.carry) return this.putAway;
     return null;
+  }
+  // ---- the hot springs ----
+  // Meet the monkey nearest its spring before it gets there: running into it shoos it.
+  monkey() {
+    const s = this.s,
+      live = s.onsen.monkeys.filter((m) => ["approach", "pause"].includes(m.stage)),
+      m = live.sort((a, b) => distance(a, a.rim) - distance(b, b.rim))[0];
+    if (!m) return this.wait(2);
+    if (s.coach.swimming) return this.climbOut();
+    this.chase(
+      () => m,
+      () => !["approach", "pause"].includes(m.stage),
+      600,
+    );
+  }
+  // A monkey sitting in a spring: to the rim beside it, and E.
+  monkeyOut() {
+    const s = this.s,
+      m = s.onsen.monkeys.find((q) => q.stage === "soak");
+    if (!m) return this.wait(2);
+    if (s.coach.swimming) return this.climbOut();
+    this.walkTo(m.rim, { reach: 0.5, until: () => m.stage !== "soak" });
+    if (m.stage === "soak" && !this.use("assist")) this.wait(3);
   }
   // ---- the Rooftop Pool ----
   // Haul a guest back over the infinity edge: wade to the edge beside them.

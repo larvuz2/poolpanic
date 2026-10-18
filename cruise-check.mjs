@@ -331,8 +331,10 @@ const level = (s) => Object.assign(s.ship, { phase: "calm", angle: 0, t: 0, dur:
   assert.ok(POOL_IDS.includes("cruise") && POOLS.cruise.name === "Cruise Ship" && POOLS.cruise.icon === "🛳️");
   assert.ok(!POOLS.cruise.style.noStar, "Marco swims here");
   let drawn = 0;
-  for (let c = 1; c <= 30; c++) if (weekPools(c, 991).includes("cruise")) drawn++;
-  assert.ok(drawn >= 10, "drawn into the weeks (" + drawn + " of 30)");
+  // (Over 300 weeks: six of the pools a week, so about 6 in 13 of them; at least 3 in 10.)
+  for (let seed = 1; seed <= 10; seed++)
+    for (let c = 1; c <= 30; c++) if (weekPools(c, seed * 7717).includes("cruise")) drawn++;
+  assert.ok(drawn >= 90, "drawn into the weeks (" + drawn + " of 300)");
   assert.ok(scoreScale("cruise", 5) > 0 && scoreScale("cruise", 18) > 0);
   assert.ok(SONGS.cruise && SONGS.cruise.level > 0, "a song of its own");
   assert.ok(STINGS["fell-in"], "a sting for a guest in the pool");

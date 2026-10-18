@@ -52,6 +52,15 @@ export const PROP_FILES = {
   "ship-bell": "props/ship-bell.glb",
   "lifejacket-box": "props/lifejacket-box.glb",
   "deck-umbrella": "props/deck-umbrella.glb",
+  // The Mountain Hot Springs (scene/onsen.mjs): Tripo models, quantized and shrunk like the cruise ship's.
+  "stone-lantern": "props/stone-lantern.glb",
+  "onsen-bucket": "props/onsen-bucket.glb",
+  "snowy-cedar": "props/snowy-cedar.glb",
+  "bamboo-spout": "props/bamboo-spout.glb",
+  "onsen-bench": "props/onsen-bench.glb",
+  bathhouse: "props/bathhouse.glb",
+  "yu-sign": "props/yu-sign.glb",
+  "snow-rock": "props/snow-rock.glb",
 };
 const templates = new Map(),
   loading = new Map(),

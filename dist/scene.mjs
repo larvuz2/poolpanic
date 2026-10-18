@@ -17,6 +17,9 @@ import { buildWave } from "./scene/wave.mjs";
 import { wavePose } from "./scene/wave-view.mjs";
 import { buildRooftop } from "./scene/rooftop.mjs";
 import { buildCruise, cruisePose } from "./scene/cruise.mjs";
+import { buildOnsen } from "./scene/onsen.mjs";
+import { onsenPose } from "./scene/onsen-view.mjs";
+import { SOAK } from "./onsen.mjs";
 import { propModel } from "./scene/prop-models.mjs";
 import { roofPose, roofFloorAt } from "./scene/roof-view.mjs";
 import { surfaceAt } from "./waves.mjs";
@@ -324,6 +327,35 @@ LIGHTING.cruise = {
   ],
 };
 
+// The Mountain Hot Springs: the blue hour in the snow. The sun just down behind the peaks leaves a warm glow low on the far side,
+// the sky deep blue overhead and the snow lit cool by it; the hot water glows turquoise from below, the lanterns and the
+// bathhouse's windows warm (scene/onsen.mjs). Bright enough to play: the deck and everyone on it read clearly.
+LIGHTING.onsen = {
+  background: 0x9fb4d0,
+  exposure: 0.94,
+  hemi: [0xdde8ff, 0x8f96ad, 1.15],
+  sun: [0xffcf9e, 2.3, [24, 15, -9]],
+  fill: [0xa6bdea, 0.95, [-16, 18, 10]],
+  env: 0.85,
+  envColors: ["#bfd2ef", "#eef2f8", "#ccd5e4"],
+  fog: [0xb7c6da, 48, 170],
+  water: {
+    shallow: [0.5, 0.84, 0.86],
+    deep: [0.14, 0.52, 0.62],
+    sky: [0.86, 0.91, 1],
+    glint: [1, 0.88, 0.72],
+    glow: 0.35,
+    clarity: 0.1,
+  },
+  glow: 0.35,
+  sky: [
+    [0, "#3d5a92"],
+    [0.5, "#8fa6cf"],
+    [0.82, "#e6c7c4"],
+    [1, "#f4d8bc"],
+  ],
+};
+
 const BUILDERS = {
   club: buildClub,
   resort: buildResort,
@@ -337,6 +369,7 @@ const BUILDERS = {
   wave: buildWave,
   roof: buildRooftop,
   cruise: buildCruise,
+  onsen: buildOnsen,
 };
 const defaultLighting = (venue) => venue.lighting || (venue.indoor ? "indoor" : "day");
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
@@ -422,6 +455,8 @@ export class PoolWorld extends SceneKit {
     this.riverHighlight = null;
     this.riverRim = null;
     this.waveBreak = null;
+    this.springHighlights = null;
+    this.springRims = null;
     this.lostTubes = null;
     this.incidentLight = 1;
     this.lookKey = null;
@@ -464,23 +499,25 @@ export class PoolWorld extends SceneKit {
     this.scene.add(this.selection);
     this.selection.visible = false;
     // (The Lazy River's one "lane" is the river itself: its builder made the highlight in the river's shape.)
-    this.laneHighlights = this.riverHighlight
-      ? [this.riverHighlight]
-      : venue.lanes.map((x) => {
-          const m = new THREE.Mesh(
-            new THREE.PlaneGeometry(3.0, 16),
-            new THREE.MeshBasicMaterial({
-              color: 0xffe58b,
-              transparent: true,
-              opacity: 0,
-              depthWrite: false,
-            }),
-          );
-          m.rotation.x = -Math.PI / 2;
-          m.position.set(x, -0.17, 0);
-          this.scene.add(m);
-          return m;
-        });
+    this.laneHighlights = this.springHighlights
+      ? this.springHighlights
+      : this.riverHighlight
+        ? [this.riverHighlight]
+        : venue.lanes.map((x) => {
+            const m = new THREE.Mesh(
+              new THREE.PlaneGeometry(3.0, 16),
+              new THREE.MeshBasicMaterial({
+                color: 0xffe58b,
+                transparent: true,
+                opacity: 0,
+                depthWrite: false,
+              }),
+            );
+            m.rotation.x = -Math.PI / 2;
+            m.position.set(x, -0.17, 0);
+            this.scene.add(m);
+            return m;
+          });
     this.buildGuidance();
     this.incidentView = new IncidentView(this);
     const look = this.coachCam && {
@@ -673,27 +710,29 @@ export class PoolWorld extends SceneKit {
     this.guideAura.add(halo);
     this.guideAura.userData = { shell, halo };
     this.scene.add(this.guideAura);
-    this.laneRims = this.riverRim
-      ? [this.riverRim]
-      : this.venue.lanes.map((x) => {
-          const points = [
-            [-1.43, -7.9],
-            [1.43, -7.9],
-            [1.43, 7.9],
-            [-1.43, 7.9],
-          ].map(([a, b]) => new THREE.Vector3(x + a, -0.13, b));
-          const rim = new THREE.LineLoop(
-            new THREE.BufferGeometry().setFromPoints(points),
-            new THREE.LineBasicMaterial({
-              color: 0xffdf52,
-              transparent: true,
-              opacity: 1,
-              depthWrite: false,
-            }),
-          );
-          this.scene.add(rim);
-          return rim;
-        });
+    this.laneRims = this.springRims
+      ? this.springRims
+      : this.riverRim
+        ? [this.riverRim]
+        : this.venue.lanes.map((x) => {
+            const points = [
+              [-1.43, -7.9],
+              [1.43, -7.9],
+              [1.43, 7.9],
+              [-1.43, 7.9],
+            ].map(([a, b]) => new THREE.Vector3(x + a, -0.13, b));
+            const rim = new THREE.LineLoop(
+              new THREE.BufferGeometry().setFromPoints(points),
+              new THREE.LineBasicMaterial({
+                color: 0xffdf52,
+                transparent: true,
+                opacity: 1,
+                depthWrite: false,
+              }),
+            );
+            this.scene.add(rim);
+            return rim;
+          });
     // Fixed, reusable speed streaks. No particle allocation in the dash loop.
     this.dashTrail = new THREE.Group();
     for (let i = 0; i < 4; i++) {
@@ -992,6 +1031,8 @@ export class PoolWorld extends SceneKit {
     if (p.chill && roofPose(this, sim, p, g, time, dt)) return;
     // The cruise ship: someone who slid into the pool, treading water (scene/cruise.mjs).
     if (sim.ship && cruisePose(this, sim, p, g, time, dt)) return;
+    // The hot springs: anyone in a spring, sitting to the shoulders, wading or panicking (scene/onsen-view.mjs).
+    if (sim.venue?.onsen && onsenPose(this, sim, p, g, time, dt)) return;
     // The crowd panics while a cannonball man is in the pool: a swimmer in the water is held where it is, upright, and hops with
     // its hands up like those who wait on the deck.
     const crowd = !!this.crowd,
@@ -1209,6 +1250,21 @@ export class PoolWorld extends SceneKit {
     if (p.status === "swim" && p.actualSpeed > 0.3 && Math.random() < 0.04)
       this.splash(p.x, -0.16, p.z, 2, true);
     if (dancer && u.rig?.actions[move.clip]) u.puppet.arms = false; // the clip has the arms
+    // The hot springs: cold through in the snow, hugging themselves and shivering (the ColdHug clip; the classic figure's arms
+    // crossed over the chest).
+    u.coldHug = !!sim.venue?.onsen && p.status === "queue" && (p.cold || 0) > SOAK.coldFrom;
+    if (u.coldHug) {
+      const shiver = this.reducedMotion?.matches
+        ? 0
+        : Math.sin(time * 38 + (u.phase || 0)) * 0.012 * (p.cold || 0);
+      g.position.x += shiver;
+      if (u.rig?.actions.cold) u.puppet.arms = false;
+      else {
+        u.arms[0].rotation.set(-1.25, 0.2, 0.95);
+        u.arms[1].rotation.set(-1.25, -0.2, -0.95);
+        u.puppet.arms = true;
+      }
+    }
     this.syncModel(p, g, swim, dt, panicClip, dancer ? move : null);
   }
   // A swimmer model's clip and poses (swimmer-models.mjs): how fast the swimmer covers the ground, whether it swims, and
@@ -1233,6 +1289,7 @@ export class PoolWorld extends SceneKit {
               : Math.max(0.4, Math.min(1.5, Math.max(p.actualSpeed, p.status === "switch" ? 2 : 0) * 0.32)),
         panic,
         dance,
+        cold: !!u.coldHug,
         ...seatState(p, u.footSpeed || 0),
         puppet: u.puppet,
         classic: u,
@@ -1382,6 +1439,7 @@ export class PoolWorld extends SceneKit {
           prone: !!(c.swimming || c.waterTransition),
           ring: c.carry === "lifering",
           busy: !!c.busy,
+          ice: c.onIce ? (c.sliding ? "slide" : "skate") : null,
         });
       } catch (error) {
         // A failing model must not stop the shift: show the classic coach from here on.

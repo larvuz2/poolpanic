@@ -17,6 +17,7 @@ export function onDeck(p, venue = CLUB) {
 // Inside the water as deck contacts see it: the basin's box, or the Lazy River's channel (a little out over its banks).
 function inWater(venue, x, z) {
   if (venue.river) return venue.river.inWater(x, z, -0.2) && !venue.river.onBridge(x, z);
+  if (venue.onsen) return venue.onsen.inWater(x, z, -0.2);
   return Math.abs(x) < venue.pool.deckX && Math.abs(z) < venue.pool.deckZ;
 }
 // (The Kids Pool's children wait running about the deck, not standing in line: sim.roamKid.)

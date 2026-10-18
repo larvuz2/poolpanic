@@ -44,10 +44,14 @@ the same twice: see `docs/incidents.md`).
    end up adrift until the coach straightens a row (E); someone at the pool's end slides in and must be helped out (E); the pool
    sloshes over its low end; a pool across the deck with two lap lanes and free water where half the guests chill as on the
    rooftop, margaritas from the Lido Bar; `dist/ship.mjs`, `dist/cruise-plan.mjs`, `dist/scene/cruise.mjs`; yacht pop on a steel
-   pan) and the Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
+   pan), the **Mountain Hot Springs** (four natural hot springs on an icy terrace in the snow, SPRING 1–4 for the four springs:
+   guests waiting in the snow grow cold and hug themselves (ColdHug) until sent to one, where they sit to the shoulders; snow
+   monkeys come out of the forest for the warm water, shooed by running into them, and one that gets in makes the spring panic
+   until shooed out from the rim; the coach skates and slides on the ice (IceSkate, IceSlide, `venue.ice`) and wades in the springs;
+   `dist/onsen.mjs`, `dist/onsen-plan.mjs`, `dist/scene/onsen.mjs`, `snow-monkey.glb`; koto and shakuhachi) and the Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
    running (the creator wants that). In every pool **one swimmer in five climbing out drips a wet spot** that never dries until the coach
    mops it (Q, `dist/incidents/wet.mjs`; the coach slips in one too, down for 1.3 s, unless he jumps over it), and a tummy ache can be a poo or **a wee** (yellow water, chlorine only). **Marco swims in
-   more than half of all shifts, in every pool but the Kids Pool and the Rooftop Pool** (`STAR_CHANCE`, 0.66; at Senior Aqua Fit, the Lazy River, the Wave Pool and the Cruise Ship too), and **VIPs come in every
+   more than half of all shifts, in every pool but the Kids Pool and the Rooftop Pool** (`STAR_CHANCE`, 0.66; at Senior Aqua Fit, the Lazy River, the Wave Pool, the Cruise Ship and the Mountain Hot Springs too), and **VIPs come in every
    shift**, more as the run goes on (the creator wants to see them often); incidents drawn by a director
    (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder: one new incident a shift from the first Tuesday, all five
    met in week 1, then a fair mix where one that just came is less likely, `RECENT`). A shift not passed pays nothing but the week goes on. Marina's

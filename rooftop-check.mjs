@@ -423,8 +423,10 @@ const guest = (s, plan = ["pool"], spec = {}) => {
   assert.ok(POOLS.roof.style.noStar, "no Marco");
   assert.deepEqual(POOLS.roof.twists, { team: 0, class: 0, closure: 0 });
   let drawn = 0;
-  for (let c = 1; c <= 30; c++) if (weekPools(c, 777).includes("roof")) drawn++;
-  assert.ok(drawn >= 10, "drawn into the weeks (" + drawn + " of 30)");
+  // (Over 300 weeks: six of the pools a week, so about 6 in 13 of them; at least 3 in 10.)
+  for (let seed = 1; seed <= 10; seed++)
+    for (let c = 1; c <= 30; c++) if (weekPools(c, seed * 7717).includes("roof")) drawn++;
+  assert.ok(drawn >= 90, "drawn into the weeks (" + drawn + " of 300)");
   assert.ok(scoreScale("roof", 5) > 0 && scoreScale("roof", 18) > 0);
   const song = SONGS.roof;
   assert.ok(song && song.score === roofScore && song.level > 0);

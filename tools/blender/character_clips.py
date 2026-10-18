@@ -568,6 +568,117 @@ def shake_clip():
     return {"frames": frames, "breath": 0.0, **keys, "armL": arm_l, "armR": arm_r}
 
 
+def cold_hug_clip():
+    """ColdHug (the Mountain Hot Springs, 18 October 2026, the creator: "a self-hugging pose or cold huddle pose: arms crossed
+    tightly over the chest, hugging oneself for warmth"): what a guest waiting in the snow does once they are cold. The arms are
+    crossed tight over the chest, each hand on the other side's upper arm (the left arm in front and a little lower), rubbing
+    up and down; the shoulders hunched up to the ears, the back a little rounded and the head tucked; a fast fine shiver (6 Hz,
+    a couple of degrees, through the back, the shoulders and the head); the knees a little bent and close; the weight shifting
+    from foot to foot with a quick stamp of each foot in turn. 48 frames (2 s at 24 fps), a loop (the shiver goes round 12 times,
+    the rub three times, the stamps once each)."""
+    frames = 48
+    tau = 2 * math.pi
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "shrug", "armL", "armR", "footL", "footR")}
+
+    def stamp(f, at):
+        """A quick lift and stamp of a foot over six frames from `at`."""
+        u = (f - at) / 6.0
+        return 0.035 * math.sin(math.pi * u) if 0 <= u <= 1 else 0.0
+
+    for f in range(frames + 1):
+        w = tau * (f % frames) / frames
+        shiver = math.sin(tau * f / 4)  # 6 Hz at 24 fps
+        shift = math.sin(w + 0.4)  # the weight from foot to foot, once a loop
+        keys["hips"].append((f, (0.018 * shift, 0.0, -0.035 - 0.004 * abs(shiver))))
+        keys["hips_turn"].append((f, (3.0 * shift, 0.0, -2.0 * shift)))
+        keys["spine"].append((f, (1.2 * shiver, 13.0 + 0.8 * shiver, 1.5 * shiver)))
+        keys["head"].append((f, (8.0 * math.sin(w * 2 + 1.0) + 1.5 * shiver, 14.0 + 1.0 * shiver, -1.2 * shiver)))
+        keys["shrug"].append((f, 0.95 + 0.05 * shiver))
+        for side, phase, front in (("L", 0.0, True), ("R", math.pi, False)):
+            rub = 0.045 * math.sin(3 * w + phase)  # the hands rubbing the upper arms, up and down, in turn
+            if front:  # the left arm across in front of the right, a little lower
+                tgt = (-0.60, -0.36, -0.30 + rub)
+            else:
+                tgt = (-0.58, -0.26, -0.15 + rub)
+            keys["arm" + side].append((f, {"space": "chest", "tgt": tgt, "pole": (0.55, 0.1, -1.0), "twist": 0}))
+        keys["footL"].append((f, (0.0, -0.035, stamp(f % frames, 8))))
+        keys["footR"].append((f, (0.0, -0.035, stamp(f % frames, 32))))
+    return {"frames": frames, "breath_frames": 16, "breath": 1.4, **keys}
+
+
+def ice_skate_clip():
+    """IceSkate (the Mountain Hot Springs' icy deck, 18 October 2026, the creator: "running on ice: ice sliding, low-friction
+    movements, slippery locomotion, momentum drifting"): Coach Waters running on the ice, made in place like every clip (the
+    game moves him and plays it faster or slower with his speed). A skating stride: each foot in turn pushes out diagonally
+    to the side and back while the other glides under the body, then lifts and swings back in; the body leans forward and
+    sways over the gliding foot, the hips turning with it; the arms swing wide and across the body against the legs for
+    balance, the head up to look ahead. Two strides make the loop: 32 frames (1.33 s at 24 fps)."""
+    frames = 32
+    tau = 2 * math.pi
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "shrug", "armL", "armR", "footL", "footR")}
+
+    def foot(p):
+        """Where a foot is at phase p of its own cycle (0 to 1): pushing out and back (0 to 0.55), then lifted and swung back
+        in under the body (0.55 to 1). Returns (forward, out, lift) in metres."""
+        if p < 0.55:
+            u = p / 0.55
+            e = u * u * (3 - 2 * u)
+            return (0.18 - 0.46 * e, 0.02 + 0.40 * e, 0.0)
+        u = (p - 0.55) / 0.45
+        e = u * u * (3 - 2 * u)
+        return (-0.28 + 0.46 * e, 0.42 - 0.40 * e, 0.10 * math.sin(math.pi * u))
+
+    for f in range(frames + 1):
+        w = tau * (f % frames) / frames
+        pl = (f % frames) / frames  # the left foot's phase
+        pr = (pl + 0.5) % 1.0
+        sway = math.sin(w - 0.6)  # + over the left foot (gliding while the right pushes), - over the right
+        keys["hips"].append((f, (0.08 * sway, 0.04, -0.11 - 0.02 * abs(math.cos(w - 0.6)))))
+        keys["hips_turn"].append((f, (12.0 * sway, 16.0, -7.0 * sway)))
+        keys["spine"].append((f, (-12.0 * sway, 22.0, 6.0 * sway)))
+        keys["head"].append((f, (-2.0 * sway, -30.0, -7.0 * sway)))
+        keys["shrug"].append((f, 0.15))
+        for side, phase in (("L", 0.0), ("R", math.pi)):
+            s = math.sin(w + phase)  # + : this arm forward and across, - : back and out
+            fwd = max(0.0, s)
+            back = max(0.0, -s)
+            tgt = (0.22 - 0.42 * fwd + 0.42 * back, -0.74 * fwd + 0.55 * back, -0.50 + 0.36 * fwd + 0.12 * back)
+            # the elbow: down and out as the arm swings forward across the body, back and out as it swings behind
+            mid, pf, pb = (0.6, 0.6, 0.1), (0.6, 0.1, -0.8), (0.1, 0.9, 0.5)
+            pole = tuple(mid[i] * (1 - fwd - back) + pf[i] * fwd + pb[i] * back for i in range(3))
+            keys["arm" + side].append((f, {"space": "chest", "tgt": tgt, "pole": pole, "twist": 0}))
+        keys["footL"].append((f, foot(pl)))
+        keys["footR"].append((f, foot(pr)))
+    return {"frames": frames, "breath": 0.0, **keys}
+
+
+def ice_slide_clip():
+    """IceSlide (the icy deck, 18 October 2026): Coach Waters skidding on the ice with nothing under his feet to stop him. The
+    feet are planted apart, one a little ahead of the other, the knees bent; the arms are flung out to the sides and windmill
+    in small circles, against each other, to keep his balance; the upper body wobbles from side to side and back and forth as if
+    about to go over, the head ducking the other way. 48 frames (2 s at 24 fps), a loop."""
+    frames = 48
+    tau = 2 * math.pi
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "shrug", "armL", "armR", "footL", "footR")}
+    for f in range(frames + 1):
+        w = tau * (f % frames) / frames
+        wob = math.sin(2 * w) + 0.35 * math.sin(3 * w + 1.1)  # the wobble, side to side
+        nod = math.sin(2 * w + 1.4)
+        keys["hips"].append((f, (0.035 * wob, 0.0, -0.12 + 0.015 * nod)))
+        keys["hips_turn"].append((f, (6.0 * math.sin(w), 8.0, 5.0 * wob)))
+        keys["spine"].append((f, (8.0 * math.sin(w + 0.7), 12.0 + 9.0 * nod, -14.0 * wob)))
+        keys["head"].append((f, (-6.0 * math.sin(w + 0.7), -8.0 - 7.0 * nod, 14.0 * wob)))
+        keys["shrug"].append((f, 0.35 + 0.15 * math.sin(4 * w)))
+        for side, phase in (("L", 0.0), ("R", math.pi)):
+            a = 2 * w + phase  # the windmill: the wrist goes round a small circle out at the side, twice a loop
+            tilt = (0.22 if side == "L" else -0.22) * wob  # the arms seesaw against the body's wobble
+            tgt = (0.82, -0.14 + 0.26 * math.sin(a), 0.12 + 0.28 * math.cos(a) + tilt)
+            keys["arm" + side].append((f, {"space": "chest", "tgt": tgt, "pole": (0.3, 0.9, -0.2), "twist": 0}))
+        keys["footL"].append((f, (0.20, 0.14, 0.0)))
+        keys["footR"].append((f, (-0.16, 0.14, 0.0)))
+    return {"frames": frames, "breath": 0.0, **keys}
+
+
 CLIPS = {
     # What every character does, made on the Coach and moved to the others (transplant_clips.py).
     "shared": {
@@ -602,6 +713,14 @@ CLIPS = {
     # What only Coach Waters does.
     "coach": {
         "SwimRing": swim_ring_clip(),
+        # The Mountain Hot Springs' icy deck (18 October 2026): running on the ice, and skidding on it.
+        "IceSkate": ice_skate_clip(),
+        "IceSlide": ice_slide_clip(),
+    },
+    # The Mountain Hot Springs' guests (18 October 2026): cold, waiting in the snow. Made on a scratch copy of the Coach and moved
+    # to every guest who waits there (transplant_clips.py).
+    "cold": {
+        "ColdHug": cold_hug_clip(),
     },
     "marco": {
         # Impatient, waiting to be given a lane: a long look at his watch, a sigh, looking around for whoever is coming, the
