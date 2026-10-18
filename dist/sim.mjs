@@ -418,6 +418,17 @@ export const KID_RUN = [2.1, 3.1];
 // share come in a wheelchair, and the four looks (scene/swimmer-models.mjs).
 export const SENIOR = { walk: 1.35, arrive: 1.45, exit: 1.6, roll: 1.5, stand: 40 / 24, wheelchairs: 0.34 };
 export const SENIOR_LOOKS = ["senior-granny", "senior-grandpa", "senior-tallgran", "senior-stout"];
+// An aqua-aerobics guest on the way to their spot in the lane (or back to the wall with a problem) swims there, face down along
+// the lane (`aquaSwim`: the scene lays them down and plays the crawl; 18 October 2026, the creator: "they walk on top of the
+// water… they need to swim over there"), then stands up and works out facing down the pool.
+const AQUA_SWIM = 2.4; // m/s
+function aquaTo(p, targetZ, dt) {
+  const dz = targetZ - p.z;
+  p.z += clamp(dz, -dt * AQUA_SWIM, dt * AQUA_SWIM);
+  p.aquaSwim = Math.abs(dz) > dt * AQUA_SWIM;
+  p.actualSpeed = 0;
+  p.angle = p.aquaSwim && dz < 0 ? Math.PI : 0;
+}
 export function loopPosition(p, center = 0) {
   p = ((p % CIRCUIT) + CIRCUIT) % CIRCUIT;
   if (p < 14.4) return { x: center + 0.6, z: -7.2 + p, angle: 0 };
@@ -1481,7 +1492,10 @@ export class PoolSimulation extends ChaosController {
             }
             p.resumingWorkout = false;
             const lane = this.lanePeople(p.lane);
-            let candidate = 30;
+            // Into the water at the start of the near length, facing down the lane (circuit 0, straight ahead of where they
+            // walked to: lane + 0.6). Not at 30, the turn across the near end: there they lay side-on to the lane for the first
+            // second (the creator saw it in every pool, 18 October 2026).
+            let candidate = 0;
             for (let n = 0; n < lane.length; n++) {
               if (
                 lane.some(
@@ -1495,6 +1509,11 @@ export class PoolSimulation extends ChaosController {
             }
             p.p = candidate;
             if (p.needsFins && !p.midFins && !p.hasFins) p.problem = "fins";
+            // An aqua-aerobics guest jumps in at the edge too, and swims out to their spot (`aquaSwim`, updateLane).
+            if (p.type === "aqua") {
+              p.z = Math.max(p.z, ENTRY.waterZ);
+              p.aquaSwim = true;
+            }
             this.emit("splash", { x: p.x, z: ENTRY.waterZ });
           }
         }
@@ -1599,9 +1618,7 @@ export class PoolSimulation extends ChaosController {
         const idx = aqua.indexOf(p);
         p.x = this.lanes[i] + (idx % 2 ? -0.75 : 0.75) + (Math.floor(idx / 2) % 2 ? 0.2 : -0.2);
         const targetZ = p.problem ? ENTRY.waterZ : Math.max(-5.8, 6.2 - Math.floor(idx / 2) * 2.6);
-        p.z += clamp(targetZ - p.z, -dt * 2.4, dt * 2.4);
-        p.actualSpeed = 0;
-        p.angle = 0;
+        aquaTo(p, targetZ, dt);
         const over = aqua.length - CLASS_ROOM;
         if (over > 0) {
           p.h -= dt * 0.9 * over;
@@ -1622,9 +1639,7 @@ export class PoolSimulation extends ChaosController {
         const idx = aqua.indexOf(p);
         p.x = this.lanes[i] + (idx % 2 ? -0.55 : 0.55);
         const targetZ = p.problem ? ENTRY.waterZ : -1.5 + Math.floor(idx / 2) * 1.2;
-        p.z += clamp(targetZ - p.z, -dt * 2.4, dt * 2.4);
-        p.actualSpeed = 0;
-        p.angle = 0;
+        aquaTo(p, targetZ, dt);
         if (laps.length) p.h -= dt * 0.5;
       } else {
         p.actualSpeed = actual.get(p.id);

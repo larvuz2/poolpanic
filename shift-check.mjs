@@ -68,10 +68,12 @@ const tick = (s, frames) => {
         previous = point;
       }
       assert.ok(length < 18, "No full-length trip to the opposite end");
-      tick(s, 6 * 60);
+      // (Checked the moment they get in: since 18 October 2026 a swimmer jumps in facing down the lane and swims straight off.)
+      for (let i = 0; i < 6 * 60 && p.status !== "swim"; i++) tick(s, 1);
       assert.equal(p.status, "swim");
       assert.equal(p.lane, lane);
       assert.ok(p.z < 0, "Swimmer enters from the relocated block end");
+      assert.equal(p.angle, 0, "facing down the lane, not across it");
       s.depart(p, false);
       assert.ok(
         p.path.every((v) => v.z < 0),
@@ -199,4 +201,65 @@ console.log(
 }
 console.log(
   "Layout checks passed: central coach start, 28 clear waiting slots behind the blocks, and unique occupied queue positions.",
+);
+
+// Into the water (18 October 2026, the creator: "when they get into any pool, they start perpendicular to the lane for half a
+// second… whenever a swimmer gets into the pool, it's straight towards the lane… the Aqua Aerobics swimmers… walk on top of the
+// water until they get into the spot… they need to swim over there"). In every pool with lanes a lap swimmer jumps in facing down
+// the lane and never lies across it while getting going; an aqua guest jumps in at the edge, swims to the spot (`aquaSwim`) and
+// only then stands up to work out.
+{
+  for (const venue of ["club", "resort", "aquatic", "senior", "cruise"]) {
+    const s = new PoolSimulation(3, 11, {
+      venue,
+      config: { ...SHIFTS[2], venue, chaos: [], twist: [], sickRate: 0 },
+    });
+    s.schedule = [];
+    s.chaosPlan = [];
+    s.start();
+    const p = s.spawn({ type: venue === "senior" ? "senior" : "intermediate" });
+    Object.assign(p, { needsFins: false, finsFirst: false, midFins: false, crampAt: Infinity, chill: false });
+    for (let i = 0; i < 60 * 30 && p.status !== "queue"; i++) tick(s, 1);
+    p.wheelchair = false;
+    s.select(p.id);
+    s.assign(0);
+    for (let i = 0; i < 60 * 30 && p.status !== "swim"; i++) tick(s, 1);
+    assert.equal(p.status, "swim", venue + ": in the water");
+    for (let i = 0; i < 60; i++) {
+      assert.ok(
+        Math.abs(Math.sin(p.angle)) < 1e-9,
+        venue + ": facing down the lane, not across it (" + p.angle + ")",
+      );
+      tick(s, 1);
+    }
+  }
+  for (const venue of ["club", "disco"]) {
+    const s = new PoolSimulation(3, 12, {
+      venue,
+      config: { ...SHIFTS[2], venue, chaos: [], twist: [], sickRate: 0 },
+    });
+    s.schedule = [];
+    s.chaosPlan = [];
+    s.start();
+    const p = s.spawn({ type: "aqua" });
+    Object.assign(p, { needsFins: false, finsFirst: false, midFins: false, crampAt: Infinity });
+    for (let i = 0; i < 60 * 30 && p.status !== "queue"; i++) tick(s, 1);
+    s.select(p.id);
+    s.assign(0);
+    for (let i = 0; i < 60 * 30 && p.status !== "swim"; i++) tick(s, 1);
+    assert.equal(p.status, "swim", venue + ": the aqua guest is in");
+    assert.ok(p.z >= ENTRY.waterZ - 1e-9, venue + ": jumped in at the edge, not standing on the deck");
+    tick(s, 1);
+    assert.ok(p.aquaSwim, venue + ": swimming out to the spot");
+    let z = p.z;
+    for (let i = 0; i < 60 * 20 && p.aquaSwim; i++) {
+      tick(s, 1);
+      assert.ok(p.z >= z - 1e-9 && p.angle === 0, venue + ": swimming forward, face down the lane");
+      z = p.z;
+    }
+    assert.ok(!p.aquaSwim && p.z > ENTRY.waterZ + 3, venue + ": at the spot, standing up to work out");
+  }
+}
+console.log(
+  "Into the water: in every pool with lanes a swimmer jumps in facing down the lane (never across it); an aqua guest swims out to the spot, then stands up.",
 );

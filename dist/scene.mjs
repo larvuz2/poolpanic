@@ -997,7 +997,7 @@ export class PoolWorld extends SceneKit {
     const crowd = !!this.crowd,
       held = heldInWater(sim, p, crowd);
     const lying =
-      (p.status === "swim" && p.type !== "aqua") ||
+      (p.status === "swim" && (p.type !== "aqua" || p.aquaSwim)) ||
       (p.status === "evacuating" && p.evacWater) ||
       (p.status === "exit" && p.exitPhase === "water") ||
       p.status === "switch" ||
@@ -1007,7 +1007,13 @@ export class PoolWorld extends SceneKit {
     const goal = held ? 1 : 0;
     // A dancer of the Aqua Disco's class (dance.mjs): in the water, in place, nothing wrong.
     const dancer =
-        !!sim.venue?.class && p.type === "aqua" && p.status === "swim" && !p.problem && !held && !crowd,
+        !!sim.venue?.class &&
+        p.type === "aqua" &&
+        p.status === "swim" &&
+        !p.problem &&
+        !p.aquaSwim &&
+        !held &&
+        !crowd,
       move = dancer ? danceAt(sim.time || 0) : null;
     u.stand = lying && u.lying ? u.stand + Math.max(-dt * 3, Math.min(dt * 3, goal - u.stand)) : goal;
     u.lying = lying;
