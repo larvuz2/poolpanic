@@ -3,6 +3,14 @@ import { makeRiver, placeOn } from "./river.mjs";
 import { WAVE as WAVE_BASIN } from "./waves.mjs";
 import { ROOF as ROOF_PLAN, ROOF_BEDS, ROOF_CHILL, roofRoute } from "./roof-plan.mjs";
 import { CRUISE as CRUISE_PLAN, CRUISE_CHILL, LOUNGERS, cruiseRoute } from "./cruise-plan.mjs";
+import {
+  ONSEN as ONSEN_PLAN,
+  ONSEN_WATER,
+  SPRINGS,
+  onsenWalkable,
+  onsenRoute,
+  onsenEdgeSpots,
+} from "./onsen-plan.mjs";
 //
 // Everything a system needs to know about a location lives in a venue: lanes, basin bounds, deck walking
 // corridors, doors, queue rows, stations, rescue fixtures and simple collision proxies. Scenes, routes,
@@ -286,8 +294,10 @@ function makeVenue(spec) {
     arrival.crossesZ = arrival.insideZ !== arrival.doorZ;
     arrival.enterAngle = (side) => (arrival.insideZ === arrival.doorZ ? -side * (Math.PI / 2) : 0);
   }
+  // The Mountain Hot Springs have no basin either: four springs in the snow (onsen-plan.mjs).
+  const onsen = spec.onsen || null;
   const obstacles = [
-    ...(river ? [] : [{ x: 0, z: 0, hx: pool.solidX, hz: pool.solidZ, kind: "pool" }]),
+    ...(river || onsen ? [] : [{ x: 0, z: 0, hx: pool.solidX, hz: pool.solidZ, kind: "pool" }]),
     ...(spec.blocks === false
       ? []
       : spec.lanes.map((x) => ({ x, z: -9.15, hx: 0.6, hz: 0.56, kind: "block" }))),
@@ -316,7 +326,8 @@ function makeVenue(spec) {
             Math.abs(x - b.x) < b.hx + radius &&
             Math.abs(z - b.z) < b.hz + radius,
         ) &&
-        (!river || river.walkable(x, z, radius))
+        (!river || river.walkable(x, z, radius)) &&
+        (!onsen || onsenWalkable(x, z, radius))
       );
     },
     // Out of the doorway and on the deck (a guest or a visitor who came in has cleared the door).
@@ -351,6 +362,8 @@ function makeVenue(spec) {
     // Coach-sized bodies collide with the starting blocks, so `solid` routes pass further behind them.
     route(from, to, { solid = false } = {}) {
       if (river) return river.route(from, to);
+      // (The hot springs: round the springs and the boulders, onsen-plan.mjs.)
+      if (onsen) return onsenRoute(from, to);
       // (The Rooftop Pool: round the basin on the near side only, the sunbeds, the cabanas and the bar, roof-plan.mjs.)
       if (spec.roof) return roofRoute(from, to);
       // (The cruise ship: round the whole pool (both halves), the rows of loungers, the bar and the lobbies, cruise-plan.mjs.)
@@ -399,6 +412,7 @@ function makeVenue(spec) {
     // Deck spots right at the pool edge, used by visitors who want to reach the water.
     edgeSpots() {
       if (river) return river.edgeSpots(venue);
+      if (onsen) return onsenEdgeSpots().filter((s) => venue.isDeck(s.x, s.z, 3, 0.3));
       const spots = [];
       // The Rooftop Pool: along the near side and both ends (the far side is the infinity edge).
       if (spec.roof) {
@@ -1185,6 +1199,79 @@ export const CRUISE = makeVenue({
   ],
 });
 
+// The Mountain Hot Springs (18 October 2026, onsen-plan.mjs, onsen.mjs): a snowy terrace in the mountains with four natural hot
+// springs, the bathhouse at its left end (one door, crossed along z, like the Lazy River's gate), the guests waiting in the snow in
+// front of it until the coach sends them to a spring, and the forest round the far side and the right end, where the snow monkeys
+// live. The deck is icy for the coach (`ice`: he slides, coach.mjs), and he can wade into a spring (it is shallow).
+export const ONSEN = makeVenue({
+  id: "onsen",
+  name: "Mountain Hot Springs",
+  indoor: false,
+  scenery: "snow",
+  sunAzimuth: 2.2,
+  lighting: "onsen",
+  doorWord: "the bathhouse door",
+  onsen: ONSEN_WATER,
+  // The ice underfoot (the coach's only): how quickly he picks up speed and slows down without input (m/s²), and his top speed.
+  ice: { grip: 11, glide: 4.6, top: 1.06 },
+  blocks: false,
+  // (The springs are the lanes: SPRING 1 to 4. Their x is each spring's middle, for the code that asks where a lane is.)
+  lanes: SPRINGS.map((s) => s.x),
+  deck: ONSEN_PLAN.deck,
+  room: { minX: -15.4, maxX: 15.4, minZ: -16.6, maxZ: 13.6 },
+  doors: { insideX: 0.62, doorX: 0.62, doorZ: -14.85, outsideX: 0.62, insideZ: -16.55 },
+  lockers: [],
+  queue: { blockX: [-1.5, 6.5], stepX: 1.2, startZ: -11.4, stepZ: 1.2, perRow: 5 },
+  coachStart: { x: -9.6, z: -6.2 },
+  cameraFollow: { kx: 0.22, maxX: 2.6 },
+  props: [
+    "mop",
+    "mop-bucket",
+    "swim-ring",
+    "stone-lantern",
+    "onsen-bucket",
+    "snowy-cedar",
+    "bamboo-spout",
+    "onsen-bench",
+    "bathhouse",
+    "yu-sign",
+    "towel-cart",
+  ],
+  stations: {
+    fins: { x: 12.2, z: -13.6 }, // (nobody needs fins here: a rack of towels)
+    chlorine: { x: -13.4, z: 3.2 }, // the water care: the springs' minerals
+    relief: { x: -13.4, z: 9.6 },
+  },
+  sanitation: { rack: { x: -13.6, z: -9.6 }, bin: { x: -12.4, z: -12.2 }, reach: 6.2 },
+  ringMounts: [
+    { x: -14.85, z: -1.4, angle: Math.PI / 2 },
+    { x: -14.85, z: 6.4, angle: Math.PI / 2 },
+    { x: 2.0, z: 12.9, angle: Math.PI },
+  ],
+  rescue: { bench: { x: -10.8, z: -9.0 }, approach: { x: -9.6, z: -9.0 } },
+  // Where everyone out of the springs waits while they are closed (a floater, a fish): on the paths in front of the bathhouse.
+  evacSpots: [-9.6, -8.4, -7.2].flatMap((z) => [-3.0, -1.8, -0.6, 0.6, 1.8, 3.0].map((x) => ({ x, z }))),
+  fixtures: {
+    fishNet: { x: -14.85, z: -4.6, angle: Math.PI / 2 },
+    treats: { x: -11.6, z: 11.8 },
+    flashlight: { x: -8.4, z: 12.6 },
+    fuseBox: { x: 9.6, z: -14.85, angle: 0 },
+    mop: { x: -9.0, z: -12.6 },
+  },
+  trampoline: null,
+  furniture: [
+    { kind: "bench", x: -10.8, z: -9.65, angle: Math.PI / 2, hx: 0.49, hz: 1.2 },
+    { kind: "towel-rack", x: 12.2, z: -13.6, hx: 0.6, hz: 1.0 },
+    { kind: "station", x: -13.4, z: 3.2, hx: 0.6, hz: 0.9 },
+    { kind: "station", x: -13.4, z: 9.6, hx: 0.6, hz: 0.9 },
+    { kind: "lantern", x: -7.8, z: -13.9, hx: 0.35, hz: 0.35 },
+    { kind: "lantern", x: 8.2, z: -13.9, hx: 0.35, hz: 0.35 },
+    { kind: "lantern", x: 0.2, z: 6.2, hx: 0.35, hz: 0.35 },
+    { kind: "lantern", x: 10.6, z: 2.9, hx: 0.35, hz: 0.35 },
+    { kind: "bamboo-spout", x: 9.5, z: -4.9, hx: 0.4, hz: 0.4 },
+  ],
+});
+
 export const VENUES = {
   club: CLUB,
   resort: RESORT,
@@ -1198,6 +1285,7 @@ export const VENUES = {
   wave: WAVE,
   roof: ROOFTOP,
   cruise: CRUISE,
+  onsen: ONSEN,
 };
 
 export function createCoach(venue = CLUB) {

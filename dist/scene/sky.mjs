@@ -69,6 +69,19 @@ export const SCENERY = {
     fireflies: 0,
     seed: 83,
   },
+  // The Mountain Hot Springs (18 October 2026): the snowy peaks are the hot springs scene's own painted panorama
+  // (scene/onsen.mjs); no hills, sea or palms here, a few crows, clouds.
+  snow: {
+    sea: false,
+    hills: [],
+    palms: 0,
+    boats: 0,
+    birds: 4,
+    balloons: 0,
+    lanterns: 0,
+    fireflies: 0,
+    seed: 97,
+  },
   skyline: {
     sea: false,
     hills: [],

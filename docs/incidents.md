@@ -80,6 +80,15 @@ on one minds; the coach straightens the row (E). **The slosh**: in a big lean th
 Every incident still comes, Marco too (he has the lanes); half the guests chill in the free half or on a lounger and order
 margaritas, as on the roof.
 
+**At the Mountain Hot Springs** (18 October 2026) the trouble is the cold and the snow monkeys (`dist/onsen.mjs`). **The cold** 🥶:
+a guest waiting in the snow grows colder by the second and, past a third of the way, hugs themselves and grumbles fast (the warning
+is the hug and the ❄️ on their card, the prevention window the seconds before it bites, the failure their mood running out, the
+recovery a spring: SPRING 1–4, where they warm up). **A snow monkey** 🐒: one comes out of the forest and makes for a spring on all
+fours (the warning is the monkey itself, its alert and a sting; the prevention window its walk there, in which the coach runs into
+it, +40; the failure is the hop in, −50, and everyone in that spring panicking, their mood falling fast; the recovery is shooing it
+out from the rim, E, or wading up to it, +25). The coach slides on the ice. Every incident still comes, in the springs (the fish kid
+tips his fish into one, the cannonball man bombs into one, a floater closes them all), Marco too (for a soak).
+
 ### Starts on the deck, ends in the pool
 
 | Incident | Levels | What happens |

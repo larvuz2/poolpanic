@@ -1,6 +1,8 @@
 import { SanitationController } from "./sanitation.mjs";
 import { RESCUE as R, ENTRY } from "./spatial.mjs";
 import { benchOnBeach, tickBeachRecovery } from "./wave-pool.mjs";
+import { onsenDive, onsenOutPath } from "./onsen.mjs";
+import { SPRINGS, springLocal, nearestSpring, clampInSpring } from "./onsen-plan.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const waitingInWater = (s, p) =>
@@ -260,9 +262,11 @@ export class RescueController extends SanitationController {
     ) {
       const P = this.venue.pool,
         river = this.venue.river;
-      const to = river
-        ? riverDive(river, c)
-        : { x: clamp(c.x, -P.entryX, P.entryX), z: clamp(c.z, -P.entryZ, P.entryZ) };
+      const to = this.venue.onsen
+        ? onsenDive(this)
+        : river
+          ? riverDive(river, c)
+          : { x: clamp(c.x, -P.entryX, P.entryX), z: clamp(c.z, -P.entryZ, P.entryZ) };
       c.waterTransition = { kind: "dive", from: { x: c.x, z: c.z }, to, t: 0 };
       c.vx = c.vz = c.vy = 0;
       c.dashTime = 0;
@@ -277,6 +281,15 @@ export class RescueController extends SanitationController {
     const c = this.coach;
     if (!c.swimming || c.waterTransition) return false;
     const P = this.venue.pool;
+    if (this.venue.onsen) {
+      // Out onto the rim beside him (or the spring's steps, if a boulder is there), when close to the edge.
+      if (springLocal(SPRINGS[c.spring ?? nearestSpring(c).id], c.x, c.z).inside > 0.75) return false;
+      const to = onsenOutPath(this, c)[1];
+      c.waterTransition = { kind: "climb", from: { x: c.x, z: c.z }, to, t: 0 };
+      c.vx = c.vz = 0;
+      c.angle = Math.atan2(to.x - c.x, to.z - c.z);
+      return true;
+    }
     if (this.venue.river) {
       // Out onto the nearer bank, when close to it (or onto a stepping stone right beside him).
       const river = this.venue.river,
@@ -379,6 +392,21 @@ export class RescueController extends SanitationController {
       if (Math.abs(q.d) >= river.w - 0.5 && out * Math.sign(q.d) > 0.3) this.leaveWater();
       return;
     }
+    if (this.venue.onsen) {
+      // In a hot spring: kept inside its rim; pushing out at the rim climbs out.
+      const s = SPRINGS[c.spring ?? (c.spring = nearestSpring(c).id)],
+        next = clampInSpring(s, c.x + c.vx * dt, c.z + c.vz * dt, 0.4);
+      c.x = next.x;
+      c.z = next.z;
+      if (c.lookAngle == null && Math.hypot(c.vx, c.vz) > 0.1) c.angle = Math.atan2(c.vx, c.vz);
+      this.onSwimStep(dt);
+      const l = springLocal(s, c.x, c.z),
+        outX = Math.cos(l.th) / s.rx,
+        outZ = Math.sin(l.th) / s.rz,
+        n = Math.hypot(outX, outZ) || 1;
+      if (l.inside < 0.55 && (x * outX + z * outZ) / n > 0.3) this.leaveWater();
+      return;
+    }
     c.x = clamp(c.x + c.vx * dt, -P.swimX, P.swimX);
     c.z = clamp(c.z + c.vz * dt, -P.swimZ, P.swimZ);
     if (c.lookAngle == null && Math.hypot(c.vx, c.vz) > 0.1) c.angle = Math.atan2(c.vx, c.vz);
@@ -442,7 +470,7 @@ export class RescueController extends SanitationController {
       bench = this.venue.rescue;
     // (At the Wave Pool: a rest on a towel on the sand.)
     if (this.venue.waves) return benchOnBeach(this, p);
-    if (this.venue.river) {
+    if (this.venue.river || this.venue.onsen) {
       p.path = [...this.venue.route(p, bench.approach), { ...bench.bench }];
       return;
     }

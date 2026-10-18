@@ -20,13 +20,16 @@ export const CLIPS = {
   run: "Run",
   swim: "Swim",
   swimRing: "SwimRing",
+  // The hot springs' ice (18 October 2026): skating along, and sliding on with the arms flung out (the deck has no grip).
+  iceSkate: "IceSkate",
+  iceSlide: "IceSlide",
 };
 const REQUIRED = ["idle", "scratch", "walk", "run"];
 // The speed each clip covers without the feet sliding (Anim Bench's ground estimate), in world units per second.
 export const RUN_SPEED = 3.85;
 export const WALK_SPEED = 1.21;
 // The clips whose playing rate follows the coach's speed.
-const PACED = new Set(["run", "walk", "swim", "swimRing"]);
+const PACED = new Set(["run", "walk", "swim", "swimRing", "iceSkate"]);
 // How fast he swims with the ring, for the kick: the swim speed of the rescue (spatial.mjs).
 const RING_SWIM_SPEED = 4.2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -122,8 +125,8 @@ export class CoachRig {
   }
   // dt: seconds of world time (zero in a hit-stop). speed: the coach's speed. intro: {rate} while the shift's countdown
   // walks him in. prone: swimming (the clip is played on his front, in the water). ring: he holds the life ring.
-  // busy: a timed job in hand.
-  update(dt, { speed = 0, intro = null, prone = false, ring = false, busy = false } = {}) {
+  // busy: a timed job in hand. ice: "skate" or "slide" on the hot springs' ice (coach.mjs `onIce`, `sliding`).
+  update(dt, { speed = 0, intro = null, prone = false, ring = false, busy = false, ice = null } = {}) {
     let want;
     let rate = 1;
     if (intro) {
@@ -136,6 +139,12 @@ export class CoachRig {
         // The ring floats ahead of him and his arms hold it there, still; the legs kick a little faster as he swims faster.
         want = "swimRing";
         rate = 0.85 + 0.45 * clamp(speed / RING_SWIM_SPEED, 0, 1);
+      } else if (ice === "slide" && this.actions.iceSlide && !prone) {
+        want = "iceSlide";
+      } else if (this.moving && ice === "skate" && this.actions.iceSkate && !prone) {
+        // (A skater glides: no rate plants the foot, so the stride only quickens with the speed.)
+        want = "iceSkate";
+        rate = clamp(speed / 3.5, 0.7, 1.5);
       } else if (this.moving) {
         want = "run";
         rate = clamp(speed / RUN_SPEED, 0.6, 2.1);
@@ -159,7 +168,10 @@ export class CoachRig {
       this.idleFor = 0;
       this.scratchAfter = CoachRig.scratchDelay();
     }
-    this.to(want, want === "run" || want === "swim" || want === "swimRing" ? 0.12 : 0.22);
+    this.to(
+      want,
+      want === "run" || want === "swim" || want === "swimRing" || want === "iceSlide" ? 0.12 : 0.22,
+    );
     // The playing rate follows the coach's speed smoothly; the other clips play as they are.
     this.rate += (rate - this.rate) * Math.min(1, dt * 14);
     if (PACED.has(this.current)) this.actions[this.current].setEffectiveTimeScale(this.rate);

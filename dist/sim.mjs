@@ -36,6 +36,17 @@ import {
   roofLeaving,
 } from "./rooftop.mjs";
 import { createShip, updateShip, driftDeck, swimLean } from "./ship.mjs";
+import {
+  createOnsen,
+  onsenSpawn,
+  sendToSpring,
+  walkToSpring,
+  tickOnsenEnter,
+  beginOnsenExit,
+  tickOnsenExit,
+  tickCold,
+  updateOnsen,
+} from "./onsen.mjs";
 export { LANES, STATIONS } from "./spatial.mjs";
 export const TYPES = {
   beginner: { label: "Beginner", color: "#71ba54", speed: 0.55, icon: "🐢" },
@@ -482,6 +493,8 @@ export class PoolSimulation extends ChaosController {
     if (this.venue.chill) this.roof = createRoof(this);
     // The cruise ship's roll, its loungers and its slosh (ship.mjs), from a stream of their own.
     if (this.venue.cruise) this.ship = createShip(this);
+    // The hot springs' snow monkeys (onsen.mjs), from a stream of their own.
+    if (this.venue.onsen) this.onsen = createOnsen(this);
     this.clutter = [];
     this.uid = 0;
     this.coach = createCoach(this.venue);
@@ -876,6 +889,7 @@ export class PoolSimulation extends ChaosController {
     }
     if (type === "rider") riderSpawn(this, p);
     if (this.venue.waves) batherSpawn(this, p);
+    if (this.venue.onsen) onsenSpawn(this, p);
     if (this.venue.roof || (this.venue.chill && chillGuest(this, p))) roofSpawn(this, p);
     if (type === "senior") {
       // A senior: one of four looks, patient (they know the pool takes time), cramps more often, a steady swimmer of their own pace,
@@ -968,6 +982,8 @@ export class PoolSimulation extends ChaosController {
   walk(p, target, mode = "enter") {
     // (At the Lazy River every way into the water is the boarding dock.)
     if (this.venue.river) return walkToRiver(this, p, mode);
+    // (At the hot springs, back to their spring.)
+    if (this.venue.onsen && p.lane != null) return walkToSpring(this, p, mode);
     // (At the Wave Pool, down to the beach and into the waves.)
     if (this.venue.waves) return walkToWaves(this, p, mode);
     // (On the roof, back to whatever their plan has them doing.)
@@ -1017,6 +1033,10 @@ export class PoolSimulation extends ChaosController {
     if (this.coach.carry === "chlorine" && p?.status !== "queue" && p?.status !== "swim") {
       return this.deliverWater(lane);
     }
+    if (p?.status === "swim" && this.venue.onsen) {
+      this.emit("toast", { text: p.name + " is settled in their spring: they stay put." });
+      return false;
+    }
     if (p?.status === "swim") return this.moveLane(p, lane);
     if (!p || p.status !== "queue") {
       this.emit("toast", { text: "Pick a waiting swimmer first, then choose a lane." });
@@ -1037,6 +1057,13 @@ export class PoolSimulation extends ChaosController {
       return false;
     }
     if (this.laneLocked(lane)) return this.laneRefused(lane);
+    // (At the hot springs: to a spring with a seat free, onsen.mjs.)
+    if (this.venue.onsen) {
+      if (!sendToSpring(this, p, lane)) return false;
+      this.emit("assigned", { id: p.id, lane });
+      this.selected = null;
+      return true;
+    }
     p.lane = lane;
     p.assignedAt = this.time;
     p.p = 30;
@@ -1191,7 +1218,12 @@ export class PoolSimulation extends ChaosController {
         ? p.type === "child"
           ? [...this.venue.route(p, this.venue.arrival.at(p.side, "outside")), ...this.returnRoute(p.side)]
           : this.returnRoute(p.side)
-        : this.venue.river || this.venue.waves || this.venue.roof || p.chill || this.venue.cruise
+        : this.venue.river ||
+            this.venue.waves ||
+            this.venue.roof ||
+            p.chill ||
+            this.venue.cruise ||
+            this.venue.onsen
           ? [...this.venue.route(p, this.venue.arrival.at(p.side, "outside")), ...this.returnRoute(p.side)]
           : [{ x: p.side * this.venue.pool.corridorX, z: p.z }, ...this.returnRoute(p.side)];
     p.lane = null;
@@ -1207,6 +1239,7 @@ export class PoolSimulation extends ChaosController {
     if (this.venue.river) return beginRiverExit(this, p);
     if (this.venue.waves) return beginWaveExit(this, p);
     if (p.chill) return beginRoofExit(this, p);
+    if (this.venue.onsen) return beginOnsenExit(this, p);
     // Finish in the water at the nearer end, then climb out beside the blocks.
     const P = this.venue.pool;
     p.exitEnd = p.z >= 0 ? 1 : -1;
@@ -1230,6 +1263,7 @@ export class PoolSimulation extends ChaosController {
     if (this.venue.river) return tickRiverExit(this, p, dt);
     if (this.venue.waves) return tickWaveExit(this, p, dt);
     if (p.chill) return tickRoofExit(this, p, dt);
+    if (this.venue.onsen) return tickOnsenExit(this, p, dt);
     if (p.status !== "exit" || !["water", "climb"].includes(p.exitPhase)) return false;
     if (p.exitPhase === "water") {
       p.actualSpeed = Math.max(1.6, p.desiredSpeed || 2.1);
@@ -1347,6 +1381,7 @@ export class PoolSimulation extends ChaosController {
       const P = this.venue.pool;
       if (
         !this.venue.river &&
+        !this.venue.onsen &&
         (entity.exitPhase === "deck" || (entity.status === "enter" && entity.path.length > 1)) &&
         Math.abs(x) < P.keepOutX &&
         Math.abs(z) < P.keepOutZ
@@ -1462,12 +1497,15 @@ export class PoolSimulation extends ChaosController {
           continue;
         }
         if (p.type === "child") this.roamKid(p, dt);
+        // (At the hot springs the snow is cold: the longer they wait, the colder they get, and the cold bites, onsen.mjs.)
+        if (this.onsen) tickCold(this, p, dt);
         p.wait += dt;
-        p.h = clamp(100 - (p.wait / p.waitLimit) * 100 - (p.deckPenalty || 0), 0, 100);
+        p.h = clamp(100 - (p.wait / p.waitLimit) * 100 - (p.deckPenalty || 0) - (p.coldPenalty || 0), 0, 100);
         if (p.h <= 0) this.lose(p);
       } else if (p.status === "enter" || p.status === "exit") {
         if (this.venue.river && tickRiverEnter(this, p, dt)) continue;
         if (this.venue.waves && tickWaveEnter(this, p, dt)) continue;
+        if (this.venue.onsen && tickOnsenEnter(this, p, dt)) continue;
         if (p.chill && tickRoofEnter(this, p, dt)) continue;
         if (this.tickChair(p, dt)) continue;
         if (
@@ -1523,6 +1561,7 @@ export class PoolSimulation extends ChaosController {
     resolveDeck(this);
     if (this.venue.river) updateRiver(this, dt);
     else if (this.venue.waves) updateWavePool(this, dt);
+    else if (this.venue.onsen) updateOnsen(this, dt);
     else {
       if (this.venue.chill) updateRooftop(this, dt);
       if (!this.venue.roof) for (let i = 0; i < this.lanes.length; i++) this.updateLane(i, dt);

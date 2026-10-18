@@ -220,7 +220,14 @@ function darkChaos(sim, dt) {
     }
     sim.stats.collisions++;
     sim.emit("collision", { x: a.x, z: a.z, id: a.id });
-    if (sim.level > 1 && !a.problem && sim.chaosRandom() < 0.25 && !sim.venue.river && !sim.venue.waves) {
+    if (
+      sim.level > 1 &&
+      !a.problem &&
+      sim.chaosRandom() < 0.25 &&
+      !sim.venue.river &&
+      !sim.venue.waves &&
+      !sim.venue.onsen
+    ) {
       a.problem = "goggles";
       sim.clutter.push({ id: ++sim.uid, type: "goggles", owner: a.id, x: sim.lanes[lane], z: -9.6 });
     }

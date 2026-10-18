@@ -2,6 +2,8 @@
 // and goggles and drops them somewhere else, bowls over waiting swimmers, belly-flops into a lane and then
 // shakes itself dry into slippery puddles. You can't outrun it, but you can bribe it: grab the dog treats,
 // let it follow you, and lead it out through a locker door.
+import { nearestSpring, clampInSpring } from "../onsen-plan.mjs";
+import { onsenOutPath } from "../onsen.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -214,7 +216,8 @@ export function roamSpots(sim) {
   for (let x = d.minX + 1.2; x <= d.maxX - 1.2; x += 1.6)
     for (let z = d.minZ + 1.4; z <= d.maxZ - 1; z += 1.6) {
       // (The basin's box; at the Lazy River the deck test itself keeps the dog out of the river.)
-      if (!venue.river && Math.abs(x) < P.keepOutX + 0.4 && Math.abs(z) < P.keepOutZ + 0.4) continue;
+      if (!venue.river && !venue.onsen && Math.abs(x) < P.keepOutX + 0.4 && Math.abs(z) < P.keepOutZ + 0.4)
+        continue;
       if (z < -10.6 && Math.abs(x) < 6) continue;
       if (venue.isDeck(x, z, 3, 0.75)) spots.push({ x, z });
     }
@@ -315,16 +318,22 @@ function mischief(sim, d, v, dt) {
         const P = sim.venue.pool,
           river = sim.venue.river;
         // Across the pool (or out into the river and along it a little).
-        v.swimTo = river
+        v.swimTo = sim.venue.onsen
           ? (() => {
-              const q = river.locate(v.x, v.z);
-              const to = river.point(q.s + (sim.chaosRandom() - 0.5) * 6, -q.d * 0.4);
-              return river.clamp(to.x, to.z, 0.8);
+              // Across its spring, a little past the middle.
+              const s = nearestSpring(v);
+              return clampInSpring(s, s.x + (s.x - v.x) * 0.35, s.z + (s.z - v.z) * 0.35, 0.7);
             })()
-          : {
-              x: clamp(-v.x * 0.4, -P.floatX, P.floatX),
-              z: clamp(v.z + (sim.chaosRandom() - 0.5) * 6, -P.floatZ, P.floatZ),
-            };
+          : river
+            ? (() => {
+                const q = river.locate(v.x, v.z);
+                const to = river.point(q.s + (sim.chaosRandom() - 0.5) * 6, -q.d * 0.4);
+                return river.clamp(to.x, to.z, 0.8);
+              })()
+            : {
+                x: clamp(-v.x * 0.4, -P.floatX, P.floatX),
+                z: clamp(v.z + (sim.chaosRandom() - 0.5) * 6, -P.floatZ, P.floatZ),
+              };
         d.swims++;
         sim.emit("splash", { x: v.x, z: v.z });
         sim.emit("dog-splash", { x: v.x, z: v.z });
@@ -452,6 +461,7 @@ function chooseMischief(sim, d, v) {
 function intoWater(sim, spot, depth) {
   const P = sim.venue.pool;
   if (sim.venue.river) return sim.venue.river.fromBank(spot, depth);
+  if (sim.venue.onsen) return sim.venue.onsen.fromBank(spot, depth);
   return spot.axis === "x"
     ? { x: clamp(spot.x + spot.face * (P.solidX - P.halfX + depth), -P.floatX, P.floatX), z: spot.z }
     : { x: spot.x, z: clamp(spot.z + spot.face * (P.solidZ - P.halfZ + depth), -P.floatZ, P.floatZ) };
@@ -459,6 +469,10 @@ function intoWater(sim, spot, depth) {
 function nearestExit(sim, v) {
   const P = sim.venue.pool,
     river = sim.venue.river;
+  if (sim.venue.onsen) {
+    const [water, deck] = onsenOutPath(sim, v);
+    return { water, deck };
+  }
   if (river) {
     const bank = river.bank(v.x, v.z, { inside: 0.3, outside: 0.6 });
     return sim.venue.isDeck(bank.deck.x, bank.deck.z, sim.level, 0.3)

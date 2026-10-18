@@ -2,6 +2,7 @@
 // the edge. If he dumps it, everybody bolts out of the water and runs in panicked circles while the coach
 // grabs the fish net, dives in and chases the fish (it darts away but tires). Catching it reopens the pool;
 // then hand the fish back to the sobbing kid and hang the net up again.
+import { SPRINGS, springLocal, clampInSpring, nearestSpring } from "../onsen-plan.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -352,6 +353,7 @@ function updateKid(sim, kid, f, dt) {
 
 function inPoolZone(sim, p) {
   if (sim.venue.river) return sim.venue.river.inWater(p.x, p.z, -0.6);
+  if (sim.venue.onsen) return sim.venue.onsen.inWater(p.x, p.z, -0.6);
   const P = sim.venue.pool;
   return Math.abs(p.x) < P.keepOutX && Math.abs(p.z) < P.keepOutZ;
 }
@@ -380,6 +382,13 @@ function dumpFish(sim, kid, f) {
     f.x = at.x;
     f.z = at.z;
     f.wander = Math.atan2(kid.spot.fx, kid.spot.fz);
+  } else if (sim.venue.onsen) {
+    // (Into the spring the kid stood by: it stays in that one.)
+    const at = sim.venue.onsen.fromBank(kid.spot, 1.4);
+    f.x = at.x;
+    f.z = at.z;
+    f.spring = nearestSpring(at).id;
+    f.wander = Math.atan2(kid.spot.fx ?? 0, kid.spot.fz ?? 1);
   } else {
     f.x = clamp(kid.x + (kid.spot.axis === "x" ? kid.spot.face * 1.6 : 0), -P.floatX, P.floatX);
     f.z = clamp(kid.z + (kid.spot.axis === "z" ? kid.spot.face * 1.6 : 0), -P.floatZ, P.floatZ);
@@ -416,9 +425,11 @@ function headingScore(sim, f, c, dx, dz, look) {
   }
   const px = f.x + dx * look,
     pz = f.z + dz * look;
-  const clear = sim.venue.river
-    ? sim.venue.river.clearance(px, pz, 0.65)
-    : Math.min(P.floatX - Math.abs(px), P.floatZ - Math.abs(pz));
+  const clear = sim.venue.onsen
+    ? springLocal(SPRINGS[f.spring ?? 0], px, pz).inside - 0.65
+    : sim.venue.river
+      ? sim.venue.river.clearance(px, pz, 0.65)
+      : Math.min(P.floatX - Math.abs(px), P.floatZ - Math.abs(pz));
   return (
     Math.hypot(px - soon.x, pz - soon.z) * 0.6 +
     Math.min(clear, 2) -
@@ -477,7 +488,17 @@ function swimFish(sim, f, dt) {
     dz = Math.cos(f.wander);
     const margin = 1.1,
       river = sim.venue.river;
-    if (river) {
+    if (sim.venue.onsen) {
+      // Turn back towards the middle of its spring before the rim.
+      const s = SPRINGS[f.spring ?? 0],
+        gap = springLocal(s, f.x, f.z).inside - 0.65;
+      if (gap < margin) {
+        const push = (1 - gap / margin) * 1.2,
+          d = Math.hypot(s.x - f.x, s.z - f.z) || 1;
+        dx += ((s.x - f.x) / d) * push;
+        dz += ((s.z - f.z) / d) * push;
+      }
+    } else if (river) {
       // Turn back towards the middle of the river before a bank.
       const gap = river.clearance(f.x, f.z, 0.65);
       if (gap < margin) {
@@ -502,6 +523,20 @@ function swimFish(sim, f, dt) {
   f.vz += ((dz / n) * speed - f.vz) * k;
   f.x += f.vx * dt;
   f.z += f.vz * dt;
+  if (sim.venue.onsen) {
+    // Kept in its spring: at the rim it stops and turns back toward the middle.
+    const s = SPRINGS[f.spring ?? 0];
+    if (springLocal(s, f.x, f.z).inside < 0.6) {
+      const back = clampInSpring(s, f.x, f.z, 0.6);
+      f.x = back.x;
+      f.z = back.z;
+      f.vx *= 0.2;
+      f.vz *= 0.2;
+      f.wander = Math.atan2(s.x - f.x, s.z - f.z) + (sim.chaosRandom() - 0.5);
+    }
+    if (Math.hypot(f.vx, f.vz) > 0.05) f.heading = Math.atan2(f.vx, f.vz);
+    return;
+  }
   if (sim.venue.river) {
     // Kept in the river: at a bank it stops and turns back.
     const river = sim.venue.river;

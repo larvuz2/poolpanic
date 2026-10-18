@@ -261,6 +261,23 @@ export const POOLS = {
     ],
     twists: { class: 0, closure: 0 },
   },
+  // The Mountain Hot Springs (18 October 2026): four natural hot springs on an icy terrace in the snow (onsen.mjs). Guests wait in
+  // the cold until they are sent to a spring, and the snow monkeys come out of the forest for the warm water. Nobody swims laps
+  // (no swim team, no class, no spring to close); every incident still comes, Marco too (he comes for a soak after training).
+  onsen: {
+    name: "Mountain Hot Springs",
+    icon: "♨️",
+    style: { venue: "onsen", lighting: "onsen", aqua: false },
+    events: [
+      "First snow",
+      "Snow monkey season",
+      "Steam & stars",
+      "Winter solstice",
+      "Lantern night",
+      "Blizzard soak",
+    ],
+    twists: { team: 0, class: 0, closure: 0 },
+  },
   arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20] },
 };
 export const POOL_IDS = Object.keys(POOLS);
@@ -392,6 +409,14 @@ const SCORE_SCALE = {
     [10, 1],
     [13, 0.95],
     [20, 0.75],
+  ],
+  // The Mountain Hot Springs: nobody swims laps, so a spring never jams, and a guest sent straight to one is warm and happy;
+  // only the cold, the monkeys and the ice take points, so the stars ask more (on Splash Park's targets the coach bot made about
+  // 1.5 times its share there early in a run, 1.2 times later; calibrated 18 October 2026).
+  onsen: [
+    [10, 1.7],
+    [15, 1.5],
+    [20, 1.2],
   ],
 };
 

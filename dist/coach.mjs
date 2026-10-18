@@ -4,6 +4,8 @@ import { batherInReach, batherServicePoint } from "./wave-pool.mjs";
 import { takeTray, roofServicePoint, ROOF_REACH } from "./rooftop.mjs";
 import { wetSpotAt, WET_TUNING } from "./incidents/wet.mjs";
 import { coachDrift } from "./ship.mjs";
+import { springAt, ONSEN_WATER } from "./onsen-plan.mjs";
+import { onsenServicePoint, onsenWaterPoint } from "./onsen.mjs";
 const names = {
   fins: "fins",
   chlorine: "chlorine",
@@ -108,9 +110,13 @@ export class CoachController {
     }
     c.jumpBuffer = Math.max(0, c.jumpBuffer - dt);
     const moving = c.slipTime === 0;
-    const accel = c.input.x || c.input.z ? T.acceleration : T.braking;
+    // On ice (the hot springs' terrace) his shoes barely grip: he picks up speed slowly, turns wide and slides on when he lets
+    // go (`ice.grip`, `ice.glide`, m/s²); in the water or mid-air the ice has no say.
+    const ice = this.venue.ice && !c.wading && !c.swimming && c.y === 0 ? this.venue.ice : null;
+    const pushing = !!(c.input.x || c.input.z);
+    const accel = pushing ? (ice ? ice.grip : T.acceleration) : ice ? ice.glide : T.braking;
     const dashing = c.dashTime > 0 && moving;
-    const speed = T.speed * (this.perks?.speed ?? 1) * (c.wading ? WADE : 1),
+    const speed = T.speed * (this.perks?.speed ?? 1) * (c.wading ? WADE : 1) * (ice ? ice.top : 1),
       dx = (moving ? c.input.x * speed : 0) - c.vx,
       dz = (moving ? c.input.z * speed : 0) - c.vz;
     const velocityStep = Math.min(1, (accel * dt) / Math.max(0.000001, Math.hypot(dx, dz)));
@@ -139,9 +145,16 @@ export class CoachController {
       else c.vz = 0;
     }
     if (c.lookAngle == null && Math.hypot(c.vx, c.vz) > 0.12) c.angle = Math.atan2(c.vx, c.vz);
+    // On the ice: skating (pushing on) or sliding (carried along without pushing, or skidding round a turn) for the model's clips.
+    const v = Math.hypot(c.vx, c.vz);
+    c.onIce = !!ice;
+    c.sliding =
+      !!ice &&
+      v > 1.4 &&
+      (!pushing || (c.input.x * c.vx + c.input.z * c.vz) / (v * Math.hypot(c.input.x, c.input.z)) < 0.6);
     // (In the water a chill plan lets him wade in (the rooftop's pool, the cruise ship's free half), or out of it.)
-    if (this.venue.chill) {
-      const wading = this.venue.chill.wading(c.x, c.z);
+    if (this.venue.chill || this.venue.onsen) {
+      const wading = this.venue.onsen ? !!springAt(c.x, c.z, 0.02) : this.venue.chill.wading(c.x, c.z);
       if (wading !== !!c.wading) {
         c.wading = wading;
         c.dashTime = 0;
@@ -189,12 +202,16 @@ export class CoachController {
           ? "Holding " + (c.carry === "fins" && this.tubes() ? "a tube" : names[c.carry])
           : c.wading
             ? "Wading"
-            : Math.hypot(c.vx, c.vz) > 0.2
-              ? "On the move"
-              : "Ready to help";
+            : c.sliding
+              ? "Sliding on the ice!"
+              : Math.hypot(c.vx, c.vz) > 0.2
+                ? "On the move"
+                : "Ready to help";
   }
   // Where the coach may wade in the Rooftop Pool: the water up to just short of the infinity edge, and the coping he steps over.
   wadeable(x, z) {
+    // (The hot springs are shallow too: the coach can step down into any of them.)
+    if (this.venue.onsen) return !!springAt(x, z, -(T.radius + 0.01));
     if (!this.venue.chill) return false;
     return this.venue.chill.wadeable(x, z, T.radius + 0.01);
   }
@@ -279,6 +296,7 @@ export class CoachController {
     if (p.status === "swim" && this.venue.river) return riverServicePoint(this, p);
     if (p.status === "swim" && this.venue.waves) return batherServicePoint(this, p);
     if (p.chill) return roofServicePoint(this, p);
+    if (p.status === "swim" && this.venue.onsen) return onsenServicePoint(this, p);
     if (p.status !== "swim" || p.lane == null) return { x: p.x, z: p.z };
     const P = this.venue.pool,
       last = this.lanes.length - 1;
@@ -303,6 +321,8 @@ export class CoachController {
     if (this.venue.waves) return batherInReach(this);
     // On the roof: beside them, from the walk or wading.
     if (p.chill) return distance(this.coach, p) <= ROOF_REACH;
+    // At the hot springs: from the rim beside them, or wading.
+    if (this.venue.onsen) return distance(this.coach, p) <= ROOF_REACH;
     const c = this.coach,
       P = this.venue.pool;
     return (
@@ -313,6 +333,7 @@ export class CoachController {
   }
   waterPoint() {
     if (this.venue.river) return riverWaterPoint(this);
+    if (this.venue.onsen) return onsenWaterPoint(this);
     const c = this.coach,
       P = this.venue.pool;
     return { x: Math.max(-P.edgeX, Math.min(P.edgeX, c.x)), z: Math.max(-P.edgeZ, Math.min(P.edgeZ, c.z)) };

@@ -188,6 +188,33 @@ seconds each (the same input always gives the same GLB), and the same rig is wha
   character holds a ring), so it is added to `coach-panic.glb` alone, then grounded (`ground_clips.py --only SwimRing`);
   `characters.json` marks it `"prone": true` and `rig-check.mjs` holds it to the brief. A tool script like this one that adds a clip to the
   Coach's own file does it with `character_clips.py -- coach-panic.glb out.glb --character coach`.
+- **ColdHug** (`cold_hug_clip()`, `--character cold`, 18 October 2026) is the Mountain Hot Springs' cold guest, waiting in the snow
+  (the creator: "a self-hugging pose or cold huddle pose: arms crossed tightly over the chest, hugging oneself for warmth"). The arms
+  are crossed tight over the chest, each hand on the other side's upper arm (the left arm in front and lower: wrist targets
+  (-0.60, -0.36, -0.30) and (-0.58, -0.26, -0.15) of the reach, the elbows down and out), the hands rubbing the upper arms up and down
+  in turn (4.5 cm, three times a loop); the shoulders hunched to the ears (`shrug` 0.95), the back rounded 13 degrees and the head
+  tucked 14; a fast fine shiver (6 Hz, four frames a cycle, about 1.5 degrees through the back, shoulders and head, a few millimetres
+  of the hips); the knees a little bent (hips 3.5 cm down) and the feet 3.5 cm in from where they stand; the weight shifting from
+  foot to foot once a loop with a quick stamp of each foot (3.5 cm, six frames) in turn; quick breathing (`breath_frames` 16).
+  48 frames (2 s), a loop. Made on a scratch copy of the Coach (his game file has none), transplanted into the five generic
+  swimmers and Marco (`transplant_clips.py --only ColdHug`, hip travel x0.76 to x1.15), grounded (`ground_clips.py --only
+  ColdHug`, lifts of -1.1 to +0.8 cm). Marco's file is copied to Anim Bench's `tools/viewer/models/marco.glb` too: the game's
+  Marco must be Anim Bench's (`swimmer-model-check.mjs`). The fastest bone turns about 20 degrees a frame.
+- **IceSkate and IceSlide** (`ice_skate_clip()`, `ice_slide_clip()`, `--character coach`, 18 October 2026) are Coach Waters' on the
+  Mountain Hot Springs' icy deck ("running on ice… low-friction movements, slippery locomotion, momentum drifting"). Made on a
+  scratch copy of the Coach and put into `coach-panic.glb` with `transplant_clips.py --only IceSkate,IceSlide --scale 1` (his other
+  clips stay sample for sample), then `ground_clips.py --only IceSkate,IceSlide` (+0.5 and +0.8 cm). **IceSkate** (32 frames,
+  1.33 s, a loop, made in place: the game moves him) is a skating stride, two strides a loop: each foot in turn pushes out
+  diagonally to the side and back (from 18 cm ahead and 2 cm out to 28 cm behind and 42 cm out, over 55% of its cycle) while the
+  other glides under him, then lifts 10 cm and swings back in; the hips 11 to 13 cm low and 4 cm back, swaying 8 cm over the
+  gliding foot and turning 12 degrees with it; the body pitched forward (hips 16 degrees, spine 22 more), the head lifted 30
+  to look ahead; the arms swing wide against the legs, forward and across the body and then back and out (each elbow's pole is
+  blended with the swing, down-out in front and back-up behind: a fixed pole lined up with the arm behind him and flipped the
+  forearm 180 degrees in a frame). The fastest bone turns 33 degrees a frame (a knee). **IceSlide** (48 frames, 2 s, a loop) is a
+  skid with nothing to stop him: the feet planted apart (the left 20 cm ahead, the right 16 cm behind, both 14 cm out), the knees
+  bent (hips 12 cm down), the arms flung out to the sides and windmilling in small circles (26 by 28 per cent of the reach, twice a
+  loop, against each other) and seesawing against the body's wobble, the upper body wobbling from side to side (14 degrees) and
+  back and forth, the head ducking the other way.
 - **Their own clips** (`character_clips.py`). Each of the five has one clip of its own, for the time it spends waiting to be
   assigned a lane (not wired into the game yet: the guests there are the five generic swimmers below): Marco `WaitWatch`
   (impatient: a long look at his watch, a sigh, hand on hip, looking around, a foot tapping, a second quick look),
@@ -273,6 +300,30 @@ tools/blender/run.sh tools/blender/ground_clips.py -- jump3.glb carl.glb --only 
   Coach, the arms turned out by up to 33 degrees (Walk, idles), 34 (Run), 51 (Swim), the knees cut by up to 45 degrees in the Run, and
   the tucked body hangs 0.114 m above the floor (Carl's 0.124: `cannonball_clip.py` measures it on each body), so the splash is at the
   same frame, 37. His Cannonball is Carl's, made on his body.
+
+## An animal on the Coach's skeleton (the snow monkey)
+
+`dist/assets/models/snow-monkey.glb` (the Mountain Hot Springs' macaque) is a quadruped posed on the Coach's 24 bones, so the
+game's rig code plays it like any guest. It was built from one fal design image (`gpt-image-2.5` edit with a game character as the
+style reference, a T-pose), one Meshy 7 mesh, and these steps:
+
+    tools/blender/run.sh tools/blender/game_export.py -- meshy.glb body.glb --height 0.80
+    tools/blender/run.sh tools/blender/decimate.py -- body.glb body11.glb 11000
+    tools/blender/run.sh tools/blender/rig_from_template.py -- body11.glb rigged.glb --set y_neck=0.50
+    python3 tools/blender/monkey_clips.py rigged.glb clips.glb
+    tools/blender/run.sh tools/blender/ground_clips.py -- clips.glb snow-monkey.glb --only MonkeyWalk,MonkeyRun,MonkeyIdle
+
+- `--set y_neck=0.50` puts the neck under the big head (the fitted 0.725 ran the spine up into it).
+- `monkey_clips.py` (plain Python, `posing.py`) poses the walk and run on all fours: the pelvis is pitched about 82 degrees, the
+  spine's pitch is fitted so the shoulders sit an arm's reach above the palms, the head pitches back to look ahead, and the hands and
+  feet are put on world targets by two-bone IK on a diagonal gait. The feet stay flat and the palms nearly flat all the time: a foot
+  that followed the shin in the swing sank its toes 12 cm into the floor.
+- The clips are MonkeyWalk (12 frames, 0.86 m/s), MonkeyRun (a bound, 10 frames, 2.27 m/s), MonkeyIdle (96 frames: sitting,
+  looking round, scratching, shivering), MonkeySoak (96 frames: sitting upright, head back, breathing; the chin is 0.269 m above the
+  clip floor, and it is not grounded, since the game sinks it to the waterline) and MonkeyHop (15 frames, one shot, in place, ending
+  about 0.38 m below the floor: into the water).
+- `render_grid.py` renders many frames of many clips from several views in one Blender session (`--floor`, `--water H`), for
+  contact sheets.
 
 ## Rigging notes
 

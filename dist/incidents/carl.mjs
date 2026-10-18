@@ -5,6 +5,7 @@
 // The cannonball man is Carl or the leopard man, one of them for a whole level (`cannonballMan`): the levels take turns, Carl
 // on the even ones. While he is in the water (from the splash until he is out on the deck again) the crowd panics: the swimmers
 // in the pool stop where they are, and the swimmers and everyone waiting on the deck hop with their hands up.
+import { onsenOutPath } from "../onsen.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -147,7 +148,12 @@ export const CannonballCarl = {
             river = sim.venue.river,
             s = Math.sign(v.spot.x) || 1;
           v.status = "swimming";
-          if (river) {
+          if (sim.venue.onsen) {
+            // Out by the rim beside him (or the spring's steps, onsen.mjs).
+            const out = onsenOutPath(sim, v);
+            v.swimTo = out[0];
+            v.deck = out[1];
+          } else if (river) {
             // Back to the bank he jumped from.
             const bank = river.bank(v.x, v.z, { side: v.spot.side, outside: 0.6 });
             v.swimTo = bank.water;
@@ -276,15 +282,18 @@ function pickLaunchSpot(sim, v) {
   const spots = sim.venue
     .edgeSpots()
     .filter((s) =>
-      river
-        ? s.s > river.start + 6 && s.s < river.end - 6 && (!v || distance(s, v) > 3)
-        : s.axis === "x" && Math.abs(s.z) <= 5 && (!v || distance(s, v) > 3),
+      sim.venue.onsen
+        ? !v || distance(s, v) > 3
+        : river
+          ? s.s > river.start + 6 && s.s < river.end - 6 && (!v || distance(s, v) > 3)
+          : s.axis === "x" && Math.abs(s.z) <= 5 && (!v || distance(s, v) > 3),
     );
   return spots[Math.floor(sim.chaosRandom() * spots.length)] || sim.venue.edgeSpots()[0];
 }
 function intoWater(sim, spot, depth) {
   const P = sim.venue.pool;
   if (sim.venue.river) return sim.venue.river.fromBank(spot, depth);
+  if (sim.venue.onsen) return sim.venue.onsen.fromBank(spot, depth);
   return { x: clamp(spot.x + spot.face * (P.solidX - P.halfX + depth), -P.floatX, P.floatX), z: spot.z };
 }
 function beginWindup(sim, v) {
@@ -295,7 +304,7 @@ function beginWindup(sim, v) {
   v.status = "windup";
   v.timer = T.windup;
   v.edge = { x: v.spot.x, z: v.spot.z };
-  if (v.spot.axis === "river") {
+  if (v.spot.axis === "river" || v.spot.dir) {
     // (A river bank faces the water at an angle of its own.)
     v.back = { x: -v.spot.fx * 1.3, z: -v.spot.fz * 1.3 };
     v.angle = Math.atan2(v.spot.fx, v.spot.fz);
@@ -340,6 +349,8 @@ function cannonball(sim, k, v) {
         x: side * (P.solidX + 1 + sim.chaosRandom() * 1.6),
         z: clamp(v.z + (sim.chaosRandom() - 0.5) * 5, -P.turnZ, P.turnZ),
       };
+      // (At the hot springs: on the rim by where he landed.)
+      if (sim.venue.onsen) spot = onsenOutPath(sim, { x: v.x + (sim.chaosRandom() - 0.5) * 2, z: v.z })[1];
       if (!sim.isDeck(spot.x, spot.z)) spot = { x: side * (P.corridorX + 0.2), z: v.z };
       // (Past the lanes on the cruise ship is the free water: they land on the near side.)
       if (!sim.isDeck(spot.x, spot.z)) spot = { x: -(P.corridorX + 0.2), z: v.z };
@@ -351,12 +362,17 @@ function cannonball(sim, k, v) {
     river = sim.venue.river;
   for (let i = 0; i < 4; i++) {
     // The splash soaks the bank he jumped from.
-    const at = river
-      ? river.point(
-          v.spot.s + (i - 1.5) * 1.5 + (sim.chaosRandom() - 0.5),
-          v.spot.side * (river.w + 0.8 + (i % 2) * 0.9),
-        )
-      : { x: side * (P.solidX + 0.8 + (i % 2) * 0.9), z: v.z + (i - 1.5) * 1.5 + (sim.chaosRandom() - 0.5) };
+    const at = sim.venue.onsen
+      ? onsenOutPath(sim, { x: v.x + (i - 1.5) * 1.2, z: v.z + (sim.chaosRandom() - 0.5) * 2 })[1]
+      : river
+        ? river.point(
+            v.spot.s + (i - 1.5) * 1.5 + (sim.chaosRandom() - 0.5),
+            v.spot.side * (river.w + 0.8 + (i % 2) * 0.9),
+          )
+        : {
+            x: side * (P.solidX + 0.8 + (i % 2) * 0.9),
+            z: v.z + (i - 1.5) * 1.5 + (sim.chaosRandom() - 0.5),
+          };
     sim.addPuddle(at.x, at.z, 0.8 + sim.chaosRandom() * 0.4, 18);
   }
   sim.emit("toast", {
