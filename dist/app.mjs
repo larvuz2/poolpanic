@@ -22,7 +22,8 @@ import {
 import { DRILLS } from "./drills.mjs";
 import { offerBookings, BOOKINGS } from "./bookings.mjs";
 import { LevelMap } from "./map.mjs";
-import { guidanceState, cuePulse } from "./guidance.mjs";
+import { guidanceState, cuePulse, laneVerdict } from "./guidance.mjs";
+import { Tutor } from "./tutorial.mjs";
 import {
   PoolSimulation,
   TYPES,
@@ -224,7 +225,8 @@ let input,
   queueKey = "",
   pausedByHelp = false,
   resumeState = "playing",
-  helpResumeState = "playing";
+  helpResumeState = "playing",
+  tutor = null; // the guided first shift's tips (tutorial.mjs), or null
 // The Aqua Disco's song follows the shift's clock (music.mjs): beat 0 at the go, as the class dances; it waits through the
 // countdown and goes when the power does. The Kids Pool, Senior Aqua Fit and the Lazy River have songs of their own on the same
 // clock.
@@ -1703,6 +1705,8 @@ function start(bookingId = null, week = null) {
           booking: activeBooking,
           config: { ...SHIFTS[level - 1], ...shiftGuests, ...man },
         });
+  tutor = sim.config.tutorial ? new Tutor() : null;
+  $("tutor").hidden = true;
   syncVenue(sim);
   world.resetActors();
   tracer.reset();
@@ -2629,7 +2633,7 @@ function updateWavesButton(b) {
               : "OFF";
   b.querySelector(".lane-count").textContent =
     board.state === "stopped"
-      ? (board.seconds > BATHE.grace ? "They want waves! " : "Stopped · ") + "press 1 to start"
+      ? (board.seconds > BATHE.grace ? "They want waves! " : "Stopped · ") + "press Z to start"
       : board.state === "halted"
         ? board.reason === "rescue"
           ? "Stopped for the rescue"
@@ -2637,12 +2641,12 @@ function updateWavesButton(b) {
             ? "Fix the power"
             : "Stopped · pool closed"
         : board.state === "monster"
-          ? "Monster in " + secs + " · 1 to stop!"
+          ? "Monster in " + secs + " · Z to stop!"
           : board.state === "horn"
             ? "Waves in " + secs
             : board.state === "calm"
-              ? "Next set in " + secs + " · 1 stops"
-              : (dizzy ? dizzy + " dizzy · " : "") + secs + "s left · 1 stops";
+              ? "Next set in " + secs + " · Z stops"
+              : (dizzy ? dizzy + " dizzy · " : "") + secs + "s left · Z stops";
   b.querySelector(".lane-caps").innerHTML = bathers
     .slice(0, 12)
     .map((q) => '<i style="background:' + (q.problem === "dizzy" ? "#ef5a4a" : roofLook(q).color) + '"></i>')
@@ -2715,6 +2719,13 @@ function updateUI() {
   $("mop").classList.toggle("busy-btn", wet > 0 || sim.coach.carry === "mop");
   $("wet-count").hidden = !wet;
   $("wet-count").textContent = wet;
+  // A calmer HUD (19 October 2026, Phase 1): a tool that is not needed right now is not on screen. Eye relief shows when someone
+  // has sore eyes, Tidy deck when gear lies on the deck, the mop when there is a wet spot (or the coach holds what they need);
+  // their keys (R, X, Q) always work.
+  const holding = (item) => sim.coach.carry === item || sim.coach.job?.item === item;
+  $("relief").hidden = !holding("relief") && !sim.people.some((p) => p.problem === "eyes");
+  $("clean").hidden = !sim.clutter.length;
+  $("mop").hidden = !wet && !holding("mop");
   $("assist").disabled = mode !== "playing";
   $("assist").querySelector(".interact-label").textContent = sim.nearestInteraction()?.label || "Interact";
   $("pause").disabled = !["playing", "countdown"].includes(mode);
@@ -2797,7 +2808,7 @@ function updateUI() {
       ? orders.length + " margarita" + (orders.length > 1 ? "s" : "") + " ordered"
       : building
         ? "🎧 The drop is coming!"
-        : "No orders · press " + (sim.venue.cruise ? "3" : "1") + " for a tray";
+        : "No orders · press B for a tray";
     barBtn.querySelector(".lane-caps").innerHTML = orders
       .slice(0, 10)
       .map((q) => '<i style="background:' + (q.vip ? "#e9a92b" : "#9fe06a") + '"></i>')
@@ -3224,6 +3235,19 @@ function updateBubbles() {
     }
     b.classList.toggle("selected", p.id === sim.selected);
     b.classList.toggle("guided", p.id === guidanceState(sim).swimmerId);
+    // A calmer pool (Phase 1): a swimmer happily swimming, with nothing wrong, keeps a small faded tag (the icon only), so the
+    // tags that stand out are the ones that need the coach. Still clickable, to move them to another lane.
+    b.classList.toggle(
+      "quiet",
+      p.status === "swim" &&
+        !p.problem &&
+        !p.stomachWarning &&
+        !rescuing &&
+        p.id !== sim.selected &&
+        p.h >= 55 &&
+        !p.vip &&
+        !p.star,
+    );
     put(b.querySelector(".type-icon"), roofLook(p).icon);
     put(b.querySelector(".type-label"), roofLook(p).label);
     const statusIcon = problemIcon(p);
@@ -3294,8 +3318,8 @@ function updateBubbles() {
 function points(e) {
   const p = world.project(e.x, 1.4, e.z),
     el = document.createElement("div");
-  el.className = "float-text";
-  el.textContent = (e.value > 0 ? "+" : "") + e.value;
+  el.className = "float-text" + (e.tone ? " verdict " + e.tone : "");
+  el.textContent = e.text ?? (e.value > 0 ? "+" : "") + e.value;
   el.style.left = p.x + "px";
   el.style.top = p.y + "px";
   $("world-labels").appendChild(el);
@@ -3454,6 +3478,11 @@ function events() {
       } else if (e.type === "assigned") {
         queueKey = "";
         updateUI();
+        // The lane choice judged at once (guidance.mjs laneVerdict): a small word over the swimmer.
+        const sent = sim.get(e.id),
+          verdict = laneVerdict(sim, sent, e.lane);
+        if (sent && verdict)
+          points({ x: sent.x, z: sent.z, text: verdict.text, tone: verdict.good ? "good" : "bad" });
       } else if (e.type === "select") {
         queueKey = "";
         updateUI();
@@ -3482,6 +3511,21 @@ function events() {
       setTimeout(() => ["playing", "paused"].includes(mode) && sampleLog(), 3000);
     } catch {}
   }
+  if (tutor) renderTutor(tutor.update(sim, batch));
+}
+// The guided first shift's tip (tutorial.mjs): one line at a time, at the top of the screen, with a way to skip the tips.
+function renderTutor(tip) {
+  const box = $("tutor");
+  box.hidden = !tip || mode !== "playing";
+  if (!tip) return;
+  put($("tutor-step"), tip.id === "finale" ? "✓" : tip.step + "/" + tip.total);
+  put($("tutor-text"), tip.text);
+  box.classList.toggle("finale", tip.id === "finale");
+}
+function skipTutor() {
+  tutor?.skip();
+  weekUi?.skipTutorial();
+  $("tutor").hidden = true;
 }
 const MOMENTS = new Set([
   "save",
@@ -3718,6 +3762,7 @@ function bind() {
   ["chlorine", "fins", "relief"].forEach((item) => ($(item).onclick = () => sim.fetch(item)));
   $("return-item").onclick = () => sim.returnItem();
   $("clean").onclick = () => sim.tidy();
+  $("tutor-skip").onclick = () => skipTutor();
   $("mop").onclick = () => sim.mop();
   $("assist").onclick = () => {
     act("interact (button) · " + (sim.coach.carry || "empty-handed"));
@@ -3909,12 +3954,14 @@ function bind() {
         toast(settings.coachCam ? "Coach Cam on · click the pool to look around" : "Overview camera");
         return;
       }
+      // One meaning per key (19 October 2026, Phase 1): the numbers only ever send someone to a place (a lane, a zone, a spring,
+      // the pool, the river); a pool's own action has a key of its own: B the bar (rooftop, ship), Z the wave machine.
       if (sim.venue.kids && key === "1") sim.assign(sim.poolLane());
       else if (sim.venue.river && key === "1") sim.assign(0);
-      else if (sim.venue.waves && key === "1") sim.toggleWaves();
-      else if (sim.venue.roof && key === "1") sim.fetch("bar");
-      else if (sim.venue.cruise && key === "3") sim.fetch("bar");
-      else if (/^[1-9]$/.test(key) && Number(key) <= sim.lanes.length) sim.assign(Number(key) - 1);
+      else if (/^[1-9]$/.test(key) && Number(key) <= sim.lanes.length && !sim.venue.waves && !sim.venue.roof)
+        sim.assign(Number(key) - 1);
+      if (key === "z" && sim.venue.waves) sim.toggleWaves();
+      if (key === "b" && (sim.venue.roof || sim.venue.cruise)) sim.fetch("bar");
       if (key === "t" && sim.venue.trampoline) sim.assignTrampoline?.();
       if (key === "c") sim.fetch("chlorine");
       if (key === "f") sim.fetch("fins");

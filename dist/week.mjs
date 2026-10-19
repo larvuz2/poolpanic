@@ -123,6 +123,8 @@ export function tierFor(step, random) {
 export const overTop = (step) => Math.max(0, step - (TOP_TIER - 1));
 // The first shift of a run: level 1 stretched to a gentle minute, easy to pass.
 export const FIRST_SHIFT = { duration: 60, total: 7 };
+// The guided first shift (Phase 1, tutorial.mjs) is the gentle minute played a little longer, so its lessons fit.
+export const TUTORIAL_SECONDS = 90;
 // VIPs (a big tip, short patience) in every shift (the creator, 16 October 2026: "always"): one in the gentle first minute, two from
 // the next, one more every three shifts (at most six).
 export const vipCount = (step) => (step <= 0 ? 1 : Math.min(6, 2 + Math.floor(step / 3)));
@@ -281,6 +283,64 @@ export const POOLS = {
   arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20] },
 };
 export const POOL_IDS = Object.keys(POOLS);
+
+// The card a pool shows before its first shift (Phase 1, 19 October 2026): what is different here, in one line, and the one thing
+// to do about it, in another. The picker shows it with the pool's icon; that shift is played FIRST_VISIT_EASE levels easier.
+export const FIRST_VISIT_EASE = 2;
+export const POOL_INTROS = {
+  club: {
+    rule: "Three lanes. Keep speeds together: Pros hate getting stuck behind Beginners.",
+    action: "Click a swimmer, then a lane (or 1–3).",
+  },
+  resort: {
+    rule: "Five lanes and a trampoline. Daredevils 🤸 only want the tower, and lane 5 must be empty when they jump.",
+    action: "Select a daredevil, then T. Clear lane 5 first.",
+  },
+  lagoon: {
+    rule: "Five lanes by the sea at sunset. A storm can roll in and leave puddles on the deck.",
+    action: "Walk round the puddles, or jump them (Space).",
+  },
+  aquatic: {
+    rule: "A competition pool: fast swimmers, and Marco “the Missile” wants a clear lane.",
+    action: "Give the Pros lanes of their own (1–5).",
+  },
+  disco: {
+    rule: "No lanes: four zones of aqua dancers. A fifth in a zone and they bump elbows.",
+    action: "Send each dancer to a zone with room (1–4).",
+  },
+  kids: {
+    rule: "Only kids, and they never wait in line: they run all over the deck.",
+    action: "Catch one (click them, or E beside them), then POOL (1).",
+  },
+  senior: {
+    rule: "Seniors walk slowly, some in wheelchairs, and they cramp more often.",
+    action: "Keep a life ring handy: E to grab one, then walk into the pool.",
+  },
+  river: {
+    rule: "No pool and no lanes: everyone wants a tube 🛟 before they float off round the river.",
+    action: "A tube from the rack (F), hand it over (E), then RIVER (1).",
+  },
+  wave: {
+    rule: "Bathers walk straight into the waves, and every wave makes them dizzy 💫.",
+    action: "Meet them with a tube (F). Z stops the wave machine.",
+  },
+  roof: {
+    rule: "Nobody swims up here: the guests chill, order margaritas 🍹 and mess up the sunbeds.",
+    action: "B for a tray of margaritas, E to hand them out and to tidy a sunbed.",
+  },
+  cruise: {
+    rule: "The ship rolls: people, sun loungers and you slide downhill.",
+    action: "Keep people off the pool's ends. E straightens a lounger row; B for the bar.",
+  },
+  onsen: {
+    rule: "Guests get cold waiting in the snow 🥶, and snow monkeys 🐒 want the warm water.",
+    action: "Send guests to a spring (1–4). Run into a monkey to shoo it.",
+  },
+  arena: {
+    rule: "The season finale: five lanes, a big crowd and lots of VIPs 👑.",
+    action: "VIPs tip big but hate waiting: serve them first.",
+  },
+};
 // The week's itinerary, one pool a day (the creator, 16 October 2026: "all of these pools… can appear in every week… random…
 // you cannot repeat venue per week"): six different pools drawn at random from every pool there is, in a random order, so a week
 // is never the same twice and never visits a pool twice. A pool added to `POOLS` joins the draw from the next week; with more
@@ -802,19 +862,25 @@ function vipSlots(count, random) {
 }
 
 // One shift of the week: everything the game needs to play it. `card` is the card picked (or null for the first look).
-export function buildShift(week, card = null, known = week.known || []) {
+// `seen`: the pools the player has played (week-ui keeps them in the save). A pool's first visit (`firstVisit`) is played two
+// levels easier (`FIRST_VISIT_EASE`), never below level 2, and the picker shows its card (`POOL_INTROS`). Without `seen` (checks,
+// replays of older shifts) nothing changes.
+export function buildShift(week, card = null, known = week.known || [], seen = null) {
   const chapter = chapterFor(week.chapter),
     index = week.shift,
     step = stepOf(week),
     random = stream((week.seed ^ Math.imul(index + 1, 2654435761)) >>> 0),
-    tier = tierFor(step, stream((week.seed ^ Math.imul(step + 11, 2246822519)) >>> 0)),
+    poolOf = (week.pools || weekPools(week.chapter, week.seed))[index] || "club",
+    firstVisit = !!seen && step > 0 && !seen.includes(poolOf),
+    drawn = tierFor(step, stream((week.seed ^ Math.imul(step + 11, 2246822519)) >>> 0)),
+    tier = firstVisit ? Math.max(Math.min(2, drawn), drawn - FIRST_VISIT_EASE) : drawn,
     over = overTop(step),
     // Past the top level: a little more crowd and higher targets for every shift beyond it (at most half as much again).
     f = Math.min(1.5, 1 + 0.03 * over),
     heat = over > 0 ? 1 + Math.floor(over / SHIFTS_PER_WEEK) : 0;
   // The day's pool, and the shift: the difficulty's level for its length, crowd, star targets and the number of incidents and twists,
   // in the pool's look.
-  const poolId = (week.pools || weekPools(week.chapter, week.seed))[index] || "club",
+  const poolId = poolOf,
     pool = POOLS[poolId],
     look = poolLook(poolId, tier, stream((week.seed ^ Math.imul(index + 5, 1597334677)) >>> 0)),
     ref = SHIFTS[tier - 1],
@@ -927,6 +993,8 @@ export function buildShift(week, card = null, known = week.known || []) {
     plan,
     pass: passMark(config),
     perks: effects.sim,
+    firstVisit,
+    intro: firstVisit ? POOL_INTROS[poolId] || null : null,
   };
 }
 
@@ -1002,6 +1070,10 @@ export function normalizeWeekSave(saved = {}) {
     invited: Array.isArray(s.invited)
       ? s.invited.filter((n) => Number.isInteger(n) && n > 0).slice(-100)
       : [],
+    // The pools played at least once (their first visit is easier and shows a card), and whether the guided first shift has been
+    // played or skipped (`tutorial`, Phase 1).
+    seen: Array.isArray(s.seen) ? [...new Set(s.seen.filter((p) => POOLS[p]))] : [],
+    tutorial: !!s.tutorial,
     week,
   };
 }
@@ -1023,6 +1095,9 @@ export function finishShift(save, shift, summary, stats = {}) {
   // before its fish came counted the fish as met). Without `met` (an older caller), the plan.
   const met = Array.isArray(summary.met) ? summary.met : shift.plan.incidents;
   for (const k of met) if (INCIDENTS[k] && !save.known.includes(k)) save.known.push(k);
+  if (Array.isArray(save.seen) && POOLS[shift.pool] && !save.seen.includes(shift.pool))
+    save.seen.push(shift.pool);
+  if (shift.config?.tutorial) save.tutorial = true;
   const insured = !passed && effects.insurance;
   const failed = !passed;
   const unlockedBefore = save.unlocked;
