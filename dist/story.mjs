@@ -20,6 +20,11 @@ export const ART = {
     movie: "assets/story/date-movie.webp",
     dinner: "assets/story/date-dinner.webp",
     ocean: "assets/story/date-ocean.webp",
+    // The dates after the season (Phase 2, 19 October 2026: made the same way, from the first four).
+    picnic: "assets/story/date-picnic.webp",
+    concert: "assets/story/date-concert.webp",
+    karaoke: "assets/story/date-karaoke.webp",
+    sailing: "assets/story/date-sailing.webp",
   },
 };
 

@@ -2105,11 +2105,14 @@ function finishWeek() {
   if (res.won && res.chapter.date.id === "ocean" && !res.chapter.heat) achievements.fund();
   $("result-eyebrow").textContent =
     `WEEK ${ws.chapter.id} · ${ws.day.toUpperCase()} · ${ws.place.toUpperCase()}` +
+    (ws.finale ? " · SEASON FINALE" : "") +
     (ws.card && ws.card.id !== "regular" ? " · " + ws.card.name.toUpperCase() : "") +
     (res.failed ? " · NOT PASSED" : " · SHIFT COMPLETE");
   $("result-stars").textContent = Array.from({ length: 3 }, (_, i) => (i < r.stars ? "★" : "☆")).join(" ");
   $("result-title").textContent = res.won
-    ? "It's a date! 💖"
+    ? res.finale
+      ? "The season is yours! And it's a date 💖"
+      : "It's a date! 💖"
     : res.over
       ? "Not enough for the date…"
       : res.failed

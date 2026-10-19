@@ -84,10 +84,12 @@ function invite(chapter) {
   ];
 }
 
-// Sunday: the Date Fund made it.
-function date(chapter) {
+// Sunday: the Date Fund made it. `extra`: a pool opened on the ladder by this date (`newPool`: { icon, name }), shown before the
+// week ends; and, after week 4's ocean trip, the story's ending (`ending`: the first time, with the credits) or, in a later run, a
+// shorter close (`seasonDone`).
+function date(chapter, extra = {}) {
   const d = chapter.date;
-  return [
+  const panels = [
     {
       bg: "dream",
       img: ART.marinaReady,
@@ -107,15 +109,87 @@ function date(chapter) {
         { e: "❤️", x: 50, y: 48, s: 8, a: "float" },
       ],
     },
-    {
+  ];
+  if (extra.ending) panels.push(...ending().slice(1, -1));
+  if (extra.newPool)
+    panels.push({
       bg: "pool",
-      img: ART.coachPool,
-      hold: 0,
-      text: "Monday comes round again: busier pools, a harder week, and Marina's already planning the next date…",
+      hold: 4200,
+      text: `A new pool opens for good: ${extra.newPool.name}! It's in next week's shifts.`,
       layers: [
-        { e: "📅", x: 50, y: 50, s: 20, a: "pulse" },
-        { b: "Same time next Sunday? 😘", x: 50, y: 20 },
+        { e: extra.newPool.icon, x: 50, y: 50, s: 26, a: "pulse" },
+        { e: "🔓", x: 74, y: 30, s: 10, a: "float" },
+        { b: `New pool: ${extra.newPool.name}`, x: 50, y: 16 },
       ],
+    });
+  panels.push(
+    extra.ending
+      ? ending().at(-1)
+      : extra.seasonDone
+        ? {
+            bg: "sea",
+            img: ART.date.ocean,
+            hold: 0,
+            text: "The season is over, and the pools never close: from here every week is harder than the last. How far can you go?",
+            layers: [{ e: "🌊", x: 50, y: 60, s: 20, a: "float" }],
+          }
+        : {
+            bg: "pool",
+            img: ART.coachPool,
+            hold: 0,
+            text: "Monday comes round again: busier pools, a harder week, and Marina's already planning the next date…",
+            layers: [
+              { e: "📅", x: 50, y: 50, s: 20, a: "pulse" },
+              { b: "Same time next Sunday? 😘", x: 50, y: 20 },
+            ],
+          },
+  );
+  return panels;
+}
+
+// The story's ending (Phase 2, 19 October 2026): the season finale won and the ocean trip paid for, Marina sees the sea; the cast
+// rolls by; then the run goes on, endless. Played after week 4's date the first time (and from the album any time after).
+export const CAST = [
+  { role: "Coach Waters", name: "the coach" },
+  { role: "Marina", name: "who had never seen the ocean" },
+  { role: "Marco “the Missile”", name: "the fastest lane in town" },
+  { role: "Valentina", name: "the aqua disco's instructor" },
+  { role: "Karen", name: "who would like to speak to the manager" },
+  { role: "Carl and the leopard man", name: "cannonballs" },
+  { role: "The fish kid", name: "and his bucket" },
+  { role: "Biscuit, Noodle, Pickles and friends", name: "loose dogs" },
+  { role: "The snow monkeys", name: "of the Mountain Hot Springs" },
+  { role: "Every swimmer", name: "who waited in line" },
+];
+function ending() {
+  return [
+    {
+      bg: "sea",
+      img: ART.date.ocean,
+      hold: 4200,
+      text: "Sunday: the ocean trip with Marina.",
+      layers: [{ e: "🌊", x: 50, y: 60, s: 20, a: "float" }],
+    },
+    {
+      bg: "sea",
+      img: ART.date.ocean,
+      hold: 4600,
+      text: "Marina sees the ocean for the very first time. She doesn't need the postcard any more.",
+      layers: [{ b: "It's even bluer than the pool! 🌊", x: 52, y: 22 }],
+    },
+    {
+      bg: "night",
+      hold: 9000,
+      text: "Pool Panic",
+      credits: CAST,
+      layers: [],
+    },
+    {
+      bg: "sea",
+      img: ART.date.ocean,
+      hold: 0,
+      text: "Thanks for playing! The season is over, but the pools never close: from here every week is harder than the last. How far can you go?",
+      layers: [{ e: "❤️", x: 50, y: 34, s: 14, a: "pulse" }],
     },
   ];
 }
@@ -140,12 +214,19 @@ function raincheck(chapter, why) {
 
 export const money = (n) => "$" + Math.round(n).toLocaleString("en-US");
 
-// The panels of a scene: `kind` is "invite", "date" or "raincheck"; its id (for VIDEOS) is `kind-<date id>` (the rain check
-// has one, `raincheck`). A scene with a video plays it in its first panel, with nothing timed: it moves on when it ends.
-export function scene(kind, chapter, why = "") {
-  const id = kind === "raincheck" ? "raincheck" : kind + "-" + chapter.date.id;
+// The panels of a scene: `kind` is "invite", "date", "raincheck" or "ending"; its id (for VIDEOS) is `kind-<date id>` (the rain
+// check has one, `raincheck`, and the ending `ending`). A scene with a video plays it in its first panel, with nothing timed: it
+// moves on when it ends. `extra` is the date's (see `date`); for the rain check, `why`.
+export function scene(kind, chapter, extra = "") {
+  const id = kind === "raincheck" || kind === "ending" ? kind : kind + "-" + chapter.date.id;
   const panels =
-    kind === "invite" ? invite(chapter) : kind === "date" ? date(chapter) : raincheck(chapter, why);
+    kind === "invite"
+      ? invite(chapter)
+      : kind === "date"
+        ? date(chapter, extra || {})
+        : kind === "ending"
+          ? ending()
+          : raincheck(chapter, extra);
   const video = VIDEOS[id];
   if (video) return { id, panels: [{ ...panels[0], video, hold: 0 }, ...panels.slice(1)] };
   return { id, panels };

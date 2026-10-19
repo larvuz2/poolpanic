@@ -11,6 +11,11 @@ const esc = (text) =>
 // only the speech bubbles over it. A panel with a `video` (a file under dist/, see marina.mjs) plays it full screen on top;
 // the still or the layers stay behind it as the fallback.
 export function panelHtml(panel) {
+  // A credits panel (the story's ending, marina.mjs): the cast rolls up the stage.
+  if (Array.isArray(panel.credits))
+    return `<div class="cine-scene bg-${esc(panel.bg || "night")}"><div class="cine-credits"><div class="cine-roll">${panel.credits
+      .map((c) => `<p><b>${esc(c.role)}</b><span>${esc(c.name)}</span></p>`)
+      .join("")}<p class="cine-thanks">Thanks for playing 💖</p></div></div></div>`;
   const art = panel.img
     ? `<img class="cine-art" src="${esc(panel.img)}" alt="" decoding="async">${layersHtml(panel, true)}`
     : layersHtml(panel);

@@ -1,29 +1,40 @@
-// The week on screen (the rules are week.mjs): the card on the menu, the shift picker with Marina's wishes, the shop, and
-// the week's part of the results. The app hands over what it owns (starting a shift, the cinematics, the toast, the log).
+// The week on screen (the rules are week.mjs): the card on the menu, the shift picker with Marina's wishes, the shop, the
+// week's part of the results, and the coach's locker (what lasts across runs: the pools, the gear, the dates album). The app
+// hands over what it owns (starting a shift, the cinematics, the toast, the log).
 import {
   WEEK_KEY,
   DAYS,
   DATE_DAY,
   SHIFTS_PER_WEEK,
   PERKS,
-  REROLL_PRICE,
+  GEAR,
+  GEAR_IDS,
+  LADDER,
+  FINALE_WEEK,
+  FINALE_POOL,
+  ALL_DATES,
   INCIDENTS,
   INCIDENT_ORDER,
   chapterFor,
+  chapterOfDate,
   normalizeWeekSave,
   newWeek,
   buildShift,
   POOLS,
   weekPools,
+  openPools,
   finishShift,
   outlook,
   shopOffer,
+  perkPrice,
+  rerollPrice,
   buyPerk,
   reroll,
   textsPassed,
   TUTORIAL_SECONDS,
 } from "./week.mjs";
 import { scene, money } from "./marina.mjs";
+import { ART } from "./story.mjs";
 
 const esc = (text) =>
   String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -51,8 +62,11 @@ export function installWeek({
     ? new URLSearchParams(globalThis.location.search).get("pool")
     : null;
   const itinerary = (w) =>
-    forcedPool ? Array(SHIFTS_PER_WEEK).fill(forcedPool) : w.pools || weekPools(w.chapter, w.seed);
-  const planned = (w) => ({ ...w, pools: itinerary(w) });
+    forcedPool
+      ? Array(SHIFTS_PER_WEEK).fill(forcedPool)
+      : w.pools || weekPools(w.chapter, w.seed, openPools(save.ladder, w.chapter));
+  // The week as buildShift reads it: its pools, and the gear the coach wears now.
+  const planned = (w) => ({ ...w, pools: itinerary(w), gear: save.gear });
 
   function load() {
     try {
@@ -91,6 +105,7 @@ export function installWeek({
     el.style.width = to + "%";
   }
   const share = (fund, goal) => Math.min(100, (fund / goal) * 100);
+  const openCount = () => Math.min(save.ladder, LADDER.length);
 
   // ---- the menu's card ------------------------------------------------------------------------------------------------
   function menu() {
@@ -99,7 +114,10 @@ export function installWeek({
     $("week-card").hidden = inFreePlay;
     $("wk-date-icon").textContent = ch.date.icon;
     $("wk-eyebrow").textContent =
-      "WEEK " + ch.id + (save.bestWeek > 1 ? " · BEST: WEEK " + save.bestWeek : "");
+      "WEEK " +
+      ch.id +
+      (ch.id === FINALE_WEEK ? " · THE SEASON FINALE" : ch.id > FINALE_WEEK ? " · ENDLESS" : "") +
+      (save.bestWeek > 1 ? " · BEST: WEEK " + save.bestWeek : "");
     $("wk-title").textContent = ch.date.name + " with Marina";
     $("wk-sub").textContent = w
       ? `${DAYS[w.shift]} · shift ${w.shift + 1} of ${SHIFTS_PER_WEEK} · the date is on ${DATE_DAY}`
@@ -110,8 +128,11 @@ export function installWeek({
     $("wk-days").innerHTML = daysHtml(w);
     const met = INCIDENT_ORDER.filter((k) => save.known.includes(k));
     $("wk-note").textContent =
+      `Pools open: ${openCount()} of ${LADDER.length} · ` +
       (save.dates.length ? "Dates this run: " + save.dates.length + " 💖 · " : "") +
       `Incidents met: ${met.map((k) => INCIDENTS[k].icon).join(" ") || "none yet"} (${met.length}/${INCIDENT_ORDER.length})`;
+    $("wk-locker").textContent =
+      `🏅 Coach's locker · ${save.stars}★${GEAR[save.gear] ? " · " + GEAR[save.gear].icon : ""}`;
     $("wk-free").textContent = `🗺️ Free play · ${save.unlocked} level${save.unlocked > 1 ? "s" : ""} open`;
   }
   function hideMenu() {
@@ -124,7 +145,10 @@ export function installWeek({
     const fresh = !save.invited?.includes(save.chapter);
     save.week = newWeek(save, Date.now());
     persist();
-    crumb("week", "week " + save.chapter + " starts · seed " + save.week.seed);
+    crumb(
+      "week",
+      "week " + save.chapter + " starts · seed " + save.week.seed + " · pools " + save.week.pools.join(","),
+    );
     if (fresh) {
       save.invited = [...(save.invited || []), save.chapter];
       persist();
@@ -143,7 +167,15 @@ export function installWeek({
     shift = buildShift(planned(w), null, save.known, save.seen);
     const o = outlook(w);
     $("wd-title").textContent =
-      "WEEK " + ch.id + " · " + upper(shift.day) + " · " + shift.icon + " " + upper(shift.place);
+      "WEEK " +
+      ch.id +
+      " · " +
+      upper(shift.day) +
+      " · " +
+      shift.icon +
+      " " +
+      upper(shift.place) +
+      (shift.finale ? " · SEASON FINALE" : "");
     $("wd-count").textContent = `SHIFT ${w.shift + 1} OF ${SHIFTS_PER_WEEK}`;
     $("wd-date").textContent = ch.date.icon;
     $("wd-money").textContent = money(w.fund) + " / " + money(ch.goal);
@@ -154,26 +186,31 @@ export function installWeek({
     $("wd-pace").classList.toggle("behind", !o.onTrack);
     $("wd-days").innerHTML = daysHtml(w);
     $("wd-pass").textContent = "PASS: " + shift.pass.toLocaleString() + " POINTS";
-    $("wd-tips").textContent = "🪙 " + w.tips + " TIPS";
+    const gear = GEAR[shift.gear];
+    $("wd-gear").hidden = !gear;
+    $("wd-gear").textContent = gear ? gear.icon + " " + upper(gear.name) : "";
+    $("wd-gear").title = gear ? gear.text : "";
     $("wd-perks").textContent = w.perks.map((p) => PERKS[p].icon).join("");
     $("wd-perks").title = w.perks.map((p) => PERKS[p].name).join(", ");
     $("wd-wishes").innerHTML = shift.wishes
       .map((x) => `<li><span>${x.icon} ${esc(x.text)}</span><b>+${money(x.pay)}</b></li>`)
       .join("");
-    // A pool's first visit: its card (one rule, one action), and the shift is a little easier (week.mjs POOL_INTROS).
+    // A pool's first visit: its card (one rule, one action), and the shift is a little easier (week.mjs POOL_INTROS). The season
+    // finale shows the arena's card every time.
     $("wd-intro").hidden = !shift.intro;
     if (shift.intro) {
       $("wd-intro-icon").textContent = shift.icon;
-      $("wd-intro-name").textContent =
-        "NEW POOL · " + upper(shift.place) + " · A LITTLE EASIER THE FIRST TIME";
+      $("wd-intro-name").textContent = shift.finale
+        ? "THE SEASON FINALE · " + upper(shift.place)
+        : "NEW POOL · " + upper(shift.place) + " · A LITTLE EASIER THE FIRST TIME";
       $("wd-intro-rule").textContent = shift.intro.rule;
       $("wd-intro-action").textContent = shift.intro.action;
     }
-    // One card is not a choice (Monday and Tuesday): a plain start button instead of a gig to pick.
+    // One card is not a choice (Monday and Tuesday, the finale): a plain start button instead of a gig to pick.
     const single = shift.cards.length === 1;
     $("wd-cards-note").hidden = single;
     $("wd-cards").innerHTML = single
-      ? `<button class="primary wd-start" data-card="${shift.cards[0].id}">Start the shift ▶</button>`
+      ? `<button class="primary wd-start" data-card="${shift.cards[0].id}">${shift.finale ? "Start the finale 🏆" : "Start the shift ▶"}</button>`
       : shift.cards
           .map(
             (c) =>
@@ -196,7 +233,9 @@ export function installWeek({
     crumb(
       "week",
       `shift ${shift.index + 1} · ${shift.day} · ${shift.pool} · step ${shift.step} · ${cardId} · tier ${shift.tier} · ` +
-        `incidents ${shift.plan.incidents.join(",") || "none"}${shift.plan.surprise ? " · surprise " + shift.plan.surprise : ""} · pass ${shift.pass}`,
+        `incidents ${shift.plan.incidents.join(",") || "none"}${shift.plan.surprise ? " · surprise " + shift.plan.surprise : ""} · pass ${shift.pass}` +
+        (shift.gear ? " · gear " + shift.gear : "") +
+        (shift.finale ? " · FINALE" : ""),
     );
     startShift(shift);
   }
@@ -212,7 +251,9 @@ export function installWeek({
     crumb(
       "week",
       `shift ${shift.index + 1} done · ${result.passed ? "passed" : "FAILED"} · +${result.gained} → ${result.fund}/${result.goal}` +
-        (result.won ? " · DATE" : result.over ? " · GAME OVER" : ""),
+        (result.won ? " · DATE" : result.over ? " · GAME OVER" : "") +
+        (result.newPool ? " · new pool " + result.newPool : "") +
+        (result.newGear.length ? " · new gear " + result.newGear.join(",") : ""),
     );
     const lines = [];
     if (result.passed)
@@ -221,14 +262,19 @@ export function installWeek({
       lines.push(
         `<li class="${x.met && !result.failed ? "" : "miss"}"><span>${x.met && !result.failed ? "💌" : "✗"} ${esc(x.text)}</span><b>${x.met && !result.failed ? "+" + money(x.pay) : ""}</b></li>`,
       );
-    if (result.sponsor) lines.push(`<li><span>🤝 Sponsor</span><b>+${money(result.sponsor)}</b></li>`);
-    if (result.tips) lines.push(`<li><span>🪙 Tips for the shop</span><b>+${result.tips}</b></li>`);
+    if (result.sponsor) lines.push(`<li><span>🤝 Sponsors</span><b>+${money(result.sponsor)}</b></li>`);
+    if (result.vipTips) lines.push(`<li><span>🫙 VIP tips</span><b>+${money(result.vipTips)}</b></li>`);
+    for (const id of result.newGear)
+      lines.push(
+        `<li class="unlock"><span>🔓 New gear in the locker: ${GEAR[id].icon} ${esc(GEAR[id].name)}</span><b>${save.stars}★</b></li>`,
+      );
     $("rw-lines").innerHTML = lines.join("");
     const banner = $("rw-banner");
     banner.hidden = !(result.failed || result.won || result.over || result.unlocked);
     banner.classList.toggle("good", result.won || (!result.failed && !result.over));
     banner.textContent = result.won
-      ? `💖 DATE FUND FULL! ${upper(ch.date.name)} ON ${upper(DATE_DAY)}`
+      ? `💖 DATE FUND FULL! ${upper(ch.date.name)} ON ${upper(DATE_DAY)}` +
+        (result.newPool ? ` · 🔓 NEW POOL: ${upper(POOLS[result.newPool].name)}` : "")
       : result.over
         ? `SATURDAY NIGHT, ${money(result.goal - result.fund)} SHORT · GAME OVER`
         : result.failed
@@ -237,7 +283,8 @@ export function installWeek({
     $("rw-date").textContent = ch.date.icon;
     $("rw-money").textContent = money(result.fund) + " / " + money(result.goal);
     fill($("rw-fill"), share(before, result.goal), share(result.fund, result.goal));
-    const texts = textsPassed(before, result.fund, result.goal);
+    // Marina's texts come once each, on the way up (the shop can take the fund down again).
+    const texts = textsPassed(result.peakBefore, result.fund, result.goal);
     $("rw-text").textContent = texts.length
       ? `Marina: “${texts[texts.length - 1].text}”`
       : result.surprise && result.passed
@@ -266,49 +313,147 @@ export function installWeek({
         scene("raincheck", r.chapter, "short").panels,
         () => {
           returnMenu();
-          toast("Game over. Press START for a new run: week 1, Monday 🔁");
+          toast(
+            "Game over. Press START for a new run: week 1, Monday 🔁 What you opened in the locker stays yours.",
+          );
         },
         "Back to the menu ▶",
       );
-    if (r.won)
-      return playScene(scene("date", r.chapter).panels, () => {
-        returnMenu();
-        toast(
-          `Week ${chapterNow().id}: harder pools. The next date: ${chapterNow().date.name} ${chapterNow().date.icon}`,
-        );
-      });
+    if (r.won) {
+      const pool = r.newPool && POOLS[r.newPool];
+      return playScene(
+        scene("date", r.chapter, {
+          newPool: pool ? { icon: pool.icon, name: pool.name } : null,
+          ending: r.ending,
+          seasonDone: r.chapter.id === FINALE_WEEK && !r.ending,
+        }).panels,
+        () => {
+          returnMenu();
+          toast(
+            r.chapter.id === FINALE_WEEK
+              ? `The season is over! Week ${chapterNow().id}: endless, every week harder. The next date: ${chapterNow().date.name} ${chapterNow().date.icon}`
+              : `Week ${chapterNow().id}: harder pools. The next date: ${chapterNow().date.name} ${chapterNow().date.icon}`,
+          );
+        },
+        r.ending ? "Keep playing ▶" : undefined,
+      );
+    }
     openShop();
   }
 
-  // ---- the shop -------------------------------------------------------------------------------------------------------
+  // ---- the shop (one money: perks out of the Date Fund) ----------------------------------------------------------------
   function openShop() {
     const w = save.week;
     if (!w) return menu();
-    $("shop-tips").textContent = "🪙 " + w.tips + " TIPS";
+    const ch = chapterNow(),
+      o = outlook(w),
+      reroll$ = rerollPrice(ch);
+    $("shop-count").textContent = `BEFORE ${upper(DAYS[w.shift])}'S SHIFT`;
+    $("shop-date").textContent = ch.date.icon;
+    $("shop-money").textContent = money(w.fund) + " / " + money(ch.goal);
+    $("shop-fill").style.width = share(w.fund, ch.goal) + "%";
+    $("shop-pace").textContent = o.reached
+      ? "The date is paid for: spend what's over it freely 💖"
+      : `${money(o.need)} to go · about ${money(o.perShift)} a shift for the ${o.left} shift${o.left > 1 ? "s" : ""} left`;
+    $("shop-pace").classList.toggle("behind", !o.onTrack);
     const offer = shopOffer(w, w.rolls, save.known);
     $("shop-cards").innerHTML = offer.length
       ? offer
           .map((id) => {
             const p = PERKS[id],
-              afford = w.tips >= p.price;
-            return `<button class="booking-card" data-perk="${id}" ${afford ? "" : "disabled"}><span class="b-icon" aria-hidden="true">${p.icon}</span><strong>${esc(p.name)}</strong><span class="b-pay">🪙 ${p.price}</span><span class="b-note">${esc(p.text)}</span></button>`;
+              price = perkPrice(id, ch),
+              afford = w.fund >= price;
+            return `<button class="booking-card" data-perk="${id}" ${afford ? "" : "disabled"}><span class="b-icon" aria-hidden="true">${p.icon}</span><strong>${esc(p.name)}</strong><span class="b-pay">${money(price)}</span><span class="b-note">${esc(p.text)}</span><span class="b-note">${afford ? "Leaves " + money(w.fund - price) + " in the fund" : "Not enough in the fund"}</span></button>`;
           })
           .join("")
       : `<p class="booking-note">You own every perk this week. Big spender!</p>`;
     $("shop-perks").textContent = w.perks.length
       ? "This week: " + w.perks.map((p) => PERKS[p].icon + " " + PERKS[p].name).join(" · ")
       : "No perks yet this week.";
-    $("shop-reroll").disabled = w.tips < REROLL_PRICE || !offer.length;
-    $("shop-reroll").textContent = `🎲 New stock · 🪙 ${REROLL_PRICE}`;
+    $("shop-reroll").disabled = w.fund < reroll$ || !offer.length;
+    $("shop-reroll").textContent = `🎲 New stock · ${money(reroll$)}`;
     if (!$("shop-dialog").open) $("shop-dialog").showModal();
     $("shop-next").focus();
   }
   function buy(id) {
-    if (!save.week || !buyPerk(save.week, id)) return;
+    if (!save.week) return;
+    const price = perkPrice(id, chapterNow());
+    if (!buyPerk(save.week, id)) return;
     persist();
-    crumb("week", "bought " + id);
-    toast(`${PERKS[id].icon} ${PERKS[id].name}: ${PERKS[id].text}`);
+    crumb("week", "bought " + id + " · -" + price + " → " + save.week.fund);
+    toast(`${PERKS[id].icon} ${PERKS[id].name}: ${PERKS[id].text} (−${money(price)} from the Date Fund)`);
     openShop();
+  }
+
+  // ---- the coach's locker: what lasts across runs (Phase 2) ----------------------------------------------------------------
+  function openLocker() {
+    const open = openCount();
+    $("locker-stars").textContent = `${save.stars}★ EARNED IN ALL RUNS`;
+    // The pools: the ladder, opened by dates; each with its best stars.
+    $("locker-pools-note").textContent =
+      open < LADDER.length
+        ? `${open} of ${LADDER.length} open. Every date with Marina opens the next one, for good.`
+        : "Every pool is open. The Grand Gala Arena is the finale of week 4.";
+    $("locker-pools").innerHTML = [...LADDER, FINALE_POOL]
+      .map((id, i) => {
+        const p = POOLS[id],
+          finale = id === FINALE_POOL,
+          isOpen = finale ? save.finale || save.seen.includes(id) : i < open,
+          best = save.best[id];
+        const note = finale
+          ? isOpen
+            ? stars(best || 0)
+            : "WEEK 4 FINALE"
+          : isOpen
+            ? save.seen.includes(id)
+              ? stars(best || 0)
+              : "NEW"
+            : i === open
+              ? "NEXT DATE"
+              : "🔒";
+        return `<div class="locker-pool${isOpen ? "" : i === open && !finale ? " next" : " locked"}" title="${esc(p.name)}"><i aria-hidden="true">${isOpen || i === open ? p.icon : "❔"}</i>${esc(isOpen || i === open ? p.name : "A pool to open")}<b>${note}</b></div>`;
+      })
+      .join("");
+    // The gear: kept for good once the stars reach its mark; the coach wears one piece.
+    $("locker-gear").innerHTML = GEAR_IDS.map((id) => {
+      const g = GEAR[id],
+        have = save.stars >= g.stars,
+        worn = save.gear === id;
+      return `<button class="locker-item${worn ? " worn" : ""}" data-gear="${id}" ${have ? "" : "disabled"} aria-pressed="${worn}"><i aria-hidden="true">${have ? g.icon : "🔒"}</i><strong>${esc(have ? g.name : `At ${g.stars}★`)}</strong><span>${esc(have ? (worn ? "Worn · " : "") + g.text : `${g.stars - save.stars}★ to go: ${g.text.toLowerCase()}`)}</span></button>`;
+    }).join("");
+    // The album: every date ever had, to watch again; the story's ending once seen.
+    const had = ALL_DATES.filter((d) => save.album.includes(d.id)).length;
+    $("locker-album-note").textContent = had
+      ? `${had} of ${ALL_DATES.length} dates. Pick one to watch it again.`
+      : "Your dates with Marina will be kept here.";
+    const items = ALL_DATES.map((d) => {
+      const have = save.album.includes(d.id),
+        ch = chapterOfDate(d.id),
+        art = ART.date[d.id];
+      return `<button class="locker-item" data-date="${d.id}" ${have ? "" : "disabled"}>${have && art ? `<img src="${art}" alt="" loading="lazy">` : `<i aria-hidden="true">${have ? d.icon : "❔"}</i>`}<strong>${esc(have ? d.name : "Week " + ch.id + "'s date")}</strong><span>${have ? "▶ Watch again" : "Not yet"}</span></button>`;
+    });
+    if (save.finale)
+      items.push(
+        `<button class="locker-item" data-date="ending"><img src="${ART.date.ocean}" alt="" loading="lazy"><strong>The ending</strong><span>▶ Watch again</span></button>`,
+      );
+    $("locker-album").innerHTML = items.join("");
+    if (!$("locker-dialog").open) $("locker-dialog").showModal();
+  }
+  function wear(id) {
+    if (!GEAR[id] || save.stars < GEAR[id].stars) return;
+    save.gear = save.gear === id ? null : id;
+    persist();
+    crumb("week", "gear " + (save.gear || "off"));
+    toast(save.gear ? `${GEAR[id].icon} ${GEAR[id].name}: ${GEAR[id].text}` : "No gear worn.");
+    openLocker();
+    menu();
+  }
+  function watchDate(id) {
+    $("locker-dialog").close();
+    if (id === "ending") return playScene(scene("ending").panels, openLocker, "Back to the locker ▶");
+    const ch = chapterOfDate(id);
+    if (!ch || !save.album.includes(id)) return openLocker();
+    playScene(scene("date", ch).panels, openLocker, "Back to the locker ▶");
   }
 
   // ---- free play: the levels the run has opened, one at a time, on the map ----------------------------------------------
@@ -333,6 +478,7 @@ export function installWeek({
   // ---- the buttons ----------------------------------------------------------------------------------------------------
   $("wk-go").onclick = go;
   $("wk-free").onclick = () => freePlay(true);
+  $("wk-locker").onclick = openLocker;
   $("wd-cards").onclick = (e) => {
     const b = e.target.closest("[data-card]");
     if (b) pick(b.dataset.card);
@@ -353,6 +499,7 @@ export function installWeek({
   $("shop-reroll").onclick = () => {
     if (save.week && reroll(save.week)) {
       persist();
+      crumb("week", "new stock · fund " + save.week.fund);
       openShop();
     }
   };
@@ -365,6 +512,15 @@ export function installWeek({
     $("shop-dialog").close();
     openPicker();
   });
+  $("locker-gear").onclick = (e) => {
+    const b = e.target.closest("[data-gear]");
+    if (b && !b.disabled) wear(b.dataset.gear);
+  };
+  $("locker-album").onclick = (e) => {
+    const b = e.target.closest("[data-date]");
+    if (b && !b.disabled) watchDate(b.dataset.date);
+  };
+  $("locker-close").onclick = () => $("locker-dialog").close();
 
   // The results were left another way (Esc, Back to the menu): what the shift did is saved already.
   function dismiss() {
@@ -393,6 +549,8 @@ export function installWeek({
     hudTag,
     pill,
     openPicker,
+    openShop,
+    openLocker,
     get shift() {
       return shift;
     },

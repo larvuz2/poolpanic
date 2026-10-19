@@ -4473,6 +4473,63 @@ body.menu .brand small {
 .bg-sea {
   background: linear-gradient(#ffd98a 0 30%, #ff9f7a 30% 46%, #2aa3c8 46% 70%, #e9d7ae 70%);
 }
+.bg-night {
+  background: radial-gradient(circle at 50% 120%, #1d6f86, #0b2d38 60%, #061a22);
+}
+/* The story's credits (marina.mjs CAST): the cast rolls up the stage, then "Thanks for playing". */
+.cine-credits {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent);
+}
+.cine-roll {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: grid;
+  gap: 1.6cqw;
+  text-align: center;
+  color: var(--cream);
+  animation: cine-roll 9s linear forwards;
+}
+.cine-roll p {
+  margin: 0;
+  display: grid;
+}
+.cine-roll b {
+  font: 900 3.2cqw var(--display);
+  color: var(--yellow);
+  letter-spacing: 0.02em;
+}
+.cine-roll span {
+  font-size: 1.8cqw;
+  opacity: 0.85;
+}
+.cine-roll .cine-thanks {
+  font: 900 4cqw var(--display);
+  color: var(--mint);
+  margin-top: 2cqw;
+}
+/* The stage is 16:9, 56.25cqw high: the roll starts below it and ends with its last line just under the middle. */
+@keyframes cine-roll {
+  from {
+    transform: translateY(56.25cqw);
+  }
+  to {
+    transform: translateY(calc(36cqw - 100%));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cine-credits {
+    overflow-y: auto;
+  }
+  .cine-roll {
+    position: static;
+    padding-block: 4cqw;
+  }
+}
 .cine-layer {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -4966,6 +5023,125 @@ body:not(.menu) .fund-pill {
 .wk-free {
   justify-self: center;
   font-size: 12px;
+}
+.wk-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 18px;
+}
+/* The coach's locker (Phase 2): what lasts across runs. The pools as a ladder, the gear, the dates album. */
+.locker-modal {
+  max-width: 760px;
+}
+.locker-part {
+  margin-top: 12px;
+}
+.locker-part h3 {
+  margin: 0 0 2px;
+  font: 900 20px/1.1 var(--display);
+  letter-spacing: 0.5px;
+  color: var(--yellow);
+}
+.locker-part .booking-note {
+  margin: 0 0 8px;
+}
+.locker-pools {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+}
+.locker-pool {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 7px 4px 6px;
+  border-radius: 10px;
+  background: #0c303b;
+  border: 1px solid #4f8d90;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--cream);
+}
+.locker-pool i {
+  font-style: normal;
+  font-size: 22px;
+  line-height: 1.1;
+}
+.locker-pool b {
+  font: 900 13px/1 var(--display);
+  letter-spacing: 1px;
+  color: var(--yellow);
+}
+.locker-pool.locked {
+  opacity: 0.45;
+  border-style: dashed;
+}
+.locker-pool.next {
+  opacity: 0.8;
+  border-color: var(--yellow);
+}
+.locker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.locker-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #0c303b;
+  border: 2px solid #4f8d90;
+  color: var(--cream);
+  text-align: left;
+  font-size: 10px;
+  line-height: 1.3;
+}
+.locker-item > i {
+  grid-row: span 2;
+  font-style: normal;
+  font-size: 26px;
+}
+.locker-item strong {
+  font: 900 15px/1.05 var(--display);
+  letter-spacing: 0.4px;
+}
+.locker-item.worn {
+  border-color: var(--yellow);
+  background: #164754;
+}
+.locker-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.locker-grid.album .locker-item {
+  grid-template-columns: 1fr;
+  padding: 0 0 8px;
+  overflow: hidden;
+  text-align: center;
+}
+.locker-grid.album .locker-item > i,
+.locker-grid.album .locker-item > img {
+  grid-row: auto;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  background: #0a2730;
+}
+.locker-grid.album .locker-item strong,
+.locker-grid.album .locker-item span {
+  padding: 0 8px;
+}
+.rw-lines li.unlock span {
+  color: var(--yellow);
 }
 body.menu:not(.freeplay) #welcome {
   display: none;
