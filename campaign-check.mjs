@@ -309,7 +309,8 @@ const real = { unlockAll: false }; // the star-gated map as a real player sees i
   assert.equal(applyBooking(SHIFTS[17], BOOKINGS.night).lighting, SHIFTS[17].lighting);
   assert.equal(applyBooking(base, BOOKINGS.tour).twist.at(-1).kind, "rush");
   assert.equal(applyBooking(base, BOOKINGS.regular).payout, undefined);
-  // In the simulation: the booking's trouble is planned, and the payout scales only what served swimmers earn.
+  // In the simulation: the booking's trouble is planned, and the payout leaves the points alone (it multiplies the pay,
+  // shiftPay), so a riskier booking is never easier to star.
   const trouble = new PoolSimulation(12, 5, { booking: "stag" });
   assert.equal(trouble.booking, "stag");
   assert.ok(trouble.chaosPlan.some((e) => e.kind === "carl"));
@@ -335,7 +336,7 @@ const real = { unlockAll: false }; // the star-gated map as a real player sees i
   const plain = serve(null),
     paid = serve("stag");
   assert.ok(plain > 0);
-  assert.ok(Math.abs(paid / plain - 1.35) < 0.04, `A 1.35 payout pays about 1.35× (${paid} vs ${plain})`);
+  assert.equal(paid, plain, `A booking's payout does not change the points (${paid} vs ${plain})`);
 }
 
 // 7) Twists: every shift's twists are known kinds at sensible times, each has a sting, and none needs chaos slots.

@@ -3,6 +3,13 @@ import { RESCUE as R, ENTRY } from "./spatial.mjs";
 import { benchOnBeach, tickBeachRecovery } from "./wave-pool.mjs";
 import { onsenDive, onsenOutPath } from "./onsen.mjs";
 import { SPRINGS, springLocal, nearestSpring, clampInSpring } from "./onsen-plan.mjs";
+// Cramps are spaced out (19 October 2026, the Phase 0 balance pass): a cramp freezes every swimmer in the water while the queue
+// waits, and back-to-back cramps (up to six a shift at Senior Aqua Fit) emptied the queue. No new cramp starts within CRAMP_GAP
+// seconds of the start of the last one, and a shift has at most one per CRAMP_EVERY seconds of its length (one at least). A swimmer whose
+// cramp is held back still has it coming, so it comes after the breather if they are still swimming.
+export const CRAMP_GAP = 30;
+export const CRAMP_EVERY = 50;
+export const crampCap = (duration) => Math.max(1, Math.round(duration / CRAMP_EVERY));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const waitingInWater = (s, p) =>
@@ -62,6 +69,8 @@ export class RescueController extends SanitationController {
       return false;
     p.problem = "cramp";
     p.crampDone = true;
+    this.cramps = (this.cramps || 0) + 1;
+    this.lastCrampAt = this.arrivalTime;
     p.actualSpeed = 0;
     this.rescue = { kind: "cramp", victim: p.id, victims: [p.id], stage: "stranded" };
     for (const a of this.people) if (waitingInWater(this, a)) a.actualSpeed = 0;
@@ -77,6 +86,8 @@ export class RescueController extends SanitationController {
   }
   updateRescue() {
     if (this.rescue || this.cleanup || this.level < 2) return;
+    if ((this.cramps || 0) >= crampCap(this.config.duration)) return;
+    if (this.lastCrampAt !== undefined && this.arrivalTime - this.lastCrampAt < CRAMP_GAP) return;
     const p = this.people.find(
       (a) =>
         a.status === "swim" &&

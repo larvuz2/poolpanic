@@ -2069,11 +2069,13 @@ function renderResultDetails(r, drill) {
             ? "Traffic was your biggest troublemaker. Pair similar speeds and keep aqua out of fast lanes."
             : r.lost > 3
               ? "The deck queue needs some love. Assign waiting swimmers quickly, even if a lane is not perfect."
-              : r.stars === 3
-                ? drill
-                  ? "Three stars! Try the next chunk, or beat this run with an even longer happy streak."
-                  : "Three stars! Try the next shift, or beat this run with an even longer happy streak."
-                : "A new arrival mix awaits. Can you keep the happy streak going just a little longer?";
+              : r.served === 0
+                ? "Nobody was served this time. Click a waiting swimmer, then a lane: every swimmer served is points."
+                : r.stars === 3
+                  ? drill
+                    ? "Three stars! Try the next chunk, or beat this run with an even longer happy streak."
+                    : "Three stars! Try the next shift, or beat this run with an even longer happy streak."
+                  : "A new arrival mix awaits. Can you keep the happy streak going just a little longer?";
 }
 // A shift of the week is over: the week's part of the results (week-ui.mjs), and its buttons.
 function finishWeek() {
@@ -2126,7 +2128,8 @@ function finishWeek() {
   $("play-again").hidden = true;
   $("back-menu").textContent = "Back to the menu";
   $("results-dialog").showModal();
-  $("next-level").focus();
+  $("next-level").focus({ preventScroll: true });
+  $("results-dialog").scrollTop = 0;
   if (!res.failed) world.confetti();
   if (res.won) audio.cheer(2);
 }
@@ -2252,7 +2255,10 @@ function finish() {
   $("play-again").textContent = drill ? "Replay drill ↻" : "Replay level " + played + " ↻";
   $("play-again").className = $("next-level").hidden ? "primary" : "secondary";
   $("results-dialog").showModal();
-  ($("next-level").hidden ? $("play-again") : $("next-level")).focus();
+  // (focus the main button without scrolling to it: on a 720p screen the card used to open scrolled to the bottom, with its
+  // stars and score cut off)
+  ($("next-level").hidden ? $("play-again") : $("next-level")).focus({ preventScroll: true });
+  $("results-dialog").scrollTop = 0;
   if (r.stars > 0) world.confetti();
   if (chunkDone) audio.cheer(2); // a chunk cleared is worth a crowd cheer of its own
 }
@@ -3638,10 +3644,10 @@ function bind() {
     storage: crashStorage,
     startShift: (shift) => start(null, shift),
     returnMenu,
-    playScene: (panels, then) => {
+    playScene: (panels, then, last = "Let's go! ▶") => {
       releaseMouse();
       crashlog.crumb("story", "marina scene");
-      playCinematic($("cinematic"), panels, { labels: { last: "Let's go! ▶" }, done: () => then() });
+      playCinematic($("cinematic"), panels, { labels: { last }, done: () => then() });
     },
     toast,
     crumb: (kind, text) => crashlog.crumb(kind, text),

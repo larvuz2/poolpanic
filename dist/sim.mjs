@@ -1,6 +1,6 @@
 import { prepareDeck, resolveDeck, deckHeading } from "./deck-physics.mjs";
 import { waitingInWater, heldInWater } from "./rescue.mjs";
-import { ChaosController } from "./chaos.mjs";
+import { ChaosController, HOLD_LIMIT } from "./chaos.mjs";
 import { ENTRY, VENUES, createCoach } from "./spatial.mjs";
 import { BOOKINGS, applyBooking } from "./bookings.mjs";
 import { WetSpots, wetSpotAt, slippedInWet } from "./incidents/wet.mjs";
@@ -797,7 +797,7 @@ export class PoolSimulation extends ChaosController {
       this.random() < (this.config.finChance ?? (this.level === 1 ? 0.24 : 0.38));
     const p = {
       id: ++this.uid,
-      name: NAMES[(index + Math.floor(this.random() * 5)) % NAMES.length], // (drawn for a star too: the same numbers follow)
+      name: this.freshName((index + Math.floor(this.random() * 5)) % NAMES.length), // (drawn for a star too: the same numbers follow)
       type,
       side,
       status: "queue",
@@ -966,12 +966,32 @@ export class PoolSimulation extends ChaosController {
   occupancy(i) {
     return this.people.filter((p) => p.lane === i && ["swim", "enter", "switch"].includes(p.status)).length;
   }
+  // A name for a new guest, from the one drawn (`at`): never one already used this shift while names are left, and never the
+  // name of someone still here, so a toast like "Nell lost patience" points at one person (19 October 2026: two Beas and two
+  // Nells in one queue). Only the name moves: the draw is the same, so nothing else in the shift does.
+  freshName(at) {
+    const here = new Set(this.people.filter((p) => p.status !== "gone").map((p) => p.name));
+    this.namesUsed ??= new Set();
+    const pick = (ok) => {
+      for (let k = 0; k < NAMES.length; k++) {
+        const name = NAMES[(at + k) % NAMES.length];
+        if (ok(name)) return name;
+      }
+      return null;
+    };
+    const name =
+      pick((n) => !this.namesUsed.has(n) && !here.has(n)) || pick((n) => !here.has(n)) || NAMES[at];
+    this.namesUsed.add(name);
+    return name;
+  }
   multiplier() {
     return this.streak >= 8 ? 2 : this.streak >= 5 ? 1.5 : this.streak >= 3 ? 1.2 : 1;
   }
-  // What a served swimmer is worth: the streak multiplier times the booking's payout.
+  // What a served swimmer is worth: the streak multiplier (and the shop's megaphone). A booking's payout is not in it: it
+  // multiplies the pay (`shiftPay`), never the points, so a riskier gig pays more but is no easier to star (19 October 2026:
+  // the payout used to multiply the points too, against the same star targets, so the riskiest card was the easiest).
   scoreMultiplier() {
-    return this.multiplier() * (this.config.payout ?? 1) * (this.perks?.score ?? 1);
+    return this.multiplier() * (this.perks?.score ?? 1);
   }
   select(id) {
     const p = this.get(id);
@@ -1450,6 +1470,10 @@ export class PoolSimulation extends ChaosController {
       return;
     }
     if (this.status !== "playing") return;
+    const hold = this.clockHold();
+    if (hold && (this.heldFor || 0) < HOLD_LIMIT && (this.heldFor || 0) + dt >= HOLD_LIMIT)
+      this.emit("toast", { text: "The clock is running again. Finish the clean-up!", warning: true });
+    this.heldFor = hold ? (this.heldFor || 0) + dt : 0;
     this.time += this.clockHeld() ? 0 : dt;
     this.arrivalTime += dt;
     for (const side of [-1, 1]) this.doors[side] = Math.max(0, this.doors[side] - dt);
@@ -1787,6 +1811,7 @@ export class PoolSimulation extends ChaosController {
         ? this.stats.totalWait / this.people.filter((p) => p.assignedAt !== null).length
         : 0,
       avgHappiness: this.stats.served ? this.stats.totalHappiness / this.stats.served : 0,
+      met: [...new Set(this.met || [])], // the roaming incidents that really started (week.mjs finishShift)
     };
   }
 }
