@@ -346,6 +346,10 @@ function pickFractions(list, count) {
 // club's three lanes for levels 1 to 10, the five-lane plan for 11 to 20). Measured with the coach bot against the pools' own
 // levels (week-check.mjs keeps it in bounds): five lanes serve the club's crowds faster, three lanes serve the five-lane crowds
 // slower, and the Aquatic Centre's crowd of lane swimmers is the hardest to keep moving.
+// Recalibrated 19 October 2026 (Phase 0): the coach bot used to switch cramps off, which flattered the pools with the most cramps
+// (Senior Aqua Fit, the Lazy River). Measured again with an expert bot that rescues cramps (cramps now spaced out, rescue.mjs),
+// 13 pools x 9 difficulties x 4 seeds against the median of all pools, and checked on fresh seeds: every pool passes 92-100% of
+// shifts for it, at 1.7 to 2.2 stars. The notes under each pool below are from the first calibrations; the numbers are the new ones.
 export function scoreScale(venue, tier) {
   const scale = SCORE_SCALE[venue] || SCORE_SCALE.resort;
   return (scale.find(([upTo]) => tier <= upTo) || scale[scale.length - 1])[1];
@@ -353,21 +357,21 @@ export function scoreScale(venue, tier) {
 const SCORE_SCALE = {
   club: [
     [10, 1],
-    [20, 0.85],
+    [20, 0.75],
   ],
   resort: [
-    [10, 1.3],
+    [10, 1.2],
     [20, 1],
   ],
   aquatic: [
     [10, 1.4],
-    [13, 1],
-    [20, 0.65],
+    [13, 1.25],
+    [20, 0.8],
   ],
   // A class of aqua dancers is the gentlest crowd in the game: the stars ask more of it (calibrated with the coach bot).
   disco: [
     [10, 1.65],
-    [20, 1.3],
+    [20, 1.45],
   ],
   // The Kids Pool: a little above Splash Park's (the bot catches a running kid at once; a player has to chase one), which leaves
   // the bot about as far over the two stars as in the disco (calibrated 16 October 2026).
@@ -378,37 +382,37 @@ const SCORE_SCALE = {
   // Senior Aqua Fit: slow walkers, a stand-up for every wheelchair and steady lengths serve fewer guests in a shift, so the stars
   // ask less (the coach bot scored about half of what it does at Splash Park on the same targets; calibrated 16 October 2026).
   senior: [
-    [10, 0.8],
+    [10, 0.65],
     [20, 0.65],
   ],
   // The Lazy River: about Splash Park's at first; a big crowd queues for ten tubes and a loop of half a minute, so the stars ask
   // less late in a run (calibrated with the coach bot, 17 October 2026).
   river: [
     [10, 1],
-    [13, 0.95],
-    [20, 0.75],
+    [13, 0.65],
+    [20, 0.35],
   ],
   // The Wave Pool: guests walk straight in and have to be caught for a tube, and the waves knock them dizzy, so the stars ask less
   // (on the plain targets the coach bot only just made two stars, and fell short late in a run; calibrated 17 October 2026).
   wave: [
     [10, 0.8],
-    [15, 0.75],
+    [15, 0.6],
     [20, 0.7],
   ],
   // The Rooftop Pool: margaritas tip well and the VIPs are many, so the stars ask more (on the plain targets the coach bot made
   // about 1.6 times Splash Park's share of two stars; scaled, about the same as there; calibrated 17 October 2026).
   roof: [
     [10, 1.7],
-    [15, 1.6],
-    [20, 1.25],
+    [15, 1.3],
+    [20, 1.5],
   ],
   // The Cruise Ship: about Splash Park's at first; later in a run the big swells (loungers to straighten, guests in the pool, spills
   // to mop) take more of the coach's time, so the stars ask less (the coach bot on the plain targets made about Splash Park's
   // share of two stars to tier 12, about 0.7 of it by tier 18; calibrated 18 October 2026).
   cruise: [
     [10, 1],
-    [13, 0.95],
-    [20, 0.75],
+    [13, 0.8],
+    [20, 0.55],
   ],
   // The Mountain Hot Springs: nobody swims laps, so a spring never jams, and a guest sent straight to one is warm and happy;
   // only the cold, the monkeys and the ice take points, so the stars ask more (on Splash Park's targets the coach bot made about
@@ -416,7 +420,7 @@ const SCORE_SCALE = {
   onsen: [
     [10, 1.7],
     [15, 1.5],
-    [20, 1.2],
+    [20, 1.7],
   ],
 };
 
@@ -522,12 +526,15 @@ export function perkEffects(owned = []) {
   return { sim, director, tips, wishes, sponsor, insurance };
 }
 
-// Three perks the coach does not have yet, from a seeded draw (`roll` counts rerolls so each gives a new hand).
-export function shopOffer(week, roll = 0) {
+// Three perks the coach does not have yet, from a seeded draw (`roll` counts rerolls so each gives a new hand). A sign against an
+// incident is only offered once the player has met it (`known`): no "No bombs sign" before the cannonball man has come.
+export function shopOffer(week, roll = 0, known = INCIDENT_ORDER) {
   const random = stream(
     (week.seed ^ Math.imul(week.shift + 1, 2246822519) ^ Math.imul(roll + 1, 3266489917)) >>> 0,
   );
-  const pool = Object.keys(PERKS).filter((id) => !week.perks.includes(id));
+  const pool = Object.keys(PERKS).filter(
+    (id) => !week.perks.includes(id) && Object.keys(PERKS[id].director || {}).every((k) => known.includes(k)),
+  );
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -652,8 +659,13 @@ export function drawWishes(shape, random, payScale = 1) {
     return { id, icon: w.icon, text: w.text(target), say: w.say, target, pay: roundPay(w.pay * payScale) };
   });
 }
+// A wish is only met in a shift that served someone: "no collisions" or "a short wait" with nobody served is not a wish come
+// true (19 October 2026: an empty shift paid out both).
 export function checkWishes(wishes, summary, stats = {}) {
-  return wishes.map((w) => ({ ...w, met: !!WISHES[w.id]?.met(summary, w.target, stats) }));
+  return wishes.map((w) => ({
+    ...w,
+    met: (summary.served || 0) > 0 && !!WISHES[w.id]?.met(summary, w.target, stats),
+  }));
 }
 
 // ---- building a shift -------------------------------------------------------------------------------------------------
@@ -885,7 +897,6 @@ export function buildShift(week, card = null, known = week.known || []) {
     chaos: plan.chaos,
     twist: plan.twist,
     ...(vips > 0 && { vipAt: vipSlots(vips, random) }),
-    ...(chosen?.mystery && { payout: 1.15 }),
     week: { chapter: week.chapter, shift: index },
   };
   if (plan.surprise) config.intro = plan.surprise;
@@ -1008,7 +1019,10 @@ export function finishShift(save, shift, summary, stats = {}) {
     pass = passMark(shift.config),
     passed = (summary.score || 0) >= pass;
   const wishes = checkWishes(shift.wishes, summary, stats);
-  for (const k of shift.plan.incidents) if (!save.known.includes(k)) save.known.push(k);
+  // The incidents met: the ones that really started (`summary.met`), not the ones planned (19 October 2026: a shift that ended
+  // before its fish came counted the fish as met). Without `met` (an older caller), the plan.
+  const met = Array.isArray(summary.met) ? summary.met : shift.plan.incidents;
+  for (const k of met) if (INCIDENTS[k] && !save.known.includes(k)) save.known.push(k);
   const insured = !passed && effects.insurance;
   const failed = !passed;
   const unlockedBefore = save.unlocked;

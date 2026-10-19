@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 import { PoolSimulation, SHIFTS, LANES } from "./dist/sim.mjs";
 import { STINGS } from "./dist/moments.mjs";
+import { HOLD_LIMIT } from "./dist/chaos.mjs";
 import { isDeckPosition } from "./dist/spatial.mjs";
 
 const tick = (s, seconds) => {
@@ -124,6 +125,26 @@ const at = (s, x, z) => {
   assert.ok(!s.cleanup.kind);
   assert.ok(s.waterBrown > 0 && !s.waterYellow);
 }
+
+// A hold has a limit (HOLD_LIMIT, 19 October 2026): a mess left alone stops the clock for 30 s, then the clock runs again
+// (with a warning) until the shift ends, so no shift can go on for ever.
+{
+  const s = game(),
+    p = swimmer(s, "pee");
+  tick(s, 12);
+  assert.ok(s.cleanup, "a wee in the pool, left alone");
+  const clock = s.time;
+  tick(s, HOLD_LIMIT - s.heldFor - 1);
+  assert.equal(s.time, clock, "held while the limit lasts");
+  tick(s, 3);
+  assert.ok(s.time > clock && s.cleanup, "then the clock runs again, the mess still there");
+  assert.ok(
+    s.events.some((e) => e.type === "toast" && /clock is running again/.test(e.text)),
+    "with a warning",
+  );
+  tick(s, s.config.duration + 30);
+  assert.equal(s.status, "ended", "and the shift ends");
+}
 console.log(
-  "Pee checks passed: a third of sick guests have a wee coming (half at the Kids Pool), a 🚽 tag and a sending-home that prevents it, and a missed one turning the water yellow, emptying the pool and costing as much as a poo, cleared with chlorine alone; a poo is still a poo.",
+  "Pee checks passed: a third of sick guests have a wee coming (half at the Kids Pool), a 🚽 tag and a sending-home that prevents it, and a missed one turning the water yellow, emptying the pool and costing as much as a poo, cleared with chlorine alone; a poo is still a poo; a mess left alone holds the clock for 30 s at most, then the shift goes on and ends.",
 );

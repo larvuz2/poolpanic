@@ -243,10 +243,14 @@ export function installWeek({
     shift = null;
     if (!r) return returnMenu();
     if (r.over)
-      return playScene(scene("raincheck", r.chapter, "short").panels, () => {
-        returnMenu();
-        toast("Game over. Press START for a new run: week 1, Monday 🔁");
-      });
+      return playScene(
+        scene("raincheck", r.chapter, "short").panels,
+        () => {
+          returnMenu();
+          toast("Game over. Press START for a new run: week 1, Monday 🔁");
+        },
+        "Back to the menu ▶",
+      );
     if (r.won)
       return playScene(scene("date", r.chapter).panels, () => {
         returnMenu();
@@ -262,7 +266,7 @@ export function installWeek({
     const w = save.week;
     if (!w) return menu();
     $("shop-tips").textContent = "🪙 " + w.tips + " TIPS";
-    const offer = shopOffer(w, w.rolls);
+    const offer = shopOffer(w, w.rolls, save.known);
     $("shop-cards").innerHTML = offer.length
       ? offer
           .map((id) => {

@@ -41,6 +41,9 @@ export const SYSTEMS = [
   WetSpots,
 ];
 
+// The longest a single hold stops the shift's clock (clockHeld): long enough for any clean-up or rescue played out, short
+// enough that trouble left alone cannot keep a shift going for ever.
+export const HOLD_LIMIT = 30;
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -133,7 +136,9 @@ export class ChaosController extends RescueController {
     const system = this.system(key);
     // (the trampoline is a system with no start: its trouble comes from the daredevils, not from the plan)
     if (!system || typeof system.start !== "function" || system.isActive(this)) return false;
-    return system.start(this) !== false;
+    const started = system.start(this) !== false;
+    if (started) (this.met ??= []).push(key);
+    return started;
   }
   updateChaos(dt) {
     for (const entry of this.chaosPlan) {
@@ -154,6 +159,7 @@ export class ChaosController extends RescueController {
         continue;
       }
       entry.done = system.start(this) !== false;
+      if (entry.done) (this.met ??= []).push(entry.kind); // (what the player really met: summary().met)
     }
     for (const system of this.systems) system.update?.(this, dt);
     this.updateStorm(dt);
@@ -162,8 +168,15 @@ export class ChaosController extends RescueController {
   finCount() {
     return super.finCount() + this.systems.reduce((sum, s) => sum + (s.finCount?.(this) || 0), 0);
   }
-  clockHeld() {
+  // Whether something is holding the shift's clock (a mess in the water, a fish loose, crash victims in the pool).
+  clockHold() {
     return !!this.cleanup || this.systems.some((s) => s.holdsClock?.(this));
+  }
+  // Whether the clock is held now: a hold lasts at most HOLD_LIMIT seconds, then the clock runs again until the trouble is
+  // over, so a shift always ends (19 October 2026: a fish or a mess left alone used to hold the clock for ever while the
+  // queue went home). `heldFor` is counted in the simulation's tick.
+  clockHeld() {
+    return this.clockHold() && (this.heldFor || 0) < HOLD_LIMIT;
   }
   chaosPanic() {
     return !!this.cleanup || !!this.rescue || this.systems.some((s) => s.panic?.(this));

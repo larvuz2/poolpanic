@@ -85,7 +85,14 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   the crowd; the lagoon's storm; the Aquatic Centre's star VIP; the disco's class). **Star targets are fair in every pool**: where a level was not made
   for a pool's floor plan they are scaled (`scoreScale`), measured with the coach bot against the pools' own levels (five lanes serve
   the club's crowds about 1.3 times faster; the club's three lanes serve the five-lane crowds slower), so at a given difficulty every
-  pool asks about the same of the player.
+  pool asks about the same of the player. **Recalibrated 19 October 2026** with an expert bot that rescues cramps (the old one
+  switched cramps off, which flattered the pools with the most cramps), on 13 pools × 9 difficulties × 4 seeds against the median
+  of all pools, then checked on fresh seeds: every pool now passes 92–100% of shifts for that bot (before, 60–100%) at 1.7 to 2.2
+  stars. The table (`SCORE_SCALE` in `dist/week.mjs`, by difficulty): Community Pool 1 to 10, 0.75 after; Splash Park, the Lagoon
+  and the Arena 1.2, then 1; Aquatic Centre 1.4, 1.25 to 13, 0.8 after; Aqua Disco 1.65, then 1.45; Kids Pool 1.4, then 1.1; Senior
+  Aqua Fit 0.65; Lazy River 1, 0.65 to 13, 0.35 after (ten tubes cannot carry a top-difficulty crowd: a Phase 2 question); Wave Pool
+  0.8, 0.6 to 15, 0.7 after; Rooftop 1.7, 1.3 to 15, 1.5 after; Cruise Ship 1, 0.8 to 13, 0.55 after; Hot Springs 1.7, 1.5 to 15,
+  1.7 after. The measuring scripts are kept out of the repo (a harness around `check-bot.mjs`); the numbers above are what to beat.
 - **The Aquatic Centre** (`AQUATIC` in `dist/spatial.mjs`, `dist/scene/aquatic.mjs`): an indoor competition pool, a little more
   serious. Splash Park's five-lane floor plan without the trampoline (a victory podium stands where the tower was, the snack kiosk is
   the officials' table), deep-blue tiles and black lane lines, red, white and blue racing ropes, an electronic timing board whose lane
@@ -120,7 +127,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   a sweep). It waits through the countdown, keeps the shift's clock (it comes back to it after a pause or a slowed sting), plays an
   alarm over the top when the pool is in trouble, and **goes dead with the lights in a power cut** (a record winding down) and comes
   back with them. The usual music plays everywhere else. Star targets: `scoreScale` asks 1.65 times the level's up to difficulty 10
-  and 1.3 after (a class of aqua dancers is the gentlest crowd, measured with the coach bot).
+  and 1.45 after (recalibrated 19 October 2026, below) (a class of aqua dancers is the gentlest crowd, measured with the coach bot).
 - **The Kids Pool** 🦆 (16 October 2026; `KIDS` in `dist/spatial.mjs`, `dist/scene/kids.mjs`, `paddle` and `roamKid` in
   `dist/sim.mjs`): an outdoor paddling pool in a park, where **only kids** come (the simulation makes every guest a `child` in a venue
   with `kids`, whatever the level's mix). Each kid is the fish kid's model in clothes of their own: `dressChild` in
@@ -162,7 +169,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   `props/wheelchair.glb`, under the senior or parked and empty, gone with them). **Its song** (`seniorScore`) is a tea dance: a
   gentle swing at 104 BPM in F (Fmaj7 Dm7 Gm7 C7), a walking bass, brushes and a ride cymbal, piano on the Charleston beat, a
   vibraphone tune and eight bars of vibes, swung eighths (a note's `delay`) and a teacup's clink at the end of every eight, on the
-  shift's clock like the others. Star targets: `scoreScale` asks 0.8 times the level's up to difficulty 10 and 0.65 after (slow
+  shift's clock like the others. Star targets: `scoreScale` asks 0.65 times the level's at every difficulty (recalibrated 19 October 2026, below) (slow
   walkers, a stand-up for every wheelchair and steady lengths serve fewer guests: the coach bot scored about half of what it does
   at Splash Park on the same targets).
 - **The Lazy River** 🛟 (17 October 2026; `RIVER` in `dist/spatial.mjs`, `dist/river.mjs`, `dist/river-ride.mjs`,
@@ -193,7 +200,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   0}`). The river's guests draw their numbers from a stream of their own (`riverRandom`), and every river rule is a branch of its own
   (`venue.river`), so the other pools play exactly as before. **Its song** (`riverScore`) is a lazy calypso at 100 BPM in G (G Em C D):
   a log drum bass on the calypso beat, congas, a shaker, marimba chords, a steel drum tune, eight bars of marimba rolling, and a jungle
-  bird now and then. Star targets: `scoreScale` asks the level's own up to difficulty 10, 0.95 to 13 and 0.75 after (a big crowd
+  bird now and then. Star targets: `scoreScale` asks the level's own up to difficulty 10, 0.65 to 13 and 0.35 after (recalibrated 19 October 2026, below) (a big crowd
   queues for ten tubes; calibrated with the coach bot).
 - **The Wave Pool** 🌊 (17 October 2026; `WAVE` in `dist/spatial.mjs`, `dist/waves.mjs`, `dist/wave-pool.mjs`, `dist/scene/wave.mjs`,
   `dist/scene/wave-view.mjs`; the creator: "the wave can hit harder on someone, and we get a lot of dizziness here… we need to save a
@@ -232,8 +239,8 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   from a stream of their own (`waveRandom`), and every wave rule is a branch of its own (`venue.waves`), so the other pools play
   exactly as before. **Its song** (`waveScore`) is surf rock at 144 BPM in A minor (Am G F E): a surf beat with a galloping floor
   tom, a picked bass, chord chops on the off-beats, a twangy tremolo-picked lead through a spring-reverb echo, an octave up in the
-  second half, a glissando into each half. Star targets: `scoreScale` asks 0.8 times the level's up to difficulty 10, 0.75 to 15
-  and 0.7 after (guests walk straight in and the waves knock them dizzy: on the plain targets the coach bot only just made two
+  second half, a glissando into each half. Star targets: `scoreScale` asks 0.8 times the level's up to difficulty 10, 0.6 to 15
+  and 0.7 after (recalibrated 19 October 2026, below) (guests walk straight in and the waves knock them dizzy: on the plain targets the coach bot only just made two
   stars, about 1.1 times the target, and fell short at difficulty 18; scaled, it makes them by about 1.3 to 1.4 times, 0.9 at 18).
 - **The Rooftop Pool** 🌇 (17 October 2026; `ROOFTOP` in `dist/spatial.mjs`, `dist/roof-plan.mjs`, `dist/rooftop.mjs`,
   `dist/scene/rooftop.mjs`, `dist/scene/roof-view.mjs`, `dist/scene/city.mjs`; the creator: "it has to be epic… the Marina Bay
@@ -266,7 +273,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   pads and a hook; four bars before a drop the bass leaves, a clap roll speeds up, a riser climbs, the filter opens and the last
   half bar is silence; then the drop, with stabs and the octave bass (`roofSection`, `barFilter`). The bot serves the drinks, talks
   the posers down, hauls, and tidies (`check-bot.mjs`), and wades only where its path has to (`check-helpers.mjs`: water costs 2.2
-  times the deck). Star targets: `scoreScale` asks 1.7 times the level's up to difficulty 10, 1.6 to 15 and 1.25 after (the
+  times the deck). Star targets: `scoreScale` asks 1.7 times the level's up to difficulty 10, 1.3 to 15 and 1.5 after (recalibrated 19 October 2026, below) (the
   margaritas tip well and the VIPs are many: on the plain targets the coach bot made 4.6, 2.5, 2.2, 1.7, 2.0 and 1.15 times the
   two-star target at difficulties 3 to 18, against Splash Park's 2.2, 1.4, 1.3, 1.7, 1.2 and 1.0; calibrated 17 October 2026).
 - **The Cruise Ship** 🛳️ (18 October 2026; `CRUISE` in `dist/spatial.mjs`, `dist/cruise-plan.mjs`, `dist/ship.mjs`,
@@ -302,7 +309,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   pop at 108 BPM in F (Fmaj7 Dm7 B♭maj7 C7): congas, shaker, ride and brush, a walking bass, electric-piano chords on the
   off-beats and the tune on a steel pan, then vibes rolling up the chords; the ship's bell in the first bars (not listened to:
   checked by CPU only). The bot helps guests out, straightens rows when she is level and puts the tray back when there are chores
-  (`check-bot.mjs`). Star targets: `scoreScale` asks the level's own up to difficulty 10, 0.95 to 13 and 0.75 after (on the plain
+  (`check-bot.mjs`). Star targets: `scoreScale` asks the level's own up to difficulty 10, 0.8 to 13 and 0.55 after (recalibrated 19 October 2026, below) (on the plain
   targets the coach bot made 1.6, 1.5, 1.8, 1.5, 0.9 and 0.8 times the two-star target at difficulties 3 to 18, against Splash
   Park's 2.0, 1.7, 1.3, 1.5, 1.1 and 1.2; calibrated 18 October 2026).
 - **The Mountain Hot Springs** ♨️ (18 October 2026; `ONSEN` in `dist/spatial.mjs`, `dist/onsen-plan.mjs`, `dist/onsen.mjs`,
@@ -335,7 +342,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   a plucked koto and then on a breathy shakuhachi (not listened to: checked by CPU only). The bot sends the coldest first to the
   spring with most room (none with a monkey in it), meets the monkeys and shoos them out (`check-bot.mjs`), and steers like a skater
   on the ice (`check-helpers.mjs` `steer`: a velocity it can brake from). Star targets: `scoreScale` asks 1.7 times the level's up
-  to difficulty 10, 1.5 to 15 and 1.2 after (nobody swims laps, so a spring never jams: on Splash Park's targets the coach bot made
+  to difficulty 10, 1.5 to 15 and 1.7 after (recalibrated 19 October 2026, below) (nobody swims laps, so a spring never jams: on Splash Park's targets the coach bot made
   3.1, 1.9, 1.7, 1.7, 1.9 and 1.3 times the two-star target at difficulties 3 to 18, against Splash Park's 2.2, 1.2, 1.1, 2.2, 1.3
   and 0.65; calibrated 18 October 2026).
 - **VIPs in every shift** (the creator, 16 October 2026: "always"). `vipCount`: one even in the gentle first minute, two from the
@@ -361,14 +368,15 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   always draws the same shifts (its seed), so a shift can be replayed from a report; a new week draws new ones.
 - **The cards.** Before each shift the player picks a gig: a **Regular day**, from Wednesday a **booking** (tour group, stag
   party, kids' party, night swim: more trouble, better pay; only those whose trouble the player has met) and from Friday sometimes a
-  **Mystery gig** (one more incident, ×1.3 pay, maybe the next surprise).
+  **Mystery gig** (one more incident, ×1.3 pay, maybe the next surprise). A card's payout multiplies the pay, never the points, so
+  a riskier gig is no easier to star (see Bookings).
 - **Marina's wishes.** Every shift comes with two of her wishes (make N swimmers happy, nobody storms off, a happy streak, two stars, no
   collisions, a short wait, the mood, stop trouble early, clean water, the VIPs, trampoline flips: only those that fit the shift), shown
-  before it and ticked on the results: each one met pays extra into the Date Fund. Marina never walks onto the deck: she is in her texts,
+  before it and ticked on the results: each one met pays extra into the Date Fund (never in a shift that served nobody). Marina never walks onto the deck: she is in her texts,
   her wishes and the full-screen scenes.
 - **Tips and the shop.** Every shift also earns **tips** (pocket money: 2, plus a tip a star, a save and a wish met), and between shifts
   the coach's locker sells three perks for the rest of the week (running shoes, turbo whistle, shady benches, stretching poster, tummy
-  alarm, megaphone, a No dogs or No bombs sign, a tip jar, Marina's lucky charm, a local sponsor, a safety net that makes a failed shift
+  alarm, megaphone, a No dogs or No bombs sign (offered only once that incident has been met), a tip jar, Marina's lucky charm, a local sponsor, a safety net that makes a failed shift
   pay half; 🎲 new stock for 2 tips). **Spending tips never touches the Date Fund.** The perks the simulation reads are `perks` in
   `PoolSimulation` (1 for each, so without them the game is exactly as it was).
 - **The dates.** Ice cream on the pier, movie night, dinner by the lagoon, the ocean trip, then new ones (picnic to sailing) for as long
@@ -381,7 +389,8 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   map's records), for good, and the **🗺️ Free play** link shows the map with its own START and a **◀ The week** button back. Free
   play is the old campaign map (levels, drills and bookings, played on their own, outside the week). `?unlockall` opens every level
   for a test.
-- **Saved** in `pool-panic.week.v1` (a save the desktop app keeps): the week of the run, the incidents met, the dates had, the runs
+- **Saved** in `pool-panic.week.v1` (a save the desktop app keeps): the week of the run, the incidents met (those that really
+  started in a shift, `summary().met`, not those only planned), the dates had, the runs
   played, the best week and fund, the levels opened, the week in progress. Leaving in the middle of a shift loses nothing: the week waits
   at that shift. A save from before the restructure (`v` under 2) keeps what was met and opened, and starts a new run.
 - **Balance** (`week-check.mjs`, the coach bot through three weeks): it passes every shift of each and fills the fund each week.
@@ -390,14 +399,21 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
 
 ## Core loop
 
-1. Choose an unlocked shift on the campaign map: two acts of ten levels, each act three chunks of three levels plus a finale (levels 1–10 at the Community Swim Club; Act 2 opens at Splash Park with levels 11–16, moves to the Sunset Lagoon for 17–19 and ends with the level 20 finale in the Grand Gala Arena). From level 11 the club offers a booking first.
-2. Begin with a synchronized three-second countdown.
-3. Watch a locker door open and a swimmer walk to the waiting area.
-4. Select the swimmer by their world character, clickable name/emoji tag, queue card, or nearby interaction.
-5. Assign one of three lanes (five in Act 2), considering speed, occupancy, and stationary aqua aerobics. Swimmers already in the water can be moved to another lane mid-workout.
-6. Move the coach to provide equipment and treatments, recover dropped gear, maintain water, and respond to incidents, from cramps to a fish loose in the pool.
-7. Swimmers finish, swim to an end, climb out, walk around the pool, and return to their locker room.
-8. Earn score and stars; unlock the next shift and improve device-local best scores. Clear all three levels of a chunk and the next area opens on the map.
+The loop is **the run** ([The week](#the-week-the-main-loop-11-october-2026-restructured-16-october-2026)); this is one shift of it.
+(Until 19 October 2026 this section still described the old campaign map, which is now free play.)
+
+1. On the main screen, **START** (or CONTINUE). Before a shift: the day's pool, the pass mark, Marina's two wishes and the gig
+   cards (a booking pays more, with more trouble; it never scores more points).
+2. A synchronized three-second countdown.
+3. A door opens and a swimmer walks to the waiting area (the deck's cards list who is waiting).
+4. Select a swimmer by their world character, clickable name tag, queue card, or E beside them.
+5. Send them to one of the pool's places: a lane (three, five or two by pool), a zone at the disco, POOL at the Kids Pool, RIVER at
+   the Lazy River, a spring at the Hot Springs; swimmers already in the water can be moved to another lane.
+6. Move the coach to deliver equipment and treatments, recover dropped gear, mop wet spots, maintain the water and answer
+   incidents, from cramps to a fish loose in the pool, with each pool's own trouble on top.
+7. Swimmers finish, climb out and walk back out.
+8. Points make stars, stars make pay into the Date Fund (nothing below the pass mark), wishes met pay extra, tips go to the shop.
+   Saturday night decides: Sunday's date, or game over and a new run from week 1.
 
 A lane assignment is a management action. Equipment pickup, handoff, cleanup, and rescue retain proximity and physical movement requirements.
 
@@ -701,7 +717,7 @@ Swimmers add contamination and chlorine decays over time. Dirty water reduces sa
 
 ### Cramp rescue — level 2 onward
 
-Level 2 introduces an early cramp-prone swimmer. Later shifts vary susceptibility. Only one rescue can run at a time, and a rescue does not start during sanitation cleanup.
+Level 2 introduces an early cramp-prone swimmer. Later shifts vary susceptibility. Only one rescue can run at a time, and a rescue does not start during sanitation cleanup. **Cramps are spaced out** (19 October 2026, `CRAMP_GAP` and `crampCap` in `dist/rescue.mjs`): no new cramp starts within 30 s of the last one starting, and a shift has at most one for every 50 s of its length (one at least: 2 in a 90-second shift, 3 in 150 s, 4 in 180 s). A swimmer whose cramp is held back still has it coming after the breather. Back-to-back cramps used to freeze the water up to six times a shift at Senior Aqua Fit while the queue went home (an expert bot passed only 60% of its shifts there).
 
 1. A swimmer cramps in the pool. Water activity stops, swimmers raise their hands, and a large life-ring cue identifies the victim.
 2. The victim bobs more strongly, sways, and paddles their arms to look visibly distressed. Other swimmers gently bob while their simulation positions stay fixed.
@@ -841,6 +857,8 @@ Slow motion and hit-stops slow the whole simulation, the shift clock included, s
 | Dog, Carl, flicker, blackout | Advances | Advances | Advances (with the incident's disruption) |
 | Explicit pause or help pause | Held | Held | Held |
 
+**A hold has a limit** (19 October 2026, `HOLD_LIMIT` in `dist/chaos.mjs`): whatever holds the clock (a mess, a fish loose, crash victims) holds it for 30 s at most; then the clock runs again, with a toast ("The clock is running again. Finish the clean-up!"), until the shift ends, the trouble still to fix. Before, trouble left alone held the clock for ever while the queue went home, and in a simulation 41% of the shifts nobody touched never ended (`pee-check.mjs`).
+
 Changing tabs pauses active play/countdown. Pause must freeze doors and incident progression and clear held movement. Restart/menu transitions must clean up selection, effects, timers, and carrying state through a fresh simulation.
 
 ## Twenty-shift season and scoring
@@ -925,7 +943,7 @@ Every chunk has a **drill**: a short (75–80 second) bonus shift that repeats t
 
 ### Bookings
 
-From level 11 the club offers **three bookings** before every Act 2 shift: Regular plus two others from a seeded shuffle (the same shift always offers the same). A booking is pure data folded into a copy of the shift (`applyBooking` in `dist/bookings.mjs`): a payout multiplier on what served swimmers and clean landings earn (the streak multiplier is separate) and the extra trouble it brings. A bigger payout always means more trouble.
+From level 11 the club offers **three bookings** before every Act 2 shift: Regular plus two others from a seeded shuffle (the same shift always offers the same). A booking is pure data folded into a copy of the shift (`applyBooking` in `dist/bookings.mjs`): a payout and the extra trouble it brings. A bigger payout always means more trouble. **The payout multiplies the pay, never the points** (19 October 2026): it used to multiply every served swimmer's points as well, against the same star targets, so the riskiest gig was also the easiest to star (in simulated runs, always taking it won more dates and more stars). Now `scoreMultiplier` in `dist/sim.mjs` is the streak and the shop's megaphone only, and the payout counts once, in `shiftPay`.
 
 | Booking | Payout | Trouble |
 | --- | --- | --- |

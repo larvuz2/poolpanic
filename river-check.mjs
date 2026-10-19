@@ -376,8 +376,13 @@ for (const kind of ["poo", "pee"]) {
   let seen = 0;
   for (let seed = 1; seed <= 60; seed++) if (weekPools(2, seed * 7919).includes("river")) seen++;
   assert.ok(seen > 20 && seen < 60, "drawn into some weeks and not others (" + seen + " of 60)");
+  // (Recalibrated 19 October 2026 with an expert bot that rescues cramps: ten tubes cannot carry a top-difficulty crowd, so the
+  // stars ask about a third of the level's late in a run. The river's capacity is a Phase 2 question.)
   for (let tier = 1; tier <= 20; tier++)
-    assert.ok(scoreScale("river", tier) >= 0.7 && scoreScale("river", tier) <= 1);
+    assert.ok(scoreScale("river", tier) >= 0.3 && scoreScale("river", tier) <= 1);
+  assert.ok(
+    scoreScale("river", 18) < scoreScale("river", 12) && scoreScale("river", 12) < scoreScale("river", 5),
+  );
 }
 
 // 10) Its song: a calypso of its own at 100 BPM, on the shift's clock like the others.

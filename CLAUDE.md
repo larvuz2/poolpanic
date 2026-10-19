@@ -61,6 +61,18 @@ the same twice: see `docs/incidents.md`).
    `dist/story.mjs`, generated from the creator's pictures). The coach is **Coach Waters** (renamed from Coach Panic on 15 October
    2026; his file is still `coach-panic.glb`). The game always plays the new character models (no crash tier and no saved choice brings
    the classic ones back), the Coach Cam is off at every launch, and the logo is top left.
+   **The diagnostic and the plan (19 October 2026).** An analysis of the loop, the hook and the goals (the "Pool Panic Diagnostic"
+   page) found the toy great and the game around it unfinished: nothing teaches it, the first hour asks too little then too much,
+   nothing lasts between runs. Its plan, in phases, which the creator approved ("let's go with your recommendations"):
+   **Phase 0** (fix what's broken: the booking bug, cramps spaced out, every pool's star targets recalibrated with cramps on, a
+   30 s limit on held clocks, unique names, the results card at 720p, game-over wording, wishes and incidents met, signs only
+   for met incidents, a short Help) is **done**. **Phase 1, the first ten minutes:** a first shift that teaches by doing, a card
+   the first time each pool appears with an easier first visit, score pop-ups, one meaning per key, the old map off the main
+   screen, a calmer HUD. **Phase 2, a run worth repeating:** the pools as a ladder unlocked across runs (start with three, one more
+   each week), permanent progress (a dates album, coach gear), difficulty by week, one money (perks cost Date Fund dollars), the
+   Gala as week 4's finale and a story ending, then endless. **Phase 3:** a big moment in every shift, a real decision in every
+   pool, a highlight replay. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
+   Phase 2 is done**, no co-op for now, and **keep the reward (the Sunday date) as it is for now** ("we'll change it later").
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
    and Steam Deck support, a settings screen (volumes, key rebinding, full screen; graphics quality exists, in Help: Auto, Low, Medium,
    Standard, High, Ultra, `QUALITY` in `dist/gfx.mjs`), more achievements, localisation.

@@ -57,6 +57,7 @@ const freshSave = (over = {}) => normalizeWeekSave({ chapter: 1, ...over });
 const summary = (score, stars, extra = {}) => ({
   score,
   stars,
+  served: 8,
   happy: 0,
   lost: 3,
   bestStreak: 0,
@@ -373,7 +374,11 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       "cruise",
       "onsen",
     ])
-      assert.ok(scoreScale(v, tier) >= 0.6 && scoreScale(v, tier) <= 1.7, v + " " + tier);
+      // (the Lazy River's late crowd outgrows its ten tubes: its targets drop to 0.35, recalibrated 19 October 2026)
+      assert.ok(
+        scoreScale(v, tier) >= (v === "river" ? 0.3 : 0.5) && scoreScale(v, tier) <= 1.75,
+        v + " " + tier,
+      );
   }
 }
 
@@ -434,6 +439,31 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       [...save.known].sort(),
       [...INCIDENT_ORDER].sort(),
       "every incident met by Saturday night",
+    );
+  }
+  // Met means it really came: a shift that ended before its planned incident (summary.met empty) does not count it as met.
+  {
+    const save = freshSave();
+    save.week = newWeek(save, 4242);
+    finishShift(save, buildShift(save.week, null, save.known), summary(500, 2), {});
+    const sh = buildShift(save.week, null, save.known);
+    assert.ok(sh.plan.incidents.length > 0, "Tuesday brings the first incident");
+    finishShift(save, sh, { ...summary(sh.config.thresholds[1], 2), met: [] }, {});
+    assert.deepEqual(save.known, [], "planned but never started: not met");
+  }
+  // The shop offers a sign against an incident only once it has been met.
+  {
+    const save = freshSave();
+    save.week = newWeek(save, 99);
+    for (let roll = 0; roll < 40; roll++) {
+      const offer = shopOffer(save.week, roll, []);
+      assert.ok(!offer.includes("nodogs") && !offer.includes("nobombs"), "no signs before the incidents");
+    }
+    assert.ok(
+      Array.from({ length: 40 }, (_, roll) => shopOffer(save.week, roll, ["dog"])).some((o) =>
+        o.includes("nodogs"),
+      ),
+      "the No dogs sign once the dog has been met",
     );
   }
   assert.ok(tuesdays.size >= 4, "Saturday is not the same twice (" + tuesdays.size + " kinds of Saturday)");
@@ -581,6 +611,27 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   );
   assert.ok(shiftPay(0, ch) > 0, "a pass with no star still pays a little");
   assert.ok(shiftPay(2, ch, { payout: 1.4 }) > shiftPay(2, ch), "a booking pays more");
+  // A wish is never met by a shift that served nobody.
+  assert.ok(
+    checkWishes([{ id: "smooth" }, { id: "quick", target: 12 }, { id: "nobody" }], {
+      served: 0,
+      collisions: 0,
+      avgWait: 0,
+      lost: 0,
+    }).every((w) => !w.met),
+    "no wish for an empty shift",
+  );
+  assert.ok(
+    checkWishes([{ id: "smooth" }], { served: 3, collisions: 0 })[0].met,
+    "but met with swimmers served",
+  );
+  // ...but is no easier to star: the payout multiplies the pay, never the points (the booking bug of 19 October 2026).
+  for (const booking of ["tour", "stag", "night", "kids"])
+    assert.equal(
+      new PoolSimulation(12, 3, { booking }).scoreMultiplier(),
+      new PoolSimulation(12, 3).scoreMultiplier(),
+      booking + ": the same points as a regular day",
+    );
   assert.ok(shiftPay(3, chapterFor(4)) > shiftPay(3, ch), "later pools pay more");
   // A week of random play, buying whatever it can: the fund never goes down until the week ends.
   for (let seed = 1; seed <= 80; seed++) {
@@ -726,7 +777,7 @@ for (let seed = 1; seed <= 200; seed++) {
   for (const w of plain) assert.ok(!["vips", "flips", "saves"].includes(w.id), "a wish that fits: " + w.id);
 }
 assert.deepEqual(
-  checkWishes([{ id: "nobody", target: 0 }], { lost: 0 }).map((w) => w.met),
+  checkWishes([{ id: "nobody", target: 0 }], { served: 5, lost: 0 }).map((w) => w.met),
   [true],
 );
 
