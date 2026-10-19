@@ -66,9 +66,10 @@ the same twice: see `docs/incidents.md`).
    nothing lasts between runs. Its plan, in phases, which the creator approved ("let's go with your recommendations"):
    **Phase 0** (fix what's broken: the booking bug, cramps spaced out, every pool's star targets recalibrated with cramps on, a
    30 s limit on held clocks, unique names, the results card at 720p, game-over wording, wishes and incidents met, signs only
-   for met incidents, a short Help) is **done**. **Phase 1, the first ten minutes:** a first shift that teaches by doing, a card
-   the first time each pool appears with an easier first visit, score pop-ups, one meaning per key, the old map off the main
-   screen, a calmer HUD. **Phase 2, a run worth repeating:** the pools as a ladder unlocked across runs (start with three, one more
+   for met incidents, a short Help) is **done**. **Phase 1, the first ten minutes** (a guided first shift that teaches by doing,
+   `dist/tutorial.mjs`; a card and a two-levels-easier shift the first time each pool appears, `POOL_INTROS`; the lane choice judged
+   at once, `laneVerdict`; one meaning per key, the numbers for places, Z waves, B bar; the old map off the main screen; a calmer
+   HUD; README "The first ten minutes") is **done**. **Phase 2, a run worth repeating:** the pools as a ladder unlocked across runs (start with three, one more
    each week), permanent progress (a dates album, coach gear), difficulty by week, one money (perks cost Date Fund dollars), the
    Gala as week 4's finale and a story ending, then endless. **Phase 3:** a big moment in every shift, a real decision in every
    pool, a highlight replay. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until

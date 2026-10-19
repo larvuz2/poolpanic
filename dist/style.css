@@ -602,14 +602,16 @@ kbd {
   transition: left 0.3s;
 }
 .care-actions {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* (a row aligned right, so the tools that are hidden while not needed leave no gaps: Phase 1, 19 October 2026) */
+  display: flex;
+  justify-content: flex-end;
   gap: 3px;
   margin-top: 27px;
   margin-left: -50px; /* five buttons: wider than the panel, reaching left, its right edge on the panel's */
   width: 234px;
 }
 .care-actions button {
+  flex: 0 0 44.4px;
   position: relative;
   min-height: 58px;
   border: 1px solid #79b7aa;
@@ -4968,9 +4970,29 @@ body:not(.menu) .fund-pill {
 body.menu:not(.freeplay) #welcome {
   display: none;
 }
+/* (Phase 1, 19 October 2026: the old level map no longer sits behind the week card, where it looked like a second way to
+   progress; the main screen shows what the game is instead: the coach at his pool.) */
 body.menu:not(.freeplay) #map {
-  pointer-events: none;
-  filter: saturate(0.7) brightness(0.92);
+  display: none;
+}
+.menu-art {
+  display: none;
+}
+body.menu:not(.freeplay) .menu-art {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(90deg, #0b2d38 0%, #0b2d38cc 30%, #0b2d3833 60%, #0b2d3800 80%),
+    url("assets/story/coach-pool.webp") center right / cover no-repeat,
+    #0b2d38;
+}
+.wk-pitch {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--cream);
 }
 body.menu:not(.freeplay) .map-acts,
 body:not(.freeplay) .fp-back {
@@ -5183,4 +5205,133 @@ body:not(.menu) .week-card {
   border-radius: 2px;
   background: #ffe08a;
   transition: transform 0.15s linear;
+}
+
+/* ---- Phase 1 (19 October 2026): a calmer, more readable HUD ------------------------------------------------------------- */
+/* The deck heading and the status line were dark ink straight on the floor, unreadable on a dark deck (the arena, night):
+   they sit on a cream pill now, on every floor. */
+.queue-panel > .panel-heading,
+.pool-status > div {
+  background: #fff4cfe8;
+  border-radius: 8px;
+  padding: 4px 8px;
+  box-shadow: 0 2px 6px #0b2d3833;
+}
+.pool-status small {
+  font-size: 9px;
+}
+/* A swimmer happily swimming keeps a small faded tag: just the icon. The tags that stand out need the coach. */
+.bubble.quiet {
+  opacity: 0.55;
+  transform-origin: center bottom;
+  scale: 0.8;
+}
+.bubble.quiet .type-label,
+.bubble.quiet .hp {
+  display: none;
+}
+.bubble.quiet:hover,
+.bubble.quiet:focus-visible {
+  opacity: 1;
+  scale: 1;
+}
+/* The lane choice judged at once, over the swimmer just sent (guidance.mjs laneVerdict). */
+.float-text.verdict {
+  font-size: 17px;
+  white-space: nowrap;
+  translate: -50% 0;
+}
+.float-text.verdict.good {
+  color: #9dff9a;
+}
+.float-text.verdict.bad {
+  color: #ffb05c;
+}
+/* A pool's first visit: its card on the picker (week.mjs POOL_INTROS). */
+.wd-intro {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 2px solid var(--yellow);
+  border-radius: 12px;
+  background: #fff4cf14;
+}
+.wd-intro-icon {
+  font-size: 40px;
+  line-height: 1;
+}
+.wd-intro small {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--yellow);
+}
+.wd-intro strong {
+  display: block;
+  font-size: 14px;
+  margin: 3px 0;
+}
+.wd-intro span:last-child {
+  font-size: 13px;
+  color: var(--mint);
+}
+.wd-start {
+  grid-column: 1 / -1;
+  min-height: 52px;
+  font-size: 18px;
+}
+/* The guided first shift's tip (tutorial.mjs): one line at the top, under the scoreboard. */
+.tutor {
+  position: absolute;
+  top: 138px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(640px, calc(100% - 32px));
+  padding: 10px 16px;
+  background: var(--yellow);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 0 5px 0 #092a36;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  animation: tutorIn 0.25s ease-out;
+}
+/* The streak banner sits where the tip is: while a tip shows, it moves below it. */
+body:has(#tutor:not([hidden])) .combo {
+  top: 216px;
+}
+.tutor-step {
+  flex: 0 0 auto;
+  font: 900 15px var(--display);
+  background: var(--ink);
+  color: var(--yellow);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.tutor .text-btn {
+  flex: 0 0 auto;
+  color: var(--ink);
+  font-size: 12px;
+  opacity: 0.7;
+}
+.tutor.finale {
+  background: #9dff9a;
+}
+@keyframes tutorIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tutor {
+    animation: none;
+  }
 }

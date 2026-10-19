@@ -21,6 +21,7 @@ import {
   buyPerk,
   reroll,
   textsPassed,
+  TUTORIAL_SECONDS,
 } from "./week.mjs";
 import { scene, money } from "./marina.mjs";
 
@@ -139,7 +140,7 @@ export function installWeek({
     const w = save.week;
     if (!w) return menu();
     const ch = chapterNow();
-    shift = buildShift(planned(w), null, save.known);
+    shift = buildShift(planned(w), null, save.known, save.seen);
     const o = outlook(w);
     $("wd-title").textContent =
       "WEEK " + ch.id + " · " + upper(shift.day) + " · " + shift.icon + " " + upper(shift.place);
@@ -159,19 +160,37 @@ export function installWeek({
     $("wd-wishes").innerHTML = shift.wishes
       .map((x) => `<li><span>${x.icon} ${esc(x.text)}</span><b>+${money(x.pay)}</b></li>`)
       .join("");
-    $("wd-cards").innerHTML = shift.cards
-      .map(
-        (c) =>
-          `<button class="booking-card${c.id === "regular" ? " regular" : ""}" data-card="${c.id}"><span class="b-icon" aria-hidden="true">${c.icon}</span><strong>${esc(c.name)}</strong><span class="b-pay">×${c.payout}<small>PAY</small></span><span class="b-note">${esc(c.note)}</span><span class="b-danger" aria-label="danger ${c.danger} of 3">${"🔥".repeat(c.danger)}</span></button>`,
-      )
-      .join("");
+    // A pool's first visit: its card (one rule, one action), and the shift is a little easier (week.mjs POOL_INTROS).
+    $("wd-intro").hidden = !shift.intro;
+    if (shift.intro) {
+      $("wd-intro-icon").textContent = shift.icon;
+      $("wd-intro-name").textContent =
+        "NEW POOL · " + upper(shift.place) + " · A LITTLE EASIER THE FIRST TIME";
+      $("wd-intro-rule").textContent = shift.intro.rule;
+      $("wd-intro-action").textContent = shift.intro.action;
+    }
+    // One card is not a choice (Monday and Tuesday): a plain start button instead of a gig to pick.
+    const single = shift.cards.length === 1;
+    $("wd-cards-note").hidden = single;
+    $("wd-cards").innerHTML = single
+      ? `<button class="primary wd-start" data-card="${shift.cards[0].id}">Start the shift ▶</button>`
+      : shift.cards
+          .map(
+            (c) =>
+              `<button class="booking-card${c.id === "regular" ? " regular" : ""}" data-card="${c.id}"><span class="b-icon" aria-hidden="true">${c.icon}</span><strong>${esc(c.name)}</strong><span class="b-pay">×${c.payout}<small>PAY</small></span><span class="b-note">${esc(c.note)}</span><span class="b-danger" aria-label="danger ${c.danger} of 3">${"🔥".repeat(c.danger)}</span></button>`,
+          )
+          .join("");
     presence(`Week ${ch.id} · ${shift.day} · ${shift.place}`);
     $("week-dialog").showModal();
     $("wd-cards").firstElementChild?.focus();
   }
   function pick(cardId) {
     pickedCard = cardId;
-    shift = buildShift(planned(save.week), cardId, save.known);
+    shift = buildShift(planned(save.week), cardId, save.known, save.seen);
+    // The guided first shift (Phase 1, tutorial.mjs): the first shift of a player's first run teaches the job, a little longer
+    // than the gentle minute. Played or skipped once, never again (`save.tutorial`, set by finishShift or by skipTutorial).
+    if (!save.tutorial && shift.step === 0)
+      shift = { ...shift, config: { ...shift.config, tutorial: true, duration: TUTORIAL_SECONDS } };
     $("week-dialog").close();
     hideMenu();
     crumb(
@@ -352,7 +371,14 @@ export function installWeek({
     result = null;
     shift = null;
   }
+  // The player skipped the guided first shift's tips: never again.
+  function skipTutorial() {
+    if (save.tutorial) return;
+    save.tutorial = true;
+    persist();
+  }
   return {
+    skipTutorial,
     dismiss,
     freePlay,
     set onFreePlay(fn) {

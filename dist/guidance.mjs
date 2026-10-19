@@ -25,3 +25,32 @@ export function guidanceState(sim) {
 export function cuePulse(time, reduced = false) {
   return reduced ? 1 : 0.5 + 0.5 * Math.sin((time * Math.PI * 2) / 1.35);
 }
+
+// What the coach's lane choice was worth, said the moment a swimmer is sent (19 October 2026, Phase 1: on the first shift the
+// score sat at 0 for 24 seconds while every choice was right, because points only come when a swimmer finishes). Only in a pool
+// with lap lanes; null elsewhere. It follows the simulation's own rules: two to a lane split it, from three they swim in a circle
+// and the slowest sets the pace; aqua aerobics stands still and gets in every lap swimmer's way.
+const SPEED = { beginner: 0.55, intermediate: 1, advanced: 1.5, senior: 0.5, aqua: 0 };
+export function laneVerdict(sim, p, lane) {
+  const v = sim.venue;
+  if (!p || v.kids || v.river || v.waves || v.roof || v.onsen || v.class || !(p.type in SPEED)) return null;
+  const others = sim.people.filter(
+    (a) => a !== p && a.lane === lane && ["swim", "enter", "switch"].includes(a.status) && a.type in SPEED,
+  );
+  if (!others.length) return { good: true, text: "Own lane 👍" };
+  const aquaHere = others.some((a) => a.type === "aqua"),
+    lapHere = others.some((a) => a.type !== "aqua");
+  if (p.type === "aqua")
+    return lapHere
+      ? { good: false, text: "Aqua blocks the laps 😬" }
+      : { good: true, text: "Aqua together 👍" };
+  if (aquaHere) return { good: false, text: "Aqua in the way 😬" };
+  if (others.every((a) => a.type === p.type)) return { good: true, text: "Good match 👍" };
+  if (others.length < 2) return { good: true, text: "Sharing 👍" };
+  const mine = SPEED[p.type],
+    slowest = Math.min(...others.map((a) => SPEED[a.type])),
+    fastest = Math.max(...others.map((a) => SPEED[a.type]));
+  if (mine - slowest > 0.3) return { good: false, text: "Stuck behind slower swimmers 😬" };
+  if (fastest - mine > 0.3) return { good: false, text: "Too slow for this lane 😬" };
+  return { good: true, text: "OK 👌" };
+}

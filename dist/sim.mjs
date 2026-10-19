@@ -887,6 +887,13 @@ export class PoolSimulation extends ChaosController {
       });
       p.waitLimit *= 0.75;
     }
+    // The guided first shift (Phase 1, tutorial.mjs): everyone is patient while the player learns, and the second guest asks for
+    // fins before they will swim, to teach carrying. (Set after the numbers are drawn, so no other roll of the shift moves.)
+    if (this.config.tutorial) {
+      p.waitLimit *= 2.5;
+      if (index === 1 && TYPES[type].speed > 0)
+        Object.assign(p, { needsFins: true, midFins: false, finsFirst: true, problem: "fins" });
+    }
     if (type === "rider") riderSpawn(this, p);
     if (this.venue.waves) batherSpawn(this, p);
     if (this.venue.onsen) onsenSpawn(this, p);

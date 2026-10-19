@@ -225,7 +225,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   over the head; **dizzy** (70, `problem: "dizzy"`) staggers for the beach, slowly, mood draining: the coach **helps them out** from
   the water's edge (E: +50, a rest on a towel on the sand and back in), hands them a tube, or stops the waves. **A crest that hits a
   bather already dizzy knocks them under** (100): −150 and the cramp's rescue (ring, dive from the beach, tow, a rest on a towel), the
-  machine stopped for it (`halted`) and started again with the horn when everyone is safe. **The WAVES button** (1, or click it) stops
+  machine stopped for it (`halted`) and started again with the horn when everyone is safe. **The WAVES button** (Z, or click it) stops
   the machine: no new wave leaves (the ones already out still roll in), a monster on its way is called off, the program waits; the
   bathers say "awww" at once (−4 mood each) and after a three-second grace their mood drains away the longer it stays off, and they
   chant for waves; pressed again, the horn sounds and the program goes on. A rescue, a closed pool, a panicking crowd or a blackout
@@ -256,7 +256,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   off leaves the bed **messy**, nobody takes a messy bed, and the coach **tidies** it (E, +10); a guest who finds none free waits,
   minds, and gives up. **Margaritas** 🍹: now and then a guest orders one (`problem: "drink"`, the party animals most): one in the
   water wades to the near edge, one on a sunbed waits there; the coach takes a **tray of three** from the bar (E at the bar, the
-  BAR button or 1) and hands them out (E by the guest: +30, a VIP +60, mood up); one kept waiting grows cross. Two make a guest
+  BAR button or B) and hands them out (E by the guest: +30, a VIP +60, mood up); one kept waiting grows cross. Two make a guest
   **tipsy** 🥴. **The selfie at the edge** 📸 (from level 2): a guest (a tipsy one above all) wades to the infinity edge, climbs
   up and leans out with a phone; the coach (who **can wade** in this shallow pool, at half speed, no dash, `wadeable` in
   `dist/coach.mjs`) has a few seconds to talk them down (E, +60, or +35 on the way there). Too late, and **over they go**: −150,
@@ -288,7 +288,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   `LOUNGERS`), the Lido Bar and a hot tub on the far deck, two stairway lobbies at the left end. **Half the guests chill**
   (`chill.share`; never Marco): they are the Rooftop Pool's guests, the same code (`dist/rooftop.mjs` now reads a venue's `chill`
   plan, `ROOF_CHILL` and `CRUISE_CHILL`, and `p.chill` marks a chilling guest), in the free water or on a lounger, ordering
-  margaritas (a tray from the bar: the BAR button or 3), half as quick to mind waiting as up on the roof (`patience`: the coach
+  margaritas (a tray from the bar: the BAR button or B), half as quick to mind waiting as up on the roof (`patience`: the coach
   has the lanes to run too); no selfies, no DJ, no cabanas. **The roll** (`dist/ship.mjs`, a random stream of its own,
   `shipRandom`): calm spells of 9 to 15 s (5 to 9 late in a run) with a faint sway, then a swell leans her over to one side,
   holds her there for 1.4 to 4 s and lets her back, or, a big one now and then, throws her over to the other side first. Small
@@ -397,6 +397,34 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   **Not verified:** how it feels to a person, which only playtests can say (the ramp, the goals and the prices are the first numbers to
   tune).
 
+### The first ten minutes (Phase 1, 19 October 2026)
+
+The diagnostic of 19 October found that nothing taught the game and the first hour asked too little, then too much. Phase 1:
+
+- **The main screen** says what the game is: the week card over a picture of the coach at his pool (`#menu-art`), one line on the
+  job (*send swimmers to the right lanes, fetch the gear, fix the chaos*), START. The old level map shows only in free play.
+- **The guided first shift** (`dist/tutorial.mjs`). The first shift of a player's first run (`!save.tutorial`, Monday of week 1) is
+  the gentle minute stretched to 90 s (`TUTORIAL_SECONDS`) with `config.tutorial` on, and a yellow tip under the score says the one
+  thing to do next, step by step: select the waiting swimmer, send them to a lane (1), carry fins to the guest who asks for them, send
+  that guest to a lane, mop the wet spot, then *That's the job, coach!* for six seconds. The simulation sets the stage only with the
+  flag on: the second guest asks for fins first, everyone waits 2.5 times longer, and the first swimmer to climb out drips a wet spot.
+  **Skip tips** stops them and marks the tutorial done; a finished tutorial is never shown again (`tutorial` in the week save). A
+  replay rebuilds the shift from its config, so a tutorial shift replays exactly.
+- **A gig picker with one card is no choice**: a plain *Start the shift ▶* button.
+- **A pool's first visit** (`POOL_INTROS`, `FIRST_VISIT_EASE` in `dist/week.mjs`; `seen` in the week save, every pool played): the
+  picker shows a card, *NEW POOL · its name · a little easier the first time*, with the pool's one rule and the one action to learn,
+  and that shift is two levels easier (never below level 2). The first Monday is not a first visit.
+- **The lane choice judged at once** (`laneVerdict` in `dist/guidance.mjs`): a swimmer sent to a lane gets a floating word over them,
+  green or orange: *Own lane 👍*, *Good match 👍*, *Sharing 👍*, *Stuck behind slower swimmers 😬*, *Too slow for this lane 😬*,
+  *Aqua in the way 😬*, *OK 👌*. Nothing in a pool without lap lanes.
+- **One meaning per key**: the numbers only send someone to a place; the wave machine is Z and the bar B (they were 1 and 3, which
+  also meant lanes).
+- **A calmer HUD**: eye relief, clean-up and the mop show only when something needs them (or the coach holds one); a happy swimmer
+  with nothing to say wears a small faded tag; the deck heading and the status line sit on a cream pill, readable on any floor.
+
+Checked by `onboarding-check.mjs`, which plays the tutorial through with a script. **Not verified:** whether a new player reads the
+tips and learns the game from them; only a first-time player can say.
+
 ## Core loop
 
 The loop is **the run** ([The week](#the-week-the-main-loop-11-october-2026-restructured-16-october-2026)); this is one shift of it.
@@ -426,7 +454,9 @@ A lane assignment is a management action. Equipment pickup, handoff, cleanup, an
 | Shift | Short dash with an internal cooldown |
 | E | Contextual nearby interaction: pickup, handoff, selection, disposal, return, or drop. **Hold** it next to Karen to calm her down |
 | Click swimmer / swimmer tag / queue card | Select a swimmer |
-| Click lane / lane button, or 1–5 | Assign the selected waiting swimmer, or move a selected swimmer who is already in the water |
+| Click lane / lane button, or 1–5 | Assign the selected waiting swimmer, or move a selected swimmer who is already in the water. The numbers only ever send someone to a place (a lane, a zone, a spring, POOL, RIVER) |
+| Z | Stop or start the wave machine (Wave Pool) |
+| B | Fetch a tray of margaritas from the bar (Rooftop Pool, Cruise Ship) |
 | T / click the trampoline tower | Send the selected daredevil to the trampoline (Splash Park) |
 | Click gear, a visitor or an injured swimmer | Act if the coach is in reach (grab the net, patch someone up); otherwise point the way |
 | F / C / R | Guidance toward fins / chlorine / eye relief |
@@ -678,7 +708,8 @@ Happiness responds to waiting, blocked speed, crowding, water contamination, unr
 - Selecting a waiting swimmer produces a two-note sound and highlights the lane targets in both the world and HUD.
 - Guidance advances as swimmers are assigned, lost, or sent home. Selected-swimmer assignment takes priority over a carried chlorine bucket.
 - Queue slots are unique and reusable. The old waiting-position floor circles are hidden; useful selection glows remain.
-- Help retains detailed controls, while the opening menu avoids a written tutorial step list.
+- Help retains detailed controls, while the opening menu avoids a written tutorial step list: the first shift of a first run
+  teaches by doing instead (see [The first ten minutes](#the-first-ten-minutes-phase-1-19-october-2026)).
 
 ## Equipment and physical service
 
@@ -1190,6 +1221,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node rooftop-check.mjs` | The Rooftop Pool: the lifts facing each other from the two ends, the infinity edge with its gutter and rail and no deck past it, fourteen beds and two cabanas reachable from the deck, walks round the furniture, every station within reach, the coach wading in (never into the gutter); guests from both lifts to what their plan says, nobody queued or sent, chat groups, a VIP in a cabana; margaritas ordered, a tray of three, served for a tip, two making a guest tipsy, the empty tray gone; messy sunbeds nobody takes, a guest waiting for one, tidied; the selfie at the edge talked down, or over into the gutter and hauled back, or left to storm off; the DJ's drops on the music's bars, announced, dancing, the water slopped onto the deck, a poser thrown over; closing time; a poo, the fish and Carl on the roof, the same shift for a seed; whole shifts played by the bot; in every week's draw with more VIPs, no Marco, its stars, its house set, stings, saves, props and pictures; and on screen (headless) the roof and the city 185 m down, guests chest-deep and lying down, the towels, the coach wading |
 | `node river-check.mjs` | The Lazy River: a curving river with its mouths in the walls (only a stretch seen), places read back from where they are, the bridge and two stepping stones walkable and the rest water; both banks joined by the bridge and every station reached without wading; a guest who wants a tube, sits into it at the dock, floats with the current, goes round the loop out of sight, gets off at the exit dock and leaves the tube at the return, every tube accounted for; the coach landing on a stone at a run, falling short into the river, carried by the current and climbing out; a wipeout rescued with the pumps stopped; a poo and a wee cleaned from the banks; out of the water by the temple; a shift played by the bot; in every week's draw with its own stars; its calypso; the tube clips on every rider; and on screen (headless) the flowing water, the river as the lane, the rack's tubes, a rider boarding, floating and gone round the loop |
 | `node kids-check.mjs` | The Kids Pool: its floor plan (three open zones, a gate, no lockers, its toys and song, every station reachable), only kids each in a look of their own, kids running all over the deck (never into the water or a bench) on a stream of their own, one POOL button to the emptiest part, chaotic paddling inside the walls and out when their time is up, a packed pool past ten, no Marco, more wees, its star targets, and the bot through a shift |
+| `node onboarding-check.mjs` | The first ten minutes: a card and an easier first visit for every new pool (never the first Monday), the pools seen and the tutorial kept in the save; the guided first shift played through by a script (select, lane, fins, lane, mop, well done, then quiet) and only with `config.tutorial` on; skipping; the lane verdicts; one meaning per key; the main screen without the old map and the one-card start; the calmer HUD |
 | `node wet-check.mjs` | Wet spots and the mop: a bucket in every pool, one in five swimmers climbing out dripping a spot (its own random stream), a spot that never dries, a slip and lost points for a guest, the coach down for 1.3 s when he steps in one (not again on his way off it; a jump clears it), the mop grabbed, used and put back (E or Q), spots that merge, and the bot mopping in every pool |
 | `node pee-check.mjs` | The wee: a third of sick guests (half at the Kids Pool), the 🚽 warning and its prevention, a missed one turning the water yellow, emptying the pool and costing as much as a poo, cleared with chlorine alone; a poo still a poo |
 | `node disco-check.mjs` | The Aqua Disco: its floor plan (four zones, no blocks, a stage past the pool, no locker rooms but one door in the back wall that guests and a dog come in and leave by, every station, fixture and queue spot reachable), a class of aqua dancers whatever the level wrote (Marco and the VIPs too, Marco's toast a dancer's), rows down a zone facing the stage with the front row by it, four to a zone comfortable and six packed (moods fall, one toast, in zones), zones not lanes in toasts and stings, the dance routine |

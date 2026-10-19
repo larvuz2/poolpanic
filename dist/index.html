@@ -15,6 +15,11 @@
     <main id="game" aria-label="Pool Panic game">
       <div id="world" aria-label="Interactive three-dimensional swimming pool"></div>
       <div id="world-labels"></div>
+      <div id="tutor" class="tutor" role="status" aria-live="polite" hidden>
+        <b id="tutor-step" class="tutor-step">1/5</b>
+        <span id="tutor-text"></span>
+        <button id="tutor-skip" class="text-btn inline">Skip tips</button>
+      </div>
       <!-- Incident moments: the loud alert's marker (on screen) or edge arrow (off screen), and save stamps. -->
       <div id="alert-marker" class="alert-marker" aria-hidden="true" hidden>
         <i class="alert-ring"></i><span class="alert-chip"><b></b><span></span></span>
@@ -68,7 +73,12 @@
         ><button id="reset-view" aria-label="Reset camera" title="Reset camera">⌖</button>
       </div>
       <div id="map" class="map" role="group" aria-label="Season map"></div>
+      <div id="menu-art" class="menu-art" aria-hidden="true"></div>
       <section id="week-card" class="week-card" aria-label="This week" hidden>
+        <p class="wk-pitch">
+          You're the coach of the town's pools: send swimmers to the right lanes, fetch the gear, fix the
+          chaos.
+        </p>
         <div class="wk-head">
           <span id="wk-date-icon" class="wk-date-icon" aria-hidden="true">🍦</span>
           <div class="wk-text">
@@ -310,10 +320,10 @@
           <li><b>👵 Senior Aqua Fit:</b> slow walkers and wheelchairs; more cramps, keep a ring handy.</li>
           <li><b>🛟 Lazy River:</b> hand everyone a tube (F), then RIVER. Rack the tubes they leave.</li>
           <li>
-            <b>🌊 Wave Pool:</b> meet bathers with a tube; dizzy ones need help out. WAVES stops the machine.
+            <b>🌊 Wave Pool:</b> meet bathers with a tube; dizzy ones need help out. Z stops the wave machine.
           </li>
           <li>
-            <b>🌇 Rooftop Pool:</b> margaritas from the bar, tidy the sunbeds, talk selfie-takers off the
+            <b>🌇 Rooftop Pool:</b> margaritas from the bar (B), tidy the sunbeds, talk selfie-takers off the
             edge.
           </li>
           <li>
@@ -327,8 +337,9 @@
         </ul>
         <p class="help-shortcuts">
           <b>WASD / arrows</b> move · <b>Space</b> jump · <b>Shift</b> dash · <b>E</b> pick up / use / select
-          · <b>1–5</b> lane · <b>T</b> trampoline · <b>F C R Q</b> fins, chlorine, eye relief, mop ·
-          <b>V</b> Coach Cam (first-person view) · <b>P / Esc</b> pause · <b>M</b> music.
+          · <b>1–5</b> a lane (or a zone, a spring, the pool, the river) · <b>T</b> trampoline · <b>B</b> the
+          bar · <b>Z</b> the wave machine · <b>F C R Q</b> fins, chlorine, eye relief, mop · <b>V</b> Coach
+          Cam (first-person view) · <b>P / Esc</b> pause · <b>M</b> music.
         </p>
         <p class="help-log">
           Something broke or froze?
@@ -444,11 +455,19 @@
           <span id="wd-pass" class="wk-pass"></span><span id="wd-tips" class="wk-tips"></span
           ><span id="wd-perks" class="wk-perks"></span>
         </div>
+        <div id="wd-intro" class="wd-intro" hidden>
+          <span id="wd-intro-icon" class="wd-intro-icon" aria-hidden="true"></span>
+          <div>
+            <small id="wd-intro-name"></small>
+            <strong id="wd-intro-rule"></strong>
+            <span id="wd-intro-action"></span>
+          </div>
+        </div>
         <div class="wk-wishes">
           <small>💌 MARINA'S WISHES FOR THIS SHIFT</small>
           <ul id="wd-wishes"></ul>
         </div>
-        <p class="booking-note">Pick today's gig. More trouble pays more.</p>
+        <p id="wd-cards-note" class="booking-note">Pick today's gig. More trouble pays more.</p>
         <div id="wd-cards" class="booking-cards"></div>
         <button id="wd-back" class="text-btn">Back to the menu</button>
       </dialog>
