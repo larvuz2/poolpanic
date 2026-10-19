@@ -309,17 +309,27 @@ style reference, a T-pose), one Meshy 7 mesh, and these steps:
 
     tools/blender/run.sh tools/blender/game_export.py -- meshy.glb body.glb --height 0.80
     tools/blender/run.sh tools/blender/decimate.py -- body.glb body11.glb 11000
-    tools/blender/run.sh tools/blender/rig_from_template.py -- body11.glb rigged.glb --set y_neck=0.50
+    tools/blender/run.sh tools/blender/rig_from_template.py -- body11.glb rigged11.glb --set y_neck=0.50
+    tools/blender/run.sh tools/blender/monkey_skin.py -- rigged11.glb rigged.glb
     python3 tools/blender/monkey_clips.py rigged.glb clips.glb
     tools/blender/run.sh tools/blender/ground_clips.py -- clips.glb snow-monkey.glb --only MonkeyWalk,MonkeyRun,MonkeyIdle
 
 - `--set y_neck=0.50` puts the neck under the big head (the fitted 0.725 ran the spine up into it).
+- `monkey_skin.py` throws away the bone-heat weights and weights every vertex by where it sits on the body (19 October 2026, the
+  creator: "the monkey's face… it's like it's ripped off… the monkey's back, I can see the emptiness"). In the T-pose the big head
+  is at the arms' height, and bone heat had given the chin and the cheek fur to the shoulders and the arms, and shards of the back
+  to the arms and the legs: standing still nothing showed, on all fours (the arms swung down, the head pitched back) the face
+  stretched into long strips. Now the skull and the face are wholly the Head (an ellipsoid fitted to the skull above the Head
+  joint, plus the face in front), the arms are a capsule along each arm, the legs are what is below the hips either side of the
+  middle (a wider band behind the hip joint, since the hips bend 80 degrees on all fours and stretch the rump), the tail (a lump
+  of fur fused behind the left shin) rides on the left thigh, the rest is the spine by height, and all of it is smoothed over the
+  welded surface (the head's core held) and cut to four bones. Check it with renders of every clip from the back and the sides.
 - `monkey_clips.py` (plain Python, `posing.py`) poses the walk and run on all fours: the pelvis is pitched about 82 degrees, the
   spine's pitch is fitted so the shoulders sit an arm's reach above the palms, the head pitches back to look ahead, and the hands and
   feet are put on world targets by two-bone IK on a diagonal gait. The feet stay flat and the palms nearly flat all the time: a foot
   that followed the shin in the swing sank its toes 12 cm into the floor.
 - The clips are MonkeyWalk (12 frames, 0.86 m/s), MonkeyRun (a bound, 10 frames, 2.27 m/s), MonkeyIdle (96 frames: sitting,
-  looking round, scratching, shivering), MonkeySoak (96 frames: sitting upright, head back, breathing; the chin is 0.269 m above the
+  looking round, scratching, shivering), MonkeySoak (96 frames: sitting upright, head back, breathing; the chin is 0.229 m above the
   clip floor, and it is not grounded, since the game sinks it to the waterline) and MonkeyHop (15 frames, one shot, in place, ending
   about 0.38 m below the floor: into the water).
 - `render_grid.py` renders many frames of many clips from several views in one Blender session (`--floor`, `--water H`), for

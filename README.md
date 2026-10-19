@@ -602,7 +602,8 @@ The overview shows the pool and its deck; the Coach Cam shows the world around t
   bathhouse, yu-sign; the snow and the curtain made in code). **The cast** (`onsenPose`): a guest in a spring sits in it to the
   shoulders (settling down into it at the seat), wades waist-deep getting in and out, and stands up and panics when a monkey is in
   with them; a cold guest in the queue plays ColdHug (the classic figure crosses its arms) and shivers. **The snow monkeys**
-  (`snow-monkey.glb`, Meshy, 11k triangles, on the Coach's skeleton with clips of its own: MonkeyWalk on all fours, MonkeyRun,
+  (`snow-monkey.glb`, Meshy, 11k triangles, on the Coach's skeleton, weighted by region so its face and back hold together when it
+  walks on all fours (`monkey_skin.py`), with clips of its own: MonkeyWalk on all fours, MonkeyRun,
   MonkeyIdle, MonkeySoak, MonkeyHop; a monkey of balls stands in until it has loaded): walking, stopping to look about, hopping in,
   sitting in the water up to the chin, scampering off. **The coach** plays IceSkate on the ice and IceSlide when he slides.
 - **Rooftop Pool** (`dist/scene/rooftop.mjs`, `dist/scene/roof-view.mjs`, `dist/scene/city.mjs`, 17 October 2026): an infinity
