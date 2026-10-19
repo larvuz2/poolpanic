@@ -16,9 +16,11 @@ the same twice: see `docs/incidents.md`).
    is **the run** (restructured on 16 October 2026; README, "The week: the main loop"): one START on the main screen; six shifts a
    week, Monday to Saturday, then Sunday is a date with Marina if the Date Fund is full, and the next week is harder; short on Saturday
    night is game over, and the next run starts at week 1. The first shift is a gentle minute; after it every shift is a pool from the
-   week's draw (`weekPools`: six different pools a week, drawn at random from all of them, so any venue can come in any week and none
-   twice in a week; a new venue joins the draw by being added to `POOLS`) at a difficulty that rises every
-   shift (`tierFor`), with star targets made fair per pool by the coach bot (`scoreScale`). The pools: the Community Pool, Splash
+   week's draw (`weekPools`: from the pools opened on the ladder, `LADDER`, three on a first run and one more with every date for
+   good; six different ones a week once six are open, a pool never played always in; a new venue joins by being added to `POOLS` and
+   `LADDER`) at a level from the week's band (`WEEK_BANDS`, `tierFor`: difficulty by week), with star targets made fair per pool
+   (`scoreScale`) and smoothed across the levels (`TIER_SCALE`) by the coach bot. Week 4's Saturday is the season finale at the Grand
+   Gala Arena, and its date the story's ending (credits, then endless). The pools: the Community Pool, Splash
    Park, the Sunset Lagoon, the **Aquatic Centre** (indoor and competitive, where Marco "the Missile" always swims), the **Aqua
    Disco** (a party pool with no lanes: four zones of aqua dancers facing Valentina, the instructor, all on one dance routine and its
    own song, `dist/dance.mjs`, `dist/music.mjs`; every incident still comes), the **Kids Pool** (only kids, who run all over the deck
@@ -55,7 +57,7 @@ the same twice: see `docs/incidents.md`).
    shift**, more as the run goes on (the creator wants to see them often); incidents drawn by a director
    (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder: one new incident a shift from the first Tuesday, all five
    met in week 1, then a fair mix where one that just came is less likely, `RECENT`). A shift not passed pays nothing but the week goes on. Marina's
-   wishes for each shift, tips and a shop that never touch the Date Fund. Every level a run passes opens in **free play** (the level map,
+   wishes for each shift, and a shop whose perks are paid out of the Date Fund (one money). Every level a run passes opens in **free play** (the level map,
    behind a small link under START, like a level select). Marina never appears on the deck: only in texts, wishes and full-screen
    scenes, whose videos the creator will add (`VIDEOS` in `dist/marina.mjs`); until then each scene shows a still (`ART` in
    `dist/story.mjs`, generated from the creator's pictures). The coach is **Coach Waters** (renamed from Coach Panic on 15 October
@@ -69,9 +71,11 @@ the same twice: see `docs/incidents.md`).
    for met incidents, a short Help) is **done**. **Phase 1, the first ten minutes** (a guided first shift that teaches by doing,
    `dist/tutorial.mjs`; a card and a two-levels-easier shift the first time each pool appears, `POOL_INTROS`; the lane choice judged
    at once, `laneVerdict`; one meaning per key, the numbers for places, Z waves, B bar; the old map off the main screen; a calmer
-   HUD; README "The first ten minutes") is **done**. **Phase 2, a run worth repeating:** the pools as a ladder unlocked across runs (start with three, one more
-   each week), permanent progress (a dates album, coach gear), difficulty by week, one money (perks cost Date Fund dollars), the
-   Gala as week 4's finale and a story ending, then endless. **Phase 3:** a big moment in every shift, a real decision in every
+   HUD; README "The first ten minutes") is **done**. **Phase 2, a run worth repeating** (the pools as a ladder opened across runs,
+   three to start and one more with every date; what lasts in the coach's locker: the dates album, coach gear opened by stars, the
+   best stars per pool; difficulty by week with every level smoothed; one money, perks out of the Date Fund; the Gala as week 4's
+   finale and the story's ending with credits, then endless; the goals tuned with the coach bots; README "A run worth repeating") is
+   **done**. **Phase 3:** a big moment in every shift, a real decision in every
    pool, a highlight replay. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
    Phase 2 is done**, no co-op for now, and **keep the reward (the Sunday date) as it is for now** ("we'll change it later").
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller

@@ -54,30 +54,39 @@ What follows from that for anyone working on the game:
 
 The game is played as a **run** of weeks (`dist/week.mjs` the rules, `dist/week-ui.mjs` the screens, `dist/marina.mjs` Marina's
 scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a week is under way) on a card that says it plainly:
-*Ice cream on the pier with Marina · save $300 by Saturday*, the week's days, and a small **🗺️ Free play** link under it.
+*Ice cream on the pier with Marina · save $300 by Saturday*, the week's days, and two small links under it: **🏅 Coach's locker**
+(what lasts across runs) and **🗺️ Free play**.
 
 - **Six shifts, one a day, Monday to Saturday, then Sunday: the date.** Every shift pays into the **Date Fund**, the goal of the week,
-  which is always in sight: in the top bar's pill (🍦 $120 / $300), on the menu card, before every shift and on every result. It only
-  ever goes up. Full on Saturday night and Sunday is a date (a full-screen cinematic) and the next week starts, harder and better paid.
+  which is always in sight: in the top bar's pill (🍦 $120 / $300), on the menu card, before every shift and on every result. A shift
+  only adds to it; the shop takes from it (one money, below). Full on Saturday night and Sunday is a date (a full-screen cinematic)
+  and the next week starts, harder and better paid.
   **Short on Saturday night and it is game over**: a rain check from Marina, and the next START is a new run from week 1.
 - **A shift that is not passed pays nothing, but the week goes on** (its day shows ✗). Its pass mark is half its first star (`passMark`),
   shown before the shift and in the HUD while the score is under it. Stars decide the pay: $15 for passing plus $15 a star, times the
-  week's pay and the card's. A week's goal is 300 × its pay (pay 1 in week 1, +0.3 a week: $300, $390, $480, $570, …).
+  week's pay and the card's. A week's goal is 300 × its pay × its share (`GOAL_SHARE`; pay 1 in week 1, +0.3 a week): $300, $450,
+  $600, $680, $790, $900, $920, $1,020, … (see "A run worth repeating" for how they were tuned).
 - **The first shift of a run is a gentle minute** (`FIRST_SHIFT`): level 1 stretched to 60 s, seven swimmers, no roaming incident, its
   stars doubled so a pass (150 points) is very easy.
-- **Every later shift is a pool from the week's mix at a difficulty from the ramp** (16 October 2026). The difficulty (`tierFor`):
-  the run's step (`stepOf`: week and day together) sets a centre that climbs one level a shift, and the level is drawn from a band
-  around it (from level 2), so Tuesday of week 1 is a level 2 to 3 and Saturday of week 3 is around level 18. That level gives the
-  shift its length, crowd, star targets and how many incidents and twists it has. Past level 20 (`overTop`) the shifts stay at the
-  hardest levels and grow: more swimmers, higher star targets and more incidents (`heat`).
-- **The pools are a random six each week** (`POOLS`, `weekPools` in `dist/week.mjs`; the creator, 16 October 2026: "all of these
-  pools… can appear in every week… random… you cannot repeat venue per week"). Each week draws six different pools at random from
-  all of them, in a random order, so any pool can come in any week and on any day, and no pool comes twice in a week (the first
-  Monday of a run is always the Community Pool, for the gentle minute). Today there are thirteen: the Community Pool 🏫, Splash Park
-  🌴, the Sunset Lagoon 🌅, the **Aquatic Centre** 🏅, the **Aqua Disco** 🪩, the **Kids Pool** 🦆, **Senior Aqua Fit** 👵, the
-  **Lazy River** 🛟, the **Wave Pool** 🌊, the **Rooftop Pool** 🌇, the **Cruise Ship** 🛳️, the **Mountain Hot Springs** ♨️ and the Grand Gala Arena 🏟️, so six, different ones most weeks,
-  sit each week out. **Adding a venue** is an entry in `POOLS` (and its row in `SCORE_SCALE`):
-  it joins every week's draw. The incidents are drawn afresh every shift, with no memory of the last one, so the same incident can
+- **Every later shift is a pool from the week's mix at a difficulty from the week's band** (difficulty by week, Phase 2, 19 October
+  2026; until then it climbed a level every shift and hit a wall in week 4). Each week has a band of levels (`WEEK_BANDS`: week 1
+  levels 2–5, week 2 4–8, week 3 6–11, week 4 9–14, then 11–16, 13–18, 15–20, 17–20), Monday at its foot and Saturday at its top, a
+  level either way at random (`tierFor(chapter, day)`). That level gives the shift its length, crowd and how many incidents and
+  twists it has; its star targets are the level's own, scaled for the pool (`scoreScale`) and **smoothed across the season**
+  (`tierScale`, below). Past the last band (`heatOf`) the weeks stay at the hardest levels and grow: 10% more swimmers and higher
+  star targets every week (at most half as much again), and more incidents.
+- **The pools: a random six each week, from the pools opened on the ladder** (`LADDER`, `openPools`, `weekPools` in
+  `dist/week.mjs`; the creator, 16 October 2026: "all of these pools… can appear in every week… random… you cannot repeat venue per
+  week"; Phase 2: "the ladder"). A first run works at three pools (the Community Pool 🏫, Splash Park 🌴, the Kids Pool 🦆), and
+  every date with Marina, in any run, opens the next one for good (`save.ladder`): the Sunset Lagoon 🌅, the **Aqua Disco** 🪩, the
+  **Aquatic Centre** 🏅, the **Mountain Hot Springs** ♨️, the **Wave Pool** 🌊, **Senior Aqua Fit** 👵, the **Lazy River** 🛟, the
+  **Cruise Ship** 🛳️, the **Rooftop Pool** 🌇 (the order is the creator's to change, like `INCIDENT_ORDER`). A week draws from the
+  pools open when it starts and keeps its draw in the save: a pool never played yet is always in it (so a new pool comes the very
+  next week, with its card and an easier first visit), six different pools once six are open, and with fewer each pool as often as
+  it can, never two days running (a first week: each of the three twice). The first Monday of a run is always the Community Pool
+  (the gentle minute). The **Grand Gala Arena** 🏟️ is not on the ladder: it is the **season finale**, Saturday of week 4 (below),
+  and joins the draw in the weeks after it. **Adding a venue** is an entry in `POOLS` (and its row in `SCORE_SCALE`) and a place on
+  `LADDER`. The incidents are drawn afresh every shift, with no memory of the last one, so the same incident can
   come two shifts running (a cannonball, then another the next day) when the odds fall that way. The
   week's strip shows each
   day's pool. A pool gives the shift its venue, its look (the season level of that pool nearest the difficulty lends its lighting:
@@ -374,10 +383,14 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   collisions, a short wait, the mood, stop trouble early, clean water, the VIPs, trampoline flips: only those that fit the shift), shown
   before it and ticked on the results: each one met pays extra into the Date Fund (never in a shift that served nobody). Marina never walks onto the deck: she is in her texts,
   her wishes and the full-screen scenes.
-- **Tips and the shop.** Every shift also earns **tips** (pocket money: 2, plus a tip a star, a save and a wish met), and between shifts
-  the coach's locker sells three perks for the rest of the week (running shoes, turbo whistle, shady benches, stretching poster, tummy
-  alarm, megaphone, a No dogs or No bombs sign (offered only once that incident has been met), a tip jar, Marina's lucky charm, a local sponsor, a safety net that makes a failed shift
-  pay half; 🎲 new stock for 2 tips). **Spending tips never touches the Date Fund.** The perks the simulation reads are `perks` in
+- **The shop: one money** (Phase 2, 19 October 2026, the creator's choice; until then perks cost tips, a second money that never
+  touched the fund). Between shifts the pool shop sells three perks for the rest of the week (running shoes, turbo whistle, shady
+  benches, stretching poster, tummy alarm, megaphone, a No dogs or No bombs sign (offered only once that incident has been met), a
+  tip jar (every VIP served tips $5 for the date), Marina's lucky charm, a local sponsor, a safety net that makes a failed shift pay
+  half; 🎲 new stock for $10), **paid out of the Date Fund**: $20 to $40 in week 1, times the week's pay after (`perkPrice`), about
+  half a shift's pay. Spend now to earn more (the sponsor, the tip jar and the charm pay back in a few shifts), or save for the date.
+  The shop shows the fund, the pace and what each perk leaves in it; nothing is bought on credit. Marina's texts come once each, on
+  the way up (`week.peak`). The perks the simulation reads are `perks` in
   `PoolSimulation` (1 for each, so without them the game is exactly as it was).
 - **The dates.** Ice cream on the pier, movie night, dinner by the lagoon, the ocean trip, then new ones (picnic to sailing) for as long
   as the run lasts.
@@ -397,6 +410,50 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   **Not verified:** how it feels to a person, which only playtests can say (the ramp, the goals and the prices are the first numbers to
   tune).
 
+### A run worth repeating (Phase 2, 19 October 2026)
+
+The diagnostic found that nothing lasted between runs, that a good player filled the Date Fund by Thursday, and that the difficulty
+hit a wall in week 4. Phase 2, on the creator's choices (the ladder, one money, an ending; the Sunday date kept as it is):
+
+- **The pool ladder** (`LADDER`): a first run has three pools; every date opens the next one for good, in any run, with a panel in
+  the date's scene and a banner on the results (*🔓 NEW POOL: SUNSET LAGOON*), and the new pool comes the very next week. A save
+  from before keeps every pool it has played open (and one more for each week it ever reached).
+- **The season finale and the story's ending**: Saturday of week 4 is at the Grand Gala Arena (`FINALE_WEEK`, `FINALE_POOL`), at the
+  top of the week's band, its card shown and no gig to pick (*Start the finale 🏆*). Its date is the ocean trip: the first time, the
+  date runs on into the ending (Marina sees the ocean and lets the postcard go), the credits roll the cast (`CAST` in
+  `dist/marina.mjs`: a `credits` panel the cinematic player rolls up the stage), and *Thanks for playing*; later runs close with a
+  shorter *The season is over* panel. The run goes on after it, endless: the arena joins the draw, the levels stay at the top and
+  the crowds, targets and trouble grow every week.
+- **Difficulty by week** (`WEEK_BANDS`, `tierFor`), with **every level's star targets smoothed** (`TIER_SCALE`): measured with the
+  expert coach bot, 78 shifts a level in all thirteen pools and again in the weeks each level comes in, the season's levels were
+  jagged (a dip at 8 and 10, a jump at 11 where the five-lane levels start, a wall at 17, 19 and 20); scaled, the expert makes a
+  little less of each level's two-star target than of the one before, about 1.6 times it at level 2 and 1.15 at level 20.
+- **One money**: the shop's perks come out of the Date Fund (above).
+- **What lasts, in the coach's locker** (🏅 on the main screen): the pools (open, the next one, the best stars at each, `save.best`),
+  the **gear** (`GEAR`: seven pieces opened by the stars of all runs, `save.stars`, from 5★ to 140★: a lucky cap, pool slides, a
+  silver whistle, mirrored shades, a lifeguard vest, a golden clipboard, a Coach of the Year medal; each a smaller, lasting cousin of
+  a shop perk; the coach wears one, picked in the locker; it is in the shift's perks, so a replay plays it the same; a new piece is
+  announced on the results), and the **dates album** (`save.album`: every date ever had, with its still, to watch again, and the
+  ending once seen). The four dates after the season (picnic, concert, karaoke, sailing) got their stills, made like the first four
+  from the existing pictures (GPT Image 2, `fal-ai/gpt-image-2/edit`). A game over keeps all of it.
+- **The goals, tuned** (`GOAL_SHARE`): with the coach bots playing whole runs through the harness (see below), week 1 is a learner's
+  week ($260), and from week 2 a good coach ends Saturday a little over the goal, with something to spend in the shop.
+
+  **Measured** (19 October 2026, the harness's skill bots playing whole runs up to week 10, buying in the shop like a careful player:
+  one perk a visit, only while the fund stays on pace). The **good** coach (24 runs): week 1 won 24 of 24, week 2 23 of 24, week 3 21
+  of 23, the finale week 16 of 21, week 5 9 of 16; on Saturday the fund held 1.42, 1.24, 1.20, 1.09 and 1.04 times the goal in weeks
+  1 to 5 (1.9, 1.6, 1.4, 1.3, 1.2 earned, the rest spent); 4.3 dates a run. The **expert** (8 runs): 7.4 dates a run, 1.2 to 1.4
+  times the goal. The **careful beginner** (24 runs): week 1 won 18 of 24, week 2 rarely. Most runs end on a week lost by a few
+  dollars after shopping, or on a failed shift. Before (16 October's ramp, tips apart): the good coach's fund went 1.5, 1.3, 1.1,
+  0.7 of the goal and its runs ended in weeks 4 to 6 on the difficulty's wall. The levels' targets measured the same way: the
+  expert's share of the two-star target, level by level after the first round of smoothing, 1.7, 1.6, 1.5, 1.5, 1.7, 1.7, 1.7,
+  1.7, 1.6, 1.6, 1.5, 1.2, 1.4, 1.4, 1.2, 1.1, 1.1, 1.2, 1.1 for levels 2 to 20 (before: 1.9 to 0.7, with steps); the second,
+  smaller correction made from those numbers is in `TIER_SCALE` but was not measured level by level again (the whole runs above
+  were played with it).
+
+Checked by `progress-check.mjs` (and `week-check.mjs`, `onboarding-check.mjs`). **Not verified:** whether players start a second run
+on their own, and whether a run ends on a shift they can name; only playtests can say.
+
 ### The first ten minutes (Phase 1, 19 October 2026)
 
 The diagnostic of 19 October found that nothing taught the game and the first hour asked too little, then too much. Phase 1:
@@ -413,7 +470,7 @@ The diagnostic of 19 October found that nothing taught the game and the first ho
 - **A gig picker with one card is no choice**: a plain *Start the shift ▶* button.
 - **A pool's first visit** (`POOL_INTROS`, `FIRST_VISIT_EASE` in `dist/week.mjs`; `seen` in the week save, every pool played): the
   picker shows a card, *NEW POOL · its name · a little easier the first time*, with the pool's one rule and the one action to learn,
-  and that shift is two levels easier (never below level 2). The first Monday is not a first visit.
+  and that shift is two levels easier (never below the week's band, Phase 2). The first Monday is not a first visit.
 - **The lane choice judged at once** (`laneVerdict` in `dist/guidance.mjs`): a swimmer sent to a lane gets a floating word over them,
   green or orange: *Own lane 👍*, *Good match 👍*, *Sharing 👍*, *Stuck behind slower swimmers 😬*, *Too slow for this lane 😬*,
   *Aqua in the way 😬*, *OK 👌*. Nothing in a pool without lap lanes.
@@ -440,7 +497,8 @@ The loop is **the run** ([The week](#the-week-the-main-loop-11-october-2026-rest
 6. Move the coach to deliver equipment and treatments, recover dropped gear, mop wet spots, maintain the water and answer
    incidents, from cramps to a fish loose in the pool, with each pool's own trouble on top.
 7. Swimmers finish, climb out and walk back out.
-8. Points make stars, stars make pay into the Date Fund (nothing below the pass mark), wishes met pay extra, tips go to the shop.
+8. Points make stars, stars make pay into the Date Fund (nothing below the pass mark), wishes met pay extra; the shop between
+   shifts sells perks out of the same fund.
    Saturday night decides: Sunday's date, or game over and a new run from week 1.
 
 A lane assignment is a management action. Equipment pickup, handoff, cleanup, and rescue retain proximity and physical movement requirements.
@@ -1045,7 +1103,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/scene/senior.mjs`, `dist/scene/senior-view.mjs` | Senior Aqua Fit's builder (the conservatory, the garden, the pool's mosaic and marble, the lounge, the spa, the props, the roof for the Coach Cam, the sun's shafts and its shadow grid; photographs from `dist/assets/senior/` drawn into painted stand-ins once they load); the seniors' wheelchairs on screen and what a senior in one plays (`seatState`: Sit, WheelPush, StandUp) |
 | `dist/dance.mjs`, `dist/music.mjs` | The Aqua Disco's beat (the routine of three dance clips at 120 BPM, on the shift's clock) and the songs of their own: the disco's, the Kids Pool's, Senior Aqua Fit's tea dance, the Lazy River's calypso, the Wave Pool's surf rock and the Rooftop Pool's deep house, built round the drops the simulation plans (`roofScore`, `roofSection`; `SONGS`: the scores, pure, and the player that keeps the one the shift names on its clock through a PoolAudio) |
 | `dist/tuning.mjs`, `dist/bisect.mjs` | The URL switches for isolating a crash, and the crash hunt's plan and state (pure); the scripted runs themselves are in `dist/app.mjs` |
-| `dist/week.mjs`, `dist/week-ui.mjs`, `dist/marina.mjs` | The week (pure: chapters, the incident director, cards, wishes, pay, tips, perks, the save), its screens (the menu card, the shift picker, the shop, the week on the results) and Marina's scenes (placeholders, and the videos that replace them) |
+| `dist/week.mjs`, `dist/week-ui.mjs`, `dist/marina.mjs` | The week (pure: chapters and their goals, the pool ladder and the week's draw, the bands of difficulty and the smoothed levels, the incident director, cards, wishes, pay, perks out of the Date Fund, the coach's gear, the save and what lasts across runs), its screens (the menu card, the shift picker, the shop, the week on the results, the coach's locker) and Marina's scenes (the invite, the date with a new pool, the story's ending and its credits, the rain check; stills, and the videos that replace them) |
 | `dist/gfx.mjs` | How hard the game drives the graphics on a device (pure): the quality the player chose in Help (Auto, Low, Medium, Standard, High, Ultra) and a 60 fps cap on a touch device with WebKit. The pixel budget, the governor and the crash tiers are still in the module but off since 16 October 2026 (only the played hunt draws at tier 2) |
 | `dist/hunt/lunch-rush.json` | The shift that crashed an iPad, as the recorder kept it: what `?bisect=shift` plays back in every test (`replay-check.mjs` plays it through) |
 | `dist/platform.mjs`, `dist/achievements.mjs` | The game's side of Steam: a bridge to the desktop app that does nothing in a browser (achievements, rich presence, quit), and the fifteen achievements as pure rules (what earns each, kept on the device, told to Steam when it is there) |
@@ -1221,6 +1279,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node rooftop-check.mjs` | The Rooftop Pool: the lifts facing each other from the two ends, the infinity edge with its gutter and rail and no deck past it, fourteen beds and two cabanas reachable from the deck, walks round the furniture, every station within reach, the coach wading in (never into the gutter); guests from both lifts to what their plan says, nobody queued or sent, chat groups, a VIP in a cabana; margaritas ordered, a tray of three, served for a tip, two making a guest tipsy, the empty tray gone; messy sunbeds nobody takes, a guest waiting for one, tidied; the selfie at the edge talked down, or over into the gutter and hauled back, or left to storm off; the DJ's drops on the music's bars, announced, dancing, the water slopped onto the deck, a poser thrown over; closing time; a poo, the fish and Carl on the roof, the same shift for a seed; whole shifts played by the bot; in every week's draw with more VIPs, no Marco, its stars, its house set, stings, saves, props and pictures; and on screen (headless) the roof and the city 185 m down, guests chest-deep and lying down, the towels, the coach wading |
 | `node river-check.mjs` | The Lazy River: a curving river with its mouths in the walls (only a stretch seen), places read back from where they are, the bridge and two stepping stones walkable and the rest water; both banks joined by the bridge and every station reached without wading; a guest who wants a tube, sits into it at the dock, floats with the current, goes round the loop out of sight, gets off at the exit dock and leaves the tube at the return, every tube accounted for; the coach landing on a stone at a run, falling short into the river, carried by the current and climbing out; a wipeout rescued with the pumps stopped; a poo and a wee cleaned from the banks; out of the water by the temple; a shift played by the bot; in every week's draw with its own stars; its calypso; the tube clips on every rider; and on screen (headless) the flowing water, the river as the lane, the rack's tubes, a rider boarding, floating and gone round the loop |
 | `node kids-check.mjs` | The Kids Pool: its floor plan (three open zones, a gate, no lockers, its toys and song, every station reachable), only kids each in a look of their own, kids running all over the deck (never into the water or a bench) on a stream of their own, one POOL button to the emptiest part, chaotic paddling inside the walls and out when their time is up, a packed pool past ten, no Marco, more wees, its star targets, and the bot through a shift |
+| `node progress-check.mjs` | A run worth repeating (Phase 2): the pool ladder (three to start, one more with every date, the arena the finale), the week's draw from the pools open (a new pool at once, never two days running, kept in the save), difficulty by week and the smoothed levels, the first visit at the band's foot, the season finale, one money (perks out of the Date Fund, the tip jar and sponsors into it, Marina's texts once), the coach's gear by stars, what a run leaves and what a game over keeps, an older save carried over, the album's stills and scenes, the ending and its credits, and the screens wired |
 | `node onboarding-check.mjs` | The first ten minutes: a card and an easier first visit for every new pool (never the first Monday), the pools seen and the tutorial kept in the save; the guided first shift played through by a script (select, lane, fins, lane, mop, well done, then quiet) and only with `config.tutorial` on; skipping; the lane verdicts; one meaning per key; the main screen without the old map and the one-card start; the calmer HUD |
 | `node wet-check.mjs` | Wet spots and the mop: a bucket in every pool, one in five swimmers climbing out dripping a spot (its own random stream), a spot that never dries, a slip and lost points for a guest, the coach down for 1.3 s when he steps in one (not again on his way off it; a jump clears it), the mop grabbed, used and put back (E or Q), spots that merge, and the bot mopping in every pool |
 | `node pee-check.mjs` | The wee: a third of sick guests (half at the Kids Pool), the 🚽 warning and its prevention, a missed one turning the water yellow, emptying the pool and costing as much as a poo, cleared with chlorine alone; a poo still a poo |

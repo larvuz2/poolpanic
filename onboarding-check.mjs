@@ -16,6 +16,7 @@ import {
   normalizeWeekSave,
   finishShift,
   INCIDENT_ORDER,
+  bandOf,
 } from "./dist/week.mjs";
 import { tick, go } from "./check-helpers.mjs";
 
@@ -25,7 +26,7 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   weekUi = readFileSync("dist/week-ui.mjs", "utf8");
 
 // 1) A pool's first visit: every pool has its card (one rule, one action); the shift is FIRST_VISIT_EASE levels easier (never
-// below level 2), only when the player has not played that pool, and never for the gentle first minute.
+// below the week's band, Phase 2), only when the player has not played that pool, and never for the gentle first minute.
 {
   for (const id of POOL_IDS) {
     const intro = POOL_INTROS[id];
@@ -44,13 +45,18 @@ const app = readFileSync("dist/app.mjs", "utf8"),
     assert.equal(known.tier, plain.tier, "a pool already played is played at the drawn level");
     assert.equal(known.intro, null);
     assert.ok(fresh.firstVisit && fresh.intro === POOL_INTROS[fresh.pool], "a new pool shows its card");
-    assert.ok(fresh.tier >= Math.min(2, plain.tier) && fresh.tier <= plain.tier, "and is no harder");
-    if (plain.tier > 2) {
-      assert.equal(fresh.tier, Math.max(2, plain.tier - FIRST_VISIT_EASE), "two levels easier");
+    const foot = bandOf(week.chapter)[0];
+    assert.ok(fresh.tier >= Math.min(foot, plain.tier) && fresh.tier <= plain.tier, "and is no harder");
+    if (plain.tier > foot) {
+      assert.equal(
+        fresh.tier,
+        Math.max(foot, plain.tier - FIRST_VISIT_EASE),
+        "two levels easier, not below the week's band",
+      );
       eased++;
     }
   }
-  assert.ok(eased > 10, "some first visits were eased (" + eased + ")");
+  assert.ok(eased > 5, "some first visits were eased (" + eased + ")");
   // The gentle first minute is never a "first visit".
   const save = normalizeWeekSave({});
   const monday = buildShift(newWeek(save, 7), null, [], []);

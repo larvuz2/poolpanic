@@ -94,7 +94,10 @@
         </div>
         <div id="wk-days" class="wk-days" aria-hidden="true"></div>
         <small id="wk-note" class="wk-note"></small>
-        <button id="wk-free" class="text-btn inline wk-free">🗺️ Free play</button>
+        <div class="wk-links">
+          <button id="wk-locker" class="text-btn inline wk-free">🏅 Coach's locker</button
+          ><button id="wk-free" class="text-btn inline wk-free">🗺️ Free play</button>
+        </div>
       </section>
       <button id="fp-back" class="secondary fp-back">◀ The week</button>
       <section id="welcome" class="map-panel" aria-label="Selected shift">
@@ -247,9 +250,10 @@
         <h3>The week</h3>
         <ul>
           <li>
-            <b>Six shifts, Monday to Saturday</b>, each at a different pool. Every shift pays into the
+            <b>Six shifts, Monday to Saturday</b>, at the pools you have opened. Every shift pays into the
             <b>Date Fund</b> 🍦. Fill it by Saturday night and Sunday is a date with Marina; fall short and it
-            is game over, back to week 1.
+            is game over, back to week 1. Week 4 ends with the <b>season finale</b> and the story's ending;
+            the weeks go on after it, harder and harder.
           </li>
           <li>
             <b>Points make stars, stars make pay.</b> Every swimmer you serve scores points; a happy streak
@@ -257,8 +261,12 @@
             pays more, and each of <b>Marina's two wishes</b> you meet pays extra.
           </li>
           <li>
-            <b>Tips</b> 🪙 are pocket money for the coach's locker: perks for the rest of the week. They never
-            come out of the Date Fund. A riskier gig pays more, not more points.
+            <b>The shop</b> 🛍️ between shifts sells perks for the rest of the week, paid out of the Date Fund:
+            spend now to earn more, or save for the date. A riskier gig pays more, not more points.
+          </li>
+          <li>
+            <b>What you keep</b> (🏅 Coach's locker, on the main screen): every date opens a new pool for
+            good, stars earned in every run open gear for the coach to wear, and every date goes in the album.
           </li>
         </ul>
         <h3>On deck</h3>
@@ -452,7 +460,7 @@
         </div>
         <div id="wd-days" class="wk-days" aria-hidden="true"></div>
         <div class="wd-row">
-          <span id="wd-pass" class="wk-pass"></span><span id="wd-tips" class="wk-tips"></span
+          <span id="wd-pass" class="wk-pass"></span><span id="wd-gear" class="wk-tips" hidden></span
           ><span id="wd-perks" class="wk-perks"></span>
         </div>
         <div id="wd-intro" class="wd-intro" hidden>
@@ -472,9 +480,16 @@
         <button id="wd-back" class="text-btn">Back to the menu</button>
       </dialog>
       <dialog id="shop-dialog" class="modal week-modal" aria-labelledby="shop-title">
-        <div class="eyebrow"><span id="shop-title">COACH'S LOCKER</span><span id="shop-tips"></span></div>
+        <div class="eyebrow"><span id="shop-title">THE POOL SHOP</span><span id="shop-count"></span></div>
+        <div class="wk-fund big">
+          <span id="shop-date" class="wk-goal"></span>
+          <div class="fund-bar"><i id="shop-fill"></i></div>
+          <b id="shop-money"></b>
+          <small id="shop-pace" class="wk-pace"></small>
+        </div>
         <p class="booking-note">
-          Spend your tips on perks for the rest of the week. The Date Fund is never touched.
+          Perks for the rest of the week, paid out of the Date Fund: spend now to earn more, or save for the
+          date.
         </p>
         <div id="shop-cards" class="booking-cards"></div>
         <div class="wd-row"><span id="shop-perks" class="wk-owned"></span></div>
@@ -482,6 +497,29 @@
           <button id="shop-reroll" class="secondary">🎲 New stock</button
           ><button id="shop-next" class="primary">Next shift ▶</button>
         </div>
+      </dialog>
+      <dialog id="locker-dialog" class="modal week-modal locker-modal" aria-labelledby="locker-title">
+        <div class="eyebrow">
+          <span id="locker-title">COACH'S LOCKER</span><span id="locker-stars"></span>
+        </div>
+        <section class="locker-part">
+          <h3>🏊 The pools</h3>
+          <p id="locker-pools-note" class="booking-note"></p>
+          <div id="locker-pools" class="locker-pools"></div>
+        </section>
+        <section class="locker-part">
+          <h3>🎽 Gear</h3>
+          <p class="booking-note">
+            Earned with stars in every run, kept for good. The coach wears one piece.
+          </p>
+          <div id="locker-gear" class="locker-grid"></div>
+        </section>
+        <section class="locker-part">
+          <h3>💖 Dates with Marina</h3>
+          <p id="locker-album-note" class="booking-note"></p>
+          <div id="locker-album" class="locker-grid album"></div>
+        </section>
+        <button id="locker-close" class="primary">Back ▶</button>
       </dialog>
       <dialog id="results-dialog" class="modal results-modal">
         <div class="eyebrow" id="result-eyebrow">SHIFT COMPLETE</div>

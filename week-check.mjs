@@ -1,8 +1,9 @@
 // The week (dist/week.mjs, dist/week-ui.mjs, dist/marina.mjs): Pool Panic's main loop since 16 October 2026. Six shifts, Monday to
 // Saturday, to fill the Date Fund for a Sunday date with Marina; a shift not passed pays nothing but the week goes on; a Sunday short of
-// the goal is game over (the run starts again at week 1); the levels are random from a difficulty that rises with every shift, the
-// incidents drawn, not written; tips buy perks that never touch the Date Fund; a level passed opens in free play. This plays runs
-// through the pure rules, plays the first weeks of a run with the coach bot, and checks the game is wired to it.
+// the goal is game over (the run starts again at week 1); the levels are random from the week's band (difficulty by week, Phase 2),
+// the incidents drawn, not written; the shop's perks are paid out of the Date Fund (one money, Phase 2); a level passed opens in free
+// play. This plays runs through the pure rules, plays the first weeks of a run with the coach bot, and checks the game is wired to
+// it. (The ladder, the finale, the gear and the album: progress-check.mjs.)
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
@@ -11,8 +12,18 @@ import {
   DATE_DAY,
   SHIFTS_PER_WEEK,
   BASE_GOAL,
+  GOAL_SHARE,
   FIRST_SHIFT,
   TOP_TIER,
+  WEEK_BANDS,
+  bandOf,
+  tierScale,
+  scoreScale as poolScale,
+  LADDER,
+  FINALE_WEEK,
+  FINALE_POOL,
+  perkPrice,
+  rerollPrice,
   stepOf,
   tierFor,
   vipCount,
@@ -86,20 +97,24 @@ for (let n = 1; n <= 12; n++) {
   if (n > 1)
     assert.ok(ch.goal > chapterFor(n - 1).goal && ch.pay > chapterFor(n - 1).pay, "dearer, better paid");
 }
-assert.equal(chapterFor(1).goal, BASE_GOAL);
+assert.equal(
+  chapterFor(1).goal,
+  Math.round((BASE_GOAL * GOAL_SHARE[0]) / 10) * 10,
+  "week 1's goal: a learner's week",
+);
 assert.equal(chapterFor(CHAPTERS.length).date.id, "ocean", "the fourth date is the ocean trip");
 assert.ok(chapterFor(CHAPTERS.length + 1).heat === 1, "the weeks go on after it");
 assert.equal(chapterFor(0).id, 1);
 for (const [id, p] of Object.entries(PERKS)) {
   assert.ok(p.icon && p.name && p.text && p.price > 0, id + " is a full perk");
-  assert.ok(p.sim || p.director || p.tips || p.wishes || p.sponsor || p.insurance, id + " does something");
+  assert.ok(p.sim || p.director || p.vipTip || p.wishes || p.sponsor || p.insurance, id + " does something");
 }
 for (const [id, w] of Object.entries(WISHES)) assert.ok(w.icon && w.text && w.say && w.met && w.pay > 0, id);
 for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is a twist the game has");
 
-// 1b) The difficulty: the first shift of a run is a gentle minute on level 1 with no incident and no VIP; then a random level from a
-// window that climbs with every shift (never back to level 1, reaching the gala by week 4), the same level for the same week; VIPs from
-// the second shift, more as the run goes on; past the top, more swimmers and higher targets.
+// 1b) The difficulty (by week, Phase 2): the first shift of a run is a gentle minute on level 1 with no incident and no VIP; then a
+// level from the week's band (never back to level 1, Monday at its foot and Saturday at its top), the same level for the same week;
+// VIPs from the second shift, more as the run goes on; past the last band, more swimmers and higher targets.
 {
   const save = freshSave();
   save.week = newWeek(save, 42);
@@ -110,23 +125,20 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   assert.equal(first.plan.chaos.length, 0, "no incident");
   assert.equal((first.config.vipAt || []).length, 1, "one VIP even in the first minute (VIPs always)");
   assert.ok(first.pass <= 200, "easy to pass (" + first.pass + ")");
-  const tiersAt = (step) => {
-    const t = new Set();
-    for (let seed = 1; seed <= 200; seed++) t.add(tierFor(step, stream(seed)));
-    return t;
-  };
-  for (let step = 1; step < 40; step++) {
-    const t = [...tiersAt(step)];
-    assert.ok(
-      t.every((x) => x >= 2 && x <= TOP_TIER),
-      "never level 1 again, never past the top",
-    );
-    assert.ok(t.every((x) => x >= Math.min(TOP_TIER, 1 + step) - 2 && x <= Math.min(TOP_TIER, 1 + step) + 1));
-    assert.ok(t.length >= 2 || step >= 30, "random, from a window (step " + step + ")");
-  }
-  assert.ok(tiersAt(19).has(TOP_TIER) && tiersAt(18).has(TOP_TIER), "the gala by the end of week 4");
-  const mean = (step) => [...tiersAt(step)].reduce((a, b) => a + b, 0) / tiersAt(step).size;
-  assert.ok(mean(6) > mean(1) && mean(12) > mean(6) && mean(18) > mean(12), "the levels climb");
+  for (let chapter = 1; chapter <= 10; chapter++)
+    for (let day = chapter === 1 ? 1 : 0; day < SHIFTS_PER_WEEK; day++) {
+      const t = new Set();
+      for (let seed = 1; seed <= 150; seed++) t.add(tierFor(chapter, day, stream(seed)));
+      const [lo, hi] = bandOf(chapter);
+      assert.ok(
+        [...t].every((x) => x >= Math.max(2, lo) && x <= Math.min(TOP_TIER, hi)),
+        "in the week's band, never level 1 again",
+      );
+    }
+  assert.ok(
+    WEEK_BANDS.every(([lo, hi], i) => i === 0 || (lo >= WEEK_BANDS[i - 1][0] && hi >= WEEK_BANDS[i - 1][1])),
+  );
+  assert.equal(WEEK_BANDS.at(-1)[1], TOP_TIER, "the bands reach the gala's level");
   assert.equal(vipCount(0), 1);
   assert.equal(vipCount(1), 2);
   for (let step = 0; step < 99; step++) assert.ok(vipCount(step) >= 1, "VIPs in every shift");
@@ -143,20 +155,23 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       "the same week builds the same shift",
     );
   }
-  // (At Splash Park, whose star targets are the season's own at these levels.)
+  // (At Splash Park.) Past the last band: a bigger crowd and higher targets than the level's own, scaled for the pool and level.
   const at = (chapter) => ({ ...newWeek(freshSave(), 7), chapter, shift: 5, pools: Array(6).fill("resort") });
-  const top = buildShift(at(4), null, INCIDENT_ORDER),
-    past = buildShift(at(9), null, INCIDENT_ORDER);
-  assert.ok(past.config.total > SHIFTS[past.tier - 1].total, "past the top: a bigger crowd");
-  assert.ok(past.config.thresholds[0] > SHIFTS[past.tier - 1].thresholds[0], "and higher targets");
-  assert.ok(top.step === 23 && past.step === 53);
+  const past = buildShift(at(WEEK_BANDS.length + 2), null, INCIDENT_ORDER),
+    plainTargets = SHIFTS[past.tier - 1].thresholds.map(
+      (t) => Math.round((t * poolScale("resort", past.tier) * tierScale(past.tier)) / 50) * 50,
+    );
+  assert.ok(past.config.total > SHIFTS[past.tier - 1].total, "past the last band: a bigger crowd");
+  assert.ok(past.config.thresholds[0] > plainTargets[0], "and higher targets");
+  assert.equal(past.step, (WEEK_BANDS.length + 1) * 6 + 5);
 }
 
 // 1c) The pools (the creator, 16 October 2026: "all of these pools… can appear in every week… random… you cannot repeat venue per
-// week"): a week is six different pools drawn at random from all of them, in a random order (any pool in any week, the arena and the
-// Kids Pool in week 1 too; the first Monday of a run at the Community Pool, the gentle minute), the ones left out changing week to
-// week, the same order for the same week and a different one for another. A shift is its pool's: the venue, the look, the crowd;
-// the Aquatic Centre is a competitive pool (few beginners, no aqua guest written in, more VIPs, smaller and faster crowds, no
+// week"; Phase 2: from the pools opened on the ladder): with every pool open, a week is six different pools drawn at random, in a
+// random order (any pool of the ladder in any week, the first Monday of a run at the Community Pool, the gentle minute), the ones
+// left out changing week to week, the same order for the same week and a different one for another; the Grand Gala Arena only as
+// the season finale (Saturday of week 4) and in the weeks after it. A shift is its pool's: the venue, the look, the crowd; the
+// Aquatic Centre is a competitive pool (few beginners, no aqua guest written in, more VIPs, smaller and faster crowds, no
 // trampoline) where Marco "the Missile" always swims.
 {
   assert.deepEqual(POOL_IDS, [
@@ -178,7 +193,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     orders = new Set(),
     inWeekOne = new Set(),
     tuesday = new Set(),
-    weeks = Object.fromEntries(POOL_IDS.map((id) => [id, 0]));
+    weeks = Object.fromEntries(LADDER.map((id) => [id, 0]));
   let later = 0;
   for (let chapter = 1; chapter <= 6; chapter++)
     for (let seed = 1; seed <= 150; seed++) {
@@ -189,12 +204,14 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
         "only pools that exist",
       );
       assert.equal(new Set(days).size, SHIFTS_PER_WEEK, "never the same pool twice in a week: " + days);
-      for (const id of POOL_IDS) if (!days.includes(id)) sitsOut.add(id);
+      if (chapter < FINALE_WEEK) assert.ok(!days.includes(FINALE_POOL), "the arena waits for the finale");
+      if (chapter === FINALE_WEEK) assert.equal(days.indexOf(FINALE_POOL), SHIFTS_PER_WEEK - 1);
+      for (const id of LADDER) if (!days.includes(id)) sitsOut.add(id);
       if (chapter === 1) {
         assert.equal(days[0], "club", "the first Monday is the Community Pool");
         days.forEach((d) => inWeekOne.add(d));
         tuesday.add(days[1]);
-      } else {
+      } else if (chapter < FINALE_WEEK) {
         later++;
         days.forEach((d) => weeks[d]++);
       }
@@ -202,13 +219,17 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       orders.add(days.join());
     }
   assert.ok(orders.size > 300, "a different mix most weeks (" + orders.size + ")");
-  assert.deepEqual([...inWeekOne].sort(), [...POOL_IDS].sort(), "every pool can come in the first week");
-  assert.deepEqual([...tuesday].sort(), POOL_IDS.filter((id) => id !== "club").sort(), "and on any day");
-  assert.deepEqual([...sitsOut].sort(), [...POOL_IDS].sort(), "any pool may sit a week out");
+  assert.deepEqual(
+    [...inWeekOne].sort(),
+    [...LADDER].sort(),
+    "with all open, every pool can come in the first week",
+  );
+  assert.deepEqual([...tuesday].sort(), LADDER.filter((id) => id !== "club").sort(), "and on any day");
+  assert.deepEqual([...sitsOut].sort(), [...LADDER].sort(), "any pool may sit a week out");
   for (const [id, n] of Object.entries(weeks))
     assert.ok(
-      Math.abs(n / later - SHIFTS_PER_WEEK / POOL_IDS.length) < 0.08,
-      id + " in about six weeks of seven (" + (n / later).toFixed(2) + ")",
+      Math.abs(n / later - SHIFTS_PER_WEEK / LADDER.length) < 0.08,
+      id + " in about half the weeks (" + (n / later).toFixed(2) + ")",
     );
   // Every shift of a week plays in its day's pool.
   const save = freshSave();
@@ -600,8 +621,9 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   if (booked) assert.equal(buildShift(save.week, booked.id, save.known).booking, booked.booking);
 }
 
-// 4) Money: a shift that passes pays into the Date Fund (more for stars, a card and Marina's wishes), tips buy perks and never touch
-// the fund, a shift under the pass mark loses the week (unless insured, once), and Friday decides the date.
+// 4) Money: a shift that passes pays into the Date Fund (more for stars, a card and Marina's wishes); the shop's perks are paid out
+// of the same fund (one money, Phase 2); a shift under the pass mark pays nothing (half with the safety net) and the week goes on;
+// Saturday decides the date.
 {
   const ch = chapterFor(1);
   assert.ok(
@@ -633,28 +655,27 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       booking + ": the same points as a regular day",
     );
   assert.ok(shiftPay(3, chapterFor(4)) > shiftPay(3, ch), "later pools pay more");
-  // A week of random play, buying whatever it can: the fund never goes down until the week ends.
+  // A week of random play, buying whatever it can: a shift only ever adds to the fund, only the shop takes from it, never below zero.
   for (let seed = 1; seed <= 80; seed++) {
     const random = stream(seed);
     const save = freshSave({ chapter: 1 + (seed % 4), known: INCIDENT_ORDER });
     save.week = newWeek(save, seed);
-    let fund = 0;
     while (save.week) {
       const sh = buildShift(save.week, null, save.known);
       const stars = Math.floor(random() * 4),
         score = stars ? sh.config.thresholds[stars - 1] : random() < 0.85 ? sh.pass : sh.pass - 1;
+      const fundBefore = save.week.fund;
       const r = finishShift(save, sh, summary(score, stars), { prevented: 1 });
-      assert.ok(r.fund >= fund, "the Date Fund only goes up");
-      fund = r.fund;
+      assert.equal(r.fund, fundBefore + r.gained, "a shift only adds to the fund");
       if (!save.week) break;
-      const tipsBefore = save.week.tips;
       for (const id of shopOffer(save.week, save.week.rolls)) {
-        const fundBefore = save.week.fund;
-        if (buyPerk(save.week, id)) assert.equal(save.week.tips, tipsBefore - PERKS[id].price);
-        assert.equal(save.week.fund, fundBefore, "buying never touches the Date Fund");
+        const fund = save.week.fund,
+          price = perkPrice(id, chapterFor(save.week.chapter));
+        if (buyPerk(save.week, id))
+          assert.equal(save.week.fund, fund - price, "the perk is paid out of the fund");
         break;
       }
-      assert.ok(save.week.tips >= 0);
+      assert.ok(save.week.fund >= 0);
     }
   }
   // Pass and fail, the safety net, the last shift.
@@ -666,7 +687,6 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     r.passed && !r.failed && r.gained > 0 && save.week.shift === 1,
     "on the pass mark: passed, paid, on to the next",
   );
-  assert.ok(r.tips > 0);
   assert.equal(save.unlocked, 1, "level 1 is open");
   sh = buildShift(save.week, null, save.known);
   r = finishShift(save, sh, summary(sh.pass - 1, 0), {});
@@ -675,8 +695,9 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     "not passed: no pay, the week goes on",
   );
   assert.equal(save.unlocked, 1, "a level not passed does not open");
-  save.week.tips = 100;
+  save.week.fund = 500;
   assert.ok(buyPerk(save.week, "insurance"));
+  assert.equal(save.week.fund, 500 - perkPrice("insurance", ch));
   assert.ok(!buyPerk(save.week, "insurance"), "a perk once a week");
   assert.ok(!buyPerk(save.week, "nonsense"));
   sh = buildShift(save.week, null, save.known);
@@ -688,7 +709,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   sh = buildShift(save.week, null, save.known);
   r = finishShift(save, sh, summary(sh.pass, 1), {});
   assert.equal(save.unlocked, Math.max(1, sh.tier), "a level passed opens in free play");
-  // A full week of three-star shifts makes the date (two stars a shift need Marina's wishes too); the next week is on, harder, and the date is kept.
+  // A full week of three-star shifts makes the date; the next week is on, harder, and the date is kept.
   const good = freshSave();
   good.week = newWeek(good, 6);
   for (let i = 0; i < SHIFTS_PER_WEEK; i++) {
@@ -712,20 +733,22 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     poor.chapter === 1 && poor.dates.length === 0 && poor.runs === 1 && poor.unlocked >= 9,
     "back to week 1",
   );
-  // Two stars a shift make the date; one star a shift with no wish does not.
-  for (let n = 1; n <= 8; n++) {
-    const ch = chapterFor(n);
+  // Three stars and a wish a shift make the date in every week; one star a shift with no wish never does.
+  for (let n = 1; n <= 12; n++) {
+    const c = chapterFor(n);
     assert.ok(
-      shiftPay(2, ch) * SHIFTS_PER_WEEK + 6 * 15 * ch.pay >= ch.goal,
-      "two stars and a wish a shift: week " + n,
+      shiftPay(3, c) * SHIFTS_PER_WEEK + 6 * 20 * c.pay >= c.goal,
+      "three stars and a wish a shift: week " + n,
     );
-    assert.ok(shiftPay(1, ch) * SHIFTS_PER_WEEK < ch.goal, "one star a shift is not enough: week " + n);
+    assert.ok(shiftPay(1, c) * SHIFTS_PER_WEEK < c.goal, "one star a shift is not enough: week " + n);
   }
   // Perks add up; the charm, the tip jar and the sponsor do what they say.
   const fx = perkEffects(["shoes", "megaphone", "tummy", "tipjar", "charm", "sponsor", "nodogs"]);
   assert.equal(fx.sim.speed, 1.12);
   assert.equal(fx.sim.warning, 4);
-  assert.ok(fx.tips === 1.5 && fx.wishes === 1.5 && fx.sponsor === 15 && fx.director.dog === 0.25);
+  assert.ok(
+    fx.vipTip === PERKS.tipjar.vipTip && fx.wishes === 1.5 && fx.sponsor === 15 && fx.director.dog === 0.25,
+  );
   const rich = freshSave();
   rich.week = newWeek(rich, 9);
   rich.week.perks = ["sponsor", "charm"];
@@ -748,18 +771,18 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     r.wishPay,
     r.wishes.reduce((s, w) => s + Math.max(5, Math.round((w.pay * 1.5) / 5) * 5), 0),
   );
-  // Rerolls cost tips and give a new hand.
+  // A new hand costs dollars from the fund and gives a new hand.
   const shop = freshSave();
   shop.week = newWeek(shop, 11);
-  shop.week.tips = REROLL_PRICE;
+  shop.week.fund = rerollPrice(ch);
   const first = shopOffer(shop.week, shop.week.rolls);
   assert.equal(first.length, 3);
-  assert.ok(reroll(shop.week) && shop.week.tips === 0 && !reroll(shop.week));
+  assert.ok(reroll(shop.week) && shop.week.fund === 0 && !reroll(shop.week));
   assert.notDeepEqual(shopOffer(shop.week, shop.week.rolls), first, "a reroll is a new hand");
   // The pace and Marina's texts.
   const o = outlook({ ...newWeek(freshSave(), 1), fund: 0 });
   assert.ok(o.onTrack, "Monday morning is on track");
-  assert.ok(outlook({ ...newWeek(freshSave(), 1), fund: 500 }).reached);
+  assert.ok(outlook({ ...newWeek(freshSave(), 1), fund: 5000 }).reached);
   assert.deepEqual(
     textsPassed(100, 300, 500).map((t) => t.at),
     [0.25, 0.5],
@@ -984,10 +1007,11 @@ const table = [];
 
 console.log(
   "Week checks passed: six days and a Sunday date, each week dearer and better paid; a gentle first minute, then random levels " +
-    "from a difficulty that climbs every shift, more VIPs as the run goes on, bigger crowds past the top; the director gentle at " +
+    "from the week's band, more VIPs as the run goes on, bigger crowds past the last band; the pools drawn from the ladder, the " +
+    "arena kept for the finale; the director gentle at " +
     "first, bringing in only met incidents and the next in the order, never the same Saturday twice, signs keeping their incident " +
-    "away, twists only where the pool allows; cards, the mystery gig and bookings; a Date Fund that only goes up and that tips never " +
-    "touch, a shift not passed paying nothing while the week goes on, the safety net, Saturday deciding the date or game over back " +
+    "away, twists only where the pool allows; cards, the mystery gig and bookings; a Date Fund that only a shift adds to and only the " +
+    "shop takes from, a shift not passed paying nothing while the week goes on, the safety net, Saturday deciding the date or game over back " +
     "to week 1, levels passed opening in free play; wishes that fit their shift; a save that throws junk out; perks that change the " +
     "simulation; the bot through a run's first weeks (" +
     table.join("; ") +
