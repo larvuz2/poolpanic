@@ -16,7 +16,7 @@ const WATER = -0.15,
   WADE = -0.85, // standing on the basin's floor, waist-deep
   SHOULDERS = 1.38, // how far the shoulders are above the feet, for a guest 1.75 m tall
   MONKEY_SCALE = 1.15,
-  CHIN = 0.269; // the monkey's chin above its floor in MonkeySoak (unscaled)
+  CHIN = 0.229; // the monkey's chin above its floor in MonkeySoak (unscaled)
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const MONKEY_FILE = "models/snow-monkey.glb";
 // The model's ground speed at rate 1 (from the clips), to keep the feet from sliding.
