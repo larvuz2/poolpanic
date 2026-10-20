@@ -33,6 +33,21 @@ export function cuePulse(time, reduced = false) {
 const SPEED = { beginner: 0.55, intermediate: 1, advanced: 1.5, senior: 0.5, aqua: 0 };
 export function laneVerdict(sim, p, lane) {
   const v = sim.venue;
+  // The Lazy River's two ways round (river-ride.mjs ROUTES): the rapids for a thrill-seeker, the lazy loop for a chiller.
+  if (v.river && p?.type === "rider") {
+    if (lane === 1) {
+      const busy = sim.people.filter(
+        (q) => q !== p && q.lane === 1 && ["swim", "enter"].includes(q.status) && !q.rushDone,
+      );
+      if (busy.length >= 3) return { good: false, text: "The rapids are packed 😬" };
+      return p.thrill
+        ? { good: true, text: "Loves the rapids ⚡👍" }
+        : { good: false, text: "Too wild for them 😬" };
+    }
+    return p.thrill
+      ? { good: false, text: "They'll get bored 😬" }
+      : { good: true, text: "Nice and lazy 🐢👍" };
+  }
   if (!p || v.kids || v.river || v.waves || v.roof || v.onsen || v.class || !(p.type in SPEED)) return null;
   const others = sim.people.filter(
     (a) => a !== p && a.lane === lane && ["swim", "enter", "switch"].includes(a.status) && a.type in SPEED,

@@ -23,6 +23,7 @@ import { DRILLS } from "./drills.mjs";
 import { offerBookings, BOOKINGS } from "./bookings.mjs";
 import { LevelMap } from "./map.mjs";
 import { guidanceState, cuePulse, laneVerdict } from "./guidance.mjs";
+import { TIPS } from "./tips.mjs";
 import { Tutor } from "./tutorial.mjs";
 import {
   PoolSimulation,
@@ -34,6 +35,8 @@ import {
   CLASS_ROOM,
   KIDS_ROOM,
   SENIOR_LOOKS,
+  streakTier,
+  STREAK_TIERS,
 } from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
 import { activeChoice, chooseCoach, loadCoachModel, coachModelReady } from "./scene/coach-model.mjs";
@@ -72,7 +75,8 @@ import {
   liveWant,
   Coverage,
 } from "./playtest.mjs";
-import { Recorder, apply as applyInput } from "./replay.mjs";
+import { Recorder, apply as applyInput, REPLAY_LIMITS } from "./replay.mjs";
+import { HighlightPicker, ClipPlayer, HIGHLIGHT } from "./highlight.mjs";
 import { BUILD } from "./version.mjs";
 import { playCinematic } from "./cinematic.mjs";
 import { readTuning, isWebKit } from "./tuning.mjs";
@@ -89,10 +93,11 @@ import {
 } from "./gfx.mjs";
 import { installWeek } from "./week-ui.mjs";
 import { passMark } from "./week.mjs";
-import { RIDE } from "./river-ride.mjs";
+import { RIDE, ROUTES as RIVER_ROUTES } from "./river-ride.mjs";
 import { waveBoard } from "./waves.mjs";
 import { BATHE } from "./wave-pool.mjs";
-import { CHILL, GUEST_KIND, nextDrop } from "./rooftop.mjs";
+import { CHILL, GUEST_KIND, nextDrop, SEATS, seatVerdict, wishWord } from "./rooftop.mjs";
+import { ROOF_BEDS } from "./roof-plan.mjs";
 import { slide } from "./ship.mjs";
 import { SOAK, springGuests, monkeyIn } from "./onsen.mjs";
 import { SPRINGS } from "./onsen-plan.mjs";
@@ -213,6 +218,9 @@ let coverage = null,
   live = null,
   recorder = null,
   playtestBroken = false;
+// The highlight replay (Phase 3, highlight.mjs): the shift's clips as it is played, and the clip being played back.
+let highlights = null,
+  clip = null; // {player, live (the ended shift), reopen, clock} while the highlight plays
 let input,
   accumulator = 0,
   sim,
@@ -1169,21 +1177,36 @@ const touchCoverage = () => {
       saveCoverage();
     }, 1500);
 };
-// A shift begins: the recorder starts on its simulation and the coverage notes the level.
+// Every shift is recorded (replay.mjs): the highlight replay at its end plays it again (Phase 3, highlight.mjs), and a playtest
+// sends the record with its log. A recorder that breaks stops recording, never the shift.
+function startRecorder(drill) {
+  try {
+    recorder = new Recorder(
+      sim,
+      {
+        level: sim.level,
+        seed: runSeed,
+        booking: activeBooking || "",
+        drill: drill?.id || "",
+        man: forcedMan || "",
+        ...(shiftGuests && { guests: shiftGuests }),
+        // A shift of the week was built, not looked up: the record carries what it was built from.
+        ...(weekShift && { week: { config: weekShift.config, perks: weekShift.perks } }),
+      },
+      // (a playtest's goes in the log, which keeps to the usual size; a player's own may be longer)
+      { inputs: playtest ? REPLAY_LIMITS.inputs : 24000 },
+    );
+  } catch (e) {
+    recorder = null;
+    crashlog.error("recorder", e);
+  }
+  highlights = new HighlightPicker();
+}
+// A shift begins (a playtest): its record goes with the log and the coverage notes the level.
 function beginPlaytestShift(drill) {
   if (playtestBroken) return;
   try {
-    recorder = new Recorder(sim, {
-      level: sim.level,
-      seed: runSeed,
-      booking: activeBooking || "",
-      drill: drill?.id || "",
-      man: forcedMan || "",
-      ...(shiftGuests && { guests: shiftGuests }),
-      // A shift of the week was built, not looked up: the record carries what it was built from.
-      ...(weekShift && { week: { config: weekShift.config, perks: weekShift.perks } }),
-    });
-    crashlog.attach("replays", recorder.record);
+    if (recorder) crashlog.attach("replays", recorder.record);
     coverage?.begin({
       level: sim.level,
       drill: drill?.id || "",
@@ -1601,16 +1624,23 @@ function renderLaneControls(venue) {
   // The Lazy River has no lanes either: one button sends a guest with a tube off to the boarding dock.
   if (venue.river) {
     $("lane-controls").innerHTML =
-      `<button class="lane-btn pool-btn river-btn" data-lane="river" aria-label="Send the selected guest down the river"><div class="lane-top"><span class="lane-no">🛟 RIVER</span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Hand a guest a tube</span><span class="lane-caps"></span></div></button>`;
+      // (Two ways round since Phase 3: 1 the lazy loop, 2 the rapids, river-ride.mjs ROUTES.)
+      `<button class="lane-btn pool-btn river-btn" data-lane="river" data-route="0" aria-label="Send the selected guest round the lazy loop"><div class="lane-top"><span class="lane-no">🐢 LAZY<kbd>1</kbd></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Hand a guest a tube</span><span class="lane-caps"></span></div></button>` +
+      `<button class="lane-btn pool-btn river-btn" data-lane="river" data-route="1" aria-label="Send the selected guest down the rapids"><div class="lane-top"><span class="lane-no">⚡ RAPIDS<kbd>2</kbd></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">For thrill-seekers</span><span class="lane-caps"></span></div></button>`;
     $("lane-controls").classList.remove("five-lanes");
     return;
   }
   // The Rooftop Pool has no lanes and nobody is sent anywhere: its one button is the bar (a tray of margaritas, 1 or F), and it
   // shows the orders waiting and the DJ's next drop.
   if (venue.roof) {
+    // (Since Phase 3 the coach seats the guests waiting by the lift: 1 the water, 2 a sunbed, 3 a cabana, rooftop.mjs SEATS.)
     $("lane-controls").innerHTML =
-      `<button class="lane-btn pool-btn bar-btn" data-lane="bar" aria-label="Get a tray of margaritas from the bar"><div class="lane-top"><span class="lane-no">🍹 BAR</span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">No orders yet</span><span class="lane-caps"></span></div></button>`;
-    $("lane-controls").classList.remove("five-lanes");
+      SEATS.map(
+        (s, i) =>
+          `<button class="lane-btn pool-btn seat-btn" data-lane="seat" data-seat="${i}" aria-label="Seat the selected guest: ${s.name.toLowerCase()}"><div class="lane-top"><span class="lane-no">${s.icon} ${s.name}<kbd>${i + 1}</kbd></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count"></span><span class="lane-caps"></span></div></button>`,
+      ).join("") +
+      `<button class="lane-btn pool-btn bar-btn" data-lane="bar" aria-label="Get a tray of margaritas from the bar"><div class="lane-top"><span class="lane-no">🍹 BAR<kbd>B</kbd></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">No orders yet</span><span class="lane-caps"></span></div></button>`;
+    $("lane-controls").classList.add("five-lanes");
     $("fins").innerHTML = '<span>🍹</span>Tray <b id="fin-count">3</b><kbd>F</kbd>';
     $("fins").title = "Walk to the bar · E for a tray of margaritas";
     return;
@@ -1710,6 +1740,7 @@ function start(bookingId = null, week = null) {
   syncVenue(sim);
   world.resetActors();
   tracer.reset();
+  startRecorder(drill);
   if (playtest) beginPlaytestShift(drill);
   loadCannonballMan(sim);
   loadFishKid(sim);
@@ -2137,6 +2168,7 @@ function finishWeek() {
   $("results-dialog").showModal();
   $("next-level").focus({ preventScroll: true });
   $("results-dialog").scrollTop = 0;
+  offerHighlight();
   if (!res.failed) world.confetti();
   if (res.won) audio.cheer(2);
 }
@@ -2266,6 +2298,7 @@ function finish() {
   // stars and score cut off)
   ($("next-level").hidden ? $("play-again") : $("next-level")).focus({ preventScroll: true });
   $("results-dialog").scrollTop = 0;
+  offerHighlight();
   if (r.stars > 0) world.confetti();
   if (chunkDone) audio.cheer(2); // a chunk cleared is worth a crowd cheer of its own
 }
@@ -2294,6 +2327,9 @@ function problemIcon(p) {
   if (p.annoyedTime > 0) return "😠";
   if (sim.rescue && p.status === "swim" && p.problem !== "cramp") return "😱";
   if (p.stomachWarning) return p.sickKind === "pee" ? "🚽" : "💩";
+  if (p.ask && p.status === "swim" && !p.problem) return "📣";
+  // (Waiting by the lift on the roof: what they would like, Phase 3.)
+  if (sim.venue.roof && p.status === "queue") return { pool: "💬", bed: "🛏️", cabana: "👑" }[p.wish] || "💬";
   if (p.problem === "dizzy") return "💫";
   // (The Rooftop Pool: an order, a selfie on the edge, overboard, and a tipsy guest.)
   if (p.status === "overboard") return "🆘";
@@ -2371,8 +2407,12 @@ function cardStatus(p) {
     ? "In the waves"
     : sim.venue.river
       ? p.away
-        ? "Round the bend"
-        : "On the river"
+        ? p.route === "rapids"
+          ? "Shooting the rapids!"
+          : "Round the bend"
+        : p.route === "rapids"
+          ? "Back from the rapids"
+          : "On the lazy loop"
       : p.lane == null
         ? "In the pool"
         : laneWord(sim) + " " + (p.lane + 1);
@@ -2421,7 +2461,11 @@ function roofStatus(p) {
                 : "Off to a sunbed"
               : "Off to the water"
           : p.status === "queue"
-            ? "Waiting by the lift"
+            ? "Waiting by the lift · wants " +
+              wishWord(p) +
+              " (" +
+              ({ pool: "1", bed: "2", cabana: "3" }[p.wish] || "1") +
+              ")"
             : kind;
   return (
     where +
@@ -2766,28 +2810,38 @@ function updateUI() {
     poolBtn.disabled = mode !== "playing" || !!sim.rescue;
   }
   // The Lazy River's one button: who is riding, who is round the loop, and whether the selected guest has a tube yet.
-  const riverBtn = document.querySelector('[data-lane="river"]');
-  if (riverBtn) {
-    const riding = sim.people.filter((q) => ["swim", "enter"].includes(q.status)),
+  // The Lazy River's two ways round (Phase 3): who is on each, the rapids' room, and what the selected guest would make of it.
+  for (const riverBtn of document.querySelectorAll('[data-lane="river"]')) {
+    const route = Number(riverBtn.dataset.route) || 0,
+      riding = sim.people.filter((q) => ["swim", "enter"].includes(q.status) && (q.lane || 0) === route),
       away = riding.filter((q) => q.away).length,
-      ready = p?.status === "queue" && p.hasFins;
+      ready = p?.status === "queue" && p.hasFins,
+      packed = route === 1 && riding.filter((q) => !q.rushDone).length >= RIVER_ROUTES.rapidsRoom,
+      verdict = ready ? laneVerdict(sim, p, route) : null;
     riverBtn.classList.toggle("assignable", mode === "playing" && !sim.closed && !sim.rescue && ready);
-    riverBtn.classList.toggle("danger", riding.filter((q) => !q.away).length > RIDE.crowd);
+    riverBtn.classList.toggle(
+      "danger",
+      packed || (route === 0 && riding.filter((q) => !q.away).length > RIDE.crowd),
+    );
     riverBtn.querySelector(".lane-mode").textContent = sim.closed
       ? "CLOSED"
       : sim.rescue
         ? "STOPPED"
-        : riding.length
-          ? "FLOWING"
-          : "OPEN";
+        : packed
+          ? "PACKED!"
+          : riding.length
+            ? "FLOWING"
+            : "OPEN";
     riverBtn.querySelector(".lane-count").textContent =
       p?.status === "queue"
         ? p.hasFins
-          ? "Send " + p.name + " down the river!"
+          ? verdict?.text || "Send " + p.name
           : "Hand " + p.name + " a tube first"
         : riding.length
           ? riding.length + " on tubes" + (away ? " · " + away + " round the bend" : "")
-          : "Hand a guest a tube";
+          : route === 1
+            ? "Thrill-seekers ⚡ · " + RIVER_ROUTES.rapidsRoom + " at a time"
+            : "Chillers 🐢 love it";
     riverBtn.querySelector(".lane-caps").innerHTML = riding
       .slice(0, 10)
       .map((q) => '<i style="background:' + roofLook(q).color + '"></i>')
@@ -2819,6 +2873,41 @@ function updateUI() {
     barBtn.classList.toggle("danger", building || orders.some((q) => (q.orderT || 0) > CHILL.grace * 3));
     barBtn.disabled = mode !== "playing";
   }
+  // The Rooftop Pool's seats (Phase 3): what is free, and what the selected guest would make of each.
+  for (const seatBtn of document.querySelectorAll('[data-lane="seat"]')) {
+    const i = Number(seatBtn.dataset.seat) || 0,
+      seat = SEATS[i].id,
+      waiting = p?.status === "queue" && p.chill ? p : null,
+      verdict = waiting ? seatVerdict(sim, waiting, i) : null,
+      beds = sim.roof?.beds || [],
+      free = beds.filter(
+        (b) => !b.guest && !b.messy && !!ROOF_BEDS[b.id]?.cabana === (seat === "cabana"),
+      ).length,
+      messy = beds.filter((b) => b.messy && !!ROOF_BEDS[b.id]?.cabana === (seat === "cabana")).length,
+      inWater = sim.people.filter((q) => q.chill && q.status === "swim").length;
+    seatBtn.classList.toggle("assignable", mode === "playing" && !!waiting && !verdict?.none);
+    seatBtn.classList.toggle("danger", seat !== "pool" && free === 0);
+    seatBtn.querySelector(".lane-mode").textContent =
+      seat === "pool"
+        ? inWater
+          ? inWater + " IN"
+          : "OPEN"
+        : free
+          ? free + " FREE"
+          : messy
+            ? "MESSY"
+            : "FULL";
+    seatBtn.querySelector(".lane-count").textContent = verdict
+      ? verdict.text
+      : seat === "pool"
+        ? "Chat groups"
+        : seat === "bed"
+          ? messy
+            ? messy + " to tidy (E)"
+            : "Sunbathers 🛏️"
+          : "VIPs 👑 · bigger tips";
+    seatBtn.disabled = mode !== "playing";
+  }
   // The Cruise Ship's gauge: how far she rolls now (the bar tips with her), a big swell's countdown, what slid.
   const gauge = document.querySelector(".ship-gauge");
   if (gauge && sim.ship) updateShipGauge(gauge);
@@ -2832,7 +2921,10 @@ function updateUI() {
       average = people.length ? people.reduce((sum, p) => sum + p.h, 0) / people.length : 100;
     const b = document.querySelector('[data-lane="' + i + '"]');
     if (!b) continue;
-    const splash = i === blocked,
+    // (the big moment's race lane, Phase 3: locked like the splash lane until the race is over)
+    const race =
+        sim.big?.kind === "race" && ["announce", "live"].includes(sim.big.stage) && i === sim.big.lane,
+      splash = i === blocked || race,
       closed = i === sim.laneClosed(),
       moveHere = !!moving && moving.lane !== i && !splash && !closed;
     b.classList.toggle(
@@ -2875,7 +2967,9 @@ function updateUI() {
     b.querySelector(".lane-mode").textContent = closed
       ? "CLOSED"
       : splash
-        ? "SPLASH!"
+        ? race
+          ? "RACE!"
+          : "SPLASH!"
         : moveHere
           ? "MOVE HERE"
           : count === 0
@@ -2896,7 +2990,9 @@ function updateUI() {
       : splash
         ? count
           ? "Clear this lane!"
-          : "Flip incoming"
+          : race
+            ? "Clear for the race 🏁"
+            : "Flip incoming"
         : count === 0
           ? "Jump on in"
           : zone
@@ -2974,18 +3070,37 @@ function updateUI() {
                   : sim.clutter.length
                     ? "PICK UP DROPPED GEAR · E"
                     : "WASD MOVE · SHIFT DASH · SPACE JUMP");
-  $("combo").hidden = !!sim.cleanup || sim.streak < 2 || mode === "menu";
-  if (sim.streak >= 2) {
+  // The happy streak's badge (Phase 3): the count, its tier and multiplier, what the next tier needs, and the guest who puts it at
+  // risk; for a moment after it breaks, what broke it.
+  const tier = streakTier(sim.streak),
+    nextTier = STREAK_TIERS.find((s) => s.at > sim.streak),
+    risk = sim.streak >= 3 ? sim.streakRisk() : null,
+    noted = streakNote && performance.now() < streakNote.until;
+  audio.heat = STREAK_TIERS.indexOf(tier);
+  $("combo").hidden = mode === "menu" || (!noted && (!!sim.cleanup || sim.streak < 2));
+  $("combo").classList.toggle("broken", !!noted);
+  $("combo").classList.toggle("hot", !noted && tier.mult >= 2);
+  $("combo").classList.toggle("at-risk", !noted && !!risk);
+  $("combo-icon").textContent = noted ? "💔" : tier.mult >= 2.5 ? "⚡" : tier.mult >= 2 ? "🔥" : "✦";
+  if (noted) {
+    $("combo-text").textContent = streakNote.text;
+    $("combo-sub").textContent = streakNote.sub;
+  } else if (sim.streak >= 2) {
     $("combo-text").textContent =
-      sim.streak + " HAPPY IN A ROW" + (sim.multiplier() > 1 ? " · ×" + sim.multiplier().toFixed(1) : "");
-    $("combo-sub").textContent =
-      sim.streak < 3
-        ? "One more for a score multiplier!"
-        : sim.streak < 5
-          ? "Five happy swimmers unlock ×1.5"
-          : sim.streak < 8
-            ? "Eight happy swimmers unlock ×2"
-            : "Peak pool energy. Keep it going.";
+      sim.streak + " IN A ROW" + (tier.mult > 1 ? " · " + tier.name + " ×" + tier.mult : "");
+    $("combo-sub").textContent = risk
+      ? "⚠ " +
+        risk.name +
+        " is " +
+        (risk.status === "queue" ? "tired of waiting" : "unhappy") +
+        ": help them!"
+      : nextTier
+        ? nextTier.at -
+          sim.streak +
+          " more for ×" +
+          nextTier.mult +
+          " · happy guests, saves and tips all count"
+        : "Unstoppable. Keep it going!";
   }
   renderIncidentPanel(sim.cleanup ? sanitationPanel() : sim.incidentPanel());
   audio.panic = mode !== "menu" && sim.chaosPanic();
@@ -3051,6 +3166,7 @@ function sanitationPanel() {
 let panelKey = "";
 function renderIncidentPanel(panel) {
   $("closure").hidden = !panel || mode === "menu";
+  $("closure").classList.toggle("big-moment", !!panel?.big);
   if (!panel) return;
   $("closure").firstElementChild.textContent = panel.icon;
   $("closure-title").textContent = panel.title;
@@ -3227,12 +3343,15 @@ function updateBubbles() {
     b.classList.toggle("injured", p.status === "injured");
     // One countdown bar: stomach trouble, or a daredevil losing patience on the tower.
     const jumpWait = p.status === "trampoline" && p.jumpStage === "waiting",
+      asking = !!p.ask && p.status === "swim" && !p.problem && !p.stomachWarning,
       stomach = b.querySelector(".stomach-meter");
-    putProp(stomach, "hidden", !p.stomachWarning && !jumpWait);
+    putProp(stomach, "hidden", !p.stomachWarning && !jumpWait && !asking);
     stomach.classList.toggle("jump-meter", jumpWait);
+    stomach.classList.toggle("tip-meter", asking);
+    b.classList.toggle("asking", asking);
     if (!stomach.hidden) {
-      const left = jumpWait ? p.jumpPatience : p.sicknessTimer,
-        total = jumpWait ? sim.config.jumpPatience || 15 : p.sicknessDuration;
+      const left = jumpWait ? p.jumpPatience : asking ? TIPS.limit - p.ask.t : p.sicknessTimer,
+        total = jumpWait ? sim.config.jumpPatience || 15 : asking ? TIPS.limit : p.sicknessDuration;
       putStyle(stomach.querySelector("i"), "width", Math.round(Math.max(0, (left / total) * 100)) + "%");
       put(stomach.querySelector("b"), Math.ceil(left) + "s");
     }
@@ -3245,6 +3364,7 @@ function updateBubbles() {
       p.status === "swim" &&
         !p.problem &&
         !p.stomachWarning &&
+        !p.ask &&
         !rescuing &&
         p.id !== sim.selected &&
         p.h >= 55 &&
@@ -3318,6 +3438,172 @@ function updateBubbles() {
       !screen.visible;
   }
 }
+// ---- the highlight replay (Phase 3, highlight.mjs) --------------------------------------------------------------------
+// At the end of a shift its best clip (the funniest moment: a cannonball, a crash, a guest over the edge, the race…) can be watched
+// again: the shift is rebuilt from its record and run fast to a few seconds before it (REWIND), then played for about ten seconds,
+// slowed round the moment, with the camera on it and no HUD (a clean picture for clips). Any key or click skips it.
+function bestClip() {
+  const best = highlights?.best();
+  if (!best || !recorder || recorder.record.broken || recorder.record.truncated) return null;
+  return best;
+}
+// The results' button (and, for a really good clip, the clip itself, once, as the card opens).
+function offerHighlight() {
+  const best = bestClip(),
+    b = $("watch-highlight");
+  b.hidden = !best;
+  if (!best) return;
+  b.textContent = "🎬 Watch the highlight · " + best.title;
+  b.onclick = () => playHighlight(best);
+  if (best.weight >= HIGHLIGHT.auto && !reducedMotion.matches && !params.has("noreplay"))
+    setTimeout(() => mode === "results" && !clip && $("results-dialog").open && playHighlight(best), 900);
+}
+function playHighlight(best) {
+  if (clip || mode !== "results") return;
+  let player;
+  try {
+    player = new ClipPlayer(recorder.record, best);
+  } catch (e) {
+    crashlog.error("highlight", e);
+    toast("This one can't be replayed, sorry.");
+    return;
+  }
+  clip = { player, live: sim, best, clock: 0, focused: false, reopen: $("results-dialog").open };
+  if (clip.reopen) $("results-dialog").close();
+  crashlog.crumb("highlight", best.title + " @" + best.tick);
+  mode = "replay";
+  document.body.classList.add("replaying");
+  $("replay").hidden = false;
+  $("replay-title").textContent = best.title;
+  $("replay-state").textContent = "⏪ REWINDING…";
+  $("replay-fill").style.width = "0%";
+  sim = player.sim;
+  world.resetActors();
+  setTimeout(() => {
+    document.addEventListener("keydown", skipHighlight, { capture: true });
+    document.addEventListener("pointerdown", skipHighlight, { capture: true });
+  }, 50);
+}
+function skipHighlight(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  stopHighlight();
+}
+function replayFrame(dt) {
+  const c = clip;
+  if (!c) return;
+  const p = c.player;
+  if (p.tick < p.from) {
+    p.seek();
+    if (replayDrifted(p)) return;
+    if (p.tick >= p.from) {
+      $("replay-state").textContent = "▶ REPLAY";
+      if (c.best.x != null) world.focusMoment(c.best.x, c.best.z, HIGHLIGHT.before + HIGHLIGHT.after);
+    }
+    return;
+  }
+  c.clock += dt * p.speed();
+  while (c.clock >= 1 / 60 && !p.done) {
+    c.clock -= 1 / 60;
+    p.step();
+    // The clip's sounds and splashes (not its toasts or stings).
+    for (const e of p.sim.events) {
+      if (e.type === "splash" || e.type === "collision") world.splash(e.x, -0.12, e.z, 10);
+      else if (e.type === "cannonball") world.bigSplash(e.x, e.z, 1.6);
+      else if (e.type === "fish-dumped" || e.type === "race-go") world.bigSplash(e.x, e.z, 1);
+      else if (e.type === "drop" && e.headline) world.fireworks(0, 0, 7);
+      if (e.type !== "toast") audio.effect(e.type, e);
+    }
+    p.sim.events.length = 0;
+  }
+  if (replayDrifted(p)) return;
+  $("replay-state").textContent = p.speed() < 1 ? "▶ REPLAY · SLOW-MO" : "▶ REPLAY";
+  $("replay-fill").style.width = Math.round(p.progress * 100) + "%";
+  if (p.done) stopHighlight();
+}
+// A replay that stops matching its record's checkpoints (a bug: something moved the shift that was not an input) is logged and
+// closed, never shown wrong and never allowed to stop the game.
+function replayDrifted(p) {
+  if (!p.drift) return false;
+  crashlog.error("highlight", new Error("the replay drifted at tick " + p.drift.tick));
+  stopHighlight();
+  toast("This one can't be replayed, sorry.");
+  return true;
+}
+function stopHighlight() {
+  const c = clip;
+  if (!c) return;
+  clip = null;
+  document.removeEventListener("keydown", skipHighlight, { capture: true });
+  document.removeEventListener("pointerdown", skipHighlight, { capture: true });
+  sim = c.live;
+  world.resetActors();
+  mode = "results";
+  document.body.classList.remove("replaying");
+  $("replay").hidden = true;
+  if (c.reopen && !$("results-dialog").open) $("results-dialog").showModal();
+}
+// The happy streak's moments (Phase 3): a tier reached flashes the badge, names the tier over where it happened and bursts there;
+// a broken streak shatters the badge and says what broke it, for a moment.
+let streakNote = null; // {text, until} while the badge shows a break
+function streakTierUp(e) {
+  const badge = $("combo");
+  badge.classList.remove("tier-up");
+  void badge.offsetWidth;
+  badge.classList.add("tier-up");
+  if (Number.isFinite(e.x)) {
+    points({ x: e.x, z: e.z, text: e.name + " ×" + e.mult, tone: "good streak-word" });
+    if (!reducedMotion.matches) world.burst(e.x, e.z, e.mult >= 2);
+  }
+}
+// The big moment's result (big-moment.mjs): a showbill card for a moment, fireworks and confetti for a great one.
+function bigResult(e) {
+  const el = document.createElement("div");
+  el.className = "big-result " + e.result;
+  el.innerHTML =
+    (e.result === "great" ? "⭐ " : e.result === "good" ? "👍 " : "💥 ") +
+    e.words.toUpperCase() +
+    "<small>" +
+    (e.score ? e.score + " · " : "") +
+    (e.points > 0 ? "+" : "") +
+    e.points +
+    " points</small>";
+  $("game").appendChild(el);
+  setTimeout(() => el.remove(), 2700);
+  if (e.result === "great" && !reducedMotion.matches) {
+    world.fireworks(e.x || 0, e.z || 0, 4);
+    world.confetti();
+  }
+}
+const BREAKS = {
+  lost: "{name} gave up waiting",
+  angry: "{name} left cross",
+  meh: "{name} left unhappy",
+  mess: "an accident in the water",
+  cannonball: "a cannonball",
+  fish: "a fish in the pool",
+  karen: "Karen annoyed {name}",
+  crash: "a trampoline crash",
+  slip: "{name} slipped",
+  overboard: "{name} went over the edge",
+  "fell-in": "{name} slid into the pool",
+  knockout: "{name} was knocked under",
+  monkey: "a monkey in a spring",
+  race: "a pile-up in the race lane",
+  big: "the big moment going wrong",
+};
+function streakBroken(e) {
+  const why = (BREAKS[e.why] || "").replace("{name}", e.name || "someone");
+  streakNote = {
+    text: "STREAK LOST · " + e.was,
+    sub: why ? "Broken by " + why : "",
+    until: performance.now() + 2600,
+  };
+  const badge = $("combo");
+  badge.classList.remove("tier-up", "broken");
+  void badge.offsetWidth;
+  badge.classList.add("broken");
+}
 function points(e) {
   const p = world.project(e.x, 1.4, e.z),
     el = document.createElement("div");
@@ -3339,6 +3625,7 @@ function events() {
     // One event that goes wrong must not lose the rest of the batch (a lost "ended" would leave the shift open).
     try {
       coverage?.event(e);
+      if (recorder && highlights) highlights.note(e, recorder.ticks);
       if (e.type === "save") crashlog.crumb("save", describeEvent(e));
       else if (!isNoisy(e)) crashlog.crumb("event", describeEvent(e));
       if (e.type === "save") achievements.save(e.kind);
@@ -3410,8 +3697,9 @@ function events() {
       } else if (e.type === "monster-warning") {
         world.kick(0.15);
       } else if (e.type === "drop") {
-        // The DJ's drop: the roof jumps, confetti over the pool.
-        world.kick(0.35);
+        // The DJ's drop: the roof jumps, confetti over the pool (and the headline drop's fireworks over the city).
+        world.kick(e.headline ? 0.6 : 0.35);
+        if (e.headline && !reducedMotion.matches) world.fireworks(0, 0, 7);
         for (let k = 0; k < 6; k++)
           world.splash(
             -2 + Math.random() * 4,
@@ -3483,7 +3771,7 @@ function events() {
         updateUI();
         // The lane choice judged at once (guidance.mjs laneVerdict): a small word over the swimmer.
         const sent = sim.get(e.id),
-          verdict = laneVerdict(sim, sent, e.lane);
+          verdict = e.verdict || laneVerdict(sim, sent, e.lane);
         if (sent && verdict)
           points({ x: sent.x, z: sent.z, text: verdict.text, tone: verdict.good ? "good" : "bad" });
       } else if (e.type === "select") {
@@ -3496,6 +3784,22 @@ function events() {
             : "Whoops! Jump over fins, or pick them up with E.",
         );
       else if (e.type === "ended") finish();
+      else if (e.type === "streak-tier") streakTierUp(e);
+      else if (e.type === "big-done") bigResult(e);
+      else if (e.type === "rapids")
+        points({
+          x: e.x,
+          z: e.z,
+          text: e.thrill ? "WOOO! ⚡" : "AAAAH! 😱",
+          tone: e.thrill ? "good" : "bad",
+        });
+      else if (e.type === "race-go") world.bigSplash(e.x, -7.2, 0.9);
+      else if (e.type === "race-finish")
+        points({ x: e.x, z: e.z, text: "🏆 " + e.name + " wins!", tone: "good" });
+      else if (e.type === "tip")
+        points({ x: e.x, z: e.z, text: "📣 " + e.text + " +" + e.value, tone: "good" });
+      else if (e.type === "tip-ask") points({ x: e.x, z: e.z, text: "📣 " + e.text, tone: "ask" });
+      else if (e.type === "streak-broken") streakBroken(e);
       if (world.viewMode === "coach") world.coachCam.react(e.type, e);
       audio.effect(e.type, e);
     } catch (err) {
@@ -3613,7 +3917,9 @@ function frame(t) {
     speed = mode === "playing" ? moments.timeScale(seconds()) : 1;
   previous = t;
   viewClock += dt * speed;
-  if (mode === "playing" || mode === "countdown") {
+  if (mode === "replay") {
+    if (!stage("replay", () => replayFrame(dt))) return stopHighlight();
+  } else if (mode === "playing" || mode === "countdown") {
     // Fixed substeps keep congestion stable even on lower frame rates. The simulation is the one stage that stops
     // the shift at once when it throws: what it holds may no longer be sound.
     const ok = stage("sim", () => {
@@ -3663,6 +3969,7 @@ function frame(t) {
     if (!tuning.has("nosync") && !tuning.has("norender")) stage("render", () => world.render());
     if (!tuning.has("nosync")) stage("tags", updateBubbles);
   }
+  if (mode === "replay") return; // (the highlight: no HUD, no tags, no log of its own)
   stage("context", updateContext);
   stage("alert", updateAlert);
   if (!covered) {
@@ -3745,7 +4052,8 @@ function bind() {
     if (b.dataset.lane === "trampoline") pick({ kind: "trampoline" });
     else if (b.dataset.lane === "pool") pick({ kind: "lane", lane: sim.poolLane() });
     else if (b.dataset.lane === "bar") sim.fetch("bar");
-    else if (b.dataset.lane === "river") pick({ kind: "lane", lane: 0 });
+    else if (b.dataset.lane === "seat") pick({ kind: "lane", lane: Number(b.dataset.seat) || 0 });
+    else if (b.dataset.lane === "river") pick({ kind: "lane", lane: Number(b.dataset.route) || 0 });
     else if (b.dataset.lane === "waves") {
       if (mode === "playing") sim.toggleWaves();
     } else pick({ kind: "lane", lane: Number(b.dataset.lane) });
@@ -3960,8 +4268,11 @@ function bind() {
       // One meaning per key (19 October 2026, Phase 1): the numbers only ever send someone to a place (a lane, a zone, a spring,
       // the pool, the river); a pool's own action has a key of its own: B the bar (rooftop, ship), Z the wave machine.
       if (sim.venue.kids && key === "1") sim.assign(sim.poolLane());
-      else if (sim.venue.river && key === "1") sim.assign(0);
-      else if (/^[1-9]$/.test(key) && Number(key) <= sim.lanes.length && !sim.venue.waves && !sim.venue.roof)
+      else if (
+        /^[1-9]$/.test(key) &&
+        Number(key) <= (sim.venue.roof ? SEATS.length : sim.lanes.length) &&
+        !sim.venue.waves
+      )
         sim.assign(Number(key) - 1);
       if (key === "z" && sim.venue.waves) sim.toggleWaves();
       if (key === "b" && (sim.venue.roof || sim.venue.cruise)) sim.fetch("bar");

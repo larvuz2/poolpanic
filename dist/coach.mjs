@@ -265,6 +265,8 @@ export class CoachController {
     });
   }
   save(kind, where = this.coach, value = 0, extra = {}) {
+    // (every save feeds the happy streak: sim.mjs bumpStreak)
+    this.bumpStreak?.("save", where);
     this.emit("save", {
       kind,
       x: where.x,
@@ -389,12 +391,16 @@ export class CoachController {
           this.select(p.id);
           return this.assist();
         };
-      } else if (!c.carry && p.status === "queue" && !this.venue.roof) {
+      } else if (!c.carry && p.status === "queue") {
         label = "Select " + p.name;
         kind = "select";
         run = () => {
           this.select(p.id);
-          this.emit("toast", { text: "Choose a lane for " + p.name + "." });
+          this.emit("toast", {
+            text: this.venue.roof
+              ? "Where does " + p.name + " go? 1 water, 2 sunbed, 3 cabana."
+              : "Choose a lane for " + p.name + ".",
+          });
           return true;
         };
       }

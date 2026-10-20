@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { PoolSimulation } from "./dist/sim.mjs";
 import { plan, steer } from "./check-helpers.mjs";
-import { roofServicePoint } from "./dist/rooftop.mjs";
+import { roofServicePoint, seatVerdict } from "./dist/rooftop.mjs";
 import { ROOF, ROOF_BEDS } from "./dist/roof-plan.mjs";
 import { slide } from "./dist/ship.mjs";
 import { SPRINGS, ONSEN_WATER } from "./dist/onsen-plan.mjs";
@@ -18,10 +18,11 @@ export class CoachBot {
   constructor(
     level,
     seed,
-    { proactive = true, clearSplash = true, config = null, drill = null, booking = null } = {},
+    { proactive = true, clearSplash = true, config = null, drill = null, booking = null, tips = true } = {},
   ) {
     this.s = new PoolSimulation(level, seed, { config, drill, booking });
     this.proactive = proactive;
+    this.tips = tips; // (answers coaching tips: tips.mjs)
     this.clearSplash = clearSplash;
     this.frames = 0;
   }
@@ -47,9 +48,9 @@ export class CoachBot {
   openLane(preferred) {
     const s = this.s,
       tr = s.venue.trampoline;
-    if (s.laneClosed() !== preferred) return preferred;
+    if (!s.laneLocked(preferred)) return preferred;
     const options = [...s.lanes.keys()]
-      .filter((l) => l !== preferred && !(tr && this.clearSplash && l === tr.lane))
+      .filter((l) => l !== preferred && !s.laneLocked(l) && !(tr && this.clearSplash && l === tr.lane))
       .sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred) || s.occupancy(a) - s.occupancy(b));
     return options[0] ?? preferred;
   }
@@ -65,15 +66,15 @@ export class CoachBot {
     }
     if (s.status !== "playing") return;
     if (s.venue.waves) return this.manageWaves();
-    // (Up on the roof nobody is sent anywhere.)
-    if (s.venue.roof) return;
+    // (Up on the roof the coach seats the guests waiting by the lift: rooftop.mjs SEATS.)
+    if (s.venue.roof) return this.manageRoof();
     if (s.venue.onsen) return this.manageSprings();
     for (const p of s.people.filter((p) => p.status === "queue" && !(p.finsFirst && !p.hasFins))) {
       s.select(p.id);
       if (p.queasy && p.sick) s.home();
       else if (s.venue.kids) s.assign(s.poolLane());
       else if (s.venue.river) {
-        if (!s.closed && !s.cleanup) s.assign(0);
+        if (!s.closed && !s.cleanup) s.assign(this.riverRoute(p));
       } else if (p.type === "senior")
         // Senior Aqua Fit: the emptiest open lane, and not Marco's (he is quick, they are not).
         s.assign(
@@ -106,6 +107,7 @@ export class CoachBot {
         );
     }
     s.selected = null;
+    this.clearRaceLane();
     const j = tr && this.clearSplash && s.get(s.jumper);
     if (j && ["toStairs", "waiting"].includes(j.jumpStage) && !s.rescue && !s.closed)
       for (const p of s.people.filter((p) => p.lane === tr.lane && p.status === "swim" && !p.problem)) {
@@ -115,6 +117,56 @@ export class CoachBot {
       }
   }
 
+  // The Lazy River's way round (river-ride.mjs ROUTES): the rapids for a thrill-seeker while they have room, else the lazy loop.
+  riverRoute(p) {
+    const s = this.s,
+      rapids = s.people.filter(
+        (q) => q.lane === 1 && ["swim", "enter"].includes(q.status) && !q.rushDone,
+      ).length;
+    return p.thrill && rapids < 3 ? 1 : 0;
+  }
+  // The big moment's race (big-moment.mjs): everyone in the race lane moves to the nearest other open lane.
+  clearRaceLane() {
+    const s = this.s,
+      B = s.big;
+    if (!this.proactive || B?.kind !== "race" || !["announce", "live"].includes(B.stage) || B.started) return;
+    if (s.rescue || s.closed) return;
+    for (const p of s.people.filter(
+      (p) => p.lane === B.lane && p.status === "swim" && !["cramp", "injured"].includes(p.problem),
+    )) {
+      s.select(p.id);
+      s.assign(this.openLane(B.lane));
+      s.selected = null;
+    }
+  }
+  // …and the coach blows the whistle at the blocks once the racers stand there and the lane is clear.
+  raceStart() {
+    const s = this.s,
+      B = s.big,
+      at = { x: s.lanes[B.lane] + 1.15, z: -s.venue.pool.serviceZ };
+    if (s.coach.swimming) return this.climbOut();
+    this.walkTo(at, { reach: 0.6, limit: 600 });
+    const clear = !s.people.some((p) => p.lane === B.lane && ["swim", "enter", "switch"].includes(p.status));
+    const ready = B.racers.every((id) => s.get(id)?.raceStage === "ready");
+    if (clear && ready && this.use("whistle", 30)) return;
+    this.wait(6);
+  }
+  // The roof: each guest by the lift where they wished (a cabana or a sunbed if one is free and tidy, else the water), VIPs first.
+  manageRoof(max = 99) {
+    const s = this.s;
+    if (s.closed || s.cleanup) return;
+    const waiting = s.people
+      .filter((p) => p.status === "queue" && p.chill)
+      .sort((a, b) => (b.vip ? 1 : 0) - (a.vip ? 1 : 0) || b.wait - a.wait)
+      .slice(0, max);
+    for (const p of waiting) {
+      const want = { pool: 0, bed: 1, cabana: 2 }[p.wish] ?? 0,
+        v = seatVerdict(s, p, want);
+      s.select(p.id);
+      s.assign(v && v.good ? want : want === 2 && seatVerdict(s, p, 1)?.good !== false ? 1 : 0);
+    }
+    s.selected = null;
+  }
   // The hot springs: everyone waiting goes to the spring with the most room (none with a monkey in it), the coldest first.
   manageSprings() {
     const s = this.s;
@@ -316,6 +368,8 @@ export class CoachBot {
     if (s.rescue?.kind === "crash" || s.people.some((p) => p.status === "injured")) return this.crash;
     // (A wave knockout at the Wave Pool: the cramp's rescue, which the bot otherwise never meets.)
     if (s.venue.waves && s.rescue?.stage === "stranded") return this.crash;
+    if (this.proactive && s.big?.kind === "race" && s.big.stage === "live" && !s.big.started)
+      return this.raceStart;
     if (s.fish?.stage === "loose") return this.fishLoose;
     if (c.netLoaded) return this.fishReturn;
     if (s.outage?.stage === "dark") return this.outage;
@@ -364,6 +418,9 @@ export class CoachBot {
     if (c.carry === "fins") return this.giveFins;
     if (!c.carry && (s.finsAvailable > 0 || (s.venue.river && this.spareTube())) && this.finsWanted())
       return this.giveFins;
+    // Coaching tips (tips.mjs): a swimmer asking for one gets the coach at the end of their lane.
+    if (this.proactive && this.tips && (!c.carry || c.carry === "mop") && this.tipWanted())
+      return this.coachTip;
     // The Rooftop Pool's messy sunbeds, when the deck is dry.
     if (this.proactive && s.venue.chill && !c.carry && s.roof.beds.some((b) => b.messy)) return this.tidyRoof;
     // The cruise ship's loungers, slid out of place, straightened in a calm.
@@ -613,6 +670,27 @@ export class CoachBot {
     this.walkTo(s.servicePoint(p), { reach: 0.5, limit: 600 });
     if (s.deliver(p.id)) this.waitBusy();
     else this.wait(5);
+  }
+  // The swimmer asking for a tip the coach should answer first: a VIP, else whoever has waited longest.
+  tipWanted() {
+    return (
+      this.s.people
+        .filter((q) => q.ask && q.status === "swim")
+        .sort((a, b) => (b.vip ? 1 : 0) - (a.vip ? 1 : 0) || b.ask.t - a.ask.t)[0] || null
+    );
+  }
+  coachTip() {
+    const s = this.s,
+      p = this.tipWanted();
+    if (!p) return this.wait(1);
+    this.chase(
+      () => s.servicePoint(p),
+      () => !p.ask || p.status !== "swim" || s.swimmerInReach(p),
+      600,
+    );
+    if (p.ask && s.swimmerInReach(p)) {
+      if (!this.use("tip", 30)) this.wait(2);
+    } else this.wait(2);
   }
   // Grab the mop, mop the nearest wet spot, and put the mop back once the deck is dry.
   mopWet() {

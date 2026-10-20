@@ -10,7 +10,8 @@ export const DRILLS = {
     icon: "🥪",
     name: "Lunch line",
     tier: 3,
-    config: { name: "Lunch line", duration: 75, total: 12, thresholds: [1000, 1800, 2500], finChance: 0.3 },
+    // (its targets raised on 20 October 2026, Phase 3: coaching tips and the livelier streak made the coach bot three-star it)
+    config: { name: "Lunch line", duration: 75, total: 12, thresholds: [1450, 2600, 3600], finChance: 0.3 },
   },
   fish: {
     id: "fish",

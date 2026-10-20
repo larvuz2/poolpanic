@@ -1,3 +1,4 @@
+import { BIG_KINDS, BIG_RESULTS } from "./big-moment.mjs";
 // Incident moments. The simulation reports `incident` (a problem starts or gets worse) and `save` (a problem
 // prevented or solved) events; this module decides how they land: a sting that names the problem and the action
 // (with slow motion, and a one-line lesson the first time a player meets it), a hit-stop and stamp for every
@@ -216,8 +217,14 @@ export const STINGS = {
   },
 };
 
+// The big moments (Phase 3, big-moment.mjs): each announces itself with a sting of its own.
+for (const [kind, s] of Object.entries(BIG_KINDS))
+  STINGS["big-" + kind] = { icon: s.icon, title: "⭐ " + s.title, verb: s.verb, how: s.how, tone: "big" };
+
 // Tier 2 saves get the full hit-stop, burst and cheer; tier 1 a lighter version.
 export const SAVES = {
+  "big-great": { stamp: BIG_RESULTS.great.stamp, tier: 2 },
+  "big-good": { stamp: BIG_RESULTS.good.stamp, tier: 1 },
   rescue: { stamp: "RESCUED!", tier: 2 },
   "sent-home": { stamp: "GOOD CATCH!", tier: 1 },
   cleanup: { stamp: "ALL CLEAN!", tier: 2 },

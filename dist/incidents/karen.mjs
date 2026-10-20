@@ -225,7 +225,7 @@ function annoyBystanders(sim, k, v) {
     if (k.annoyed.has(p.id)) continue;
     k.annoyed.add(p.id);
     sim.score -= T.penalty;
-    sim.streak = 0;
+    sim.breakStreak("karen", p);
     sim.stats.annoyed = (sim.stats.annoyed || 0) + 1;
     p.deckPenalty = (p.deckPenalty || 0) + T.deckPenalty;
     p.h = Math.max(0, p.h - T.deckPenalty);

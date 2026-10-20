@@ -49,7 +49,11 @@ function rider(t) {
   assert.equal(v.name, "Lazy River");
   assert.equal(v.doorWord, "the jungle gate");
   assert.ok(!v.indoor && v.scenery === "jungle");
-  assert.deepEqual(v.lanes, [0], "one 'lane': the river");
+  assert.deepEqual(
+    v.lanes,
+    [0, 0],
+    "two 'lanes': the two ways round the river (the lazy loop and the rapids)",
+  );
   assert.equal(v.tubes, 10);
   const room = v.room,
     a = r.at(r.start),
@@ -377,9 +381,9 @@ for (const kind of ["poo", "pee"]) {
   for (let seed = 1; seed <= 60; seed++) if (weekPools(2, seed * 7919).includes("river")) seen++;
   assert.ok(seen > 20 && seen < 60, "drawn into some weeks and not others (" + seen + " of 60)");
   // (Recalibrated 19 October 2026 with an expert bot that rescues cramps: ten tubes cannot carry a top-difficulty crowd, so the
-  // stars ask about a third of the level's late in a run. The river's capacity is a Phase 2 question.)
+  // stars ask about a third of the level's late in a run. Phase 3, 20 October: the rapids and the big moment score more early on.)
   for (let tier = 1; tier <= 20; tier++)
-    assert.ok(scoreScale("river", tier) >= 0.3 && scoreScale("river", tier) <= 1);
+    assert.ok(scoreScale("river", tier) >= 0.3 && scoreScale("river", tier) <= 1.4);
   assert.ok(
     scoreScale("river", 18) < scoreScale("river", 12) && scoreScale("river", 12) < scoreScale("river", 5),
   );

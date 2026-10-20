@@ -221,7 +221,7 @@ function runProgram(sim, w, dt) {
   }
 }
 
-function launch(sim, w, kind) {
+export function launch(sim, w, kind) {
   const a0 = kind === "monster" ? WAVE.monster : kind === "big" ? WAVE.big : w.prog.normal;
   const wave = {
     id: ++w.uid,

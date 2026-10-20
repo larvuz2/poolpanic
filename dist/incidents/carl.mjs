@@ -323,7 +323,7 @@ function cannonball(sim, k, v) {
   v.status = "floating";
   v.timer = T.float;
   sim.score -= T.penalty;
-  sim.streak = 0;
+  sim.breakStreak("cannonball");
   sim.stats.cannonballs = (sim.stats.cannonballs || 0) + 1;
   sim.emit("cannonball", { x: v.x, z: v.z });
   sim.emit("points", { x: v.x, z: v.z, value: -T.penalty });

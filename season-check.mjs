@@ -7,7 +7,7 @@
 // play reaches the star targets, and that ignoring prevention costs points.
 // `node season-check.mjs --table` prints scores against the star targets for tuning.
 import assert from "node:assert/strict";
-import { SHIFTS } from "./dist/sim.mjs";
+import { SHIFTS, freePlayGuests } from "./dist/sim.mjs";
 import { DRILL_LIST } from "./dist/drills.mjs";
 import { BOOKINGS } from "./dist/bookings.mjs";
 import { CoachBot } from "./check-bot.mjs";
@@ -17,12 +17,14 @@ const levels = SHIFTS.map((_, i) => i + 1).filter((n) => n >= 4),
   mean = (a) => Math.round(a.reduce((x, y) => x + y, 0) / a.length),
   rows = [];
 for (const level of levels) {
-  const config = SHIFTS[level - 1],
+  // (a level as free play builds it: its guests, its big moment and its star targets, Phase 3)
+  const config = { ...SHIFTS[level - 1], ...freePlayGuests(101, level) },
     pro = [],
     lazy = [];
   let flips = 0;
   for (const seed of seeds) {
-    const bot = new CoachBot(level, seed).run(),
+    // (lane management and incidents only: no coaching tips, which are service play like fins)
+    const bot = new CoachBot(level, seed, { tips: false, config }).run(),
       s = bot.s;
     assert.equal(s.status, "ended", `Level ${level} (seed ${seed}) finishes`);
     assert.ok(
@@ -35,7 +37,7 @@ for (const level of levels) {
       assert.equal(s.stats.calmed, 1, `Level ${level} (seed ${seed}): the coach calms Karen down`);
     pro.push(s.score);
     flips += s.stats.flips || 0;
-    const reactive = new CoachBot(level, seed, { proactive: false }).run();
+    const reactive = new CoachBot(level, seed, { proactive: false, config }).run();
     assert.equal(
       reactive.s.status,
       "ended",

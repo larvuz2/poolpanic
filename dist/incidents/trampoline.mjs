@@ -345,8 +345,7 @@ function land(sim, p) {
     sim.stats.happy++;
     sim.stats.flips = (sim.stats.flips || 0) + 1;
     sim.stats.totalHappiness += Math.max(0, p.h);
-    sim.streak++;
-    sim.bestStreak = Math.max(sim.bestStreak, sim.streak);
+    // (the landing's save adds it to the happy streak)
     sim.emit("trampoline-splash", { x: p.x, z: p.z });
     sim.emit("points", { x: p.x, z: p.z, value: points });
     sim.save("landing", p, points, { name: p.name });
@@ -387,7 +386,7 @@ function land(sim, p) {
   } else sim.rescue = { kind: "crash", victim: p.id, victims: ids, stage: "stranded" };
   sim.selected = null;
   sim.score -= T.crash;
-  sim.streak = 0;
+  sim.breakStreak("crash");
   sim.stats.crashes = (sim.stats.crashes || 0) + 1;
   sim.emit("crash", { x: p.x, z: p.z });
   sim.incident("crash", p, { name: p.name, names: victims.map((v) => v.name) });

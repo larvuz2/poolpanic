@@ -838,7 +838,8 @@ export const RIVER = makeVenue({
   },
   tubes: 10,
   blocks: false,
-  lanes: [0],
+  // (Two "lanes" since Phase 3: the two ways round the loop, the LAZY LOOP and the RAPIDS, river-ride.mjs ROUTES.)
+  lanes: [0, 0],
   deck: { minX: -14.6, maxX: 14.6, minZ: -15.2, maxZ: 12.65 },
   room: { minX: -15.2, maxX: 15.2, minZ: -16.7, maxZ: 13.6 },
   doors: { insideX: 0.62, doorX: 0.62, doorZ: -14.85, outsideX: 0.62, insideZ: -16.55 },

@@ -20,6 +20,7 @@ export class PoolAudio {
     this.step = 0;
     this.next = 0;
     this.urgency = 0;
+    this.heat = 0; // the happy streak's tier (0 to 4): the song lifts with it
     this.playing = false;
     this.panic = false;
     // The Aqua Disco plays its own song on the shift's clock (music.mjs): `clock` is set by the app and says where the shift
@@ -202,8 +203,13 @@ export class PoolAudio {
         );
       }
       if (this.panic && s % 4 === 0) this.tone(s % 8 === 0 ? 660 : 880, t, 0.13, 0.08, "square");
+      // The happy streak lifts the song (Phase 3): from ON A ROLL a sparkle of high notes, from ON FIRE handclaps on the
+      // off-beats too.
+      if (!this.panic && this.heat >= 2 && s % 2 === 1)
+        this.tone(note(root + [24, 28, 31, 36][(s >> 1) % 4]), t, 0.06, 0.018 + this.heat * 0.004, "sine");
+      if (!this.panic && this.heat >= 3 && s % 8 === 6) this.noise(t, 0.05, 0.06, 1900);
       this.step++;
-      this.next += 60 / (this.panic ? 154 : 108 + this.urgency * 18) / 4;
+      this.next += 60 / (this.panic ? 154 : 108 + this.urgency * 18 + (this.heat >= 4 ? 6 : 0)) / 4;
     }
   }
   effect(type, e = {}) {
@@ -213,6 +219,74 @@ export class PoolAudio {
     if (this.roofEffect(type, e, t)) return;
     if (this.shipEffect(type, e, t)) return;
     if (this.onsenEffect(type, e, t)) return;
+    if (type === "streak-tier") {
+      // A tier of the happy streak: a quick rising run, higher for each tier, and a bright chord on top.
+      const base = 523 * Math.pow(2, Math.max(0, (e.mult || 1.2) - 1.2) * 0.75);
+      [1, 1.25, 1.5, 2].forEach((k, i) => this.tone(base * k, t + i * 0.055, 0.16, 0.09, "triangle"));
+      [1, 1.26, 1.5].forEach((k) => this.tone(base * 2 * k, t + 0.24, 0.45, 0.04, "sine"));
+      this.noise(t + 0.22, 0.2, 0.03, 7000);
+      return;
+    }
+    // The big moment (big-moment.mjs): a drum roll building under the countdown, a fanfare when it goes live, the race's
+    // whistle and starter's horn, a bell at the finish, a sad trombone when it goes wrong.
+    if (type === "big-announce") {
+      for (let i = 0; i < 32; i++) this.noise(t + i * 0.25 * (1 - i / 48), 0.06, 0.02 + i * 0.0018, 900);
+      [196, 247, 294].forEach((f, i) => this.tone(f, t + i * 0.12, 0.5, 0.05, "triangle"));
+      return;
+    }
+    if (type === "big-live") {
+      [392, 494, 587, 784].forEach((f, i) => this.tone(f, t + i * 0.09, 0.3, 0.1, "triangle"));
+      this.tone(98, t, 0.4, 0.2, "sine", 60);
+      return;
+    }
+    if (type === "whistle") {
+      this.tone(2900, t, 0.5, 0.09, "sine", 3100);
+      this.tone(2950, t + 0.02, 0.48, 0.05, "square", 3150);
+      return;
+    }
+    if (type === "race-marks") {
+      if (!e.byCoach) this.tone(220, t, 0.6, 0.12, "sawtooth", 210);
+      return;
+    }
+    if (type === "race-go") {
+      this.tone(440, t, 0.7, 0.14, "square", 430);
+      this.noise(t, 0.4, 0.08, 1200);
+      return;
+    }
+    if (type === "race-finish") {
+      [1047, 1319, 1568].forEach((f, i) => this.tone(f, t + i * 0.18, 0.6, 0.06, "sine"));
+      return;
+    }
+    if (type === "big-done") {
+      if (e.result === "miss")
+        [392, 370, 349, 294].forEach((f, i) =>
+          this.tone(f, t + i * 0.28, i === 3 ? 0.8 : 0.3, 0.09, "sawtooth", i === 3 ? 270 : null),
+        );
+      return;
+    }
+    if (type === "tip-ask") {
+      // A swimmer calls the coach: a bright little two-note "coach!".
+      this.tone(784, t, 0.09, 0.07, "triangle");
+      this.tone(1047, t + 0.1, 0.12, 0.07, "triangle");
+      return;
+    }
+    if (type === "tip") {
+      // The coach's tip: a whistle chirp and a happy chime.
+      this.tone(2300, t, 0.08, 0.06, "sine", 2700);
+      [659, 880, 1175].forEach((f, i) => this.tone(f, t + 0.09 + i * 0.06, 0.16, 0.07, "triangle"));
+      return;
+    }
+    if (type === "tip-missed") {
+      this.tone(392, t, 0.25, 0.05, "triangle", 311);
+      return;
+    }
+    if (type === "streak-broken") {
+      // The streak breaks: a glassy crack and a falling slide.
+      this.noise(t, 0.12, 0.1, 5200);
+      this.tone(880, t, 0.42, 0.08, "triangle", 220);
+      this.tone(660, t + 0.04, 0.38, 0.05, "square", 150);
+      return;
+    }
     if (type === "dog-notice" || type === "dog-steal" || type === "dog-bowl") {
       const n = type === "dog-notice" ? 3 : 2;
       for (let i = 0; i < n; i++) {

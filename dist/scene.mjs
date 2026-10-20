@@ -1069,7 +1069,8 @@ export class PoolWorld extends SceneKit {
       (p.status === "queue" && p.type === "child" && p.path?.length > 0) || // a kid running about the Kids Pool's deck
       (p.status === "recovering" && p.recoveryStage === "to-bench") ||
       (p.status === "fleeing" && p.fleePhase === "run") ||
-      (p.status === "trampoline" && ["toStairs"].includes(p.jumpStage));
+      (p.status === "trampoline" && ["toStairs"].includes(p.jumpStage)) ||
+      p.status === "racewalk"; // (the big moment's racers on their way to the blocks)
     g.position.set(
       p.x,
       swim ? -0.39 : held ? (p.type === "aqua" ? -0.75 : -0.82) : p.status === "swim" ? -0.75 : 0,
@@ -1641,6 +1642,36 @@ export class PoolWorld extends SceneKit {
           (Math.random() - 0.5) * 0.8,
         ),
       });
+    }
+  }
+  // Fireworks (Phase 3: the big moment's headline drop and its wins): a few bursts of bright sparks high over the pool.
+  fireworks(x = 0, z = 0, bursts = 4) {
+    if (this.noParticles) return;
+    const colors = [0xffd23f, 0xff6b9a, 0x6bf0ff, 0xa0ff6b, 0xffffff];
+    for (let b = 0; b < bursts; b++) {
+      const cx = x + (Math.random() - 0.5) * 14,
+        cz = z + (Math.random() - 0.5) * 10,
+        cy = 7 + Math.random() * 3,
+        color = colors[b % colors.length];
+      for (let i = 0; i < 26; i++) {
+        if (this.particles.length > 300) return;
+        const a = Math.random() * Math.PI * 2,
+          e = (Math.random() - 0.5) * Math.PI,
+          s = 3 + Math.random() * 2;
+        const p = this.ball(0.09, this.mat(color, { roughness: 0.2, emissive: color }), cx, cy, cz);
+        p.castShadow = false;
+        this.particles.push({
+          mesh: p,
+          life: 0.9 + Math.random() * 0.6,
+          grow: 0.6,
+          gravity: 3,
+          velocity: new THREE.Vector3(
+            Math.cos(a) * Math.cos(e) * s,
+            Math.sin(e) * s,
+            Math.sin(a) * Math.cos(e) * s,
+          ),
+        });
+      }
     }
   }
   confetti() {

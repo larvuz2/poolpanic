@@ -870,6 +870,64 @@ kbd {
 .combo > span {
   font-size: 31px;
 }
+/* The streak's moments (Phase 3): a tier reached pops the badge; ×2 and up it burns orange; a guest about to break it shows a
+   red edge; a break shatters it grey for a moment. */
+.combo.tier-up {
+  animation: comboTier 0.6s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+.combo.hot {
+  background: linear-gradient(90deg, #ffb340, #ff7a3d);
+  border-color: #ffe0a8;
+  border-bottom-color: #b5501f;
+}
+.combo.at-risk {
+  box-shadow:
+    0 4px 0 #153f4350,
+    0 0 0 3px #e2533f;
+}
+.combo.broken {
+  background: #d9d4cc;
+  border-color: #fff;
+  border-bottom-color: #8a837a;
+  animation: comboBreak 0.5s ease-out;
+}
+@keyframes comboTier {
+  0% {
+    transform: translateX(-50%) rotate(-2deg) scale(1);
+  }
+  35% {
+    transform: translateX(-50%) rotate(2deg) scale(1.28);
+  }
+  100% {
+    transform: translateX(-50%) rotate(-2deg) scale(1);
+  }
+}
+@keyframes comboBreak {
+  0%,
+  100% {
+    transform: translateX(-50%) rotate(-2deg);
+  }
+  20% {
+    transform: translateX(calc(-50% - 9px)) rotate(-6deg);
+  }
+  45% {
+    transform: translateX(calc(-50% + 8px)) rotate(3deg);
+  }
+  70% {
+    transform: translateX(calc(-50% - 4px)) rotate(-3deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .combo.tier-up,
+  .combo.broken {
+    animation: none;
+  }
+}
+.float-text.streak-word {
+  font-size: 26px;
+  color: #ffd23f;
+  -webkit-text-stroke: 1.5px #3b1d0a;
+}
 .combo strong {
   display: block;
   font: 900 20px/1.1 var(--display);
@@ -2818,6 +2876,77 @@ body.coach-cam .coach-prompt {
   background: repeating-linear-gradient(135deg, #ff6b4a 0 16px, #ff8263 16px 32px);
   color: #fff;
   text-shadow: 0 2px 0 #7a2415;
+}
+/* The big moment (Phase 3): a sting and a banner of their own, deep blue and gold, like a showbill. */
+.sting.big {
+  background: radial-gradient(circle at 20% 30%, #3a5fd9, #1d2f8f 70%);
+  color: #fff6c9;
+  border-color: #ffd23f;
+  box-shadow:
+    8px 8px 0 var(--ink),
+    0 0 40px #ffd23f88;
+  text-shadow: 0 2px 0 #0b1654;
+}
+.closure.big-moment {
+  top: 16%;
+  background: radial-gradient(circle at 15% 30%, #3a5fd9, #1d2f8f 75%);
+  color: #fff6c9;
+  border-color: #ffd23f;
+  text-shadow: 0 2px 0 #0b1654;
+}
+.closure.big-moment .closure-timer i {
+  background: #ffd23f;
+}
+.big-result {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  transform: translateX(-50%);
+  padding: 14px 26px;
+  border: 4px solid #ffd23f;
+  border-radius: 12px;
+  background: radial-gradient(circle at 20% 30%, #3a5fd9, #1d2f8f 70%);
+  color: #fff6c9;
+  font: 900 34px/1 var(--display);
+  text-align: center;
+  text-shadow: 0 2px 0 #0b1654;
+  box-shadow: 8px 8px 0 var(--ink);
+  pointer-events: none;
+  z-index: 8;
+  animation: bigResult 2.6s ease-out forwards;
+}
+.big-result small {
+  display: block;
+  margin-top: 6px;
+  font: 800 15px var(--body, sans-serif);
+}
+.big-result.miss {
+  background: #5a5f74;
+  border-color: #c8cbd8;
+}
+@keyframes bigResult {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.6) rotate(-6deg);
+  }
+  12% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.08) rotate(2deg);
+  }
+  20%,
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1) rotate(-1deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-30px) scale(0.96);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .big-result {
+    animation: none;
+  }
 }
 .sting-icon {
   font-size: 58px;
@@ -5423,6 +5552,26 @@ body:not(.menu) .week-card {
 .float-text.verdict.bad {
   color: #ffb05c;
 }
+/* Coaching tips (tips.mjs): the ask floats up in yellow, the tip in green; the asking swimmer's tag pulses, with the ask's clock. */
+.float-text.verdict.ask {
+  color: #ffe36b;
+}
+.bubble.asking {
+  animation: askPulse 0.9s ease-in-out infinite;
+}
+@keyframes askPulse {
+  50% {
+    filter: brightness(1.25) drop-shadow(0 0 6px #ffe36b);
+  }
+}
+.bubble .stomach-meter.tip-meter i {
+  background: #ffd23f;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bubble.asking {
+    animation: none;
+  }
+}
 /* A pool's first visit: its card on the picker (week.mjs POOL_INTROS). */
 .wd-intro {
   display: flex;
@@ -5510,4 +5659,89 @@ body:has(#tutor:not([hidden])) .combo {
   .tutor {
     animation: none;
   }
+}
+
+/* The highlight replay (Phase 3, highlight.mjs): letterbox bars, a REPLAY badge with the clip's title, its progress, and nothing
+   else of the HUD (a clean picture for clips). */
+.replay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+.replay-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 9vh;
+  background: #05080c;
+}
+.replay-bar.top {
+  top: 0;
+}
+.replay-bar.bottom {
+  bottom: 0;
+}
+.replay-badge {
+  position: absolute;
+  top: calc(9vh + 14px);
+  left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #fff;
+  text-shadow: 0 2px 6px #000a;
+}
+.replay-badge b {
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: #e2333f;
+  font: 900 15px var(--display);
+  letter-spacing: 1px;
+  animation: replayBlink 1.2s steps(2) infinite;
+}
+.replay-badge span {
+  font: 900 30px var(--display);
+}
+.replay-progress {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: calc(9vh + 12px);
+  height: 4px;
+  border-radius: 2px;
+  background: #ffffff33;
+}
+.replay-progress i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: #ffd23f;
+}
+.replay-skip {
+  position: absolute;
+  right: 18px;
+  bottom: calc(9vh + 22px);
+  color: #fffc;
+  font-size: 12px;
+}
+@keyframes replayBlink {
+  50% {
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .replay-badge b {
+    animation: none;
+  }
+}
+/* While the highlight plays: the HUD and the tags away. */
+body.replaying #game > *:not(#world):not(#replay) {
+  visibility: hidden;
+}
+.highlight-btn {
+  display: block;
+  margin: 8px auto 4px;
 }

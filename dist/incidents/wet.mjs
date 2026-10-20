@@ -137,7 +137,7 @@ export function slippedInWet(sim, p, spot) {
   p.wetSlips = (p.wetSlips || 0) + 1;
   sim.score -= T.penalty;
   sim.stats.wetSlips = (sim.stats.wetSlips || 0) + 1;
-  sim.streak = 0;
+  sim.breakStreak("slip", p);
   sim.emit("points", { x: p.x, z: p.z, value: -T.penalty });
   sim.emit("wet-slip", { id: p.id, spot: spot.id, x: spot.x, z: spot.z });
   if ((sim.stats.wetSlips || 0) <= 2 || sim.time - (sim.wetSlipToast ?? -99) > 15) {

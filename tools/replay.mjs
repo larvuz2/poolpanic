@@ -17,31 +17,14 @@ import { PoolSimulation, SHIFTS } from "../dist/sim.mjs";
 import { DRILLS } from "../dist/drills.mjs";
 import { Tracer, describeEvent, isNoisy } from "../dist/trace.mjs";
 import { stateHash, apply } from "../dist/replay.mjs";
+import { simFromRecord } from "../dist/highlight.mjs";
 
 export { apply };
 
 // The simulation as the game's start() makes it.
 export function makeSim(record) {
-  const man = record.man && { cannonball: record.man };
-  if (record.drill) {
-    const drill = DRILLS[record.drill];
-    if (!drill) throw new Error("this record is of a drill that is not in this build: " + record.drill);
-    return new PoolSimulation(drill.tier, record.seed, {
-      config: { ...drill.config, ...man },
-      drill: drill.id,
-    });
-  }
-  if (record.week?.config)
-    return new PoolSimulation(record.level, record.seed, {
-      config: { ...record.week.config, ...man },
-      booking: record.booking || null,
-      perks: record.week.perks || {},
-    });
-  // Free play: the level, with the guests the game added to it (Marco, VIPs: `guests`, kept in the record since 16 October 2026).
-  return new PoolSimulation(record.level, record.seed, {
-    booking: record.booking || null,
-    config: { ...SHIFTS[record.level - 1], ...record.guests, ...man },
-  });
+  // (the same as the game's highlight replay builds: dist/highlight.mjs)
+  return simFromRecord(record);
 }
 
 // Play `record` through. `until` is a tick count to stop at. `onTick(sim, tick)` is called after every tick (the events of the tick are

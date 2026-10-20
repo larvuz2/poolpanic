@@ -4,6 +4,8 @@ import { ChaosController, HOLD_LIMIT } from "./chaos.mjs";
 import { ENTRY, VENUES, createCoach } from "./spatial.mjs";
 import { BOOKINGS, applyBooking } from "./bookings.mjs";
 import { WetSpots, wetSpotAt, slippedInWet } from "./incidents/wet.mjs";
+import { tickTips } from "./tips.mjs";
+import { createBig } from "./big-moment.mjs";
 import {
   riderSpawn,
   walkToRiver,
@@ -34,6 +36,7 @@ import {
   beginRoofExit,
   tickRoofExit,
   roofLeaving,
+  seatGuest,
 } from "./rooftop.mjs";
 import { createShip, updateShip, driftDeck, swimLean } from "./ship.mjs";
 import {
@@ -79,15 +82,33 @@ export function freePlayGuests(seed, level) {
   const r = ((s ^ (s >>> 16)) >>> 0) / 4294967296,
     count = L.vipAt?.length ? 0 : 1 + Math.floor(level / 6),
     vips = count ? Array.from({ length: count }, (_, k) => +((k + 0.6) / (count + 0.2)).toFixed(2)) : null;
+  // (and the big moment, Phase 3: about two thirds of the way, from the same number; and the star targets raised by what the new
+  // play adds, as the week's are: FREE_PLAY_SCALE)
+  const k = FREE_PLAY_SCALE(level);
   return {
     ...(r < STAR_CHANCE && { star: { ...MARCO, at: +(0.25 + (r / STAR_CHANCE) * 0.4).toFixed(2) } }),
     ...(vips && { vipAt: vips }),
+    big: { at: +(0.6 + ((r * 7.31) % 1) * 0.1).toFixed(2) },
+    thresholds: L.thresholds.map((t) => Math.round((t * k) / 50) * 50),
   };
 }
+// Free play's star targets (Phase 3, 20 October 2026): the season's levels as they were, raised by what free play adds to them (its
+// VIPs and Marco, since 16 October, and coaching tips, the big moment and the livelier streak), level by level, so that the coach
+// bot managing lanes and incidents alone (no tips, no service) stays under three stars, about 0.85 of them (season-check.mjs).
+const FREE_PLAY = [1, 1.2, 1.2, 1.2, 1.7, 1.2, 1.2, 1, 1.05, 1, 1.45, 1.15, 1.45, 1.45, 1.05, 1, 1, 1, 1, 1];
+export const FREE_PLAY_SCALE = (level) => FREE_PLAY[Math.max(1, Math.min(FREE_PLAY.length, level)) - 1];
 // How a swimmer shows in the queue and over their head: their type, or a golden VIP crown.
 export function swimmerLook(p) {
   const t = TYPES[p.type];
   if (p.star) return { ...t, icon: "🚀", label: "VIP · The Missile", color: "#e9a92b" };
+  if (p.racer) return { ...t, icon: "🏁", label: "Racer", color: "#e2533f" };
+  // (The Lazy River's guests, Phase 3: a thrill-seeker or a chiller, for the way round: river-ride.mjs ROUTES.)
+  if (p.type === "rider" && p.thrill !== undefined) {
+    const look = p.thrill
+      ? { ...t, icon: "⚡", label: "Thrill-seeker", color: "#ff7a3d" }
+      : { ...t, icon: "🐢", label: "Chiller", color: "#5fbf8f" };
+    return p.vip ? { ...look, icon: "👑", label: "VIP · " + look.label, color: "#e9a92b" } : look;
+  }
   return p.vip ? { ...t, icon: "👑", label: "VIP · " + t.label, color: "#e9a92b" } : t;
 }
 // A season is a list of shifts. `chaos` entries pick one incident from `kinds` at a seeded time inside
@@ -388,6 +409,16 @@ export const SHIFTS = [
   },
 ];
 export const CIRCUIT = 31.2;
+// The streak's tiers: how many good things in a row, the score multiplier on a served guest, and what the HUD calls it.
+export const STREAK_TIERS = [
+  { at: 0, mult: 1, name: "" },
+  { at: 3, mult: 1.2, name: "WARMING UP" },
+  { at: 5, mult: 1.5, name: "ON A ROLL" },
+  { at: 8, mult: 2, name: "ON FIRE" },
+  { at: 12, mult: 2.5, name: "UNSTOPPABLE" },
+];
+export const streakTier = (n) => STREAK_TIERS.filter((t) => n >= t.at).pop();
+export const STREAK_RISK = 40; // mood under which a guest puts the streak at risk
 const NAMES = [
   "Pip",
   "Coco",
@@ -514,6 +545,8 @@ export class PoolSimulation extends ChaosController {
     };
     this.schedule = this.director();
     this.planChaos();
+    // The shift's big moment (Phase 3, big-moment.mjs), about two thirds of the way.
+    this.big = createBig(this);
     this.nextArrival = 0;
     this.warnedWater = false;
   }
@@ -924,10 +957,17 @@ export class PoolSimulation extends ChaosController {
       // (At the Wave Pool nobody queues: in through the gate, a step past it, and straight down to the beach.)
       if (this.venue.waves) p.path[1] = p.queueTarget = { x: side * 1.3, z: door.doorZ + 1.5 };
       // (Up on the roof nobody queues either: out of the lift, a step onto the deck, and off to the water or a sunbed.)
-      if (p.chill) p.path[1] = p.queueTarget = this.venue.chill.arrive(door, side);
+      if (p.chill) {
+        const at = this.venue.chill.arrive(door, side);
+        // (On the roof they wait there for the coach to seat them, Phase 3: side by side, a few to a row.)
+        if (this.venue.roof)
+          Object.assign(at, { x: at.x + (q % 3) * 0.85, z: at.z - side * Math.floor(q / 3) * 0.85 });
+        p.path[1] = p.queueTarget = at;
+      }
       this.keepDoorOpen(side);
       this.emit("door-open", { side, ...door.at(side, "door") });
     }
+    if (spec.big) p.big = true; // (one of the big moment's crowd: the encore, the party, the parade)
     this.people.push(p);
     this.emit("spawn", { id: p.id });
     if (p.vip) {
@@ -992,7 +1032,41 @@ export class PoolSimulation extends ChaosController {
     return name;
   }
   multiplier() {
-    return this.streak >= 8 ? 2 : this.streak >= 5 ? 1.5 : this.streak >= 3 ? 1.2 : 1;
+    return streakTier(this.streak).mult;
+  }
+  // The happy streak (Phase 3, 20 October 2026: "more life in the streak"): every guest who leaves happy, every save the coach
+  // makes (the stamps) and every coaching tip adds one; reaching a tier (STREAK_TIERS) is a moment of its own (`streak-tier`).
+  bumpStreak(why = "happy", who = null) {
+    const before = streakTier(this.streak);
+    this.streak++;
+    this.bestStreak = Math.max(this.bestStreak, this.streak);
+    const after = streakTier(this.streak);
+    if (after.at > before.at)
+      this.emit("streak-tier", {
+        streak: this.streak,
+        mult: after.mult,
+        name: after.name,
+        why,
+        x: who?.x,
+        z: who?.z,
+      });
+  }
+  // Anything that goes wrong breaks it: a guest who leaves unhappy or is lost, a mess, a cannonball, Karen's victims… A streak of
+  // three or more says so (`streak-broken`), with why and who, so the HUD can show what broke it.
+  breakStreak(why = "", who = null) {
+    if (this.streak >= 3)
+      this.emit("streak-broken", { was: this.streak, why, name: who?.name || "", x: who?.x, z: who?.z });
+    this.streak = 0;
+  }
+  // The guest most likely to break the streak next: the crossest one still waiting or in the water, under STREAK_RISK.
+  streakRisk() {
+    let worst = null;
+    for (const p of this.people) {
+      if (p.chaos || p.racer || !["queue", "swim", "lounge"].includes(p.status) || p.h >= STREAK_RISK)
+        continue;
+      if (!worst || p.h < worst.h) worst = p;
+    }
+    return worst;
   }
   // What a served swimmer is worth: the streak multiplier (and the shop's megaphone). A booking's payout is not in it: it
   // multiplies the pay (`shiftPay`), never the points, so a riskier gig pays more but is no easier to star (19 October 2026:
@@ -1034,17 +1108,13 @@ export class PoolSimulation extends ChaosController {
   }
 
   assign(lane) {
+    // (Up on the roof the numbers seat a guest waiting by the lift: rooftop.mjs SEATS.)
+    if (this.venue.roof && this.status === "playing") return Number.isInteger(lane) && seatGuest(this, lane);
     if (!Number.isInteger(lane) || lane < 0 || lane >= this.lanes.length) return false;
     if (this.status !== "playing") return false;
     if (this.venue.waves) {
       this.emit("toast", {
         text: "Nobody needs sending in here: they walk straight into the waves. Meet them with a tube!",
-      });
-      return false;
-    }
-    if (this.venue.roof) {
-      this.emit("toast", {
-        text: "Nobody needs sending anywhere up here: they chill where they like. Keep the margaritas coming!",
       });
       return false;
     }
@@ -1113,6 +1183,14 @@ export class PoolSimulation extends ChaosController {
     return lane === null ? word : word[0].toUpperCase() + word.slice(1) + " " + (lane + 1);
   }
   laneRefused(lane) {
+    if (this.big?.kind === "race" && lane === this.big.lane)
+      return (
+        this.emit("toast", {
+          text: "Lane " + (lane + 1) + " is the race lane! Keep it clear for the race.",
+          warning: true,
+        }),
+        false
+      );
     this.emit("toast", {
       text:
         lane === this.laneClosure
@@ -1205,6 +1283,7 @@ export class PoolSimulation extends ChaosController {
   }
   depart(p, served = true) {
     if (p.chill) roofLeaving(this, p);
+    p.ask = null;
     p.served = served;
     const fromQueue = p.status === "queue";
     const fromWater = p.status === "swim";
@@ -1214,16 +1293,14 @@ export class PoolSimulation extends ChaosController {
       this.stats.served++;
       this.stats.totalHappiness += Math.max(0, p.h);
       let points = 100;
-      if (p.h >= 70) {
+      const happy = p.h >= 70;
+      if (happy) {
         points += 50;
         this.stats.happy++;
-        this.streak++;
-        this.bestStreak = Math.max(this.bestStreak, this.streak);
       } else if (p.h < 30) {
         this.stats.angry++;
         points -= 25;
-        this.streak = 0;
-      } else this.streak = 0;
+      }
       if (p.wait < 8) points += 20;
       if (!p.hadCollision) points += 20;
       if (p.slowTime < 3) points += 25;
@@ -1236,7 +1313,9 @@ export class PoolSimulation extends ChaosController {
       points = Math.round(points * this.scoreMultiplier());
       this.score += points;
       this.emit("points", { x: p.x, z: p.z, value: points });
-      this.emit("served", { happy: p.h >= 70, id: p.id });
+      this.emit("served", { happy, id: p.id });
+      if (happy) this.bumpStreak("happy", p);
+      else this.breakStreak(p.h < 30 ? "angry" : "meh", p);
     }
     p.status = "exit";
     if (fromWater) this.beginWaterExit(p);
@@ -1338,7 +1417,7 @@ export class PoolSimulation extends ChaosController {
     if (p.chill) roofLeaving(this, p);
     this.score -= p.vip ? 300 : 100;
     this.stats.lost++;
-    this.streak = 0;
+    this.breakStreak("lost", p);
     this.emit("toast", {
       text: p.vip
         ? p.name + ", the VIP, stormed out. VIP lost −300"
@@ -1494,6 +1573,8 @@ export class PoolSimulation extends ChaosController {
     this.updateChaos(dt);
     const crowd = this.crowdPanic();
     for (const p of this.people) {
+      // (The big moment's racers are no customers: big-moment.mjs moves them until they climb out.)
+      if (p.racer && p.status !== "exit") continue;
       if (waitingInWater(this, p) || heldInWater(this, p, crowd) || (this.rescue && p.status === "enter"))
         continue;
       if (
@@ -1523,7 +1604,8 @@ export class PoolSimulation extends ChaosController {
           walkToWaves(this, p);
           continue;
         }
-        if (p.chill && !this.closed && !this.cleanup) {
+        // (Up on the roof the coach seats them, Phase 3: they wait by the lift. On the ship they find their own way.)
+        if (p.chill && !this.venue.roof && !this.closed && !this.cleanup) {
           walkToActivity(this, p);
           continue;
         }
@@ -1654,7 +1736,7 @@ export class PoolSimulation extends ChaosController {
     const ordered = [...laps].sort((a, b) => a.p - b.p);
     const desired = new Map();
     for (const p of laps) {
-      let speed = p.desiredSpeed * (p.hasFins ? 1.3 : 1);
+      let speed = p.desiredSpeed * (p.hasFins ? 1.3 : 1) * (p.boost || 1);
       if (p.problem) speed = p.p >= 29.9 || p.p <= 0.1 ? 0 : 1.9;
       if (p.collisionTime > 0) speed = 0;
       const pos = loopPosition(p.p, this.lanes[i]);
@@ -1713,7 +1795,7 @@ export class PoolSimulation extends ChaosController {
         if (laps.length) p.h -= dt * 0.5;
       } else {
         p.actualSpeed = actual.get(p.id);
-        const desiredSpeed = p.desiredSpeed * (p.hasFins ? 1.3 : 1);
+        const desiredSpeed = p.desiredSpeed * (p.hasFins ? 1.3 : 1) * (p.boost || 1);
         const deficit = Math.max(0, desiredSpeed - p.actualSpeed);
         if (deficit > 0.35 && !p.problem) {
           p.blocked += dt;
@@ -1766,6 +1848,8 @@ export class PoolSimulation extends ChaosController {
         p.x = pos.x;
         p.z = pos.z;
         p.angle = pos.angle;
+        // (now and then a lap swimmer asks the coach for a tip: tips.mjs)
+        tickTips(this, p, dt);
         if (p.needsFins && p.midFins && !p.hasFins && p.traveled >= 15.6 && !p.problem) {
           p.problem = "fins";
           this.emit("toast", {
@@ -1795,6 +1879,7 @@ export class PoolSimulation extends ChaosController {
       if (
         !p.problem &&
         !p.stomachWarning &&
+        !p.ask &&
         (this.config.workoutSeconds
           ? p.workTime >= this.config.workoutSeconds
           : ((p.type === "aqua" || p.type === "child") && p.workTime >= p.workTarget) ||
