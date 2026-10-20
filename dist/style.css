@@ -5515,7 +5515,6 @@ body:not(.menu) .week-card {
 /* ---- Phase 1 (19 October 2026): a calmer, more readable HUD ------------------------------------------------------------- */
 /* The deck heading and the status line were dark ink straight on the floor, unreadable on a dark deck (the arena, night):
    they sit on a cream pill now, on every floor. */
-.queue-panel > .panel-heading,
 .pool-status > div {
   background: #fff4cfe8;
   border-radius: 8px;
@@ -5744,4 +5743,92 @@ body.replaying #game > *:not(#world):not(#replay) {
 .highlight-btn {
   display: block;
   margin: 8px auto 4px;
+}
+
+/* ---- A cleaner screen (20 October 2026) ----------------------------------------------------------------------------------- */
+/* The creator: no list of the deck's guests (the tags over them say it all), and one ⚙ for everything in the top right. */
+/* The queue panel is only the selected guest's chip now: who, what they are doing, and Send home. */
+.queue-panel {
+  width: 220px;
+  gap: 6px;
+}
+/* The ⚙ menu: in a shift it is the pause (resume, restart); anywhere else, the settings. */
+.settings-modal {
+  max-width: 380px;
+}
+.settings-modal h2 {
+  font-size: 48px;
+}
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+}
+.setting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 7px 12px;
+  background: #173f4c;
+  border: 1px solid #6f9f9a;
+  border-bottom: 3px solid #0a2936;
+  border-radius: 8px;
+  color: #fff6dc;
+  font-weight: 800;
+  font-size: 14px;
+  text-align: left;
+}
+.setting i {
+  font-style: normal;
+  width: 24px;
+  text-align: center;
+  font-size: 18px;
+  color: var(--yellow);
+}
+.setting span {
+  flex: 1;
+}
+.setting kbd {
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: #0b2c38;
+  color: #bfe3d8;
+  border: 1px solid #3d6f73;
+}
+.setting.off i {
+  color: #78989b;
+}
+.camera-row button {
+  min-width: 40px;
+  height: 32px;
+  padding: 0 10px;
+  background: #235764;
+  border: 1px solid #88b4a5;
+  border-radius: 6px;
+  color: #fff6dc;
+  font-weight: 900;
+  font-size: 16px;
+}
+.camera-row #reset-view {
+  font-size: 12px;
+}
+/* The streak badge and an incident's or the big moment's banner both sat just under the scoreboard and covered each other
+   (seen in a play-through, 20 October 2026): while a banner is up, the badge waits below it. */
+body:has(#closure:not([hidden])) .combo {
+  top: 216px;
+}
+/* The results card grew (the week's pay, the highlight) until its buttons fell below a 720p window and had to be scrolled to
+   (seen in a play-through, 20 October 2026): they stay pinned to the card's bottom edge, the rest scrolling under them. */
+.results-modal .result-actions {
+  position: sticky;
+  bottom: -10px;
+  margin: 8px -26px -10px;
+  padding: 10px 26px 12px;
+  background: linear-gradient(180deg, #12384600, #123846 22%);
+  z-index: 1;
 }

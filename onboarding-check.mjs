@@ -237,7 +237,7 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   assert.match(app, /\$\("mop"\)\.hidden = !wet && !holding\("mop"\)/);
   assert.match(app, /b\.classList\.toggle\(\s*"quiet"/);
   assert.match(css, /\.bubble\.quiet \{/);
-  assert.match(css, /\.queue-panel > \.panel-heading,\s*\.pool-status > div \{\s*background: #fff4cfe8/);
+  assert.match(css, /\.pool-status > div \{\s*background: #fff4cfe8/);
   assert.ok(POOLS.club && POOL_IDS.length === Object.keys(POOL_INTROS).length);
 }
 

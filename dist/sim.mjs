@@ -5,7 +5,7 @@ import { ENTRY, VENUES, createCoach } from "./spatial.mjs";
 import { BOOKINGS, applyBooking } from "./bookings.mjs";
 import { WetSpots, wetSpotAt, slippedInWet } from "./incidents/wet.mjs";
 import { tickTips } from "./tips.mjs";
-import { createBig } from "./big-moment.mjs";
+import { createBig, BIG } from "./big-moment.mjs";
 import {
   riderSpawn,
   walkToRiver,
@@ -454,6 +454,10 @@ export const CLASS_ROOM = 4;
 // The Kids Pool: how many children the pool holds before they start bumping into each other and getting cross, and how fast they
 // run about the deck (m/s) while they wait.
 export const KIDS_ROOM = 10;
+// What a kid sent home is worth at the Kids Pool, by how they leave (20 October 2026, the creator: "fix the kids pool stars"): a
+// cross kid (under 30 happiness) pays 0.3 of a happy one's points, an unhappy one 0.6. Before, a packed pool of cross kids paid
+// nearly as well as a happy one (165 points against 240), so stuffing the pool was the way to three stars.
+export const KID_MOOD_PAY = { meh: 0.6, cross: 0.3 };
 export const KID_RUN = [2.1, 3.1];
 // Senior Aqua Fit: how fast a senior walks (stooped), comes in from the door, walks out, and rolls a wheelchair (m/s; everyone else
 // walks at 3.3 to 5), how long getting up out of the chair takes (the StandUp clip; sitting back down is the same, reversed), what
@@ -665,7 +669,7 @@ export class PoolSimulation extends ChaosController {
     p.actualSpeed = Math.hypot(k.vx, k.vz);
     p.traveled += p.actualSpeed * dt;
     if (p.actualSpeed > 0.05) p.angle = Math.atan2(k.vx, k.vz);
-    const over = inPool.length - KIDS_ROOM;
+    const over = inPool.length - this.kidsRoom();
     if (over > 0) {
       p.h -= dt * 0.8 * over;
       if (!(this.time - (this.kidsCrowdToast ?? -99) < 20)) {
@@ -676,6 +680,15 @@ export class PoolSimulation extends ChaosController {
         });
       }
     }
+  }
+  // How many kids the pool holds before they get cross: KIDS_ROOM, and while the birthday party is on (the big moment,
+  // big-moment.mjs) room for the party too, so that bringing the party in is not punished by the crowd it is.
+  kidsRoom() {
+    const B = this.big;
+    return (
+      KIDS_ROOM +
+      (B?.kind === "party" && (B.stage === "announce" || B.stage === "live") ? BIG.crowd.party : 0)
+    );
   }
   emit(type, data = {}) {
     this.events.push({ type, ...data });
@@ -1310,6 +1323,7 @@ export class PoolSimulation extends ChaosController {
         points += 150;
         this.stats.vips++;
       }
+      if (this.venue.kids && !happy) points *= p.h < 30 ? KID_MOOD_PAY.cross : KID_MOOD_PAY.meh;
       points = Math.round(points * this.scoreMultiplier());
       this.score += points;
       this.emit("points", { x: p.x, z: p.z, value: points });

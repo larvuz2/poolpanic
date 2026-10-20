@@ -512,8 +512,11 @@ const SCORE_SCALE = {
     [20, 1.6],
   ],
   // The Kids Pool: a little above Splash Park's (the bot catches a running kid at once; a player has to chase one), which leaves
-  // the bot about as far over the two stars as in the disco (calibrated 16 October 2026).
+  // the bot about as far over the two stars as in the disco (calibrated 16 October 2026). Since 20 October a kid's points follow
+  // their mood (sim.mjs KID_MOOD_PAY) and the birthday party has room: a coach who keeps the pool from packing scores as before
+  // from level 5, and about 1.4 times as much at levels 2 to 4, where the party used to make every kid cross.
   kids: [
+    [4, 2.2],
     [10, 1.6],
     [20, 1.25],
   ],
@@ -792,7 +795,7 @@ export const WISHES = {
     icon: "🏊",
     text: () => "No collisions in the lanes",
     say: "No bumping into each other! 🏊",
-    fits: (s) => s.total >= 6,
+    fits: (s) => s.total >= 6 && s.lanes !== false,
     met: (r) => r.collisions === 0,
     pay: 20,
   },
@@ -848,6 +851,9 @@ export const WISHES = {
   },
 };
 export const WISHES_PER_SHIFT = 2;
+// The venues without lap lanes, where "No collisions in the lanes" makes no sense (20 October 2026: Marina asked it at the Kids
+// Pool).
+const NO_LAP_LANES = ["disco", "kids", "river", "wave", "roof", "onsen"];
 
 // The wishes of one shift: two that fit it, drawn from its seed. Each says its target and what it pays.
 export function drawWishes(shape, random, payScale = 1) {
@@ -1125,6 +1131,8 @@ export function buildShift(week, card = null, known = week.known || [], seen = n
     incidents: plan.incidents,
     vips: (config.vipAt || []).length,
     daredevils: (config.daredevilAt || []).length,
+    // (lap lanes: where swimmers can collide; not the disco's zones, the Kids Pool, the river, the waves, the roof or the springs)
+    lanes: !NO_LAP_LANES.includes(config.venue),
   };
   const wishes = drawWishes(shape, stream((week.seed ^ Math.imul(index + 3, 362437)) >>> 0), chapter.pay);
   return {

@@ -6,13 +6,13 @@
 // and the pool is packed. Every incident still comes, a wee and a poo more often, and there is no Marco.
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { PoolSimulation, SHIFTS, KIDS_ROOM, KID_RUN } from "./dist/sim.mjs";
+import { PoolSimulation, SHIFTS, KIDS_ROOM, KID_RUN, KID_MOOD_PAY } from "./dist/sim.mjs";
 import { VENUES } from "./dist/spatial.mjs";
 import { POOLS, buildShift, newWeek, INCIDENT_ORDER, scoreScale } from "./dist/week.mjs";
 import { SONGS } from "./dist/music.mjs";
 import { PROP_FILES } from "./dist/scene/prop-models.mjs";
 import { childLook } from "./dist/scene/swimmer-models.mjs";
-import { CoachBot } from "./check-bot.mjs";
+import { CoachBot, kidsHaveRoom } from "./check-bot.mjs";
 import { tick } from "./check-helpers.mjs";
 
 const quiet = (level = 6, seed = 5) => {
@@ -180,8 +180,54 @@ const kid = (s, extra = {}) =>
     "only kids",
   );
 }
+// A kid's points follow their mood (20 October 2026, the creator: "fix the kids pool stars"): a happy kid pays full, an unhappy one
+// 0.6 of it, a cross one 0.3, so a packed pool of cross kids no longer buys three stars. The birthday party gets room while it is
+// on, and the coach bot waits for room before sending a kid in (unless the kid is about to give up).
+{
+  const pay = (h) => {
+    const s = new PoolSimulation(5, 3, { config: { venue: "kids" } });
+    s.start();
+    const p = {
+      id: 999,
+      name: "Test",
+      type: "child",
+      status: "swim",
+      h,
+      wait: 0,
+      hadCollision: false,
+      slowTime: 0,
+      lane: 0,
+      x: 0,
+      z: 0,
+      side: 1,
+    };
+    s.people.push(p);
+    const before = s.score;
+    s.depart(p);
+    return s.score - before;
+  };
+  const happy = pay(90),
+    meh = pay(50),
+    cross = pay(10);
+  assert.ok(happy > 0 && meh > 0 && cross > 0, "every kid sent home still pays something");
+  assert.ok(
+    Math.abs(meh / happy - (KID_MOOD_PAY.meh * 190) / 240) < 0.05,
+    "an unhappy kid pays about 0.6 of a happy one's base (" + meh + " / " + happy + ")",
+  );
+  assert.ok(cross < meh * 0.6 && cross < happy * 0.3, "a cross kid pays least (" + cross + ")");
+  const s = new PoolSimulation(5, 3, { config: { venue: "kids" } });
+  assert.equal(s.kidsRoom(), KIDS_ROOM);
+  s.big = { kind: "party", stage: "live" };
+  assert.ok(s.kidsRoom() > KIDS_ROOM, "the party has room while it is on");
+  s.big.stage = "done";
+  assert.equal(s.kidsRoom(), KIDS_ROOM, "and the pool is back to its size after it");
+  const full = Array.from({ length: KIDS_ROOM }, () => ({ type: "child", status: "swim" }));
+  const t = { people: full, kidsRoom: () => KIDS_ROOM };
+  assert.equal(kidsHaveRoom(t, { h: 80 }), false, "the bot waits when the pool is full");
+  assert.equal(kidsHaveRoom(t, { h: 20 }), true, "unless the kid is about to give up");
+}
 console.log(
   "Kids checks passed: an outdoor pool with three open zones, a gate and no lockers, its toys and its song; only kids, each in a look of their own; kids running all over the deck on a stream of their own; one POOL button sending a caught kid to the emptiest part, chaotic paddling inside the walls and out when their time is up; a packed pool past " +
     KIDS_ROOM +
-    " kids; no Marco, more wees, star targets of its own, and the bot through a shift.",
+    " kids (room for the birthday party while it is on); a kid's points by their mood; no Marco, more wees, star targets of its own, and the bot through a shift.",
 );
