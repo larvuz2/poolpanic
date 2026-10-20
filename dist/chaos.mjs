@@ -10,6 +10,8 @@ import { PowerOutage } from "./incidents/outage.mjs";
 import { Karen, annoyable } from "./incidents/karen.mjs";
 import { planTwists, startTwist } from "./incidents/twist.mjs";
 import { WetSpots, useMop } from "./incidents/wet.mjs";
+import { CoachTips } from "./tips.mjs";
+import { BigMoment } from "./big-moment.mjs";
 import { WaveMachine } from "./wave-pool.mjs";
 import { WAVE } from "./waves.mjs";
 import { RooftopParty } from "./rooftop.mjs";
@@ -28,6 +30,7 @@ import {
 // (The Wave Pool's machine is no incident either: its hints and alerts come after every incident's, before the wet spots'. Nor is
 // the Rooftop Pool's party: its margaritas, sunbeds, selfies and the DJ's drop.)
 export const SYSTEMS = [
+  BigMoment,
   PowerOutage,
   CannonballCarl,
   FishKid,
@@ -38,6 +41,7 @@ export const SYSTEMS = [
   RooftopParty,
   ShipDeck,
   SnowMonkeys,
+  CoachTips,
   WetSpots,
 ];
 
@@ -125,6 +129,7 @@ export class ChaosController extends RescueController {
     if (this.rescue) return "a rescue is going on";
     if (this.cleanup) return "a cleanup is going on";
     if (this.closed) return "the pool is closed";
+    if (["announce", "live"].includes(this.big?.stage)) return "the big moment is on";
     if (this.activeSystems().length >= (this.config.maxChaos || 1)) return "another incident is going on";
     return system.canStart && !system.canStart(this) ? "not just now" : "";
   }
@@ -584,6 +589,8 @@ export class ChaosController extends RescueController {
   }
   // Nobody new can go into a lane that is the splash zone or closed.
   laneLocked(lane) {
+    if (this.big?.kind === "race" && lane === this.big.lane && ["announce", "live"].includes(this.big.stage))
+      return true;
     return lane === this.laneBlocked() || lane === this.laneClosure;
   }
   assignTrampoline() {

@@ -379,7 +379,10 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   }
   // Star targets: the season's own where a level was made for that floor plan, scaled elsewhere (the coach bot's measure).
   for (let tier = 1; tier <= TOP_TIER; tier++) {
-    assert.equal(scoreScale(tier <= 10 ? "club" : "resort", tier), 1);
+    // (since Phase 3 a week's shift has a big moment and tips its level was not written with: even on its own floor plan the
+    // targets ask a little more, never less)
+    const own = scoreScale(tier <= 10 ? "club" : "resort", tier);
+    assert.ok(own >= 1 && own <= 1.25, "the season's own floor plan " + tier + ": " + own);
     for (const v of [
       "club",
       "resort",
@@ -395,9 +398,11 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       "cruise",
       "onsen",
     ])
-      // (the Lazy River's late crowd outgrows its ten tubes: its targets drop to 0.35, recalibrated 19 October 2026)
+      // (the Lazy River's late crowd outgrows its ten tubes: its targets drop to 0.4, recalibrated 19 October 2026; Phase 3,
+      // 20 October, recalibrated every pool again with the big moment, the tips and the streak's tiers, which the Aqua Disco and
+      // the Mountain Hot Springs, whose base levels were written for lanes, score the most from)
       assert.ok(
-        scoreScale(v, tier) >= (v === "river" ? 0.3 : 0.5) && scoreScale(v, tier) <= 1.75,
+        scoreScale(v, tier) >= (v === "river" ? 0.3 : 0.5) && scoreScale(v, tier) <= 2.2,
         v + " " + tier,
       );
   }

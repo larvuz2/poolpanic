@@ -23,6 +23,7 @@
 // to mop. Anyone up on the edge for a selfie when the drop hits goes straight over.
 import { ROOF } from "./roof-plan.mjs";
 import { WetSpots, addWetSpot } from "./incidents/wet.mjs";
+import { bigTime } from "./big-moment.mjs";
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -103,13 +104,21 @@ const inWater = (sim, x, z, m = 0.45) => {
 // them), the next selfie.
 export function createRoof(sim) {
   sim.roofSeed = (sim.seed ^ 0x2c1b3c6d) >>> 0 || 11;
-  const drops = [];
+  let drops = [];
   if (planOf(sim).dj)
     for (let bar = Math.round(between(sim, CHILL.firstDrop)); bar * CHILL.bar < sim.config.duration - 6;) {
       drops.push(bar);
       bar += Math.round(between(sim, CHILL.dropEvery));
     }
+  // The big moment's headline drop (big-moment.mjs): the DJ builds to it on the bar the moment goes live, and no other drop comes
+  // within a few bars of it either side.
+  let headline = null;
+  if (planOf(sim).dj && sim.config.big) {
+    headline = Math.round(bigTime(sim.config.duration, sim.config.big.at) / CHILL.bar);
+    drops = [...drops.filter((b) => Math.abs(b - headline) > 6), headline].sort((a, b) => a - b);
+  }
   return {
+    headline,
     beds: planOf(sim).beds.map((b) => ({ id: b.id, guest: null, messy: false })),
     groups: [],
     drops,
@@ -166,6 +175,79 @@ export function roofSpawn(sim, p) {
         : ["pool"];
   p.planStep = 0;
   p.orderIn = p.vip ? CHILL.vipFirst : between(sim, CHILL.firstOrder);
+  // What they would like first (Phase 3: the coach seats them, `seatGuest`): the water, a sunbed, or a cabana for a VIP.
+  p.wish = p.plan[0] === "bed" ? (p.vip ? "cabana" : "bed") : "pool";
+}
+
+// ---- seating them (Phase 3, 20 October 2026) ----------------------------------------------------------------------------
+
+// The diagnostic: the rooftop needed "a decision as good as which lane for which swimmer". A guest now waits by the lift for the
+// coach, who seats them: 1 the WATER (the chat groups), 2 a SUNBED, 3 a CABANA (there are two). Each guest has a wish (💬, 🛏️ or
+// 👑 on the tag and the card). Seated as they wished, they are happy; somewhere else, less so. A cabana delights anyone, but there
+// are two, and a VIP's margaritas tip half as much again in one: given to someone else, the next VIP may find none. A sunbed sought
+// with none tidy means a wait for one (tidy them!). Waiting by the lift wears their patience down like any queue.
+export const SEATS = [
+  { id: "pool", icon: "💬", name: "WATER" },
+  { id: "bed", icon: "🛏️", name: "SUNBED" },
+  { id: "cabana", icon: "👑", name: "CABANA" },
+];
+export const SEAT = { match: 10, wrong: 12, fancy: 12, cabanaTip: 1.5 };
+const WISH_WORD = { pool: "the water", bed: "a sunbed", cabana: "a cabana" };
+export const wishWord = (p) => WISH_WORD[p.wish] || "the water";
+
+// What seating `p` at `place` would be like (the HUD's word, and the mood it gives).
+export function seatVerdict(sim, p, place) {
+  const seat = SEATS[place]?.id;
+  if (!seat || !p?.chill) return null;
+  if (seat === "cabana" && !freeBeds(sim, true)) return { good: false, text: "No cabana free!", none: true };
+  if (seat === p.wish)
+    return {
+      good: true,
+      text: (seat === "cabana" ? "Their cabana 👑" : "Just what they wanted") + " 👍",
+      mood: SEAT.match,
+    };
+  if (seat === "cabana") return { good: true, text: "Fancy! 🤩 (the cabana's taken now)", mood: SEAT.fancy };
+  if (seat === "bed" && !freeBeds(sim, false))
+    return { good: false, text: "No sunbed tidy: they'll wait 😬", mood: -SEAT.wrong };
+  return { good: false, text: "They wanted " + wishWord(p) + " 😬", mood: -SEAT.wrong };
+}
+const freeBeds = (sim, cabana) =>
+  sim.roof.beds.filter((b) => !b.guest && !b.messy && !b.adrift && !!bedOf(sim, b.id).cabana === cabana)
+    .length;
+
+// The coach sends the selected guest waiting by the lift to `place` (0 water, 1 sunbed, 2 cabana).
+export function seatGuest(sim, place) {
+  const p = sim.get(sim.selected);
+  if (!p || p.status !== "queue" || !p.chill) {
+    sim.emit("toast", {
+      text: "Pick a guest waiting by the lift first, then choose where they go (1 water, 2 sunbed, 3 cabana).",
+    });
+    return false;
+  }
+  const verdict = seatVerdict(sim, p, place);
+  if (!verdict) return false;
+  if (verdict.none) {
+    sim.emit("toast", {
+      text: "Both cabanas are taken. A sunbed or the water for " + p.name + "?",
+      warning: true,
+    });
+    return false;
+  }
+  const seat = SEATS[place].id;
+  p.seat = seat === "pool" ? null : seat;
+  p.plan[0] = seat === "pool" ? "pool" : "bed";
+  if (p.plan[1] === p.plan[0]) p.plan[1] = p.plan[0] === "pool" ? "bed" : "pool";
+  p.noCabanaTold = true; // (the coach chose: no complaint on the way)
+  p.h = Math.max(0, Math.min(100, p.h + verdict.mood));
+  p.seatedWell = verdict.good;
+  sim.stats.totalWait += p.wait;
+  sim.stats.seated = (sim.stats.seated || 0) + 1;
+  if (verdict.good) sim.stats.seatedWell = (sim.stats.seatedWell || 0) + 1;
+  p.assignedAt = sim.time;
+  walkToActivity(sim, p);
+  sim.selected = null;
+  sim.emit("assigned", { id: p.id, lane: place, seat, verdict: { good: verdict.good, text: verdict.text } });
+  return true;
 }
 
 // Off to the next thing on their plan: down to the water's edge, or to a sunbed (or to wait for one).
@@ -203,11 +285,14 @@ export function walkToActivity(sim, p) {
   p.path = P.route(p, { x: P.edge.stand, z });
 }
 
-// A free, tidy sunbed (a cabana for a VIP, if there is one; nobody else takes a cabana), the nearest.
+// A free, tidy sunbed (a cabana for a VIP, if there is one; nobody else takes a cabana), the nearest. A guest the coach has seated
+// (Phase 3, `seatGuest`) takes the kind he chose.
 function pickBed(sim, p) {
   const free = sim.roof.beds.filter((b) => !b.guest && !b.messy && !b.adrift),
     near = (list) =>
       list.sort((a, b) => distance(bedOf(sim, a.id), p) - distance(bedOf(sim, b.id), p) || a.id - b.id)[0];
+  if (p.seat === "cabana") return near(free.filter((b) => bedOf(sim, b.id).cabana)) || null;
+  if (p.seat === "bed") return near(free.filter((b) => !bedOf(sim, b.id).cabana)) || null;
   if (p.vip) {
     const cabana = near(free.filter((b) => bedOf(sim, b.id).cabana));
     if (cabana) return cabana;
@@ -477,6 +562,7 @@ function thirst(sim, p) {
 function nextOrHome(sim, p) {
   if (p.planStep < p.plan.length - 1) {
     p.planStep++;
+    p.seat = null; // (the coach seated them for the first part only; the rest of the plan is their own)
     if (p.status === "swim") {
       p.transfer = true;
       p.status = "exit";
@@ -578,7 +664,10 @@ export function serveDrink(sim, p) {
   p.sipping = CHILL.sip;
   p.drinks = (p.drinks || 0) + 1;
   p.h = Math.min(100, p.h + CHILL.cheers);
-  const tip = p.vip ? CHILL.vipTip : CHILL.tip;
+  const tip = Math.round(
+    (p.vip ? CHILL.vipTip : CHILL.tip) *
+      (p.vip && p.bed != null && bedOf(sim, p.bed)?.cabana ? SEAT.cabanaTip : 1),
+  );
   sim.score += tip;
   sim.stats.drinks = (sim.stats.drinks || 0) + 1;
   c.tray--;
@@ -736,7 +825,7 @@ function goOverboard(sim, p, why) {
   p.actualSpeed = 0;
   p.h = Math.max(0, p.h - 30);
   sim.score -= CHILL.overboard;
-  sim.streak = 0;
+  sim.breakStreak("overboard", p);
   sim.stats.overboard = (sim.stats.overboard || 0) + 1;
   sim.emit("overboard", { id: p.id, x: p.x, z: p.z, why });
   sim.emit("points", { x: p.x, z: p.z, value: -CHILL.overboard });
@@ -821,11 +910,16 @@ function updateDJ(sim, dt) {
   drop(sim);
 }
 function drop(sim) {
-  const R = sim.roof;
-  R.hype = CHILL.hype;
+  const R = sim.roof,
+    bar = R.drops[R.nextDrop - 1],
+    headline = bar != null && bar === R.headline;
+  R.hype = CHILL.hype * (headline ? 2 : 1);
   sim.stats.drops = (sim.stats.drops || 0) + 1;
-  sim.emit("drop", {});
+  sim.emit("drop", { headline });
+  if (headline) R.headlineDone = true;
   let spots = 0;
+  const most = CHILL.splashMax * (headline ? 2 : 1),
+    chance = headline ? 0.9 : CHILL.splash;
   for (const p of sim.people) {
     if (p.status !== "swim") continue;
     // Anyone up on the edge goes straight over.
@@ -835,10 +929,10 @@ function drop(sim) {
     }
     if (!p.problem) p.h = Math.min(100, p.h + CHILL.dropFun);
     // The water slops over the near edge and the ends onto the deck.
-    if (spots >= CHILL.splashMax || sim.cleanup || sim.closed) continue;
+    if (spots >= most || sim.cleanup || sim.closed) continue;
     const near = p.x < -ROOF.halfX + 1.2,
       end = Math.abs(p.z) > ROOF.halfZ - 1.2;
-    if ((near || end) && roofRandom(sim) < CHILL.splash) {
+    if ((near || end) && roofRandom(sim) < chance) {
       const at = end
         ? { x: clamp(p.x, -ROOF.halfX, ROOF.halfX - 0.5), z: Math.sign(p.z) * (ROOF.halfZ + 0.95) }
         : { x: -ROOF.halfX - 0.85, z: p.z };

@@ -399,7 +399,7 @@ function dumpFish(sim, kid, f) {
   sim.closed = 1;
   sim.selected = null;
   sim.score -= 200;
-  sim.streak = 0;
+  sim.breakStreak("fish");
   sim.stats.fishDumped = (sim.stats.fishDumped || 0) + 1;
   for (const p of sim.people) if (["swim", "enter", "switch"].includes(p.status)) sim.startFleeing(p);
   sim.emit("fish-dumped", { x: f.x, z: f.z });

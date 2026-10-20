@@ -20,6 +20,7 @@
 
 import { SHIFTS, MARCO, STAR_CHANCE } from "./sim.mjs";
 import { BOOKINGS } from "./bookings.mjs";
+import { planBig } from "./big-moment.mjs";
 
 export const WEEK_KEY = "pool-panic.week.v1";
 export const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -97,7 +98,7 @@ export const HEAT_DATES = [
 // 1 is a learner's week (a careful beginner makes it about half the time, a good coach on Thursday); from week 2 a good coach ends
 // Saturday at about 1.1 to 1.3 times the goal, with something to spend in the shop; from week 7 the goal grows slower than the
 // pay, and the weeks get harder through their crowds and trouble instead.
-export const GOAL_SHARE = [0.85, 1.15, 1.15, 1.15, 1.1, 1.1, 1.05];
+export const GOAL_SHARE = [0.8, 1.08, 1.08, 1.08, 1.04, 1.04, 1];
 export function chapterFor(n) {
   const id = Math.max(1, Math.floor(n) || 1),
     heat = Math.max(0, id - CHAPTERS.length),
@@ -349,16 +350,17 @@ export const POOL_INTROS = {
     action: "Keep a life ring handy: E to grab one, then walk into the pool.",
   },
   river: {
-    rule: "No pool and no lanes: everyone wants a tube 🛟 before they float off round the river.",
-    action: "A tube from the rack (F), hand it over (E), then RIVER (1).",
+    rule: "Everyone wants a tube 🛟, and the river has two ways round: the lazy loop 🐢 and the rapids ⚡.",
+    action:
+      "A tube from the rack (F), hand it over (E), then 1 the lazy loop for chillers, 2 the rapids for thrill-seekers.",
   },
   wave: {
     rule: "Bathers walk straight into the waves, and every wave makes them dizzy 💫.",
     action: "Meet them with a tube (F). Z stops the wave machine.",
   },
   roof: {
-    rule: "Nobody swims up here: the guests chill, order margaritas 🍹 and mess up the sunbeds.",
-    action: "B for a tray of margaritas, E to hand them out and to tidy a sunbed.",
+    rule: "Nobody swims up here: guests wait by the lift for you to seat them, then chill and order margaritas 🍹.",
+    action: "Seat them where they'd like: 1 water, 2 sunbed, 3 cabana. B for margaritas, E to tidy a sunbed.",
   },
   cruise: {
     rule: "The ship rolls: people, sun loungers and you slide downhill.",
@@ -486,73 +488,77 @@ export function scoreScale(venue, tier) {
   const scale = SCORE_SCALE[venue] || SCORE_SCALE.resort;
   return (scale.find(([upTo]) => tier <= upTo) || scale[scale.length - 1])[1];
 }
+// Phase 3 (20 October 2026) raised every pool's targets by what the new play adds there (coaching tips, the big moment, the livelier
+// streak, the river's rapids, the rooftop's seating): the expert coach bot's share of the two-star target, measured before and after
+// on the same shifts (38 a pool), back where it was. Tier 1 (the gentle first minute, which has none of it) is as it was.
 const SCORE_SCALE = {
   club: [
-    [10, 1],
-    [20, 0.75],
+    [1, 1],
+    [10, 1.2],
+    [20, 0.9],
   ],
   resort: [
     [10, 1.2],
-    [20, 1],
+    [20, 1.05],
   ],
   aquatic: [
-    [10, 1.4],
+    [10, 1.55],
     [13, 1.25],
     [20, 0.8],
   ],
   // A class of aqua dancers is the gentlest crowd in the game: the stars ask more of it (calibrated with the coach bot).
   disco: [
-    [10, 1.65],
-    [20, 1.45],
+    [10, 2],
+    [20, 1.6],
   ],
   // The Kids Pool: a little above Splash Park's (the bot catches a running kid at once; a player has to chase one), which leaves
   // the bot about as far over the two stars as in the disco (calibrated 16 October 2026).
   kids: [
-    [10, 1.4],
-    [20, 1.1],
+    [10, 1.6],
+    [20, 1.25],
   ],
   // Senior Aqua Fit: slow walkers, a stand-up for every wheelchair and steady lengths serve fewer guests in a shift, so the stars
   // ask less (the coach bot scored about half of what it does at Splash Park on the same targets; calibrated 16 October 2026).
   senior: [
     [10, 0.65],
-    [20, 0.65],
+    [20, 0.8],
   ],
   // The Lazy River: about Splash Park's at first; a big crowd queues for ten tubes and a loop of half a minute, so the stars ask
-  // less late in a run (calibrated with the coach bot, 17 October 2026).
+  // less late in a run (calibrated with the coach bot, 17 October 2026; the rapids, Phase 3, are quicker round: a little more).
   river: [
-    [10, 1],
-    [13, 0.65],
-    [20, 0.35],
+    [10, 1.3],
+    [13, 0.85],
+    [20, 0.4],
   ],
   // The Wave Pool: guests walk straight in and have to be caught for a tube, and the waves knock them dizzy, so the stars ask less
   // (on the plain targets the coach bot only just made two stars, and fell short late in a run; calibrated 17 October 2026).
   wave: [
-    [10, 0.8],
-    [15, 0.6],
-    [20, 0.7],
+    [10, 1],
+    [15, 0.75],
+    [20, 0.8],
   ],
   // The Rooftop Pool: margaritas tip well and the VIPs are many, so the stars ask more (on the plain targets the coach bot made
   // about 1.6 times Splash Park's share of two stars; scaled, about the same as there; calibrated 17 October 2026).
   roof: [
     [10, 1.7],
-    [15, 1.3],
-    [20, 1.5],
+    [15, 1.6],
+    [20, 1.65],
   ],
   // The Cruise Ship: about Splash Park's at first; later in a run the big swells (loungers to straighten, guests in the pool, spills
   // to mop) take more of the coach's time, so the stars ask less (the coach bot on the plain targets made about Splash Park's
   // share of two stars to tier 12, about 0.7 of it by tier 18; calibrated 18 October 2026).
   cruise: [
-    [10, 1],
-    [13, 0.8],
-    [20, 0.55],
+    [10, 1.05],
+    [13, 0.95],
+    [20, 0.6],
   ],
   // The Mountain Hot Springs: nobody swims laps, so a spring never jams, and a guest sent straight to one is warm and happy;
   // only the cold, the monkeys and the ice take points, so the stars ask more (on Splash Park's targets the coach bot made about
   // 1.5 times its share there early in a run, 1.2 times later; calibrated 18 October 2026).
   onsen: [
-    [10, 1.7],
-    [15, 1.5],
-    [20, 1.7],
+    [10, 2.05],
+    [15, 1.75],
+    [20, 1.9],
   ],
 };
 
@@ -1108,6 +1114,8 @@ export function buildShift(week, card = null, known = week.known || [], seen = n
     ...(vips > 0 && { vipAt: vipSlots(vips, random) }),
     week: { chapter: week.chapter, shift: index },
     ...(finale && { finale: true }),
+    // The shift's big moment (Phase 3, big-moment.mjs): every shift but the gentle first one, about two thirds of the way.
+    ...(step > 0 && { big: planBig(stream((week.seed ^ Math.imul(index + 13, 2654435761)) >>> 0)) }),
   };
   if (plan.surprise) config.intro = plan.surprise;
   const shape = {

@@ -47,6 +47,7 @@ const game = (seed = 5, level = 8, extra = {}) => {
 const guest = (s, plan = ["pool"], spec = {}) => {
   const p = s.spawn({ entrance: true, ...spec });
   Object.assign(p, { sick: false, sickKind: null, plan, planStep: 0, orderIn: 1e9 });
+  p.wish = plan[0] === "bed" ? (p.vip ? "cabana" : "bed") : "pool"; // (what roofSpawn would have them wish for)
   return p;
 };
 
@@ -137,8 +138,9 @@ const guest = (s, plan = ["pool"], spec = {}) => {
   assert.ok(!s.coach.wading, "out again");
 }
 
-// 2) Nobody queues and nobody is sent: guests come up in both lifts and go to what their plan says (the water, or a sunbed), the
-// ones in the water gather in little groups and chat, a VIP takes a cabana; a lane button sends nobody anywhere.
+// 2) Guests come up in both lifts and wait by them until the coach seats them (Phase 3; the bot seats each where they wished: the
+// water, or a sunbed), the ones in the water gather in little groups and chat, a VIP takes a cabana; a guest already chilling is
+// not seated again.
 {
   const { s, until } = game(11);
   const swimmers = [0, 1, 2, 3].map(() => guest(s, ["pool"]));
@@ -173,7 +175,7 @@ const guest = (s, plan = ["pool"], spec = {}) => {
     assert.ok(p.h > 80, "happy chilling");
   }
   s.select(swimmers[0].id);
-  assert.equal(s.assign(0), false, "nobody is sent anywhere");
+  assert.equal(s.assign(0), false, "a guest already in the water is not seated again");
   assert.equal(GUEST_KIND.beginner, "Sunbather");
 }
 
@@ -351,7 +353,10 @@ const guest = (s, plan = ["pool"], spec = {}) => {
   s.start();
   s.time = s.config.duration - 30;
   const p = s.spawn({ entrance: true });
-  Object.assign(p, { plan: ["pool", "bed"], planStep: 0 });
+  Object.assign(p, { plan: ["pool", "bed"], planStep: 0, wish: "pool" });
+  for (let i = 0; i < 60 * 5 && p.status !== "queue"; i++) s.tick(1 / 60);
+  s.select(p.id);
+  assert.ok(s.assign(0), "seated: the water (Phase 3: they wait by the lift for the coach)");
   for (let i = 0; i < 60 * 40 && s.status === "playing"; i++) s.tick(1 / 60);
   assert.ok(p.status === "gone" || (p.status === "exit" && p.served), "gone (or on the way) by the end");
   assert.equal(p.plan.length, 1, "no time for the sunbed: straight home after the water");
@@ -517,5 +522,5 @@ const guest = (s, plan = ["pool"], spec = {}) => {
 }
 
 console.log(
-  "Rooftop Pool checks passed: two lifts facing each other from the ends (every other pool's doors where they were), an infinity edge with its gutter and nothing past it, fourteen beds with two cabanas, walks round the furniture, the coach wading in the shallow water (slowly, no jumps, never into the gutter); guests from both lifts to the water or a sunbed, chatting in groups, a VIP in a cabana, nobody sent anywhere; margaritas ordered, a tray from the bar, served by the edge or at a sunbed, tips, tipsy after two; messy sunbeds, a guest waiting for one, tidied; the selfie on the edge talked down, overboard into the gutter, hauled back or storming off; the DJ's drops on the bar lines, announced, slopping water onto the deck and tipping anyone on the edge over; closing time; a poo, the fish and Carl; the same seed the same shift; whole shifts played by the bot; in the week with more VIPs and no Marco; the house set built round the drops; stings, saves, props and pictures; and on screen the city far below, guests chest-deep and on sunbeds, ripples.",
+  "Rooftop Pool checks passed: two lifts facing each other from the ends (every other pool's doors where they were), an infinity edge with its gutter and nothing past it, fourteen beds with two cabanas, walks round the furniture, the coach wading in the shallow water (slowly, no jumps, never into the gutter); guests from both lifts to the water or a sunbed, chatting in groups, a VIP in a cabana, everyone seated by the coach at the lift; margaritas ordered, a tray from the bar, served by the edge or at a sunbed, tips, tipsy after two; messy sunbeds, a guest waiting for one, tidied; the selfie on the edge talked down, overboard into the gutter, hauled back or storming off; the DJ's drops on the bar lines, announced, slopping water onto the deck and tipping anyone on the edge over; closing time; a poo, the fish and Carl; the same seed the same shift; whole shifts played by the bot; in the week with more VIPs and no Marco; the house set built round the drops; stings, saves, props and pictures; and on screen the city far below, guests chest-deep and on sunbeds, ripples.",
 );

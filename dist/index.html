@@ -28,6 +28,14 @@
         <i class="alert-pointer"></i><b></b><span></span>
       </div>
       <div id="stamps" class="stamps" aria-hidden="true"></div>
+      <!-- The highlight replay (Phase 3): the shift's best clip, played again with no HUD. -->
+      <div id="replay" class="replay" hidden>
+        <div class="replay-bar top"></div>
+        <div class="replay-bar bottom"></div>
+        <div class="replay-badge"><b id="replay-state">▶ REPLAY</b><span id="replay-title"></span></div>
+        <div class="replay-progress"><i id="replay-fill"></i></div>
+        <small class="replay-skip">Any key or click to skip</small>
+      </div>
       <header class="topbar">
         <a class="brand" href="./" aria-label="Pool Panic home"
           ><img class="brand-logo" src="assets/brand/logo.webp" alt="Pool Panic" width="640" height="371"
@@ -84,7 +92,7 @@
           <div class="wk-text">
             <small id="wk-eyebrow">WEEK 1 · COMMUNITY POOL</small>
             <strong id="wk-title">Ice cream on the pier with Marina</strong>
-            <span id="wk-sub">Save $300 by Saturday</span>
+            <span id="wk-sub">Save $240 by Saturday</span>
           </div>
           <button id="wk-go" class="primary">START THE WEEK <span>▶</span></button>
         </div>
@@ -256,9 +264,20 @@
             the weeks go on after it, harder and harder.
           </li>
           <li>
-            <b>Points make stars, stars make pay.</b> Every swimmer you serve scores points; a happy streak
-            multiplies them. Below the <b>pass mark</b> (on the scoreboard) a shift pays nothing. Each star
-            pays more, and each of <b>Marina's two wishes</b> you meet pays extra.
+            <b>Points make stars, stars make pay.</b> Every swimmer you serve scores points. Below the
+            <b>pass mark</b> (on the scoreboard) a shift pays nothing. Each star pays more, and each of
+            <b>Marina's two wishes</b> you meet pays extra.
+          </li>
+          <li>
+            <b>The happy streak</b> ✦ counts every happy guest, every save and every coaching tip in a row:
+            ×1.2 at 3, ×1.5 at 5, ×2 at 8 🔥, ×2.5 at 12 ⚡. A guest leaving cross, a lost guest or trouble
+            breaks it; the badge warns you who is about to.
+          </li>
+          <li>
+            <b>Every shift has its big moment</b> ⭐, about two thirds of the way in: a race in the lane pools
+            (clear the race lane, blow the whistle at the blocks with <b>E</b>), the monster set, the DJ's
+            headline drop, the rogue wave, the monkey troop, an encore, a birthday party, a tube parade. At
+            the end, the shift's best moment plays again 🎬.
           </li>
           <li>
             <b>The shop</b> 🛍️ between shifts sells perks for the rest of the week, paid out of the Date Fund:
@@ -287,6 +306,16 @@
           <li>
             <b>Two to a lane share; three swim in a circle</b>, and fast swimmers get stuck behind slow ones.
             Keep speeds together and aqua aerobics out of the fast lanes.
+          </li>
+          <li>
+            <b>📣 Coach them!</b> A swimmer asking for a tip waits at the end of their lane: get there and
+            press <b>E</b>. They swim faster and happier, and it is points.
+          </li>
+          <li>
+            <b>The Lazy River</b> has two ways round: <b>1</b> the lazy loop for chillers 🐢, <b>2</b> the
+            rapids for thrill-seekers ⚡ (three at a time). <b>The Rooftop Pool</b>: guests wait by the lift
+            for you to seat them, <b>1</b> the water, <b>2</b> a sunbed, <b>3</b> a cabana; the tag says what
+            they'd like.
           </li>
         </ul>
         <div class="roster-guide">
@@ -554,6 +583,7 @@
         </div>
         <div class="result-grid" id="result-stats"></div>
         <p id="result-tip"></p>
+        <button id="watch-highlight" class="secondary highlight-btn" hidden>🎬 Watch the highlight</button>
         <button id="next-level" class="primary" hidden>Next shift →</button
         ><button id="play-again" class="secondary">Replay this level ↻</button
         ><button id="back-menu" class="text-btn">Back to the map</button

@@ -357,7 +357,7 @@ function goUnder(sim, p, wave) {
   sim.rescue = { kind: "cramp", under: true, victim: p.id, victims: [p.id], stage: "stranded" };
   for (const a of sim.people) if (a.status === "swim") a.actualSpeed = 0;
   sim.score -= BATHE.knockout;
-  sim.streak = 0;
+  sim.breakStreak("knockout", p);
   sim.stats.knockouts = (sim.stats.knockouts || 0) + 1;
   sim.emit("cramp-alarm", { id: p.id, x: p.x, z: p.z, under: true });
   sim.emit("knockout", { id: p.id, x: p.x, z: p.z, kind: wave?.kind || "normal" });

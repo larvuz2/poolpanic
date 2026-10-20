@@ -29,15 +29,15 @@ the same twice: see `docs/incidents.md`).
    water over a mosaic; only seniors, who walk stooped and slowly, a third in wheelchairs who stand up out of them when given a lane
    and sit back down on the way out; glass doors, no lockers; a tea-dance song), the **Lazy River** (a jungle water park with no pool and
    no lanes: a river curves through the room, out of a cave behind a waterfall and into a jungle temple, and only that stretch is seen;
-   every guest wants a tube from the rack, gets on at the ALL ABOARD dock (TubeBoard), lies back in it (TubeFloat) round a loop out of
+   every guest wants a tube from the rack, is sent on the lazy loop or down the rapids (a chiller or a thrill-seeker), gets on at the ALL ABOARD dock (TubeBoard), lies back in it (TubeFloat) round a loop out of
    sight and gets off at the EXIT dock, leaving the tube at the tube return for the coach to rack; a rope bridge and two stepping
    stones the coach jumps to, a jump that falls short lands him in the river; `dist/river.mjs`, `dist/river-ride.mjs`,
    `dist/scene/river.mjs`; a calypso song), the **Wave Pool** (a surf park with a beach and no lanes: guests walk in and straight
    into the waves, the coach meets them with one of five tubes; every crest makes a bather dizzy, a dizzy one hit again is knocked
    under (a ring rescue); the WAVES button stops the machine and the bathers grow impatient; a monster wave announced by a siren;
    `dist/waves.mjs`, `dist/wave-pool.mjs`, `dist/scene/wave.mjs`; surf rock), the **Rooftop Pool** (an infinity pool 185 m above a
-   city at sunset, Marina Bay Sands style: nobody swims, guests come up two lifts at opposite ends to chill in chat groups in the
-   water or on sunbeds and cabanas; margaritas on a tray of three from the SKY BAR, messy sunbeds to tidy, a tipsy guest's selfie on
+   city at sunset, Marina Bay Sands style: nobody swims, guests come up two lifts at opposite ends and are seated by the coach (the water, a sunbed or a cabana, by their
+   wish) to chill in chat groups in the water or on sunbeds and cabanas; margaritas on a tray of three from the SKY BAR, messy sunbeds to tidy, a tipsy guest's selfie on
    the infinity edge to talk down before they go over into the gutter and must be hauled back, the DJ's drop that slops water onto
    the deck; the coach can wade; lots of VIPs; 14 Tripo props, a Meshy DJ and bartender; `dist/rooftop.mjs`, `dist/roof-plan.mjs`,
    `dist/scene/rooftop.mjs`, `dist/scene/city.mjs`; deep house built round the drops), the **Cruise Ship** (a physics level: the
@@ -75,8 +75,11 @@ the same twice: see `docs/incidents.md`).
    three to start and one more with every date; what lasts in the coach's locker: the dates album, coach gear opened by stars, the
    best stars per pool; difficulty by week with every level smoothed; one money, perks out of the Date Fund; the Gala as week 4's
    finale and the story's ending with credits, then endless; the goals tuned with the coach bots; README "A run worth repeating") is
-   **done**. **Phase 3:** a big moment in every shift, a real decision in every
-   pool, a highlight replay. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
+   **done**. **Phase 3, depth and feel** (`dist/big-moment.mjs`: a big moment at about two thirds of every shift from the first
+   Tuesday, one kind per pool, the race in the lane pools; `dist/tips.mjs`: coaching tips in the lap pools; the river's lazy loop or
+   rapids and the rooftop's seating as their decisions; the streak's named tiers to ×2.5, fed by saves and tips; `dist/highlight.mjs`:
+   the funniest moment replayed from the shift's own record at the end; star targets measured again; README "Depth and feel") is
+   **done**: the expert bot idles 20 to 29% of a mid-level lane-pool shift, from about half. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
    Phase 2 is done**, no co-op for now, and **keep the reward (the Sunday date) as it is for now** ("we'll change it later").
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
    and Steam Deck support, a settings screen (volumes, key rebinding, full screen; graphics quality exists, in Help: Auto, Low, Medium,

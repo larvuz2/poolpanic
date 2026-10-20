@@ -154,6 +154,25 @@ function nextSwell(sim) {
     }
   } else lean(sim, side * amp, between(sim, T.ramp));
 }
+// The big moment's rogue wave (big-moment.mjs): the biggest roll of the voyage, three bells, announced like a big swell. Only from a
+// calm (a swell under way finishes first). True when it has begun.
+export function rogueSwell(sim) {
+  const S = sim.ship;
+  if (!S || S.phase !== "calm") return false;
+  S.side = shipRandom(sim) < 0.5 ? -1 : 1;
+  S.amp = Math.min(17, byLevel(sim, T.big)[1] * 1.2);
+  S.big = true;
+  S.rogue = true;
+  S.overDone = false;
+  S.falls = 0;
+  S.spills = 0;
+  S.swells++;
+  S.phase = "warn";
+  S.t = 0;
+  S.dur = T.warn;
+  sim.emit("swell-warning", { side: S.side, amp: S.amp, at: sim.time + T.warn, rogue: true });
+  return true;
+}
 function lean(sim, to, dur) {
   const S = sim.ship;
   S.phase = "lean";
@@ -179,6 +198,7 @@ function stepRoll(sim, dt) {
     if (S.t < S.dur) return;
     if (S.phase === "back") {
       S.phase = "calm";
+      S.rogue = false;
       S.t = 0;
       S.dur = between(sim, byLevel(sim, T.calm));
       sim.emit("settled", {});
@@ -257,7 +277,7 @@ export function driftDeck(sim, dt) {
     if (
       atTheEnd(p.x, z, dz) &&
       Math.abs(S.angle / DEG) >= T.fallFrom &&
-      S.falls < T.fallsPerSwell &&
+      S.falls < T.fallsPerSwell + (S.rogue ? 1 : 0) &&
       canFall(sim, p)
     )
       fallIn(sim, p, dz);
@@ -490,7 +510,7 @@ function fallIn(sim, p, dz) {
   p.actualSpeed = 0;
   p.h = Math.max(0, p.h - T.fallMood);
   sim.score -= T.fallCost;
-  sim.streak = 0;
+  sim.breakStreak("fell-in", p);
   sim.stats.fellIn = (sim.stats.fellIn || 0) + 1;
   if (sim.selected === p.id) sim.selected = null;
   sim.emit("splash", { x: p.x, z: p.z });

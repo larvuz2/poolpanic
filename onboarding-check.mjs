@@ -193,7 +193,7 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   const kids = new PoolSimulation(5, 3, { venue: "kids" });
   kids.start();
   assert.equal(laneVerdict(kids, kids.spawn({ type: "child" }), 0), null, "no verdict without lap lanes");
-  assert.match(app, /verdict = laneVerdict\(sim, sent, e\.lane\)/);
+  assert.match(app, /verdict = e\.verdict \|\| laneVerdict\(sim, sent, e\.lane\)/);
 }
 
 // 4) One meaning per key: the numbers only send someone to a place; the wave machine is Z, the bar B; the texts say so.

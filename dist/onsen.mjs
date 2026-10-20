@@ -370,7 +370,7 @@ export function monkeyIn(sim, k) {
 }
 const ON_DECK = new Set(["approach", "pause"]);
 
-function spawnMonkey(sim) {
+export function spawnMonkey(sim) {
   const O = sim.onsen,
     edges = ONSEN.forest,
     e = edges[Math.floor(onsenRandom(sim) * edges.length)],
@@ -564,7 +564,7 @@ function updateMonkeys(sim, dt) {
         const s = SPRINGS[m.spring];
         m.angle = Math.atan2(s.x - m.x, s.z - m.z);
         sim.score -= MONKEY.inCost;
-        sim.streak = 0;
+        sim.breakStreak("monkey");
         sim.stats.monkeysIn = (sim.stats.monkeysIn || 0) + 1;
         sim.emit("splash", { x: m.x, z: m.z });
         sim.emit("monkey-in", { id: m.id, x: m.x, z: m.z, spring: m.spring });

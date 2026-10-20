@@ -334,7 +334,7 @@ export class SanitationController extends CoachController {
     this.contamination = Math.max(50, this.contamination);
     this.chlorine = Math.min(18, this.chlorine);
     this.score -= 500;
-    this.streak = 0;
+    this.breakStreak("mess");
     this.stats.catastrophes++;
     this.emit("catastrophe", { x: p.x, z: p.z });
     this.emit("points", { x: p.x, z: p.z, value: -500 });
@@ -368,7 +368,7 @@ export class SanitationController extends CoachController {
     this.contamination = Math.max(55, this.contamination);
     this.chlorine = Math.min(18, this.chlorine);
     this.score -= 500;
-    this.streak = 0;
+    this.breakStreak("mess");
     this.stats.catastrophes++;
     this.stats.pees = (this.stats.pees || 0) + 1;
     this.emit("catastrophe", { x: p.x, z: p.z, kind: "pee" });

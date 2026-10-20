@@ -23,6 +23,29 @@ export const RIDE = {
   crowd: 9, // more riders than this in sight and the river feels packed
 };
 
+// The two ways round (Phase 3, 20 October 2026: "a decision as good as which lane for which swimmer"). At the boarding dock the
+// coach sends each guest one way: 1, the LAZY LOOP, or 2, the RAPIDS (out of sight past the cave). Every guest is a chiller (🐢)
+// or a thrill-seeker (⚡), on the card and the tag. The rapids are quicker (the guest comes back out of the cave at speed and is
+// off sooner) and a thrill-seeker loves them; a chiller comes back scared, and may well flip off the tube (a wipeout: the ring
+// rescue). A thrill-seeker on the lazy loop gets bored; a chiller loves it. And the rapids take only so many at once: more than
+// `rapidsRoom` riding them and anyone coming back out may wipe out.
+export const ROUTES = {
+  lazy: { lane: 0, icon: "🐢", name: "LAZY LOOP" },
+  rapids: { lane: 1, icon: "⚡", name: "RAPIDS" },
+  thrill: 0.45, // share of guests who are thrill-seekers
+  rapidsRoom: 3,
+  rush: 1.8, // × the current, a rapids rider coming back out of the cave
+  whoo: 14, // mood a thrill-seeker gets from the rapids
+  scared: 22, // mood a chiller loses in them
+  wipe: 0.55, // chance a chiller in the rapids wipes out
+  crowdWipe: 0.35, // chance anyone wipes out when the rapids are packed
+  calm: 0.5, // mood a second a chiller gains on the lazy loop
+  bored: 0.7, // mood a second a thrill-seeker loses on the lazy loop
+};
+export const routeOf = (p) => (p.lane === ROUTES.rapids.lane ? "rapids" : "lazy");
+export const rapidsRiders = (sim) =>
+  sim.people.filter((q) => q.status === "swim" && q.route === "rapids" && !q.rushDone).length;
+
 export function riverRandom(sim) {
   sim.riverSeed =
     (Math.imul(sim.riverSeed || (sim.seed ^ 0x51ed27c3) >>> 0 || 7, 1664525) + 1013904223) >>> 0;
@@ -40,13 +63,14 @@ export function riderSpawn(sim, p) {
     lap: 0,
   });
   p.waitLimit *= 1.35; // (they have asked for a tube: they wait a little longer for it)
+  p.thrill = !!p.star || riverRandom(sim) < ROUTES.thrill;
 }
 
 // Sent to the river: walk to the boarding dock (whatever lane a caller had in mind; the river has one).
 export function walkToRiver(sim, p, mode = "enter") {
   const dock = sim.venue.river.docks.board;
   p.status = mode;
-  p.lane = 0;
+  p.lane = p.lane === ROUTES.rapids.lane ? ROUTES.rapids.lane : ROUTES.lazy.lane; // (the way round the coach chose)
   p.boarding = 0;
   p.path = sim.venue.route(p, dock.stand);
 }
@@ -104,6 +128,9 @@ function startRide(sim, p, dock) {
   if (!p.resumingWorkout) {
     p.workTime = 0;
     p.lap = 0;
+    p.route = routeOf(p);
+    p.rushDone = false;
+    p.rushing = false;
   }
   p.resumingWorkout = false;
   p.spin = (riverRandom(sim) - 0.5) * 0.6;
@@ -128,6 +155,7 @@ export function updateRiver(sim, dt) {
         p.s = river.start - 0.4;
         p.d = (riverRandom(sim) - 0.5) * 2.4;
         p.dTarget = p.d;
+        if (p.route === "rapids" && !p.rushDone) shotTheRapids(sim, p);
       } else continue;
     }
     sim.tickStomach(p, dt);
@@ -152,7 +180,12 @@ export function updateRiver(sim, dt) {
     p.d += clamp(target - p.d, -dt * 0.8, dt * 0.8);
     // Downstream with the current (a rider holding the bank stays put once there).
     const atBank = holding && Math.abs(p.d - target) < 0.15;
-    const speed = atBank ? 0 : river.flow * (p.star ? RIDE.starPaddle : 1) * (p.collisionTime > 0 ? 0.35 : 1);
+    const speed = atBank
+      ? 0
+      : river.flow *
+        (p.star ? RIDE.starPaddle : 1) *
+        (p.collisionTime > 0 ? 0.35 : 1) *
+        (p.rushing ? ROUTES.rush : 1);
     p.actualSpeed = speed;
     p.s += speed * dt;
     p.traveled += speed * dt;
@@ -180,6 +213,8 @@ export function updateRiver(sim, dt) {
         });
       }
     } else p.irritation = Math.max(0, p.irritation - dt * 0.8);
+    // The way round: a chiller loves the lazy loop, a thrill-seeker is bored on it.
+    if (p.route === "lazy" && !p.problem) p.h += dt * (p.thrill ? -ROUTES.bored : ROUTES.calm);
     // Mood: a packed river, dirty water, waiting at the bank for help.
     const crowd = Math.max(0, seen.length - RIDE.crowd);
     p.h -=
@@ -198,6 +233,21 @@ export function updateRiver(sim, dt) {
   bumpTubes(sim, seen);
 }
 
+// A rapids rider back out of the cave: whooping or white as a sheet, and coming fast. A chiller (or anyone, when the rapids are
+// packed) may flip off the tube on the way to the dock: a wipeout, which is the river's ring rescue (rescue.mjs, `crampAt`).
+function shotTheRapids(sim, p) {
+  const packed = rapidsRiders(sim) > ROUTES.rapidsRoom;
+  p.rushDone = true;
+  p.rushing = true;
+  p.h = Math.max(0, Math.min(100, p.h + (p.thrill ? ROUTES.whoo : -ROUTES.scared)));
+  sim.emit("rapids", { id: p.id, thrill: p.thrill, packed, x: p.x, z: p.z });
+  const chance = Math.max(p.thrill ? 0 : ROUTES.wipe, packed ? ROUTES.crowdWipe : 0);
+  if (chance > 0 && !p.vip && riverRandom(sim) < chance) {
+    p.crampDone = false;
+    p.crampAt = p.workTime + 1.2 + riverRandom(sim) * 1.5;
+  }
+  sim.stats.rapids = (sim.stats.rapids || 0) + 1;
+}
 // Two tubes that drift into each other bump: they push apart across the river, slow a moment and spin.
 function bumpTubes(sim, seen) {
   const river = sim.venue.river;

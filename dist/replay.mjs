@@ -82,8 +82,9 @@ export function stateHash(sim) {
 
 export class Recorder {
   // `meta`: how the shift began (level, seed, booking, drill, man): what tools/replay.mjs needs to make the same simulation.
-  constructor(sim, meta = {}) {
+  constructor(sim, meta = {}, { inputs = null } = {}) {
     this.sim = sim;
+    this.limit = inputs; // (the crash log's records keep to REPLAY_LIMITS; the highlight replay's own may be longer)
     this.depth = 0;
     this.ticks = 0;
     this.last = { move: "", look: null };
@@ -144,7 +145,7 @@ export class Recorder {
   }
   push(entry) {
     const r = this.record;
-    if (r.inputs.length >= REPLAY_LIMITS.inputs) {
+    if (r.inputs.length >= (this.limit ?? REPLAY_LIMITS.inputs)) {
       r.truncated = true;
       return;
     }
