@@ -512,8 +512,11 @@ const SCORE_SCALE = {
     [20, 1.6],
   ],
   // The Kids Pool: a little above Splash Park's (the bot catches a running kid at once; a player has to chase one), which leaves
-  // the bot about as far over the two stars as in the disco (calibrated 16 October 2026).
+  // the bot about as far over the two stars as in the disco (calibrated 16 October 2026). Since 20 October a kid's points follow
+  // their mood (sim.mjs KID_MOOD_PAY) and the birthday party has room: a coach who keeps the pool from packing scores as before
+  // from level 5, and about 1.4 times as much at levels 2 to 4, where the party used to make every kid cross.
   kids: [
+    [4, 2.2],
     [10, 1.6],
     [20, 1.25],
   ],
