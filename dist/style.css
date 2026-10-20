@@ -5817,3 +5817,8 @@ body.replaying #game > *:not(#world):not(#replay) {
 .camera-row #reset-view {
   font-size: 12px;
 }
+/* The streak badge and an incident's or the big moment's banner both sat just under the scoreboard and covered each other
+   (seen in a play-through, 20 October 2026): while a banner is up, the badge waits below it. */
+body:has(#closure:not([hidden])) .combo {
+  top: 216px;
+}

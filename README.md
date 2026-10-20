@@ -472,7 +472,7 @@ fun game."
   FIRE* at 8, ×2.5 *UNSTOPPABLE* at 12. A tier reached flashes the badge, names it over where it happened and bursts there, and the
   music gets a hotter layer (`heat` in `dist/audio.mjs`). The badge says what the next tier needs, names the guest **putting it at
   risk** (the unhappiest one under 40 happiness: *⚠ Mo is tired of waiting: help them!*), and a broken streak (from 3) shatters it
-  and says what broke it (*STREAK LOST · 7 · Broken by Ivy left cross*, *a pile-up in the race lane*). Every incident's failure
+  and says what broke it (*STREAK LOST · 7 · Broken by Ivy left cross*, *a pile-up in the race lane*). While an incident's or the big moment's banner is up, the badge waits just below it (they used to cover each other). Every incident's failure
   breaks it.
 - **The highlight replay** 🎬 (`dist/highlight.mjs`). Every shift is recorded now (the playtest's recorder, `dist/replay.mjs`: the
   level, the seed, every input), and every funny or dramatic moment is noted with its tick and a weight (`clipOf`: a trampoline
