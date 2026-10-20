@@ -6148,7 +6148,10 @@ body.at-entry.entered .title-screen > :nth-child(n + 4) {
 /* START: the column steps aside while the coach opens the doors. */
 body.doors .title-screen,
 body.doors .ts-footer,
-body.doors .topbar {
+body.doors .topbar,
+body.doors #map,
+body.doors #welcome,
+body.doors .fp-back {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.6s ease;

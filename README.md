@@ -417,6 +417,63 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   **Not verified:** how it feels to a person, which only playtests can say (the ramp, the goals and the prices are the first numbers to
   tune).
 
+### The main menu: the Old Town Baths before the doors open (20 October 2026)
+
+The creator: a new 3D level behind the menu, "right before the coach opens the doors to the venue", a brand-new venue, a static camera,
+Coach Waters walking slowly right and left at the back, the pool "with a layer of black, a little bit, not too much", "pretty indie
+AAA", the calm before the storm; everything the menu had kept but sorted differently; Settings and Credits; music and sounds.
+
+- **The stage** (`dist/scene/menu-stage.mjs`, drawn by the game's own renderer while the menu is up, in place of the venue): the
+  Old Town Baths at five to seven. The far wall is a painting (`assets/menu/hall-wall.webp`, GPT Image 2 with a style reference:
+  arched windows on a sunrise, bunting, a clock at seven, OPEN 7:00, and the first guests' shadows waiting behind frosted doors),
+  shaded in its shader so the room is dimmer up high and at the corners and warmer round the doors. In front of it everything is 3D:
+  the tiled deck and side walls, the coping, three lane ropes riding a slow swell, light shafts from the windows, dust in them, and
+  Coach Waters (his own model and clips: Walk at a stroll, IdleScan, IdleScratch) pacing the deck, stopping at the ends to look over
+  the pool, sometimes at the doors. The water is a planar mirror (the hall drawn again from under it into a half-size target, only
+  what is above the water) seen through a layer of black that lets the mirror show most at a glance: the windows, the doors and the
+  coach are in it. One camera, never moving; on a wide screen the view slides right so the doors stand beside the menu's column, and
+  a narrow screen gets a wider lens so the coach's walk still fits.
+- **START** (once the shift is chosen, from the week or from free play): the coach runs to the doors and turns to them, the view
+  glides back to the middle, the doors swing open on hinges (two leaves cut from the painting) onto the morning
+  (`assets/menu/door-light.webp`: the guests standing in the light), the light floods the wall, the deck and the water, the screen goes
+  white and the shift's countdown comes up behind it (about 2.5 s; a click goes straight to the light; reduce motion, a restart and
+  the crash hunt's trials start at once). If the stage cannot load (8 s at most) or stops drawing, the painted coach at his pool
+  (`#menu-art`) is behind the menu as before; `?oldmenu` asks for that.
+- **The first screen** says CLICK TO ENTER and "Best with headphones" over the dimmed stage: the click lets the sound in (a browser
+  asks for one) and the menu's music fades up over 3 s; the column comes in a line at a time. A trial or a hunt, `?nosound` and
+  `?noentry` skip it.
+- **The column** (`dist/title.mjs`, week-ui.mjs fills the week's lines): the logo, whose one moving detail is a drop of pool water that
+  gathers under it, falls and rings out every seven seconds, "By Phatty Acid Generative Studios", the week in four lines (week, the
+  date, the fund, the days), then START (CONTINUE in a week), FREE PLAY, COACH'S LOCKER, SETTINGS, CREDITS, and QUIT in the desktop
+  app. A hover or the keyboard's focus brightens a word, spreads its letters and draws a line under it, with a soft tick; a press
+  clicks. Under it one tip a visit (a new player's first line says what the game is instead). The swimmers' models now load behind
+  the menu: START reads LOADING 42% until they are in (12 s at most, then the classic swimmers stand in until they arrive); a trial or
+  a hunt waits for them as before so every test plays the same characters.
+- **Music** (`dist/audio.mjs` `startMenu`): two tracks made with ElevenLabs Music and looped seamlessly offline (an equal-power
+  crossfade of the end into the start), with the empty hall's ambience under them (ElevenLabs Sound Effects): the theme when the game
+  opens, and after a shift the second track, quieter (70%) and fading in over 6 s. The music fades out over 1.2 s as the doors open.
+  The loop runs between the first and the last sound in the file, so an mp3's padding never makes a gap. The hover and click sounds
+  are ElevenLabs Sound Effects too (`assets/audio/ui-hover.mp3`, `ui-click.mp3`).
+- **Settings** (from the menu, and from ⚙ in a shift): master, music and effects volumes (music and effects are now two mixes under the
+  master; the shifts' songs and the disco's are music, everything else effects; heard as a slider moves), brightness (the exposure of
+  every venue and of the menu), film grain (a fine moving grain over everything, 20% to start), graphics quality and on-screen controls
+  (moved here from Help), full screen, reduce motion (Settings' choice or the system's), and the Coach Cam's mouse sensitivity and
+  Invert Y. They are kept with the other preferences (`pool-panic.settings.v1`, which the desktop app already saves).
+- **Credits** roll by themselves (a wheel or a key takes over): a game by Gus Garza, Phatty Acid Generative Studios; made with Claude;
+  built on three.js, Blender, Electron and Steamworks, Meshy and Tripo, fal's image models, ElevenLabs, the two typefaces, and the
+  test and build tools; and the making of it in numbers, counted on 20 October 2026 from this machine's session logs and the
+  repository, so they are "at least": about 4.6 billion tokens read and written (most of them the conversation read again from cache),
+  11.6 million written by Claude, 12,186 tool calls, 10,796 replies, 128 messages from the creator, 181 commits, 43 pull requests,
+  about 82,000 lines of code, 55 checks, 65 models. The game is not made with Unity, so Unity is not credited.
+- **Checks** (`title-check.mjs`): the settings' defaults and limits, the tips and the loading label, the two mixes and Settings'
+  volumes on a fake audio context, the menu music's loop points, fade in and out, and a stop cancelling a track still loading, the
+  painting's and the doors' sizes and where the doors are, the page's elements and the credits, and the app's wiring.
+- **Verified in Chromium here** (software WebGL, so at about one frame a second): the menu at 1280×720, 1920×1080 and a 390×844 phone,
+  the entry, hover, Settings, Credits, the locker, free play, START from the week (the invite, the picker, the doors, the countdown)
+  and from free play, ⚙ → Settings in a shift, and the return to the menu with the second track and the doors shut again.
+  **Not verified:** the music and the sounds by ear (they were chosen by their numbers: loudness, the loop's seam), the frame rate on
+  a real graphics card, and the look on the creator's Mac and PC.
+
 ### Depth and feel (Phase 3, 20 October 2026)
 
 The diagnostic's third phase: *one big moment in each shift, at about two thirds of the way; in every pool a decision as good as
@@ -554,7 +611,7 @@ on their own, and whether a run ends on a shift they can name; only playtests ca
 
 The diagnostic of 19 October found that nothing taught the game and the first hour asked too little, then too much. Phase 1:
 
-- **The main screen** says what the game is: the week card over a picture of the coach at his pool (`#menu-art`), one line on the
+- **The main screen** (since 20 October 2026 the Old Town Baths behind it: "The main menu", above) says what the game is: the week card over a picture of the coach at his pool (`#menu-art`), one line on the
   job (*send swimmers to the right lanes, fetch the gear, fix the chaos*), START. The old level map shows only in free play.
 - **The guided first shift** (`dist/tutorial.mjs`). The first shift of a player's first run (`!save.tutorial`, Monday of week 1) is
   the gentle minute stretched to 90 s (`TUTORIAL_SECONDS`) with `config.tutorial` on, and a yellow tip under the score says the one
@@ -1143,7 +1200,7 @@ Replay keeps the booking; Next shift asks again. Booked runs count toward the le
 
 ## Audio, accessibility, and feedback
 
-Music is intended from the menu onward, subject to browser audio permissions; the first user gesture unlocks Web Audio. Music and effects are procedural. Selection, countdown, doors, jumping, landing, dash, service, rescue, and sanitation provide synchronized cues. Panic changes the musical arrangement. Muting must work across those states.
+Music is intended from the menu onward, subject to browser audio permissions; the first user gesture unlocks Web Audio (the menu's CLICK TO ENTER). The shifts' music and the effects are procedural; the menu's music and its buttons' sounds are recorded (ElevenLabs, `dist/assets/audio/`). Music and effects are two mixes under the master, with Settings' sliders. Selection, countdown, doors, jumping, landing, dash, service, rescue, and sanitation provide synchronized cues. Panic changes the musical arrangement. Muting must work across those states.
 
 Support keyboard and touch, native clickable swimmer tags, readable skill labels, help, pause, and responsive HUD/control placement. Keep tags below the measured scoreboard edge. Do not let menus or controls obscure the coach on short or portrait displays.
 
@@ -1206,6 +1263,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/platform.mjs`, `dist/achievements.mjs` | The game's side of Steam: a bridge to the desktop app that does nothing in a browser (achievements, rich presence, quit), and the fifteen achievements as pure rules (what earns each, kept on the device, told to Steam when it is there) |
 | `desktop/` | The Steam build: an Electron window around `dist/`, the Steam calls, the progress file for Steam Cloud, packing and SteamPipe scripts, and the notes for Steamworks. Its own README says how to run and build it |
 | `docs/incidents.md` | Every incident, how a shift picks them today, the level-by-level table and the proposed director |
+| `dist/scene/menu-stage.mjs`, `dist/title.mjs` | The main menu's 3D stage (the Old Town Baths before the doors open: the painted wall, the deck, the mirrored pool, the coach pacing, the doors opening on START) and the title screen around it (the first click, the buttons' sounds, Settings, Credits, the tips, START's LOADING %) |
 | `dist/story.mjs`, `dist/cinematic.mjs` | The Ocean Fund's rules and the intro and ending scenes as data (pure), and the small full-screen cinematic player |
 | `dist/crashlog.mjs`, `crashlog-hooks.mjs` | The crash log: breadcrumbs, errors, reports and GitHub issue links (pure), and its browser wiring (window errors, console, visibility, WebGL loss, Web Locks) |
 | `dist/trace.mjs`, `dist/scene/footprint.mjs` | What the crash log is fed: the shift's diary (what changed in the simulation, in plain words, one line per change: the coach, the rescue, the rings, the swimmers in trouble, each running incident's stage through its own `describe`, the gear, the pool closing, a stage that has gone on too long, the shift's plan and a periodic pulse of where everything is) and the scene's footprint (nodes, meshes, lights, an estimate of the GPU memory for geometry, textures and shadow maps). Both pure |

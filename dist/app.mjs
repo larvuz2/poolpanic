@@ -1728,20 +1728,23 @@ function start(bookingId = null, week = null) {
     document.querySelectorAll("dialog[open]").forEach((d) => d.close());
     document.activeElement?.blur();
     const flash = $("door-flash");
+    const finish = () => {
+      if (!doorsOpening) return;
+      doorsOpening = false;
+      startNow(bookingId, week);
+      flash.classList.add("out");
+      flash.style.opacity = 0;
+      setTimeout(() => flash.classList.remove("out"), 900);
+      document.body.classList.remove("doors");
+    };
     const opening = menuStage.openDoors({
       flash: (v) => (flash.style.opacity = v),
       sound: () => audio.effect("doors-open"),
-      then: () => {
-        doorsOpening = false;
-        startNow(bookingId, week);
-        flash.classList.add("out");
-        flash.style.opacity = 0;
-        setTimeout(() => flash.classList.remove("out"), 900);
-        document.body.classList.remove("doors");
-      },
+      then: finish,
     });
     if (opening) {
       doorsOpening = true;
+      setTimeout(finish, 7000); // (should the stage stop drawing, the shift still starts)
       document.body.classList.add("doors");
       audio.stopMenu(1.2);
       crashlog.crumb("menu", "the doors open");
@@ -3971,13 +3974,9 @@ function frame(t) {
     stage("events", events);
   } else if (mode === "menu") {
     // The menu's stage, once the venue has warmed up: the Old Town Baths at five to seven (scene/menu-stage.mjs).
-    // (Free play's map covers it: nothing is drawn under the map.)
-    if (
-      covered &&
-      menuStage?.ready &&
-      !tuning.has("norender") &&
-      !document.body.classList.contains("freeplay")
-    ) {
+    // (Free play's map covers it: nothing is drawn under the map, until START, when the map steps aside for the doors.)
+    const underMap = document.body.classList.contains("freeplay") && !doorsOpening;
+    if (covered && menuStage?.ready && !tuning.has("norender") && !underMap) {
       // (The view slides right on a wide screen, so the doors stand beside the menu's column, not behind it.)
       const wide = innerWidth > 900 && innerWidth / innerHeight > 1.25;
       menuStage.framing = wide ? 0.13 : 0;
@@ -4559,6 +4558,10 @@ try {
       get audio() {
         return audio;
       },
+      get menuStage() {
+        return menuStage;
+      },
+      returnMenu,
       get crashlog() {
         return crashlog;
       },
