@@ -114,10 +114,18 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   assert.ok(guest().needsFins && guest().problem === "fins" && guest().status === "queue");
   assert.match(tip().text, new RegExp(guest().name + " won't swim without fins"));
   const rack = s.venue.stations.fins;
+  // Like the life ring's, the fins have a marker with metres (only in the tutorial): the rack first, then the guest.
+  const finsAlert = () => s.loudestAlert();
+  assert.equal(finsAlert()?.kind, "fins");
+  assert.equal(finsAlert().label, "Fin rack");
+  assert.deepEqual([finsAlert().x, finsAlert().z], [rack.x, rack.z]);
+  assert.equal(finsAlert().near, 1, "its metres show from 1 m away");
   go(s, rack.x, rack.z);
   until(() => s.fetch("fins") || s.coach.carry === "fins", 5);
   assert.equal(s.coach.carry, "fins");
   assert.match(tip().text, /Walk up to/);
+  assert.equal(finsAlert()?.kind, "fins");
+  assert.equal(finsAlert().label, guest().name, "with the fins, the marker is on the guest");
   for (let k = 0; k < 6 && !guest().hasFins; k++) {
     const point = s.servicePoint(guest());
     go(s, point.x, point.z);
@@ -125,6 +133,7 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   }
   assert.ok(guest().hasFins, "fins handed over");
   assert.equal(tip().id, "fins-lane");
+  assert.notEqual(finsAlert()?.kind, "fins", "handed over: no fins marker");
   s.select(guest().id);
   assert.ok(s.assign(1), "the fins guest sent to lane 2");
   tip();
@@ -154,6 +163,19 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   plain.start();
   tick(plain, 30 * 60);
   assert.ok(!plain.people.some((p) => p.finsFirst), "no fins guest in the plain gentle minute");
+  // Outside the tutorial a guest who asks for fins has no marker of the kind.
+  const later = new PoolSimulation(6, 2, {});
+  later.start();
+  let finsMarked = false,
+    finsAsked = false;
+  for (let f = 0; f < 40 * 60; f++) {
+    tick(later);
+    finsAsked ||= later.people.some((p) => p.finsFirst && p.status === "queue");
+    finsMarked ||= later.loudestAlert()?.kind === "fins";
+  }
+  assert.ok(finsAsked, "(a guest asked for fins first)");
+  assert.ok(!finsMarked, "no fins marker in a shift that is not the tutorial");
+  assert.match(app, /far > \(a\.near \?\? 4\)/, "the alert's metres: from `near` m, else 4");
   // Skipping says nothing more.
   const skipping = new Tutor();
   skipping.skip();
