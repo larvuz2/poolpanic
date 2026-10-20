@@ -485,7 +485,11 @@ fun game."
   **Measured** (20 October 2026, the harness's bots at tiers 8, 10 and 12, three shifts each, in the six lane pools). **Idle** (the
   share of the shift the bot had nothing to do): the expert 20 to 29% (the Aquatic Centre and Splash Park 20%, the Lagoon and the
   arena 24%, Senior Aqua Fit 28%, the Community Pool 29%), before 46 to 58%; the good coach 28 to 33%, before 46 to 57%. A tip is now
-  a quarter to a third of the expert's time. {GOALS}
+  a quarter to a third of the expert's time. **The goals** (`GOAL_SHARE`): with the targets raised by what the expert gains, the good coach (who
+  gains less from tips and the big moment) made 3.5 dates a run instead of Phase 2's 4.3 (24 runs each, the same seeds; week 4 won
+  13 of 21, week 5 4 of 13), its pay down 5 to 13% a week, so every week's goal came down by as much (0.85, 1.15, 1.15, 1.15, 1.1,
+  1.1, 1.05 of six shifts' pay to 0.8, 1.08, 1.08, 1.08, 1.04, 1.04, 1). Measured again: 4.5 dates a run; weeks 1 to 5 won 23 of
+  24, 23 of 23, 22 of 23, 17 of 22 and 13 of 17; on Saturday the fund held 1.36, 1.27, 1.20, 1.13 and 1.06 times the goal.
 
 Checked by `phase3-check.mjs` (the streak's tiers and breaks, tips, the big moment's timing and every kind, the race start to finish,
 the river's routes, the rooftop's seating, and a highlight played from a real record matching it tick for tick), and by
