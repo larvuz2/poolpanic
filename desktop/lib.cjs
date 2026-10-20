@@ -74,6 +74,7 @@ const SAVE_KEYS = [
   "pool-panic.coach.v1",
   "pool-panic.achievements.v1",
   "pool-panic.week.v1",
+  "pool-panic.free.v1",
 ];
 const SAVE_VERSION = 1;
 const MAX_VALUE = 256 * 1024; // a value larger than this is not one of the game's

@@ -123,7 +123,8 @@ export function installWeek({
       ? `${DAYS[w.shift]} · shift ${w.shift + 1} of ${SHIFTS_PER_WEEK} · the date is on ${DATE_DAY}`
       : `Six shifts, Monday to Saturday. Save ${money(ch.goal)} for ${DATE_DAY}, or it's game over.`;
     // (The menu's column, 20 October 2026: a word for each button and a small line beside it.)
-    $("wk-go").innerHTML = `<span class="ts-label">${w ? "CONTINUE" : "START"}</span>`;
+    // (START either way: the creator, 21 October 2026, "rename the Continue option to just Start".)
+    $("wk-go").innerHTML = `<span class="ts-label">START</span>`;
     $("wk-money").textContent = money(w ? w.fund : 0) + " / " + money(ch.goal);
     $("wk-fill").style.width = share(w ? w.fund : 0, ch.goal) + "%";
     $("wk-days").innerHTML = daysHtml(w);
@@ -134,8 +135,7 @@ export function installWeek({
       `Incidents met: ${met.map((k) => INCIDENTS[k].icon).join(" ") || "none yet"} (${met.length}/${INCIDENT_ORDER.length})`;
     $("wk-locker").innerHTML =
       `<span class="ts-label">COACH'S LOCKER</span><small>${save.stars}★${GEAR[save.gear] ? " · " + GEAR[save.gear].icon : ""}</small>`;
-    $("wk-free").innerHTML =
-      `<span class="ts-label">FREE PLAY</span><small>${save.unlocked} level${save.unlocked > 1 ? "s" : ""} open</small>`;
+    $("wk-free").innerHTML = `<span class="ts-label">FREE PLAY</span><small>${openCount()} pools</small>`;
   }
   function hideMenu() {
     $("week-card").hidden = true;

@@ -1,9 +1,14 @@
 // The main menu's stage (20 October 2026): a new venue, the Old Town Baths, at five to seven in the morning, a moment before
 // the doors open. One static camera looks down the dark pool at the far wall: a painted wall (assets/menu/hall-wall.webp,
-// generated, with the first guests' shadows waiting behind the frosted doors), a real 3D deck in front of it where Coach
-// Waters paces slowly right and left, light shafts from the windows, dust in them, and the pool in the foreground with a
-// layer of black on it that still mirrors the wall and the coach. START, once the shift is chosen, has the coach walk to the
-// doors and open them: the light floods in and the shift begins.
+// generated), a real 3D deck in front of it where Coach Waters paces slowly right and left, light shafts from the windows,
+// dust in them, and the pool in the foreground with a layer of black on it that still mirrors the wall and the coach. START,
+// once the shift is chosen, has the coach walk to the doors and open them: the light floods in and the shift begins.
+//
+// Behind the doors (21 October 2026, the creator: "make this a reality"): the doorway is cut out of the painting and the first
+// guests wait outside in the morning light, real characters (`GUESTS`: the five swimmers, the fish kid with his bucket, Marco
+// and Karen) on their own waiting clips, shuffling, checking a watch, complaining at the door. Through the frosted glass they
+// are only shadows: each frame the guests are drawn alone, black on white, into a small target from the camera (the mask), and
+// the glass of the doors reads it blurred, dark where a guest stands. When the doors open they are there as they are.
 //
 // It draws with the game's own renderer (PoolWorld's), in place of the venue while the menu is up, and owns nothing of the
 // game: no simulation, no state of a shift. Without the coach's model the stage plays without him.
@@ -16,8 +21,14 @@ const PX = 5.8 / IMG.h;
 const wx = (x) => (x - IMG.w / 2) * PX;
 const wy = (y) => (IMG.floor - y) * PX;
 const WALL = { w: IMG.w * PX, top: wy(0), bottom: wy(IMG.h) };
-// The doors' two leaves, measured on the painting.
+// The doors' two leaves, measured on the painting, the glass in each (frosted, the guests' shadows on it) and the height of
+// their push bars.
 const LEAVES = { left: 786, split: 1023, right: 1260, top: 560, bottom: 1080 };
+const GLASS = [
+  [805, 580, 1002, 1030],
+  [1042, 580, 1238, 1030],
+];
+const BAR_Y = 870;
 // The windows the morning comes through (their glass), for the light shafts.
 const WINDOWS = [
   { x0: 160, x1: 405, y0: 365, y1: 845, k: 1 },
@@ -29,6 +40,45 @@ const HALL = { half: 5.6, deck: 2.9, water: -0.2, poolHalf: 4.3, far: 18, ceilin
 const PACE = { z: 1.35, left: -2.7, right: 2.7, speed: 0.78 };
 const DOOR_SPOT = { x: 0, z: 0.85 };
 const COACH_SCALE = 1.08;
+// The first guests, waiting outside for seven o'clock: who (a swimmer's id in swimmer-models.mjs, "kid" and "marco" its figures,
+// "karen"), where (from the doors' middle, z behind them), facing (0: the doors), the clip they wait with (`idle`), the ones they
+// play once now and then (`extras`), and the one a shuffle walks with. The clips are the ones they wait with in a shift's queue.
+export const GUESTS = [
+  { id: "woman", x: -0.9, z: -0.55, angle: 0.25, idle: "IdleScan", extras: ["IdleScratch"], walk: "Walk" },
+  { id: "heavy-man", x: -0.48, z: -1.1, angle: 0.1, idle: "IdleScan", extras: ["IdleScratch"], walk: "Walk" },
+  { id: "kid", x: -0.38, z: -0.32, angle: -0.15, idle: "CarryIdle", extras: [], walk: "CarryWalk" },
+  { id: "boy", x: 0.22, z: -0.62, angle: -0.1, idle: "IdleScan", extras: ["IdleScratch"], walk: "Walk" },
+  {
+    id: "tall-woman",
+    x: 0.68,
+    z: -1.02,
+    angle: -0.3,
+    idle: "IdleScan",
+    extras: ["IdleScratch"],
+    walk: "Walk",
+  },
+  {
+    id: "marco",
+    x: 0.02,
+    z: -1.55,
+    angle: 0,
+    idle: "IdleScan",
+    extras: ["WaitWatch", "WaitWatch"],
+    walk: "Walk",
+  },
+  {
+    id: "karen",
+    x: 0.92,
+    z: -0.42,
+    angle: -0.35,
+    idle: "Idle",
+    extras: ["Complain", "Point", "Complain"],
+    walk: "Walk",
+    scale: 0.97,
+  },
+];
+// The doors' times once the coach is at them (seconds): they swing open, the guests step up, the light fills the screen.
+const OPEN = { swing: 1.3, step: 0.45, flash: [1.75, 2.45], then: 2.5 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ease = (t) => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
 const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -94,9 +144,20 @@ const WALL_FRAGMENT = /* glsl */ `
   uniform sampler2D map;
   uniform float uOpen;
   uniform float uDim;
+  uniform float uLeaf; // 0: the wall, with the doorway cut out; 1: a door leaf, its glass frosted
+  uniform sampler2D tMask; // the guests from the camera, black on white
+  uniform mat4 uMaskView; // the camera that drew it
+  uniform vec2 uMaskTexel;
+  uniform float uMasked; // 0 until there are guests to draw
   varying vec2 vUv;
   varying vec3 vWorld;
+  float box(vec2 p, vec4 r, float soft) {
+    vec2 a = smoothstep(r.xy, r.xy + soft, p) * (1.0 - smoothstep(r.zw - soft, r.zw, p));
+    return a.x * a.y;
+  }
   void main() {
+    vec2 px = vec2(vUv.x * 2048.0, (1.0 - vUv.y) * 1152.0);
+    if (uLeaf < 0.5 && px.x > 786.0 && px.x < 1260.0 && px.y > 560.0 && px.y < 1080.0) discard;
     vec3 tex = texture2D(map, vUv).rgb;
     float lum = dot(tex, vec3(0.299, 0.587, 0.114));
     float side = pow(clamp(abs(vWorld.x) / 5.2, 0.0, 1.0), 1.6);
@@ -109,6 +170,29 @@ const WALL_FRAGMENT = /* glsl */ `
     vec3 warm = vec3(1.0, 0.86, 0.68);
     vec3 lit = tex * shade * mix(vec3(1.0), warm, halo * (0.35 + 0.65 * uOpen));
     vec3 color = mix(lit, tex * (0.92 + 0.5 * uOpen), smoothstep(0.62, 0.86, lum));
+    if (uLeaf > 0.5) {
+      // Frosted glass lit from behind by the morning: the mask read where this point of the glass is on the screen, blurred
+      // over a ring of taps, dark where a guest stands. Its colours are the painting's: a warm cream, more orange low down,
+      // and the shadows a deep brown.
+      float glass = max(box(px, vec4(805.0, 580.0, 1002.0, 1030.0), 3.0), box(px, vec4(1042.0, 580.0, 1238.0, 1030.0), 3.0));
+      if (glass > 0.0) {
+        vec4 clip = uMaskView * vec4(vWorld, 1.0);
+        vec2 suv = clip.xy / clip.w * 0.5 + 0.5;
+        float m = 0.0;
+        for (int i = 0; i < 12; i++) {
+          float a = float(i) * 2.399963;
+          float r = (0.35 + float(i) / 12.0) * 2.2;
+          m += texture2D(tMask, suv + vec2(cos(a), sin(a)) * r * uMaskTexel).r;
+        }
+        m = mix(1.0, m / 12.0, uMasked);
+        float h = clamp((px.y - 580.0) / 450.0, 0.0, 1.0);
+        vec3 light = mix(vec3(0.955, 0.855, 0.61), vec3(0.87, 0.61, 0.305), h);
+        vec3 shadow = light * vec3(0.27, 0.2, 0.17);
+        float grain = fract(sin(dot(floor(px * 1.5), vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+        vec3 g = mix(shadow, light, smoothstep(0.18, 0.88, m)) * (1.0 + 0.05 * grain) * (1.0 + 0.3 * uOpen) * uDim;
+        color = mix(color, g, glass);
+      }
+    }
     gl_FragColor = vec4(color, 1.0);
     #include <colorspace_fragment>
   }
@@ -253,12 +337,17 @@ export class MenuStage {
     this.slide = 0;
     this.open = null; // the doors opening: {t, then, stage}
     this.coach = null;
+    this.guests = [];
+    this.mask = null; // the guests' mask target, sized on the first draw
+    this.maskScene = new THREE.Scene();
+    this.maskMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    this.maskView = new THREE.Matrix4();
     this.ready = false;
-    this.disposables = [];
+    this.disposables = [this.maskMaterial];
   }
 
-  // Fetches the painting, the doors' light and, when it is loaded, uses the coach's model (`coachTemplate`, from
-  // coach-model.mjs). Resolves when the stage can be drawn.
+  // Fetches the painting and, when it is loaded, uses the coach's model (`coachTemplate`, from coach-model.mjs). Resolves when
+  // the stage can be drawn; the guests come as their models arrive (`addGuest`).
   async load(coachTemplate = null) {
     const loader = new THREE.TextureLoader();
     const base = new URL("../assets/menu/", import.meta.url).href;
@@ -269,8 +358,8 @@ export class MenuStage {
         this.disposables.push(t);
         return t;
       });
-    const [wall, light] = await Promise.all([get("hall-wall.webp"), get("door-light.webp")]);
-    this.build(wall, light);
+    const wall = await get("hall-wall.webp");
+    this.build(wall);
     if (coachTemplate) this.addCoach(coachTemplate);
     this.ready = true;
     return this;
@@ -281,12 +370,30 @@ export class MenuStage {
     return x;
   }
 
-  build(wallTexture, lightTexture) {
+  build(wallTexture) {
     const s = this.scene;
-    // The painted wall, standing on the deck at z = 0.
+    // The painted wall, standing on the deck at z = 0, the doorway cut out of it; the doors' leaves share its painting and its
+    // light (the uniforms are the same objects) and frost their glass.
+    const shared = {
+      map: { value: wallTexture },
+      uOpen: { value: 0 },
+      uDim: { value: 1 },
+      tMask: { value: null },
+      uMaskView: { value: this.maskView },
+      uMaskTexel: { value: new THREE.Vector2(1 / 256, 1 / 256) },
+      uMasked: { value: 0 },
+    };
+    this.shared = shared;
     this.wallMaterial = this.own(
       new THREE.ShaderMaterial({
-        uniforms: { map: { value: wallTexture }, uOpen: { value: 0 }, uDim: { value: 1 } },
+        uniforms: { ...shared, uLeaf: { value: 0 } },
+        vertexShader: WALL_VERTEX,
+        fragmentShader: WALL_FRAGMENT,
+      }),
+    );
+    this.leafMaterial = this.own(
+      new THREE.ShaderMaterial({
+        uniforms: { ...shared, uLeaf: { value: 1 } },
         vertexShader: WALL_VERTEX,
         fragmentShader: WALL_FRAGMENT,
       }),
@@ -421,11 +528,14 @@ export class MenuStage {
     this.water.position.set(0, HALL.water, HALL.deck + HALL.far / 2);
     s.add(this.water);
 
-    // The doors: two leaves over the painted ones (cut from the same painting), on hinges at their outer edges, and the
-    // morning behind them (door-light.webp, the guests' shadows standing in it).
+    // The doors: two leaves cut from the painting, on hinges at their outer edges, glass both sides, a brass push bar across
+    // each; and the morning behind them, where the guests wait (`buildOutside`).
     const leafDepth = 0.05;
     const gold = this.own(
       new THREE.MeshStandardMaterial({ color: 0x9a7a3a, roughness: 0.4, metalness: 0.6 }),
+    );
+    const brass = this.own(
+      new THREE.MeshStandardMaterial({ color: 0xc8a050, roughness: 0.3, metalness: 0.85 }),
     );
     const leafHeight = wy(LEAVES.top);
     this.leaves = [];
@@ -440,27 +550,36 @@ export class MenuStage {
         u1 = to / IMG.w,
         v0 = 1 - LEAVES.bottom / IMG.h,
         v1 = 1 - LEAVES.top / IMG.h;
-      for (let j = 16; j < 20; j++) uv.setXY(j, u0 + uv.getX(j) * (u1 - u0), v0 + uv.getY(j) * (v1 - v0));
+      for (let j = 16; j < 24; j++) uv.setXY(j, u0 + uv.getX(j) * (u1 - u0), v0 + uv.getY(j) * (v1 - v0));
       uv.needsUpdate = true;
-      const leaf = new THREE.Mesh(geo, [gold, gold, gold, gold, this.wallMaterial, gold]);
+      const leaf = new THREE.Mesh(geo, [gold, gold, gold, gold, this.leafMaterial, this.leafMaterial]);
       const pivot = new THREE.Group();
       const left = hinge === from;
       pivot.position.set(wx(hinge), 0, leafDepth / 2 + 0.012);
       leaf.position.set(((left ? 1 : -1) * width) / 2, leafHeight / 2, 0);
-      leaf.castShadow = true;
       pivot.add(leaf);
+      // The push bar, across the glass on both faces, on two little posts.
+      const [gx0, , gx1] = GLASS[left ? 0 : 1];
+      const barLength = (gx1 - gx0) * PX - 0.04,
+        barX = (wx((gx0 + gx1) / 2) - wx(hinge)) * 1,
+        barY = wy(BAR_Y);
+      for (const side of [1, -1]) {
+        const bar = new THREE.Mesh(this.own(new THREE.CylinderGeometry(0.016, 0.016, barLength, 10)), brass);
+        bar.rotation.z = Math.PI / 2;
+        bar.position.set(barX, barY, side * (leafDepth / 2 + 0.05));
+        pivot.add(bar);
+        for (const end of [-1, 1]) {
+          const post = new THREE.Mesh(this.own(new THREE.CylinderGeometry(0.012, 0.012, 0.05, 8)), brass);
+          post.rotation.x = Math.PI / 2;
+          post.position.set(barX + (end * barLength) / 2.3, barY, side * (leafDepth / 2 + 0.025));
+          pivot.add(post);
+        }
+      }
       pivot.userData.sign = left ? -1 : 1;
       s.add(pivot);
       this.leaves.push(pivot);
     }
-    this.lightMaterial = this.own(new THREE.MeshBasicMaterial({ map: lightTexture, toneMapped: false }));
-    this.doorLight = new THREE.Mesh(
-      this.own(new THREE.PlaneGeometry((LEAVES.right - LEAVES.left) * PX, leafHeight)),
-      this.lightMaterial,
-    );
-    this.doorLight.position.set(wx((LEAVES.left + LEAVES.right) / 2), leafHeight / 2, 0.008);
-    this.doorLight.visible = false;
-    s.add(this.doorLight);
+    this.buildOutside(leafHeight);
 
     // Light: a cool, dim room; warm morning from behind the doors and through the windows.
     this.ambient = new THREE.HemisphereLight(0x8fb4c0, 0x1c1814, 0.55);
@@ -468,14 +587,20 @@ export class MenuStage {
     this.fill = new THREE.DirectionalLight(0x9cc4e0, 0.55);
     this.fill.position.set(-3, 5, 14);
     s.add(this.fill);
-    this.doorSpot = new THREE.SpotLight(0xffc98a, 26, 14, 0.95, 0.85, 1.6);
-    this.doorSpot.position.set(0, 2.3, -0.6);
+    // The morning behind the doors: it lights the guests from behind (their shadows on the glass) and, through the doorway,
+    // the deck. When the doors open a warm fill from the hall shows the guests' faces.
+    this.doorSpot = new THREE.SpotLight(0xffc98a, 30, 16, 0.95, 0.85, 1.6);
+    this.doorSpot.position.set(0, 2.9, -3.4);
     this.doorSpot.target.position.set(0, 0, 4.5);
     this.doorSpot.castShadow = true;
     this.doorSpot.shadow.mapSize.set(1024, 1024);
     this.doorSpot.shadow.bias = -0.0004;
     this.doorSpot.shadow.radius = 4;
     s.add(this.doorSpot, this.doorSpot.target);
+    this.guestFill = new THREE.SpotLight(0xffe6c8, 0, 9, 0.55, 0.7, 1.4);
+    this.guestFill.position.set(0, 2.3, 2.2);
+    this.guestFill.target.position.set(0, 1.0, -1.0);
+    s.add(this.guestFill, this.guestFill.target);
     this.windowSpots = [];
     for (const w of WINDOWS.slice(0, 2)) {
       const spot = new THREE.SpotLight(0xffb98a, 9, 12, 0.7, 0.9, 1.6);
@@ -575,6 +700,233 @@ export class MenuStage {
     s.add(this.dust);
   }
 
+  // ---- behind the doors ------------------------------------------------------------------------------------------
+  // The doorway's reveal, the paving outside and the morning: a bright sky over the town, drawn here, past the light's reach.
+  buildOutside(leafHeight) {
+    const out = (this.outside = new THREE.Group());
+    this.scene.add(out);
+    const paving = this.own(
+      canvasTexture(512, 512, (g, w, h) => tiles(g, 0, 0, w, h, 128, [196, 182, 160], "#8f826e", 18), [4, 4]),
+    );
+    const floor = new THREE.Mesh(
+      this.own(new THREE.PlaneGeometry(8, 7)),
+      this.own(new THREE.MeshStandardMaterial({ map: paving, roughness: 0.7, color: 0xe8dcc6 })),
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(0, 0, -3.5);
+    floor.receiveShadow = true;
+    out.add(floor);
+    const reveal = this.own(new THREE.MeshStandardMaterial({ color: 0xd8ccb2, roughness: 0.6 })),
+      depth = 0.32;
+    for (const x of [wx(LEAVES.left) - 0.06, wx(LEAVES.right) + 0.06]) {
+      const jamb = new THREE.Mesh(this.own(new THREE.BoxGeometry(0.12, leafHeight + 0.14, depth)), reveal);
+      jamb.position.set(x, (leafHeight + 0.14) / 2, -depth / 2 - 0.002);
+      out.add(jamb);
+    }
+    const lintel = new THREE.Mesh(
+      this.own(new THREE.BoxGeometry((LEAVES.right - LEAVES.left) * PX + 0.24, 0.14, depth)),
+      reveal,
+    );
+    lintel.position.set(wx((LEAVES.left + LEAVES.right) / 2), leafHeight + 0.07, -depth / 2 - 0.002);
+    out.add(lintel);
+    const sky = this.own(
+      canvasTexture(512, 512, (g, w, h) => {
+        const v = g.createLinearGradient(0, 0, 0, h);
+        v.addColorStop(0, "#ffe9c9");
+        v.addColorStop(0.55, "#fff5e3");
+        v.addColorStop(0.7, "#fffaf0");
+        v.addColorStop(1, "#f3dcb8");
+        g.fillStyle = v;
+        g.fillRect(0, 0, w, h);
+        const sun = g.createRadialGradient(w * 0.55, h * 0.62, 0, w * 0.55, h * 0.62, w * 0.35);
+        sun.addColorStop(0, "rgba(255,255,250,1)");
+        sun.addColorStop(1, "rgba(255,250,235,0)");
+        g.fillStyle = sun;
+        g.fillRect(0, 0, w, h);
+        // The far roofs of the town, faint in the haze.
+        g.fillStyle = "rgba(214,178,140,0.45)";
+        let x = 0;
+        for (let k = 0; x < w; k++) {
+          const bw = 30 + jitter(k + 50) * 60,
+            bh = 40 + jitter(k + 90) * 70;
+          g.fillRect(x, h * 0.7 - bh, bw, bh);
+          x += bw + 4;
+        }
+      }),
+    );
+    sky.wrapS = sky.wrapT = THREE.ClampToEdgeWrapping;
+    this.skyMaterial = this.own(new THREE.MeshBasicMaterial({ map: sky, toneMapped: false }));
+    const backdrop = new THREE.Mesh(this.own(new THREE.PlaneGeometry(18, 10)), this.skyMaterial);
+    backdrop.position.set(0, 3.4, -7);
+    out.add(backdrop);
+    this.guestGroup = new THREE.Group();
+    out.add(this.guestGroup);
+  }
+  // A guest whose model has arrived (`template`: {scene, clips, clone}, as swimmer-models.mjs and coach-model.mjs keep them).
+  addGuest(spec, template) {
+    if (!this.ready || !template?.scene || this.guests.some((g) => g.spec.id === spec.id)) return null;
+    const model = template.clone(template.scene);
+    const root = new THREE.Group();
+    root.scale.setScalar(COACH_SCALE * (spec.scale || 1));
+    root.add(model);
+    model.traverse((o) => {
+      if (o.isMesh) {
+        o.castShadow = false; // (until the doors open: frosted glass casts no sharp shadows)
+        o.receiveShadow = true;
+        o.frustumCulled = false;
+      }
+    });
+    const mixer = new THREE.AnimationMixer(model);
+    const actions = {};
+    for (const name of new Set([spec.idle, spec.walk, ...spec.extras])) {
+      const clip = template.clips[name];
+      if (!clip) continue;
+      const action = mixer.clipAction(clip);
+      if (spec.extras.includes(name)) {
+        action.setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = true;
+      }
+      actions[name] = action;
+    }
+    if (!actions[spec.idle]) return null;
+    const g = {
+      spec,
+      root,
+      model,
+      mixer,
+      actions,
+      clip: null,
+      x: spec.x,
+      z: spec.z,
+      angle: spec.angle,
+      look: spec.angle,
+      mode: "idle",
+      wait: 1 + Math.random() * 4,
+      speed: 0,
+      target: null,
+    };
+    this.playGuest(g, spec.idle, 0);
+    // (not all in step: each starts its loop at a moment of its own)
+    actions[spec.idle].time = Math.random() * actions[spec.idle].getClip().duration;
+    root.position.set(g.x, 0, g.z);
+    root.rotation.y = g.angle;
+    this.guestGroup.add(root);
+    this.guests.push(g);
+    if (this.open?.started) this.guestEnters(g, this.guests.length);
+    return g;
+  }
+  playGuest(g, name, fade = 0.35, rate = 1) {
+    const next = g.actions[name] || g.actions[g.spec.idle];
+    const key = g.actions[name] ? name : g.spec.idle;
+    if (g.clip !== key) {
+      const prev = g.actions[g.clip];
+      next.reset();
+      next.enabled = true;
+      next.setEffectiveWeight(1);
+      next.play();
+      if (prev && fade > 0) next.crossFadeFrom(prev, fade, false);
+      else if (prev) prev.stop();
+      g.clip = key;
+    }
+    next.setEffectiveTimeScale(rate);
+  }
+  // Waiting impatiently: the waiting clip, now and then one of their own (a scratch, a look at the watch, a complaint at the
+  // door), a shuffle of a step or two and back, a look round. Math.random: the menu replays nothing.
+  updateGuest(g, dt) {
+    const s = g.spec;
+    if (g.mode === "idle") {
+      g.wait -= dt;
+      if (g.wait <= 0) {
+        const roll = Math.random();
+        if (roll < 0.45 && s.extras.length) {
+          g.mode = "once";
+          this.playGuest(g, s.extras[Math.floor(Math.random() * s.extras.length)], 0.3);
+        } else if (roll < 0.75 && g.actions[s.walk]) {
+          g.mode = "shuffle";
+          g.target = {
+            x: s.x + (Math.random() - 0.5) * 0.5,
+            z: s.z + (Math.random() - 0.5) * 0.3,
+            speed: 0.42,
+          };
+        } else {
+          g.look = s.angle + (Math.random() - 0.5) * 1.1;
+          g.wait = 2 + Math.random() * 3;
+        }
+      }
+    } else if (g.mode === "once") {
+      const a = g.actions[g.clip];
+      if (!a || a.time >= a.getClip().duration - 0.3) {
+        g.mode = "idle";
+        g.wait = 2.5 + Math.random() * 4.5;
+        this.playGuest(g, s.idle, 0.4);
+      }
+    } else if (g.mode === "shuffle" || g.mode === "enter") {
+      if (g.delay > 0) {
+        g.delay -= dt;
+      } else {
+        const t = g.target,
+          dx = t.x - g.x,
+          dz = t.z - g.z,
+          dist = Math.hypot(dx, dz);
+        g.look = Math.atan2(dx, dz);
+        g.speed += ((dist < 0.03 ? 0 : t.speed) - g.speed) * Math.min(1, dt * 5);
+        const move = Math.min(dist, g.speed * dt);
+        if (dist > 1e-4) {
+          g.x += (dx / dist) * move;
+          g.z += (dz / dist) * move;
+        }
+        this.playGuest(g, s.walk, 0.25, clamp(g.speed / 1.15, 0.4, 1.4));
+        if (dist < 0.03) {
+          const entered = g.mode === "enter";
+          g.speed = 0;
+          g.look = entered ? 0 : s.angle + (Math.random() - 0.5) * 0.4;
+          g.mode = "idle";
+          g.wait = entered ? 99 : 2.5 + Math.random() * 3.5;
+          this.playGuest(g, s.idle, 0.35);
+        }
+      }
+    }
+    g.angle += clamp(wrapAngle(g.look - g.angle), -dt * 2.2, dt * 2.2);
+    g.root.position.set(g.x, 0, g.z);
+    g.root.rotation.y = g.angle;
+    g.mixer.update(dt);
+  }
+  // The doors open: everyone turns to them and steps up, a moment apart, and casts a shadow into the hall now.
+  guestEnters(g, i) {
+    g.mode = "enter";
+    g.delay = OPEN.step + i * 0.07 + Math.random() * 0.1;
+    g.target = { x: g.x * 0.85, z: g.spec.z + (g.spec.z > -0.8 ? 0.45 : 0.3), speed: 0.9 };
+    g.model.traverse((o) => o.isMesh && (o.castShadow = true));
+  }
+  // The guests alone, black on white, from the camera, into a half-size target: what the frosted glass shows.
+  renderMask(renderer) {
+    const size = renderer.getDrawingBufferSize(new THREE.Vector2());
+    const w = Math.max(64, Math.round(size.x / 2)),
+      h = Math.max(36, Math.round(size.y / 2));
+    if (!this.mask) {
+      this.mask = new THREE.WebGLRenderTarget(w, h, { depthBuffer: false });
+      this.shared.tMask.value = this.mask.texture;
+    } else if (this.mask.width !== w || this.mask.height !== h) this.mask.setSize(w, h);
+    this.shared.uMaskTexel.value.set(1 / w, 1 / h);
+    this.maskView.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
+    this.shared.uMasked.value = this.guests.length ? 1 : 0;
+    const before = renderer.getRenderTarget(),
+      clear = renderer.getClearColor(new THREE.Color()),
+      alpha = renderer.getClearAlpha(),
+      shadows = renderer.shadowMap.enabled;
+    this.maskScene.add(this.guestGroup);
+    this.maskScene.overrideMaterial = this.maskMaterial;
+    renderer.shadowMap.enabled = false;
+    renderer.setRenderTarget(this.mask);
+    renderer.setClearColor(0xffffff, 1);
+    renderer.clear();
+    if (this.guests.length) renderer.render(this.maskScene, this.camera);
+    renderer.setRenderTarget(before);
+    renderer.setClearColor(clear, alpha);
+    renderer.shadowMap.enabled = shadows;
+    this.outside.add(this.guestGroup);
+  }
+
   // ---- Coach Waters, pacing --------------------------------------------------------------------------------------
   addCoach(template) {
     const model = template.clone(template.scene);
@@ -659,6 +1011,11 @@ export class MenuStage {
   updateCoach(dt) {
     const c = this.coach;
     if (!c) return;
+    if (c.planDelay > 0) {
+      c.planDelay -= dt;
+      c.mixer.update(dt);
+      return;
+    }
     if (!c.step) {
       if (!c.plan.length) this.planPace();
       c.step = c.plan.shift();
@@ -673,7 +1030,7 @@ export class MenuStage {
       const want = Math.atan2(dx, dz);
       const turn = wrapAngle(want - c.angle);
       c.angle += clamp(turn, -dt * 3.2, dt * 3.2);
-      const top = step.kind === "run" ? 2.6 : PACE.speed;
+      const top = step.speed || (step.kind === "run" ? 2.6 : PACE.speed);
       const target = dist < 0.05 ? 0 : top * clamp(dist / 0.45, 0.35, 1) * (Math.abs(turn) > 1.2 ? 0.3 : 1);
       c.speed += (target - c.speed) * Math.min(1, dt * 4);
       const move = Math.min(dist, c.speed * dt);
@@ -749,21 +1106,33 @@ export class MenuStage {
     }
     if (o.phase === "doors" && !o.started) {
       o.started = true;
-      this.doorLight.visible = true;
       o.sound("doors");
+      this.guests.forEach((g, i) => this.guestEnters(g, i));
+      // The coach steps aside to let them in, and turns to welcome them.
+      const c = this.coach;
+      if (c) {
+        c.plan = [
+          { kind: "walk", x: 1.55, z: 1.05, speed: 1.3 },
+          { kind: "turn", angle: -Math.PI * 0.72 },
+          { kind: "stand", time: 99 },
+        ];
+        c.step = null;
+        c.planDelay = 0.35;
+      }
     }
     const t = o.t - o.at;
-    const swing = ease(t / 1.15);
+    const swing = ease(t / OPEN.swing);
     for (const leaf of this.leaves) leaf.rotation.y = leaf.userData.sign * swing * 1.85;
-    const open = clamp(t / 1.2, 0, 1);
-    this.wallMaterial.uniforms.uOpen.value = open;
+    const open = clamp(t / OPEN.swing, 0, 1);
+    this.shared.uOpen.value = open;
     this.waterMaterial.uniforms.uOpen.value = open;
-    this.lightMaterial.color.setScalar(1 + open * 2.4);
-    this.doorSpot.intensity = 26 + open * 120;
+    this.skyMaterial.color.setScalar(1 + open * 0.15);
+    this.doorSpot.intensity = 30 + open * 110;
+    this.guestFill.intensity = open * 34;
     this.floorGlow.material.opacity = 0.32 + open * 1.3;
     this.shaftMaterial.uniforms.uStrength.value = 0.16 + open * 0.25;
-    o.flash(clamp((t - 0.75) / 0.6, 0, 1));
-    if (t > 1.4 && !o.called) {
+    o.flash(clamp((t - OPEN.flash[0]) / (OPEN.flash[1] - OPEN.flash[0]), 0, 1));
+    if (t > OPEN.then && !o.called) {
       o.called = true;
       o.then?.();
     }
@@ -773,11 +1142,24 @@ export class MenuStage {
     this.open = null;
     if (!this.ready) return;
     for (const leaf of this.leaves) leaf.rotation.y = 0;
-    this.doorLight.visible = false;
-    this.wallMaterial.uniforms.uOpen.value = 0;
+    this.shared.uOpen.value = 0;
     this.waterMaterial.uniforms.uOpen.value = 0;
-    this.lightMaterial.color.setScalar(1);
-    this.doorSpot.intensity = 26;
+    this.skyMaterial.color.setScalar(1);
+    this.doorSpot.intensity = 30;
+    this.guestFill.intensity = 0;
+    for (const g of this.guests) {
+      Object.assign(g, {
+        x: g.spec.x,
+        z: g.spec.z,
+        angle: g.spec.angle,
+        look: g.spec.angle,
+        mode: "idle",
+        speed: 0,
+      });
+      g.wait = 1 + Math.random() * 4;
+      g.model.traverse((o) => o.isMesh && (o.castShadow = false));
+      this.playGuest(g, g.spec.idle, 0);
+    }
     this.floorGlow.material.opacity = 0.32;
     this.shaftMaterial.uniforms.uStrength.value = 0.16;
     const c = this.coach;
@@ -855,6 +1237,7 @@ export class MenuStage {
     this.slide += (framing - this.slide) * Math.min(1, dt * (this.open ? 1.6 : 2.5));
     this.updateCoach(dt);
     this.updateDoors(dt);
+    for (const g of this.guests) this.updateGuest(g, dt);
     this.waterMaterial.uniforms.uTime.value = this.time;
     this.shaftMaterial.uniforms.uTime.value = this.time;
     this.dustMaterial.uniforms.uTime.value = this.time;
@@ -877,13 +1260,15 @@ export class MenuStage {
     const exposure = renderer.toneMappingExposure;
     renderer.toneMappingExposure = this.exposure * this.brightness;
     const dim = 0.75 + 0.25 * this.brightness;
-    this.wallMaterial.uniforms.uDim.value = dim;
+    this.shared.uDim.value = dim;
+    this.renderMask(renderer);
     this.updateMirror(renderer);
     renderer.render(this.scene, this.camera);
     renderer.toneMappingExposure = exposure;
   }
   dispose() {
     this.mirrorTarget?.dispose();
+    this.mask?.dispose();
     for (const d of this.disposables) d.dispose?.();
     this.disposables = [];
     this.ready = false;
@@ -891,4 +1276,4 @@ export class MenuStage {
 }
 
 // For checks: the stage's numbers (where the doors are on the painting and in the world).
-export const STAGE = { IMG, PX, LEAVES, WINDOWS, HALL, PACE, DOOR_SPOT, wx, wy };
+export const STAGE = { IMG, PX, LEAVES, GLASS, BAR_Y, WINDOWS, HALL, PACE, DOOR_SPOT, OPEN, wx, wy };

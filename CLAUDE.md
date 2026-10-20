@@ -57,8 +57,9 @@ the same twice: see `docs/incidents.md`).
    shift**, more as the run goes on (the creator wants to see them often); incidents drawn by a director
    (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder: one new incident a shift from the first Tuesday, all five
    met in week 1, then a fair mix where one that just came is less likely, `RECENT`). A shift not passed pays nothing but the week goes on. Marina's
-   wishes for each shift, and a shop whose perks are paid out of the Date Fund (one money). Every level a run passes opens in **free play** (the level map,
-   behind a small link under START, like a level select). Marina never appears on the deck: only in texts, wishes and full-screen
+   wishes for each shift, and a shop whose perks are paid out of the Date Fund (one money). **FREE PLAY** (on the menu since 21 October 2026, `dist/free-ui.mjs`) is
+   a window of every pool, like the coach's locker: the pools the ladder has opened, at a difficulty a run has reached (Easy to
+   Expert), a shift without the week (`freePlayShift`) with its own bests. Marina never appears on the deck: only in texts, wishes and full-screen
    scenes, whose videos the creator will add (`VIDEOS` in `dist/marina.mjs`); until then each scene shows a still (`ART` in
    `dist/story.mjs`, generated from the creator's pictures). The coach is **Coach Waters** (renamed from Coach Panic on 15 October
    2026; his file is still `coach-panic.glb`). The game always plays the new character models (no crash tier and no saved choice brings
@@ -83,7 +84,10 @@ the same twice: see `docs/incidents.md`).
    README "The main menu"): a 3D stage behind it, the Old Town Baths a moment before the doors open (`dist/scene/menu-stage.mjs`: a
    painted far wall, a real deck where Coach Waters paces, a dark mirrored pool), CLICK TO ENTER, recorded music and button sounds
    (ElevenLabs), one column (START, FREE PLAY, COACH'S LOCKER, SETTINGS, CREDITS), START opening the doors into the shift, Settings
-   (volumes, brightness, grain, graphics, motion, full screen, Coach Cam mouse) and Credits (`dist/title.mjs`). The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
+   (volumes, brightness, grain, graphics, motion, full screen, Coach Cam mouse) and Credits (`dist/title.mjs`). Since 21 October
+   2026: no CLICK TO ENTER (the menu and music at once), START only (never CONTINUE), no week on the menu, a click outside any
+   window is its back button, and **real guests behind the doors** (`GUESTS`: swimmers, the fish kid, Marco, Karen on their waiting
+   clips), seen through the frosted glass as their shadows (a mask of them drawn each frame) and as they are when the doors open. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
    Phase 2 is done**, no co-op for now, and **keep the reward (the Sunday date) as it is for now** ("we'll change it later").
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
    and Steam Deck support, a settings screen (volumes, key rebinding, full screen; graphics quality exists, in Help: Auto, Low, Medium,

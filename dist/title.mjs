@@ -1,5 +1,6 @@
-// The title screen around the menu's 3D stage (scene/menu-stage.mjs), 20 October 2026: the first screen (CLICK TO ENTER,
-// which lets the sound in), the buttons' sounds, Settings, Credits, the tip line under the menu and START's LOADING %.
+// The title screen around the menu's 3D stage (scene/menu-stage.mjs), 20 October 2026: the buttons' sounds, Settings, Credits,
+// the tip line under the menu and START's LOADING %. (Its first screen, CLICK TO ENTER, went on 21 October 2026 at the creator's
+// word: the menu comes straight up, and its music with it, or with the first click where a browser waits for one.)
 // The pure parts (the settings' defaults and limits, the tips, the loading label) are exported for title-check.mjs.
 
 // Settings' sliders and switches, kept with the other preferences (pool-panic.settings.v1). Volumes and film grain are
@@ -67,7 +68,7 @@ export const loadingLabel = (share) =>
 
 // ---- the page --------------------------------------------------------------------------------------------------------
 // `apply(settings)` puts the settings to work (the app's: the mix, the light, the grain, the camera); `saveSettings` keeps
-// them; `audio` is the game's PoolAudio. Returns the few things the app drives: enter(), showTip(), setLoading(share).
+// them; `audio` is the game's PoolAudio. Returns the few things the app drives: showTip(), setLoading(share).
 export function installTitle({
   $,
   audio,
@@ -78,36 +79,12 @@ export function installTitle({
   isFullscreen,
   quit = null,
   build = "",
-  entry = true,
-  onEnter = () => {},
 }) {
-  const body = document.body;
-  // ---- the first screen ----
-  let entered = !entry;
-  function enter() {
-    if (entered) return;
-    entered = true;
-    audio.init();
-    audio.preloadMenu();
-    audio.startMenu("theme", { fade: 3 });
-    audio.ui("click");
-    body.classList.add("entered");
-    $("entry").classList.add("leaving");
-    setTimeout(() => ($("entry").hidden = true), 1300);
-    onEnter();
-  }
-  if (entry) {
-    $("entry").hidden = false;
-    body.classList.add("at-entry");
-    $("entry-go").onclick = enter;
-    $("entry").addEventListener("pointerdown", (e) => {
-      if (e.target === $("entry")) enter();
-    });
-    setTimeout(() => $("entry-go").focus({ preventScroll: true }), 50);
-  } else body.classList.add("entered");
+  // (The column comes in a line at a time as the game opens: `entered` in style.css.)
+  document.body.classList.add("entered");
 
   // ---- the buttons' sounds: a tick on hover (or keyboard focus), a click with a tail on press ----
-  const sounding = ".ts-btn, .entry-go, dialog button, .fp-back, #welcome .primary";
+  const sounding = ".ts-btn, dialog button";
   let lastHover = null;
   document.addEventListener("pointerover", (e) => {
     const b = e.target.closest?.(sounding);
@@ -121,10 +98,37 @@ export function installTitle({
     "click",
     (e) => {
       const b = e.target.closest?.(sounding);
-      if (b && !b.disabled && b.id !== "entry-go") audio.ui("click");
+      if (b && !b.disabled) audio.ui("click");
     },
     true,
   );
+
+  // ---- a click outside a window is its back button (the creator, 21 October 2026) ----
+  // The windows of the menu and the shift's ⚙ menu, each with the button a click on the dark around it presses. A press that starts
+  // inside the window and ends outside (a drag on a slider) does nothing.
+  const BACKS = {
+    "settings-dialog": "#settings-done",
+    "credits-dialog": "#credits-done",
+    "locker-dialog": "#locker-close",
+    "freeplay-dialog": "#fp-close",
+    "week-dialog": "#wd-back",
+    "booking-dialog": "#booking-back",
+    "help-dialog": "[data-close]",
+    "pause-dialog": "#resume",
+  };
+  const outside = (e) => {
+    const d = e.target;
+    if (d?.tagName !== "DIALOG" || !d.open || !BACKS[d.id]) return null;
+    const r = d.getBoundingClientRect();
+    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom ? d : null;
+  };
+  let pressedOutside = null;
+  document.addEventListener("pointerdown", (e) => (pressedOutside = outside(e)), true);
+  document.addEventListener("click", (e) => {
+    const d = outside(e);
+    if (d && d === pressedOutside) d.querySelector(BACKS[d.id])?.click();
+    pressedOutside = null;
+  });
 
   // ---- Settings ----
   const sliders = ["master", "music", "effects", "brightness", "grain", "sensitivity"];
@@ -263,13 +267,9 @@ export function installTitle({
     true,
   );
   return {
-    enter,
     showTip,
     setLoading,
     openSettings,
-    get entered() {
-      return entered;
-    },
     get loading() {
       return loadingShare < 1;
     },

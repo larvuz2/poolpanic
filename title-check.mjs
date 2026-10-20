@@ -3,7 +3,7 @@
 // and how the page and the app are wired to them. The stage itself is drawn by a browser: this checks what can be checked
 // without one.
 import assert from "node:assert/strict";
-import { readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync, existsSync } from "node:fs";
 import {
   SETTING_DEFAULTS,
   normalizeSettings,
@@ -195,7 +195,7 @@ const mixed = () => {
   }
 }
 
-// 5) The stage: its painting, where the doors are on it, the doors' light, and how it is drawn.
+// 5) The stage: its painting, where the doors are on it, the guests behind them (21 October 2026), and how it is drawn.
 {
   const size = (file) => {
     const b = readFileSync(file);
@@ -207,14 +207,71 @@ const mixed = () => {
     return [1 + (bits & 0x3fff), 1 + ((bits >> 14) & 0x3fff)];
   };
   assert.deepEqual(size("dist/assets/menu/hall-wall.webp"), [2048, 1152]);
-  assert.deepEqual(
-    size("dist/assets/menu/door-light.webp"),
-    [474, 520],
-    "the doors' light is the size of the doors",
+  assert.ok(
+    !existsSync("dist/assets/menu/door-light.webp"),
+    "the painted guests in the light are gone: real ones stand there",
   );
   globalThis.document ??= { createElement: () => ({ getContext: () => null }) };
-  const { STAGE } = await import("./dist/scene/menu-stage.mjs");
-  const { IMG, LEAVES, PX, wy, HALL, PACE, DOOR_SPOT } = STAGE;
+  const { STAGE, GUESTS } = await import("./dist/scene/menu-stage.mjs");
+  const { IMG, LEAVES, GLASS, PX, wx, wy, HALL, PACE, DOOR_SPOT, OPEN } = STAGE;
+  for (const [x0, y0, x1, y1] of GLASS)
+    assert.ok(
+      x0 > LEAVES.left && x1 < LEAVES.right && y0 > LEAVES.top && y1 < LEAVES.bottom,
+      "the glass is in the doors",
+    );
+  assert.ok(GLASS[0][2] < LEAVES.split && GLASS[1][0] > LEAVES.split, "a pane in each leaf");
+  // The guests: in the doorway's width, behind the doors, each with its waiting clips in its own file.
+  const clipsOf = (file) => {
+    const b = readFileSync(file),
+      json = JSON.parse(b.toString("utf8", 20, 20 + b.readUInt32LE(12)));
+    return new Set((json.animations || []).map((a) => a.name));
+  };
+  const FILES = {
+    woman: "swimmer-woman.glb",
+    "heavy-man": "swimmer-heavy-man.glb",
+    boy: "swimmer-boy.glb",
+    "tall-woman": "swimmer-tall-woman.glb",
+    kid: "fish-kid.glb",
+    marco: "models/marco.glb",
+    karen: "models/karen.glb",
+  };
+  assert.equal(GUESTS.length, 7);
+  for (const g of GUESTS) {
+    const clips = clipsOf("dist/assets/" + FILES[g.id]);
+    for (const name of [g.idle, g.walk, ...g.extras]) assert.ok(clips.has(name), `${g.id} has ${name}`);
+    assert.ok(g.z < -0.2 && g.z > -2, g.id + " waits behind the doors");
+    assert.ok(
+      g.x > wx(LEAVES.left) + 0.15 && g.x < wx(LEAVES.right) - 0.15,
+      g.id + " stands in the doorway's width",
+    );
+  }
+  assert.ok(
+    GUESTS.some((g) => g.id === "kid" && g.idle === "CarryIdle"),
+    "the boy with the bucket, as in the painting",
+  );
+  assert.ok(
+    GUESTS.some((g) => g.extras.includes("WaitWatch")) && GUESTS.some((g) => g.extras.includes("Complain")),
+    "impatient",
+  );
+  assert.ok(
+    OPEN.flash[0] > OPEN.swing && OPEN.then >= OPEN.flash[1],
+    "the doors stand open before the light fills the screen",
+  );
+  assert.match(
+    stageSrc,
+    /px\.x > 786\.0 && px\.x < 1260\.0 && px\.y > 560\.0 && px\.y < 1080\.0\) discard/,
+    "the doorway is cut out",
+  );
+  assert.match(
+    stageSrc,
+    /this\.maskScene\.overrideMaterial = this\.maskMaterial/,
+    "the guests drawn alone, in black, for the glass",
+  );
+  assert.match(
+    stageSrc,
+    /o\.isMesh && \(o\.castShadow = true\)/,
+    "and casting shadows into the hall once the doors open",
+  );
   assert.ok(LEAVES.left < LEAVES.split && LEAVES.split < LEAVES.right && LEAVES.right < IMG.w);
   assert.equal(LEAVES.right - LEAVES.left, 474);
   assert.equal(LEAVES.bottom - LEAVES.top, 520);
@@ -231,8 +288,6 @@ const mixed = () => {
 // 6) The page and the app.
 {
   for (const id of [
-    "entry",
-    "entry-go",
     "wk-go",
     "wk-free",
     "wk-locker",
@@ -257,9 +312,40 @@ const mixed = () => {
     "pause-settings",
     "credits-dialog",
     "credits-roll",
+    "freeplay-dialog",
+    "fp-pools",
+    "fp-levels",
+    "fp-go",
+    "fp-close",
   ])
     assert.ok(html.includes(`id="${id}"`), id + " is on the page");
-  assert.match(html, /CLICK TO ENTER/);
+  // (21 October 2026: no CLICK TO ENTER; the menu and its music come at once; START is START, never CONTINUE.)
+  assert.ok(!/CLICK TO ENTER|id="entry"/.test(html), "no first screen");
+  assert.match(app, /audio\.startMenu\("theme", \{ fade: 3 \}\);\n  \}/);
+  assert.match(
+    readFileSync("dist/week-ui.mjs", "utf8"),
+    /\$\("wk-go"\)\.innerHTML = `<span class="ts-label">START<\/span>`/,
+  );
+  assert.match(
+    css,
+    /\.title-screen \.ts-week,\n\.title-screen \.wk-note \{\n  display: none;/,
+    "no week on the menu",
+  );
+  // A click outside a window is its back button: every window named has that button.
+  const title = readFileSync("dist/title.mjs", "utf8"),
+    backs = [...title.matchAll(/"([a-z-]+-dialog)": "([^"]+)"/g)];
+  assert.ok(backs.length >= 8);
+  for (const [, dialog, back] of backs) {
+    assert.ok(html.includes(`id="${dialog}"`), dialog);
+    const part = html.slice(
+      html.indexOf(`id="${dialog}"`),
+      html.indexOf("</dialog>", html.indexOf(`id="${dialog}"`)),
+    );
+    assert.ok(
+      back.startsWith("#") ? part.includes(`id="${back.slice(1)}"`) : part.includes("data-close"),
+      dialog + " has " + back,
+    );
+  }
   assert.match(html, /By Phatty Acid Generative Studios/);
   for (const name of [
     "Gus Garza",
@@ -291,6 +377,62 @@ const mixed = () => {
   assert.match(app, /reducedMotion\.matches && !testing/);
   assert.match(app, /function applySettings\(/);
   assert.match(app, /world\?\.setBrightness\?\.\(s\.brightness \/ 100\)/);
+}
+
+// 7) FREE PLAY (21 October 2026): the pools, opened by the ladder; a difficulty opened by a run; a shift without the week.
+{
+  const week = await import("./dist/week.mjs");
+  const { FREE_LEVELS, freePools, freeLevelOpen, freePlayShift, LADDER, LADDER_START, POOLS } = week;
+  const first = freePools({ ladder: 3 });
+  assert.equal(first.length, LADDER.length + 1, "every pool on the ladder and the arena");
+  assert.deepEqual(
+    first.filter((p) => p.open).map((p) => p.id),
+    LADDER.slice(0, LADDER_START),
+  );
+  assert.ok(freePools({ ladder: 99, finale: true }).every((p) => p.open));
+  assert.ok(freeLevelOpen("easy", 1) && !freeLevelOpen("normal", 5) && freeLevelOpen("normal", 8));
+  assert.ok(!freeLevelOpen("expert", 17) && freeLevelOpen("expert", 18));
+  for (const pool of [...LADDER, "arena"])
+    for (const level of FREE_LEVELS) {
+      const s = freePlayShift(pool, level.id, 4242);
+      assert.equal(s.tier, level.tier);
+      assert.equal(s.config.pool, pool);
+      assert.equal(s.config.name, POOLS[pool].name);
+      assert.ok(!("week" in s.config), "nothing of the week: no fund, no wishes");
+      assert.deepEqual(s.config.free, { pool, level: level.id, name: level.name });
+      assert.equal(s.wishes.length, 0);
+      assert.ok(s.config.duration > 0 && s.config.total > 0 && s.config.thresholds.length === 3);
+    }
+  const easy = freePlayShift("club", "easy", 7),
+    expert = freePlayShift("club", "expert", 7);
+  assert.ok(
+    expert.config.thresholds[1] > easy.config.thresholds[1] && expert.config.duration >= easy.config.duration,
+  );
+  assert.deepEqual(
+    freePlayShift("disco", "hard", 99).config,
+    freePlayShift("disco", "hard", 99).config,
+    "seeded",
+  );
+  // The bests, kept per pool and difficulty.
+  const { readFree, writeFree, recordFree, FREE_KEY } = await import("./dist/free-ui.mjs");
+  const store = new Map(),
+    storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) };
+  const state = readFree(storage);
+  assert.equal(recordFree(state, "kids", "easy", 1200, 2), true);
+  assert.equal(recordFree(state, "kids", "easy", 900, 3), false, "a lower score is no new best");
+  assert.deepEqual(state.bests["kids:easy"], { score: 1200, stars: 3 });
+  writeFree(state, storage);
+  assert.deepEqual(readFree(storage).bests["kids:easy"], { score: 1200, stars: 3 });
+  assert.ok(lib.includes(`"${FREE_KEY}"`), "a save the desktop app keeps");
+  // The app: FREE PLAY opens the window, a shift of it ends on its own results, Play again plays it again.
+  assert.match(app, /\$\("wk-free"\)\.onclick = \(\) => freeUi\.open\(\);/);
+  assert.match(app, /if \(sim\.config\.free\) return finishFree\(\);/);
+  assert.match(
+    app,
+    /freeChoice \? startFree\(freeChoice\.pool, freeChoice\.level\) : start\(activeBooking\)/,
+  );
+  for (const id of [...LADDER, "arena"])
+    assert.ok(existsSync(`dist/assets/menu/pools/${id}.webp`), id + "'s card has its picture");
 }
 
 console.log("title-check: ok");
