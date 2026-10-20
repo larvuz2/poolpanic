@@ -98,7 +98,7 @@ export const HEAT_DATES = [
 // 1 is a learner's week (a careful beginner makes it about half the time, a good coach on Thursday); from week 2 a good coach ends
 // Saturday at about 1.1 to 1.3 times the goal, with something to spend in the shop; from week 7 the goal grows slower than the
 // pay, and the weeks get harder through their crowds and trouble instead.
-export const GOAL_SHARE = [0.85, 1.15, 1.15, 1.15, 1.1, 1.1, 1.05];
+export const GOAL_SHARE = [0.8, 1.08, 1.08, 1.08, 1.04, 1.04, 1];
 export function chapterFor(n) {
   const id = Math.max(1, Math.floor(n) || 1),
     heat = Math.max(0, id - CHAPTERS.length),

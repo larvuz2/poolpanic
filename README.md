@@ -64,8 +64,8 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   **Short on Saturday night and it is game over**: a rain check from Marina, and the next START is a new run from week 1.
 - **A shift that is not passed pays nothing, but the week goes on** (its day shows ✗). Its pass mark is half its first star (`passMark`),
   shown before the shift and in the HUD while the score is under it. Stars decide the pay: $15 for passing plus $15 a star, times the
-  week's pay and the card's. A week's goal is 300 × its pay × its share (`GOAL_SHARE`; pay 1 in week 1, +0.3 a week): $300, $450,
-  $600, $680, $790, $900, $920, $1,020, … (see "A run worth repeating" for how they were tuned).
+  week's pay and the card's. A week's goal is 300 × its pay × its share (`GOAL_SHARE`; pay 1 in week 1, +0.3 a week): $240, $420,
+  $520, $620, $690, $780, $840, $930, … (see "A run worth repeating" and "Depth and feel" for how they were tuned).
 - **The first shift of a run is a gentle minute** (`FIRST_SHIFT`): level 1 stretched to 60 s, seven swimmers, no roaming incident, its
   stars doubled so a pass (150 points) is very easy.
 - **Every later shift is a pool from the week's mix at a difficulty from the week's band** (difficulty by week, Phase 2, 19 October
@@ -522,7 +522,7 @@ hit a wall in week 4. Phase 2, on the creator's choices (the ladder, one money, 
   ending once seen). The four dates after the season (picnic, concert, karaoke, sailing) got their stills, made like the first four
   from the existing pictures (GPT Image 2, `fal-ai/gpt-image-2/edit`). A game over keeps all of it.
 - **The goals, tuned** (`GOAL_SHARE`): with the coach bots playing whole runs through the harness (see below), week 1 is a learner's
-  week ($260), and from week 2 a good coach ends Saturday a little over the goal, with something to spend in the shop.
+  week ($260; $240 since Phase 3), and from week 2 a good coach ends Saturday a little over the goal, with something to spend in the shop.
 
   **Measured** (19 October 2026, the harness's skill bots playing whole runs up to week 10, buying in the shop like a careful player:
   one perk a visit, only while the fund stays on pace). The **good** coach (24 runs): week 1 won 24 of 24, week 2 23 of 24, week 3 21
