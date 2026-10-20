@@ -370,11 +370,17 @@ export async function loadSwimmerModels(base = new URL("../assets/", import.meta
         templates.set(look.id, await fetchTemplate(look, base, REQUIRED));
       } catch (error) {
         console.warn("The swimmer " + look.id + " did not load.", error);
+      } finally {
+        settled.add(look.id);
       }
     }),
   );
   return templates;
 }
+// How far the five have got (0 to 1, a file that failed counts as done): the menu's START says LOADING % until it is 1.
+const settled = new Set();
+export const swimmerLoadShare = () =>
+  templates.size === SWIMMERS.length ? 1 : settled.size / SWIMMERS.length;
 // The cannonball man of a level (about 1 MB), once; asked for when the level starts, so he is there when the incident does.
 // Without him (a model that does not load, or no Cannonball clip) the classic Carl plays.
 const loading = new Map();

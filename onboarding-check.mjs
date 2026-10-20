@@ -206,10 +206,11 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   assert.ok(!/1 stops|press 1 to start|press " \+ \(sim\.venue\.cruise/.test(app));
 }
 
-// 5) The main screen: the week card over the coach at his pool (what the game is), a line saying what you do, and the old level
-// map only in free play.
+// 5) The main screen: the week over the menu's 3D stage (title-check.mjs; the painted coach at his pool behind it when the stage
+// cannot load), a line saying what you do (the tip line's first words for a new player), and the old level map only in free play.
 {
   assert.ok(html.includes('id="menu-art"') && html.includes('class="wk-pitch"'));
+  assert.match(readFileSync("dist/app.mjs", "utf8"), /querySelector\(".wk-pitch"\)\.textContent/);
   assert.match(css, /body\.menu:not\(\.freeplay\) #map \{\s*display: none;/);
   assert.match(css, /url\("assets\/story\/coach-pool\.webp"\)/);
   // One card is no choice: a plain start button.

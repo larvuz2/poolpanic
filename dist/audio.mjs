@@ -1,6 +1,25 @@
 import { AUDIO_FILES } from "./audio-files.mjs";
 import { DiscoMusic } from "./music.mjs";
 
+// The menu's recordings (ElevenLabs Music and Sound Effects, 20 October 2026; see assets/audio/README.md).
+export const MENU_AUDIO = {
+  theme: new URL("./assets/audio/menu-theme.mp3", import.meta.url).href,
+  return: new URL("./assets/audio/menu-return.mp3", import.meta.url).href,
+  ambience: new URL("./assets/audio/menu-ambience.mp3", import.meta.url).href,
+  hover: new URL("./assets/audio/ui-hover.mp3", import.meta.url).href,
+  click: new URL("./assets/audio/ui-click.mp3", import.meta.url).href,
+};
+// Where a recorded loop really starts and ends: the first and the last sample above silence (an mp3 carries a little
+// padding at both ends, which would be a gap at every turn of the loop).
+export function loopPoints(buffer, floor = 1e-4) {
+  const data = buffer.getChannelData(0);
+  let a = 0,
+    b = data.length - 1;
+  while (a < b && Math.abs(data[a]) < floor) a++;
+  while (b > a && Math.abs(data[b]) < floor) b--;
+  if (b - a < buffer.sampleRate) return [0, buffer.duration];
+  return [a / buffer.sampleRate, (b + 1) / buffer.sampleRate];
+}
 const HISS_SECONDS = 3; // the longest burst of noise is 1.4 s
 // Every sound is a little chain of nodes that is over a moment after it starts, and the music alone makes about 70 of them a
 // second. A chain is let go of when its source ends (Safari holds on to a finished one that is still connected, and the page
@@ -27,6 +46,26 @@ export class PoolAudio {
     // is (null when no disco plays).
     this.clock = null;
     this.disco = new DiscoMusic(this);
+    // Settings' volumes (0 to 1); `dest` is where a sound goes while the song's scheduler is making it (else the effects).
+    this.volume = { master: 1, music: 1, effects: 1 };
+    this.dest = null;
+    this.menu = null; // the menu's recorded music (startMenu)
+    this.menuToken = 0;
+  }
+  masterLevel() {
+    return this.enabled ? 0.36 * this.volume.master : 0;
+  }
+  out() {
+    return this.dest || this.fxBus || this.master;
+  }
+  // Settings' sliders: heard at once.
+  setVolumes({ master = this.volume.master, music = this.volume.music, effects = this.volume.effects } = {}) {
+    this.volume = { master, music, effects };
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.master.gain.setTargetAtTime(this.masterLevel(), t, 0.03);
+    this.musicBus.gain.setTargetAtTime(music, t, 0.03);
+    this.fxBus.gain.setTargetAtTime(effects, t, 0.03);
   }
   init() {
     if (this.ctx) {
@@ -37,7 +76,14 @@ export class PoolAudio {
     if (!AC) return;
     this.ctx = new AC();
     this.master = this.ctx.createGain();
-    this.master.gain.value = this.enabled ? 0.36 : 0;
+    this.master.gain.value = this.masterLevel();
+    // Two mixes under the master, for Settings' sliders: the music (the shifts' songs, the menu's) and the effects.
+    this.musicBus = this.ctx.createGain();
+    this.musicBus.gain.value = this.volume.music;
+    this.musicBus.connect(this.master);
+    this.fxBus = this.ctx.createGain();
+    this.fxBus.gain.value = this.volume.effects;
+    this.fxBus.connect(this.master);
     const compressor = this.ctx.createDynamicsCompressor();
     this.master.connect(compressor);
     compressor.connect(this.ctx.destination);
@@ -55,7 +101,7 @@ export class PoolAudio {
     g.gain.linearRampToValueAtTime(vol, time + 0.009);
     g.gain.exponentialRampToValueAtTime(0.001, time + duration);
     o.connect(g);
-    g.connect(this.master);
+    g.connect(this.out());
     o.onended = () => release(o, g);
     o.start(time);
     o.stop(time + duration + 0.03);
@@ -85,7 +131,7 @@ export class PoolAudio {
     g.gain.linearRampToValueAtTime(0, t + duration);
     s.connect(f);
     f.connect(g);
-    g.connect(this.master);
+    g.connect(this.out());
     s.onended = () => release(s, f, g);
     s.start(t, Math.random() * Math.max(0, hiss.duration - duration), duration);
   }
@@ -105,7 +151,7 @@ export class PoolAudio {
         );
       const source = this.ctx.createBufferSource();
       source.buffer = await this.buffers.get(url);
-      source.connect(this.master);
+      source.connect(this.out());
       source.onended = () => release(source);
       source.start();
       return true;
@@ -129,6 +175,14 @@ export class PoolAudio {
     }
   }
   schedule() {
+    this.dest = this.musicBus;
+    try {
+      this.scheduleSong();
+    } finally {
+      this.dest = null;
+    }
+  }
+  scheduleSong() {
     if (!this.ctx || !this.playing || !this.enabled) {
       if (this.ctx) this.next = this.ctx.currentTime + 0.05;
       return;
@@ -219,6 +273,14 @@ export class PoolAudio {
     if (this.roofEffect(type, e, t)) return;
     if (this.shipEffect(type, e, t)) return;
     if (this.onsenEffect(type, e, t)) return;
+    if (type === "doors-open") {
+      // The menu's doors (scene/menu-stage.mjs): the latch, the morning air rushing in, a warm chord swelling up.
+      this.noise(t, 0.05, 0.12, 2600);
+      this.tone(180, t, 0.09, 0.1, "square", 90);
+      this.noise(t + 0.08, 1.5, 0.06, 380);
+      [262, 330, 392, 523, 659].forEach((f, i) => this.tone(f, t + 0.2 + i * 0.05, 1.8, 0.045, "sine"));
+      return;
+    }
     if (type === "streak-tier") {
       // A tier of the happy streak: a quick rising run, higher for each tier, and a bright chord on top.
       const base = 523 * Math.pow(2, Math.max(0, (e.mult || 1.2) - 1.2) * 0.75);
@@ -742,7 +804,7 @@ export class PoolAudio {
     g.gain.value = big ? 0.2 : 0.12;
     s.connect(f);
     f.connect(g);
-    g.connect(this.master);
+    g.connect(this.out());
     s.onended = () => release(s, f, g);
     s.start(t);
     for (let i = 0; i < (big ? 12 : 6); i++)
@@ -752,9 +814,133 @@ export class PoolAudio {
     );
     this.tone(110, t, 0.18, 0.2, "sine", 60);
   }
+  // ---- the menu's recorded music and its buttons (20 October 2026) ----------------------------------------------------
+  // Recorded once and looped (assets/audio/menu-*.mp3, made seamless before encoding): `startMenu` fades a track up with the
+  // ambience of the empty hall under it, `stopMenu` fades it out. The encoder's padding is left out of the loop by looping
+  // between the first and the last sound in the file.
+  async buffer(url) {
+    if (!this.ctx) return null;
+    if (!this.buffers.has(url))
+      this.buffers.set(
+        url,
+        fetch(url)
+          .then((r) => {
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return r.arrayBuffer();
+          })
+          .then((data) => this.ctx.decodeAudioData(data)),
+      );
+    try {
+      return await this.buffers.get(url);
+    } catch {
+      this.buffers.delete(url);
+      return null;
+    }
+  }
+  preloadMenu() {
+    if (!this.ctx) return;
+    for (const url of Object.values(MENU_AUDIO)) this.buffer(url);
+  }
+  async startMenu(track = "theme", { fade = 3, level = 1 } = {}) {
+    if (!this.ctx) return;
+    if (this.menu?.track === track) {
+      this.menuToken++;
+      return this.menuLevel(level, fade);
+    }
+    this.stopMenu(0.8); // (which also cancels a track still loading)
+    const token = this.menuToken;
+    const [music, air] = await Promise.all([
+      this.buffer(MENU_AUDIO[track]),
+      this.buffer(MENU_AUDIO.ambience),
+    ]);
+    if (token !== this.menuToken || !music) return;
+    const ctx = this.ctx,
+      t = ctx.currentTime + 0.05,
+      gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(level, t + fade);
+    gain.connect(this.musicBus);
+    const nodes = [];
+    for (const [buf, vol] of [
+      [music, 1],
+      [air, 0.5],
+    ]) {
+      if (!buf) continue;
+      const source = ctx.createBufferSource(),
+        g = ctx.createGain(),
+        [from, to] = loopPoints(buf);
+      source.buffer = buf;
+      source.loop = true;
+      source.loopStart = from;
+      source.loopEnd = to;
+      g.gain.value = vol;
+      source.connect(g);
+      g.connect(gain);
+      source.start(t, from);
+      nodes.push(source, g);
+    }
+    this.menu = { track, gain, nodes, level };
+  }
+  menuLevel(level, fade = 1) {
+    const m = this.menu;
+    if (!m || !this.ctx) return;
+    const t = this.ctx.currentTime,
+      g = m.gain.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(level, t + fade);
+    m.level = level;
+  }
+  stopMenu(fade = 1) {
+    this.menuToken++;
+    const m = this.menu;
+    if (!m || !this.ctx) return;
+    this.menu = null;
+    const t = this.ctx.currentTime,
+      g = m.gain.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(0, t + fade);
+    setTimeout(
+      () => {
+        for (const node of m.nodes)
+          try {
+            node.stop?.();
+          } catch {}
+        release(...m.nodes, m.gain);
+      },
+      fade * 1000 + 150,
+    );
+  }
+  // The page hidden: the menu's music waits silent (it is not the shift's, which `playing` stops).
+  menuHush(hushed) {
+    if (this.menu) this.menuLevel(hushed ? 0 : this.menu.level, hushed ? 0.2 : 1.2);
+  }
+  // A menu button: "hover" (a soft tick, a hair different every time) or "click" (with a short tail).
+  ui(kind) {
+    if (!this.ctx || !this.enabled) return;
+    const url = MENU_AUDIO[kind === "hover" ? "hover" : "click"];
+    const ready = this.buffers.get(url);
+    if (!ready) return void this.buffer(url);
+    ready.then(
+      (buf) => {
+        if (!buf || !this.ctx) return;
+        const source = this.ctx.createBufferSource(),
+          g = this.ctx.createGain();
+        source.buffer = buf;
+        source.playbackRate.value = kind === "hover" ? 0.96 + Math.random() * 0.08 : 1;
+        g.gain.value = kind === "hover" ? 0.45 : 0.8;
+        source.connect(g);
+        g.connect(this.fxBus);
+        source.onended = () => release(source, g);
+        source.start();
+      },
+      () => {},
+    );
+  }
   toggle() {
     this.enabled = !this.enabled;
-    if (this.master) this.master.gain.setTargetAtTime(this.enabled ? 0.36 : 0, this.ctx.currentTime, 0.05);
+    if (this.master) this.master.gain.setTargetAtTime(this.masterLevel(), this.ctx.currentTime, 0.05);
     if (this.enabled) this.init();
     return this.enabled;
   }

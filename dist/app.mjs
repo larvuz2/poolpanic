@@ -45,6 +45,7 @@ import {
   loadSwimmerModels,
   loadFigure,
   swimmerModelsReady,
+  swimmerLoadShare,
 } from "./scene/swimmer-models.mjs";
 import { loadFishModel } from "./scene/fish-model.mjs";
 import { cannonballMan } from "./incidents/carl.mjs";
@@ -77,6 +78,8 @@ import {
 import { Recorder, apply as applyInput, REPLAY_LIMITS } from "./replay.mjs";
 import { HighlightPicker, ClipPlayer, HIGHLIGHT } from "./highlight.mjs";
 import { BUILD } from "./version.mjs";
+import { MenuStage } from "./scene/menu-stage.mjs";
+import { installTitle, normalizeSettings, volumesOf, grainOpacity, motionReduced } from "./title.mjs";
 import { playCinematic } from "./cinematic.mjs";
 import { readTuning, isWebKit } from "./tuning.mjs";
 import {
@@ -116,7 +119,14 @@ import {
 } from "./story.mjs";
 const $ = (id) => document.getElementById(id),
   audio = new PoolAudio();
-const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+// Reduce motion: the system's wish, unless Settings says otherwise (`motionChoice`, set once the settings are read).
+const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+let motionChoice = "auto";
+const reducedMotion = {
+  get matches() {
+    return motionReduced({ motion: motionChoice }, motionQuery.matches);
+  },
+};
 // The crash log starts first, so whatever goes wrong afterwards (even while the world is being built) is kept on the
 // device. Nothing is sent unless the player says so: see crashlog.mjs, report-send.mjs and the crash dialog.
 let crashStorage = null;
@@ -224,6 +234,9 @@ let input,
   accumulator = 0,
   sim,
   world,
+  menuStage = null, // the menu's 3D stage (scene/menu-stage.mjs): drawn instead of the venue while the menu is up
+  title = null, // the title screen's behaviour (title.mjs)
+  doorsOpening = false,
   level = 1,
   mode = "menu",
   previous = 0,
@@ -304,6 +317,9 @@ try {
   settings = { ...settings, ...JSON.parse(localStorage.getItem("pool-panic.settings.v1") || "{}") };
 } catch {}
 settings.coachCam = false;
+// Settings' sliders and switches (title.mjs): volumes, brightness, film grain, the Coach Cam's mouse, reduce motion.
+settings = normalizeSettings(settings);
+motionChoice = settings.motion;
 function saveSettings() {
   try {
     localStorage.setItem("pool-panic.settings.v1", JSON.stringify(settings));
@@ -1704,7 +1720,38 @@ function loadStar(s) {
 // incidents, a booking, the shop's perks). Without one, a level of the map (free play) or a drill.
 let weekShift = null,
   weekUi = null;
+// START, from the menu: the coach walks to the doors and opens them, the light fills the screen and the shift begins behind it
+// (scene/menu-stage.mjs `openDoors`). Anywhere else (a restart, a trial), or with reduced motion, the shift begins at once.
 function start(bookingId = null, week = null) {
+  if (doorsOpening) return;
+  if (mode === "menu" && menuStage?.ready && !reducedMotion.matches && !testing) {
+    document.querySelectorAll("dialog[open]").forEach((d) => d.close());
+    document.activeElement?.blur();
+    const flash = $("door-flash");
+    const opening = menuStage.openDoors({
+      flash: (v) => (flash.style.opacity = v),
+      sound: () => audio.effect("doors-open"),
+      then: () => {
+        doorsOpening = false;
+        startNow(bookingId, week);
+        flash.classList.add("out");
+        flash.style.opacity = 0;
+        setTimeout(() => flash.classList.remove("out"), 900);
+        document.body.classList.remove("doors");
+      },
+    });
+    if (opening) {
+      doorsOpening = true;
+      document.body.classList.add("doors");
+      audio.stopMenu(1.2);
+      crashlog.crumb("menu", "the doors open");
+      return;
+    }
+  }
+  startNow(bookingId, week);
+}
+function startNow(bookingId = null, week = null) {
+  audio.stopMenu(1);
   weekShift = week;
   audio.panic = false;
   clearTimeout(toastTimer);
@@ -1832,6 +1879,35 @@ function renderTouchpad() {
         ? "Hidden, even on a touch screen."
         : "Auto: shown on touch screens.";
 }
+async function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await $("game").requestFullscreen();
+  } catch {
+    toast("Fullscreen is unavailable here. The game still fills this window.");
+  }
+}
+// Settings at work (title.mjs): the mix, the light of the venues and of the menu, the film grain, the Coach Cam's mouse,
+// reduce motion.
+function applySettings(s = settings) {
+  audio.setVolumes(volumesOf(s));
+  world?.setBrightness?.(s.brightness / 100);
+  if (menuStage) menuStage.brightness = s.brightness / 100;
+  document.documentElement.style.setProperty("--grain", grainOpacity(s));
+  if (world?.coachCam) {
+    world.coachCam.lookScale = s.sensitivity / 100;
+    world.coachCam.invertY = s.invertY;
+  }
+  motionChoice = s.motion;
+  document.body.classList.toggle("calm", reducedMotion.matches);
+}
+// The menu's stage failed to draw: the painted card behind the menu again (assets/story/coach-pool.webp).
+function dropMenuStage() {
+  crashlog.crumb("menu", "the 3D stage stopped drawing; the picture behind the menu instead");
+  menuStage?.dispose();
+  menuStage = null;
+  document.body.classList.remove("stage");
+}
 function returnMenu() {
   if (qualityPending) return location.reload(); // a new graphics quality takes a fresh start (everything is saved)
   releaseMouse();
@@ -1846,7 +1922,11 @@ function returnMenu() {
   hideMoments();
   applyViewMode();
   $("countdown").hidden = true;
-  audio.playing = true;
+  // The menu's music comes back after a shift: the second track, quieter, fading in slower (the shift's song stops).
+  audio.playing = false;
+  if (title?.entered) audio.startMenu("return", { fade: 6, level: 0.7 });
+  menuStage?.reset();
+  title?.showTip();
   // Back on the map with the level that was just unlocked selected; an area that just opened plays its reveal.
   if (afterResults) {
     level = afterResults;
@@ -3890,6 +3970,23 @@ function frame(t) {
     stage("sting", () => showSting(moments.next(seconds())));
     stage("events", events);
   } else if (mode === "menu") {
+    // The menu's stage, once the venue has warmed up: the Old Town Baths at five to seven (scene/menu-stage.mjs).
+    // (Free play's map covers it: nothing is drawn under the map.)
+    if (
+      covered &&
+      menuStage?.ready &&
+      !tuning.has("norender") &&
+      !document.body.classList.contains("freeplay")
+    ) {
+      // (The view slides right on a wide screen, so the doors stand beside the menu's column, not behind it.)
+      const wide = innerWidth > 900 && innerWidth / innerHeight > 1.25;
+      menuStage.framing = wide ? 0.13 : 0;
+      const drawn = stage("menu", () => {
+        menuStage.update(dt);
+        menuStage.render(world.renderer);
+      });
+      if (!drawn && failing.menu > 30) dropMenuStage();
+    }
     sim.time += dt;
     for (const p of sim.people) {
       if (p.status === "swim" && p.type !== "aqua") {
@@ -4144,14 +4241,7 @@ function bind() {
   $("zoom-in").onclick = () => world.zoomBy(1.1);
   $("zoom-out").onclick = () => world.zoomBy(1 / 1.1);
   $("reset-view").onclick = () => world.resetView();
-  $("fullscreen").onclick = async () => {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await $("game").requestFullscreen();
-    } catch {
-      toast("Fullscreen is unavailable here. The game still fills this window.");
-    }
-  };
+  $("fullscreen").onclick = toggleFullscreen;
   input = new CoachInput({
     isPlaying: () => mode === "playing",
     onJump: () => sim.jump(),
@@ -4172,6 +4262,7 @@ function bind() {
     },
     onShortcut: (e) => {
       const key = e.key.toLowerCase();
+      if (mode === "menu" && key === "enter" && (!title?.entered || title.loading || doorsOpening)) return;
       if (
         mode === "menu" &&
         key === "enter" &&
@@ -4269,16 +4360,22 @@ function bind() {
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       audio.playing = false;
+      audio.menuHush(true);
       if (["playing", "countdown"].includes(mode)) pause();
     } else if (mode === "menu") {
       audio.init();
-      audio.playing = true;
+      audio.menuHush(false);
     }
   });
   const unlockMusic = () => {
     audio.init();
-    audio.playing = !document.hidden && ["menu", "playing", "countdown"].includes(mode);
+    audio.playing = !document.hidden && ["playing", "countdown"].includes(mode);
+    // (On the menu its own recorded music plays, from the first click on: title.mjs.)
+    if (mode === "menu" && title?.entered && !audio.menu && !doorsOpening && !document.hidden)
+      audio.startMenu("theme", { fade: 3 });
   };
+  // A click or a key while the doors open goes straight to the light.
+  document.addEventListener("pointerdown", () => doorsOpening && menuStage?.hurry(), { capture: true });
   document.addEventListener("pointerdown", unlockMusic, { capture: true });
   document.addEventListener("keydown", unlockMusic, { capture: true });
 }
@@ -4293,7 +4390,11 @@ try {
   const began = performance.now();
   const fetching = [];
   if (activeChoice() === "panic") fetching.push(loadCoachModel());
-  if (activeSwimmerChoice() === "models") fetching.push(loadSwimmerModels());
+  // The swimmers load behind the menu (START says LOADING % until they are in), except for a trial or a hunt, which wait for
+  // them as before so every test plays the same characters.
+  const waitForSwimmers = testing || playHunt || !!huntStep;
+  const swimmersLoading = activeSwimmerChoice() === "models" ? loadSwimmerModels() : null;
+  if (swimmersLoading && waitForSwimmers) fetching.push(swimmersLoading);
   if (fetching.length) {
     await Promise.race([Promise.all(fetching), new Promise((resolve) => setTimeout(resolve, 6000))]);
     const took = Math.round(performance.now() - began) + " ms";
@@ -4302,17 +4403,74 @@ try {
         "coach",
         (coachModelReady() ? "Coach Waters loaded in " : "Coach Waters not ready after ") + took,
       );
-    if (activeSwimmerChoice() === "models")
+    if (activeSwimmerChoice() === "models" && waitForSwimmers)
       crashlog.crumb(
         "swimmers",
         (swimmerModelsReady() ? "swimmer models loaded in " : "swimmer models not ready after ") + took,
       );
   }
+  if (swimmersLoading && !waitForSwimmers)
+    swimmersLoading.then(() =>
+      crashlog.crumb(
+        "swimmers",
+        (swimmerModelsReady() ? "swimmer models loaded in " : "swimmer models failed after ") +
+          Math.round(performance.now() - began) +
+          " ms (behind the menu)",
+      ),
+    );
   world = new PoolWorld($("world"), pick);
   sim = makeDemo();
   bind();
+  // The menu's stage (not for a trial or a hunt, nor with ?oldmenu): a few hundred kB of pictures, and the coach's model.
+  if (!testing && !playHunt && !huntStep && !tuning.has("oldmenu") && world.renderer) {
+    try {
+      const coach = activeChoice() === "panic" && coachModelReady() ? await loadCoachModel() : null;
+      menuStage = await Promise.race([
+        new MenuStage().load(coach),
+        new Promise((_, fail) =>
+          setTimeout(() => fail(new Error("the menu's pictures took over 8 s")), 8000),
+        ),
+      ]);
+      crashlog.crumb("menu", "3D stage ready in " + Math.round(performance.now() - began) + " ms");
+    } catch (e) {
+      crashlog.error("menu-stage", e);
+      menuStage = null;
+    }
+  }
+  document.body.classList.toggle("stage", !!menuStage?.ready);
+  title = installTitle({
+    $,
+    audio,
+    settings,
+    saveSettings,
+    apply: applySettings,
+    fullscreen: toggleFullscreen,
+    isFullscreen: () => !!document.fullscreenElement,
+    quit: isDesktop() ? quitGame : null,
+    build: BUILD.commit === "dev" ? "" : "BUILD " + String(BUILD.commit).slice(0, 7).toUpperCase(),
+    entry: !testing && !playHunt && !huntStep && !tuning.has("nosound") && !params.has("noentry"),
+  });
+  applySettings();
+  // A new player's first line under the menu says what the game is; a tip from then on.
+  if (!weekUi?.save?.week && !weekUi?.save?.stars && !weekUi?.save?.known?.length)
+    $("ts-tip").textContent = document.querySelector(".wk-pitch").textContent.trim().replace(/\s+/g, " ");
+  // START says LOADING % while the swimmers come in (at most 12 s: after that the classic ones stand in until they do).
+  if (swimmersLoading && !waitForSwimmers) {
+    let gaveUp = false;
+    setTimeout(() => {
+      gaveUp = true;
+      title.setLoading(1);
+    }, 12000);
+    const poll = () => {
+      if (gaveUp) return;
+      const share = swimmerLoadShare();
+      title.setLoading(share);
+      if (share < 1) setTimeout(poll, 150);
+    };
+    poll();
+  }
   audio.init();
-  audio.playing = true;
+  audio.playing = false; // (the menu plays its own music: title.mjs)
   updateMenu();
   updateUI();
   syncVenue(sim);

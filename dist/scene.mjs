@@ -390,6 +390,7 @@ export class PoolWorld extends SceneKit {
     this.container = container;
     this.onPick = onPick;
     this.headless = headless;
+    this.brightness = 1; // Settings' brightness (setBrightness)
     this.camera = new THREE.PerspectiveCamera(40, 1, 0.1, 180);
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
@@ -544,12 +545,17 @@ export class PoolWorld extends SceneKit {
     return true;
   }
 
+  // Settings' brightness (1 = as made): the exposure of every venue's light.
+  setBrightness(value) {
+    this.brightness = value;
+    if (this.renderer && this.look) this.renderer.toneMappingExposure = this.look.exposure * value;
+  }
   buildLights() {
     const look = this.look;
     this.scene.background = look.sky ? gradientTexture(look.sky) : new THREE.Color(look.background);
     if (look.sky) this.textures.push(this.scene.background);
     this.scene.fog = new THREE.Fog(look.fog[0], look.fog[1], look.fog[2]);
-    if (this.renderer) this.renderer.toneMappingExposure = look.exposure;
+    if (this.renderer) this.renderer.toneMappingExposure = look.exposure * this.brightness;
     this.hemi = new THREE.HemisphereLight(...look.hemi);
     this.scene.add(this.hemi);
     const sun = new THREE.DirectionalLight(look.sun[0], look.sun[1]);
@@ -995,7 +1001,7 @@ export class PoolWorld extends SceneKit {
     this.scene.fog.color.set(look.fog[0]);
     this.scene.fog.near = look.fog[1];
     this.scene.fog.far = look.fog[2];
-    if (this.renderer) this.renderer.toneMappingExposure = look.exposure;
+    if (this.renderer) this.renderer.toneMappingExposure = look.exposure * this.brightness;
     if (dynamic) {
       this.bgColor ||= new THREE.Color();
       this.staticBackground ||= this.scene.background;
