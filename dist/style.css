@@ -5822,3 +5822,13 @@ body.replaying #game > *:not(#world):not(#replay) {
 body:has(#closure:not([hidden])) .combo {
   top: 216px;
 }
+/* The results card grew (the week's pay, the highlight) until its buttons fell below a 720p window and had to be scrolled to
+   (seen in a play-through, 20 October 2026): they stay pinned to the card's bottom edge, the rest scrolling under them. */
+.results-modal .result-actions {
+  position: sticky;
+  bottom: -10px;
+  margin: 8px -26px -10px;
+  padding: 10px 26px 12px;
+  background: linear-gradient(180deg, #12384600, #123846 22%);
+  z-index: 1;
+}
