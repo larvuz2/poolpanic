@@ -79,7 +79,11 @@ the same twice: see `docs/incidents.md`).
    Tuesday, one kind per pool, the race in the lane pools; `dist/tips.mjs`: coaching tips in the lap pools; the river's lazy loop or
    rapids and the rooftop's seating as their decisions; the streak's named tiers to ×2.5, fed by saves and tips; `dist/highlight.mjs`:
    the funniest moment replayed from the shift's own record at the end; star targets measured again; README "Depth and feel") is
-   **done**: the expert bot idles 20 to 29% of a mid-level lane-pool shift, from about half. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
+   **done**: the expert bot idles 20 to 29% of a mid-level lane-pool shift, from about half. **The main menu** (20 October 2026,
+   README "The main menu"): a 3D stage behind it, the Old Town Baths a moment before the doors open (`dist/scene/menu-stage.mjs`: a
+   painted far wall, a real deck where Coach Waters paces, a dark mirrored pool), CLICK TO ENTER, recorded music and button sounds
+   (ElevenLabs), one column (START, FREE PLAY, COACH'S LOCKER, SETTINGS, CREDITS), START opening the doors into the shift, Settings
+   (volumes, brightness, grain, graphics, motion, full screen, Coach Cam mouse) and Credits (`dist/title.mjs`). The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
    Phase 2 is done**, no co-op for now, and **keep the reward (the Sunday date) as it is for now** ("we'll change it later").
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
    and Steam Deck support, a settings screen (volumes, key rebinding, full screen; graphics quality exists, in Help: Auto, Low, Medium,

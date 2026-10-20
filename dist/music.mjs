@@ -735,7 +735,7 @@ export class DiscoMusic {
     this.synth.connect(this.filter);
     this.filter.connect(this.bus);
     this.drums.connect(this.bus);
-    this.bus.connect(this.audio.master);
+    this.bus.connect(this.audio.musicBus || this.audio.master);
   }
   // Called by the audio's scheduler (about 14 times a second). Returns false when no disco plays, so the usual music does.
   tick(state) {
@@ -788,11 +788,11 @@ export class DiscoMusic {
     g.setValueAtTime(g.value, t);
     if (dark) {
       g.linearRampToValueAtTime(0, t + 0.6);
-      this.voice("sawtooth", 220, t, 0.8, 0.12, this.audio.master, 30);
+      this.voice("sawtooth", 220, t, 0.8, 0.12, this.audio.musicBus || this.audio.master, 30);
     } else {
       g.setValueAtTime(0, t);
       g.linearRampToValueAtTime(1, t + 0.4);
-      this.voice("sawtooth", 60, t, 0.5, 0.08, this.audio.master, 440);
+      this.voice("sawtooth", 60, t, 0.5, 0.08, this.audio.musicBus || this.audio.master, 440);
     }
   }
   voice(type, freq, t, len, vol, out, endFreq = null, attack = 0.006) {

@@ -73,31 +73,53 @@
       </header>
       <div id="map" class="map" role="group" aria-label="Season map"></div>
       <div id="menu-art" class="menu-art" aria-hidden="true"></div>
-      <section id="week-card" class="week-card" aria-label="This week" hidden>
+      <!-- The main menu (20 October 2026): the title over the Old Town Baths (scene/menu-stage.mjs), the week in a few
+           lines, and one column of choices. week-ui.mjs fills the week's lines and the first three buttons. -->
+      <section id="week-card" class="week-card title-screen" aria-label="Main menu">
+        <div class="ts-brand">
+          <img class="ts-logo" src="assets/brand/logo.webp" alt="Pool Panic" width="640" height="371" />
+          <span class="ts-drop" aria-hidden="true"><i></i></span>
+          <small class="ts-by">By Phatty Acid Generative Studios</small>
+        </div>
+        <div class="ts-week">
+          <div class="wk-head">
+            <span id="wk-date-icon" class="wk-date-icon" aria-hidden="true">🍦</span>
+            <div class="wk-text">
+              <small id="wk-eyebrow">WEEK 1</small>
+              <strong id="wk-title">Ice cream on the pier with Marina</strong>
+              <span id="wk-sub">Save $240 by Saturday</span>
+            </div>
+          </div>
+          <div class="wk-fund">
+            <div class="fund-bar"><i id="wk-fill"></i></div>
+            <b id="wk-money">$0 / $500</b>
+          </div>
+          <div id="wk-days" class="wk-days" aria-hidden="true"></div>
+        </div>
+        <nav class="ts-menu" aria-label="Main menu">
+          <button id="wk-go" class="ts-btn ts-main"><span class="ts-label">START</span></button
+          ><button id="wk-free" class="ts-btn"><span class="ts-label">FREE PLAY</span></button
+          ><button id="wk-locker" class="ts-btn"><span class="ts-label">COACH'S LOCKER</span></button
+          ><button id="ts-settings" class="ts-btn"><span class="ts-label">SETTINGS</span></button
+          ><button id="ts-credits" class="ts-btn"><span class="ts-label">CREDITS</span></button
+          ><button id="ts-quit" class="ts-btn" hidden><span class="ts-label">QUIT</span></button>
+        </nav>
+        <small id="wk-note" class="wk-note"></small>
         <p class="wk-pitch">
           You're the coach of the town's pools: send swimmers to the right lanes, fetch the gear, fix the
           chaos.
         </p>
-        <div class="wk-head">
-          <span id="wk-date-icon" class="wk-date-icon" aria-hidden="true">🍦</span>
-          <div class="wk-text">
-            <small id="wk-eyebrow">WEEK 1 · COMMUNITY POOL</small>
-            <strong id="wk-title">Ice cream on the pier with Marina</strong>
-            <span id="wk-sub">Save $240 by Saturday</span>
-          </div>
-          <button id="wk-go" class="primary">START THE WEEK <span>▶</span></button>
-        </div>
-        <div class="wk-fund">
-          <div class="fund-bar"><i id="wk-fill"></i></div>
-          <b id="wk-money">$0 / $500</b>
-        </div>
-        <div id="wk-days" class="wk-days" aria-hidden="true"></div>
-        <small id="wk-note" class="wk-note"></small>
-        <div class="wk-links">
-          <button id="wk-locker" class="text-btn inline wk-free">🏅 Coach's locker</button
-          ><button id="wk-free" class="text-btn inline wk-free">🗺️ Free play</button>
-        </div>
       </section>
+      <footer class="ts-footer" aria-hidden="true">
+        <span id="ts-tip" class="ts-tip"></span><span id="ts-build" class="ts-build"></span>
+      </footer>
+      <!-- The first screen: one click lets the sound in (browsers ask for one) and the music fades up. -->
+      <div id="entry" class="entry" hidden>
+        <button id="entry-go" class="entry-go">CLICK TO ENTER</button>
+        <small>Best with headphones</small>
+      </div>
+      <div id="door-flash" class="door-flash" aria-hidden="true"></div>
+      <div id="grain" class="grain" aria-hidden="true"></div>
       <button id="fp-back" class="secondary fp-back">◀ The week</button>
       <section id="welcome" class="map-panel" aria-label="Selected shift">
         <div class="panel-main">
@@ -229,21 +251,172 @@
         <span class="loader"></span>
         <p>Filling the pool…</p>
       </div>
+      <!-- Settings (20 October 2026): from the menu and from the ⚙ menu in a shift. Saved with the other preferences
+           (pool-panic.settings.v1); the sound is heard as a slider moves. -->
+      <dialog id="settings-dialog" class="modal settings-page" aria-labelledby="settings-title" tabindex="-1">
+        <button class="modal-close" id="settings-close" aria-label="Close settings">×</button>
+        <div class="eyebrow">POOL PANIC</div>
+        <h2 id="settings-title">Settings</h2>
+        <div class="set-group">
+          <h3>Sound</h3>
+          <label class="set-slider"
+            ><span>Master volume</span
+            ><input type="range" id="set-master" min="0" max="100" step="1" /><output
+              for="set-master"
+            ></output
+          ></label>
+          <label class="set-slider"
+            ><span>Music</span><input type="range" id="set-music" min="0" max="100" step="1" /><output
+              for="set-music"
+            ></output
+          ></label>
+          <label class="set-slider"
+            ><span>Effects</span><input type="range" id="set-effects" min="0" max="100" step="1" /><output
+              for="set-effects"
+            ></output
+          ></label>
+        </div>
+        <div class="set-group">
+          <h3>Picture</h3>
+          <label class="set-slider"
+            ><span>Brightness</span
+            ><input type="range" id="set-brightness" min="70" max="130" step="1" /><output
+              for="set-brightness"
+            ></output
+          ></label>
+          <label class="set-slider"
+            ><span>Film grain</span><input type="range" id="set-grain" min="0" max="100" step="1" /><output
+              for="set-grain"
+            ></output
+          ></label>
+          <div class="quality-row" role="group" aria-label="Graphics quality">
+            <span class="quality-label">GRAPHICS</span>
+            <div id="quality-buttons" class="quality-buttons"></div>
+            <small id="quality-note" class="quality-note"></small>
+            <button id="quality-reset" class="text-btn inline" hidden>Back to full graphics</button>
+          </div>
+          <div class="quality-row" role="group" aria-label="On-screen controls">
+            <span class="quality-label">ON-SCREEN CONTROLS</span>
+            <div id="touchpad-buttons" class="quality-buttons"></div>
+            <small id="touchpad-note" class="quality-note"></small>
+          </div>
+          <label class="set-check"
+            ><span>Full screen</span><input type="checkbox" id="set-fullscreen" /><i aria-hidden="true"></i
+          ></label>
+          <label class="set-check"
+            ><span>Reduce motion <small>(fewer shakes, flashes and replays)</small></span
+            ><input type="checkbox" id="set-motion" /><i aria-hidden="true"></i
+          ></label>
+        </div>
+        <div class="set-group">
+          <h3>Coach Cam</h3>
+          <label class="set-slider"
+            ><span>Mouse sensitivity</span
+            ><input type="range" id="set-sensitivity" min="30" max="250" step="5" /><output
+              for="set-sensitivity"
+            ></output
+          ></label>
+          <label class="set-check"
+            ><span>Invert Y</span><input type="checkbox" id="set-invert" /><i aria-hidden="true"></i
+          ></label>
+        </div>
+        <button id="settings-done" class="primary">Done ▶</button>
+      </dialog>
+      <!-- Credits (20 October 2026): who made it, with what, and the making of it in numbers (counted on that date). -->
+      <dialog id="credits-dialog" class="modal credits-page" aria-labelledby="credits-title" tabindex="-1">
+        <button class="modal-close" id="credits-close" aria-label="Close credits">×</button>
+        <div id="credits-roll" class="credits-roll" tabindex="0">
+          <div class="credits-inner">
+            <img class="credits-logo" src="assets/brand/logo.webp" alt="" aria-hidden="true" />
+            <h2 id="credits-title" class="visually-hidden">Credits</h2>
+            <section>
+              <small>A GAME BY</small>
+              <strong>Gus Garza</strong>
+              <span>Phatty Acid Generative Studios</span>
+            </section>
+            <section>
+              <small>MADE WITH</small>
+              <strong>Claude</strong>
+              <span
+                >by Anthropic, in Claude Code: the code, the simulation, the characters' rigs and animations
+                in Blender, the checks, the tools and the builds, written in conversation with the
+                creator</span
+              >
+            </section>
+            <section>
+              <small>BUILT ON</small>
+              <ul>
+                <li><b>three.js</b> · the 3D engine (WebGL)</li>
+                <li><b>Blender</b> · rigging and animation</li>
+                <li><b>Electron</b> and <b>Steamworks</b> · the desktop app and Steam</li>
+                <li><b>Meshy</b> and <b>Tripo</b> · 3D models</li>
+                <li><b>fal</b> · image models for the art and the story</li>
+                <li><b>ElevenLabs</b> · the menu's music and sounds</li>
+                <li><b>Barlow Condensed</b> and <b>DM Sans</b> · type (SIL Open Font License)</li>
+                <li>
+                  <b>Playwright</b>, <b>Node.js</b>, <b>GitHub Actions</b> and <b>Netlify</b> · tests and
+                  builds
+                </li>
+              </ul>
+            </section>
+            <section class="credits-stats">
+              <small>THE MAKING OF IT, IN NUMBERS</small>
+              <span class="credits-asof">as of 20 October 2026, at least</span>
+              <dl>
+                <div>
+                  <dt>4.6 billion</dt>
+                  <dd>tokens read and written</dd>
+                </div>
+                <div>
+                  <dt>11.6 million</dt>
+                  <dd>tokens written by Claude</dd>
+                </div>
+                <div>
+                  <dt>12,186</dt>
+                  <dd>tool calls</dd>
+                </div>
+                <div>
+                  <dt>10,796</dt>
+                  <dd>Claude replies</dd>
+                </div>
+                <div>
+                  <dt>128</dt>
+                  <dd>messages from the creator</dd>
+                </div>
+                <div>
+                  <dt>181</dt>
+                  <dd>commits</dd>
+                </div>
+                <div>
+                  <dt>43</dt>
+                  <dd>pull requests merged</dd>
+                </div>
+                <div>
+                  <dt>82,000</dt>
+                  <dd>lines of code</dd>
+                </div>
+                <div>
+                  <dt>55</dt>
+                  <dd>automated checks</dd>
+                </div>
+                <div>
+                  <dt>65</dt>
+                  <dd>3D models</dd>
+                </div>
+              </dl>
+            </section>
+            <section>
+              <small>THANK YOU</small>
+              <span>for playing. Mind the deep end.</span>
+            </section>
+          </div>
+        </div>
+        <button id="credits-done" class="primary">Back ▶</button>
+      </dialog>
       <dialog id="help-dialog" class="modal">
         <button class="modal-close" data-close aria-label="Close help">×</button>
         <div class="eyebrow">COACH'S HANDBOOK</div>
         <h2>You’re on deck.</h2>
-        <div class="quality-row" role="group" aria-label="Graphics quality">
-          <span class="quality-label">GRAPHICS</span>
-          <div id="quality-buttons" class="quality-buttons"></div>
-          <small id="quality-note" class="quality-note"></small>
-          <button id="quality-reset" class="text-btn inline" hidden>Back to full graphics</button>
-        </div>
-        <div class="quality-row" role="group" aria-label="On-screen controls">
-          <span class="quality-label">ON-SCREEN CONTROLS</span>
-          <div id="touchpad-buttons" class="quality-buttons"></div>
-          <small id="touchpad-note" class="quality-note"></small>
-        </div>
         <h3>The week</h3>
         <ul>
           <li>
@@ -384,6 +557,8 @@
             <i aria-hidden="true">?</i><span>How to play</span><kbd>H</kbd></button
           ><button id="sound" class="setting">
             <i aria-hidden="true">♫</i><span id="sound-label">Sound: on</span><kbd>M</kbd></button
+          ><button id="pause-settings" class="setting">
+            <i aria-hidden="true">⚙</i><span>Settings</span></button
           ><button id="fullscreen" class="setting">
             <i aria-hidden="true">⛶</i><span>Full screen</span>
           </button>

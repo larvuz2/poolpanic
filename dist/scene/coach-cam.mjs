@@ -212,9 +212,11 @@ export class CoachCam {
       h.v.set(0, 0, 0);
     }
   }
+  // Settings' mouse sensitivity (`lookScale`, 1 = as made) and Invert Y apply to every look.
   look(dx, dy, sensitivity = COACH_CAM.sensitivity) {
-    this.yaw -= dx * sensitivity;
-    this.pitch = clamp(this.pitch - dy * sensitivity, COACH_CAM.pitch[0], COACH_CAM.pitch[1]);
+    const k = sensitivity * (this.lookScale ?? 1);
+    this.yaw -= dx * k;
+    this.pitch = clamp(this.pitch - dy * k * (this.invertY ? -1 : 1), COACH_CAM.pitch[0], COACH_CAM.pitch[1]);
   }
   turn(axis, dt) {
     if (axis) this.yaw -= axis * COACH_CAM.keyTurn * dt;
