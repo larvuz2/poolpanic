@@ -113,11 +113,6 @@
       <footer class="ts-footer" aria-hidden="true">
         <span id="ts-tip" class="ts-tip"></span><span id="ts-build" class="ts-build"></span>
       </footer>
-      <!-- The first screen: one click lets the sound in (browsers ask for one) and the music fades up. -->
-      <div id="entry" class="entry" hidden>
-        <button id="entry-go" class="entry-go">CLICK TO ENTER</button>
-        <small>Best with headphones</small>
-      </div>
       <div id="door-flash" class="door-flash" aria-hidden="true"></div>
       <div id="grain" class="grain" aria-hidden="true"></div>
       <button id="fp-back" class="secondary fp-back">◀ The week</button>
@@ -728,6 +723,25 @@
           <div id="locker-album" class="locker-grid album"></div>
         </section>
         <button id="locker-close" class="primary">Back ▶</button>
+      </dialog>
+      <!-- FREE PLAY (21 October 2026, free-ui.mjs): every pool as a card, a difficulty, and PLAY. -->
+      <dialog
+        id="freeplay-dialog"
+        class="modal week-modal locker-modal freeplay-page"
+        aria-labelledby="fp-title"
+        tabindex="-1"
+      >
+        <div class="eyebrow"><span id="fp-title">FREE PLAY</span><span id="fp-count"></span></div>
+        <p class="booking-note">
+          Any pool you have opened, at the difficulty you choose. Practice only: the week and the Date Fund
+          stay as they are.
+        </p>
+        <div id="fp-pools" class="fp-pools"></div>
+        <div class="fp-bar">
+          <div id="fp-levels" class="fp-levels" role="group" aria-label="Difficulty"></div>
+          <button id="fp-go" class="primary">Play ▶</button>
+        </div>
+        <button id="fp-close" class="text-btn">Back to the menu</button>
       </dialog>
       <dialog id="results-dialog" class="modal results-modal">
         <div class="eyebrow" id="result-eyebrow">SHIFT COMPLETE</div>

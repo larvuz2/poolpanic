@@ -433,19 +433,30 @@ AAA", the calm before the storm; everything the menu had kept but sorted differe
   what is above the water) seen through a layer of black that lets the mirror show most at a glance: the windows, the doors and the
   coach are in it. One camera, never moving; on a wide screen the view slides right so the doors stand beside the menu's column, and
   a narrow screen gets a wider lens so the coach's walk still fits.
-- **START** (once the shift is chosen, from the week or from free play): the coach runs to the doors and turns to them, the view
-  glides back to the middle, the doors swing open on hinges (two leaves cut from the painting) onto the morning
-  (`assets/menu/door-light.webp`: the guests standing in the light), the light floods the wall, the deck and the water, the screen goes
-  white and the shift's countdown comes up behind it (about 2.5 s; a click goes straight to the light; reduce motion, a restart and
-  the crash hunt's trials start at once). If the stage cannot load (8 s at most) or stops drawing, the painted coach at his pool
-  (`#menu-art`) is behind the menu as before; `?oldmenu` asks for that.
-- **The first screen** says CLICK TO ENTER and "Best with headphones" over the dimmed stage: the click lets the sound in (a browser
-  asks for one) and the menu's music fades up over 3 s; the column comes in a line at a time. A trial or a hunt, `?nosound` and
-  `?noentry` skip it.
-- **The column** (`dist/title.mjs`, week-ui.mjs fills the week's lines): the logo, whose one moving detail is a drop of pool water that
-  gathers under it, falls and rings out every seven seconds, "By Phatty Acid Generative Studios", the week in four lines (week, the
-  date, the fund, the days), then START (CONTINUE in a week), FREE PLAY, COACH'S LOCKER, SETTINGS, CREDITS, and QUIT in the desktop
-  app. A hover or the keyboard's focus brightens a word, spreads its letters and draws a line under it, with a soft tick; a press
+- **The guests behind the doors** (21 October 2026, the creator: "make this a reality"). The doorway is cut out of the painting and
+  behind it is a real morning: paving, a bright sky over the town, the doorway's reveal, and seven guests waiting for seven o'clock
+  (`GUESTS`): four of the swimmers, the fish kid holding his bucket (the painting had him), Marco and Karen, each on the clips they
+  wait with in a shift's queue (IdleScan and IdleScratch, CarryIdle, WaitWatch, Karen's Idle, Complain and Point), impatient: one of
+  their own clips now and then, a shuffle of a step or two and back, a look round (`updateGuest`). Their models are the game's
+  (loaded for the game anyway, except Karen, the kid and Marco, which a shift loads when it needs them); each comes in as it arrives.
+  Through the doors they are only shadows: each frame the guests are drawn alone, black on white, from the camera into a half-size
+  target (the mask, `renderMask`), and the doors' glass (the leaves' shader, `uLeaf`) reads it where it stands on the screen, blurred
+  over a ring of taps, in the painting's colours: warm cream glass, deep brown shadows. So the shadows move as they do, and the water
+  mirrors them too. The leaves have glass both sides and a brass push bar across each.
+- **START** (once the shift is chosen, from the week or from FREE PLAY): the coach runs to the doors and turns to them, the view
+  glides back to the middle, the doors swing open (1.3 s) and there the guests are, as they are, lit by a warm fill from the hall; they
+  turn to the doors and step up, casting shadows into the hall now, while the coach steps aside to let them in; then the light fills the
+  screen and the shift's countdown comes up behind it (about 3.5 s in all; a click goes straight to the doors; reduce motion, a restart
+  and the crash hunt's trials start at once; should the stage stop drawing, a watch starts the shift anyway). If the stage cannot load
+  (8 s at most) or stops drawing, the painted coach at his pool (`#menu-art`) is behind the menu as before; `?oldmenu` asks for that.
+- **No first screen** (21 October 2026): CLICK TO ENTER is gone at the creator's word. The menu comes straight up and its music with it
+  (the desktop app plays sound at once; a browser holds it until the first click or key, and the fade-in waits with it). The column
+  comes in a line at a time.
+- **The column** (`dist/title.mjs`): the logo, whose one moving detail is a drop of pool water that gathers under it, falls and rings
+  out every seven seconds, "By Phatty Acid Generative Studios", then START (always START, never CONTINUE: START shows the week, in the
+  shift picker), FREE PLAY, COACH'S LOCKER, SETTINGS, CREDITS, and QUIT in the desktop app. The week's lines and days are not on the menu
+  any more (21 October 2026; week-ui.mjs still fills them, hidden). A click on the dark round any window of the menu or of the ⚙ menu is
+  its back button (`BACKS` in title.mjs: Settings, Credits, the locker, FREE PLAY, the shift picker, the bookings, Help, the pause menu). A hover or the keyboard's focus brightens a word, spreads its letters and draws a line under it, with a soft tick; a press
   clicks. Under it one tip a visit (a new player's first line says what the game is instead). The swimmers' models now load behind
   the menu: START reads LOADING 42% until they are in (12 s at most, then the classic swimmers stand in until they arrive); a trial or
   a hunt waits for them as before so every test plays the same characters.
@@ -465,12 +476,24 @@ AAA", the calm before the storm; everything the menu had kept but sorted differe
   repository, so they are "at least": about 4.6 billion tokens read and written (most of them the conversation read again from cache),
   11.6 million written by Claude, 12,186 tool calls, 10,796 replies, 128 messages from the creator, 181 commits, 43 pull requests,
   about 82,000 lines of code, 55 checks, 65 models. The game is not made with Unity, so Unity is not credited.
+- **FREE PLAY** (21 October 2026, `dist/free-ui.mjs`, the creator: "a similar screen to the coach locker, where we see all of the
+  venues that we can choose to play in"): a window of every pool as a card, a picture of each taken from the game itself
+  (`assets/menu/pools/`), the ones the ladder has opened to play and the others locked; a difficulty (Easy, Normal, Hard, Expert: levels
+  3, 8, 13 and 18, each open once a run has passed that level); PLAY. The shift is the week's own builder at that pool and difficulty
+  (`freePlayShift` in week.mjs: a mid-run day, so the full crowd, VIPs, Marco and the big moment) without the week: no Date Fund, no
+  wishes, no shop, no new pool. It ends on its own results (`finishFree`: stars, score, a new best for that pool and difficulty, kept
+  in `pool-panic.free.v1`), and Play again plays it again. The cloud map of levels it replaces is still in the code, unused.
 - **Checks** (`title-check.mjs`): the settings' defaults and limits, the tips and the loading label, the two mixes and Settings'
   volumes on a fake audio context, the menu music's loop points, fade in and out, and a stop cancelling a track still loading, the
-  painting's and the doors' sizes and where the doors are, the page's elements and the credits, and the app's wiring.
+  painting's size and where the doors and their glass are, the guests (each one's clips in its own file, all behind the doors and in
+  their width), the doorway cut out and the mask drawn, no first screen, the windows' back buttons, FREE PLAY (the pools by the ladder,
+  the difficulties by the run, a shift of every pool at every difficulty without the week, the bests kept, a picture for every card),
+  the page's elements and the credits, and the app's wiring.
 - **Verified in Chromium here** (software WebGL, so at about one frame a second): the menu at 1280×720, 1920×1080 and a 390×844 phone,
-  the entry, hover, Settings, Credits, the locker, free play, START from the week (the invite, the picker, the doors, the countdown)
-  and from free play, ⚙ → Settings in a shift, and the return to the menu with the second track and the doors shut again.
+  hover, Settings, Credits, the locker, START from the week (the invite, the picker, the doors, the countdown), ⚙ → Settings in a shift,
+  and the return to the menu with the second track and the doors shut again; on 21 October the guests' shadows on the closed doors, the
+  doors open with the guests stepping up and the coach stepping aside, a click outside the locker closing it, FREE PLAY's window and a
+  Kids Pool shift from it through the doors to its countdown.
   **Not verified:** the music and the sounds by ear (they were chosen by their numbers: loudness, the loop's seam), the frame rate on
   a real graphics card, and the look on the creator's Mac and PC.
 

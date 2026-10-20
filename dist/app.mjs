@@ -46,6 +46,7 @@ import {
   loadFigure,
   swimmerModelsReady,
   swimmerLoadShare,
+  swimmerTemplate,
 } from "./scene/swimmer-models.mjs";
 import { loadFishModel } from "./scene/fish-model.mjs";
 import { cannonballMan } from "./incidents/carl.mjs";
@@ -78,8 +79,11 @@ import {
 import { Recorder, apply as applyInput, REPLAY_LIMITS } from "./replay.mjs";
 import { HighlightPicker, ClipPlayer, HIGHLIGHT } from "./highlight.mjs";
 import { BUILD } from "./version.mjs";
-import { MenuStage } from "./scene/menu-stage.mjs";
+import { MenuStage, GUESTS } from "./scene/menu-stage.mjs";
+import { loadKaren } from "./scene/karen-view.mjs";
 import { installTitle, normalizeSettings, volumesOf, grainOpacity, motionReduced } from "./title.mjs";
+import { installFreePlay } from "./free-ui.mjs";
+import { freePlayShift, freeLevel } from "./week.mjs";
 import { playCinematic } from "./cinematic.mjs";
 import { readTuning, isWebKit } from "./tuning.mjs";
 import {
@@ -237,6 +241,8 @@ let input,
   menuStage = null, // the menu's 3D stage (scene/menu-stage.mjs): drawn instead of the venue while the menu is up
   title = null, // the title screen's behaviour (title.mjs)
   doorsOpening = false,
+  freeUi = null, // FREE PLAY's window (free-ui.mjs)
+  freeChoice = null, // the pool and difficulty of the free-play shift being played (play again plays it again)
   level = 1,
   mode = "menu",
   previous = 0,
@@ -1744,7 +1750,16 @@ function start(bookingId = null, week = null) {
     });
     if (opening) {
       doorsOpening = true;
-      setTimeout(finish, 7000); // (should the stage stop drawing, the shift still starts)
+      // (Should the stage stop drawing, the shift still starts: a watch that sees the doors' clock stand still for 3 s.)
+      let last = -1;
+      const watch = setInterval(() => {
+        const t = menuStage?.open?.t ?? -1;
+        if (!doorsOpening || t === last) {
+          clearInterval(watch);
+          finish();
+        }
+        last = t;
+      }, 3000);
       document.body.classList.add("doors");
       audio.stopMenu(1.2);
       crashlog.crumb("menu", "the doors open");
@@ -1753,8 +1768,23 @@ function start(bookingId = null, week = null) {
   }
   startNow(bookingId, week);
 }
+// FREE PLAY (free-ui.mjs): a shift at the pool and difficulty chosen, built by the week's builder without the week.
+function startFree(pool, levelId) {
+  const shift = freePlayShift(
+    pool,
+    levelId,
+    (Date.now() ^ (Math.random() * 0x7fffffff)) >>> 0,
+    weekUi?.save?.known || [],
+  );
+  crashlog.crumb(
+    "free",
+    `free play · ${pool} · ${levelId} · tier ${shift.tier} · incidents ${shift.plan.incidents.join(",") || "none"}`,
+  );
+  start(null, shift);
+}
 function startNow(bookingId = null, week = null) {
   audio.stopMenu(1);
+  freeChoice = week?.free ? { pool: week.free.pool, level: week.free.level } : null;
   weekShift = week;
   audio.panic = false;
   clearTimeout(toastTimer);
@@ -1796,11 +1826,13 @@ function startNow(bookingId = null, week = null) {
   loadStar(sim);
   for (const name of sim.venue.props || ["mop", "mop-bucket"]) loadProp(name);
   richPresence(
-    week
-      ? "Week " + week.chapter.id + " · " + week.day
-      : drill
-        ? "Drill · " + drill.name
-        : "Level " + level + " · " + sim.config.name,
+    week?.free
+      ? "Free play · " + week.place
+      : week
+        ? "Week " + week.chapter.id + " · " + week.day
+        : drill
+          ? "Drill · " + drill.name
+          : "Level " + level + " · " + sim.config.name,
   );
   weekUi?.hideMenu();
   sim.start({ countdown: true });
@@ -1904,6 +1936,34 @@ function applySettings(s = settings) {
   motionChoice = s.motion;
   document.body.classList.toggle("calm", reducedMotion.matches);
 }
+// The first guests behind the menu's doors (scene/menu-stage.mjs GUESTS), each as soon as its model is in: the five swimmers
+// (loading for the game anyway), the fish kid and Marco (their figures, which a shift would load), and Karen (karen-view.mjs).
+async function loadMenuGuests(swimmersLoading) {
+  const add = (spec, template) => template && menuStage?.addGuest(spec, template);
+  const want = (id) => GUESTS.find((g) => g.id === id);
+  const jobs = [];
+  if (swimmersLoading)
+    jobs.push(
+      swimmersLoading.then(() => {
+        for (const spec of GUESTS) add(spec, swimmerTemplate(spec.id));
+      }),
+    );
+  for (const id of ["kid", "marco"]) jobs.push(loadFigure(id).then((t) => add(want(id), t)));
+  jobs.push(
+    Promise.all([loadKaren(), import("./assets/SkeletonUtils.js")]).then(([gltf, { clone }]) => {
+      if (!gltf) return;
+      const clips = {};
+      for (const clip of gltf.animations) clips[clip.name] = clip;
+      add(want("karen"), { scene: gltf.scene, clips, clone });
+    }),
+  );
+  const results = await Promise.allSettled(jobs);
+  crashlog.crumb(
+    "menu",
+    `guests behind the doors: ${menuStage?.guests.length || 0} of ${GUESTS.length}` +
+      (results.some((r) => r.status === "rejected") ? " (a model failed)" : ""),
+  );
+}
 // The menu's stage failed to draw: the painted card behind the menu again (assets/story/coach-pool.webp).
 function dropMenuStage() {
   crashlog.crumb("menu", "the 3D stage stopped drawing; the picture behind the menu instead");
@@ -1927,7 +1987,7 @@ function returnMenu() {
   $("countdown").hidden = true;
   // The menu's music comes back after a shift: the second track, quieter, fading in slower (the shift's song stops).
   audio.playing = false;
-  if (title?.entered) audio.startMenu("return", { fade: 6, level: 0.7 });
+  if (title) audio.startMenu("return", { fade: 6, level: 0.7 });
   menuStage?.reset();
   title?.showTip();
   // Back on the map with the level that was just unlocked selected; an area that just opened plays its reveal.
@@ -2051,6 +2111,7 @@ function requestStart() {
 }
 // HUD line: which chunk of three you are in ("WARM-UP · 2 OF 3"), or that this is a drill.
 function shiftTag() {
+  if (sim.config.free) return "FREE PLAY · " + freeLevel(sim.config.free.level).name.toUpperCase();
   const weekTag = weekUi?.hudTag(sim.config);
   if (weekTag) return weekTag;
   if (sim.drill) return "DRILL";
@@ -2214,6 +2275,54 @@ function renderResultDetails(r, drill) {
                     : "Three stars! Try the next shift, or beat this run with an even longer happy streak."
                   : "A new arrival mix awaits. Can you keep the happy streak going just a little longer?";
 }
+// A free-play shift is over: its stars and score, a new best for its pool and difficulty, and Play again.
+function finishFree() {
+  const r = sim.summary(),
+    f = sim.config.free;
+  const newBest = freeUi ? freeUi.record(f.pool, f.level, r.score, r.stars) : false;
+  achievements.shift({
+    stars: r.stars,
+    drill: false,
+    levelStars: (n) => starsFor(n, records.bests[n - 1] || 0),
+    levels: SHIFTS.length,
+  });
+  richPresence("Looking at the results");
+  if (coverage)
+    try {
+      coverage.finish({ score: r.score, stars: r.stars });
+      saveCoverage();
+      live?.dirty("urgent");
+    } catch (e) {
+      crashlog.error("playtest", e);
+    }
+  $("result-week").hidden = true;
+  $("result-fund").hidden = true;
+  $("result-chunk").hidden = true;
+  $("result-eyebrow").textContent =
+    `FREE PLAY · ${sim.config.place.toUpperCase()} · ${freeLevel(f.level).name.toUpperCase()} · SHIFT COMPLETE`;
+  $("result-stars").textContent = Array.from({ length: 3 }, (_, i) => (i < r.stars ? "★" : "☆")).join(" ");
+  $("result-title").textContent =
+    r.stars === 3
+      ? "You absolute pool legend."
+      : r.stars === 2
+        ? "So close to pool perfection."
+        : r.stars === 1
+          ? "You kept your head above water."
+          : "Okay. Deep breath. Again.";
+  $("result-score").innerHTML = r.score.toLocaleString() + "<small>POINTS</small>";
+  $("new-best").hidden = !newBest;
+  renderResultDetails(r, null);
+  $("next-level").hidden = true;
+  $("play-again").hidden = false;
+  $("play-again").textContent = "Play again ↻";
+  $("play-again").className = "primary";
+  $("back-menu").textContent = "Back to the menu";
+  $("results-dialog").showModal();
+  $("play-again").focus({ preventScroll: true });
+  $("results-dialog").scrollTop = 0;
+  offerHighlight();
+  if (r.stars > 0) world.confetti();
+}
 // A shift of the week is over: the week's part of the results (week-ui.mjs), and its buttons.
 function finishWeek() {
   const r = sim.summary(),
@@ -2284,6 +2393,7 @@ function finish() {
   logState();
   crashlog.crumb("shift", "ended · score " + Math.round(sim.score));
   if (sim.config.week && weekUi) return finishWeek();
+  if (sim.config.free) return finishFree();
   $("result-week").hidden = true;
   $("play-again").hidden = false;
   $("back-menu").textContent = "Back to the map";
@@ -4066,6 +4176,9 @@ function bind() {
     }
   };
   $("fp-back").onclick = () => weekUi.freePlay(false);
+  // FREE PLAY is a window of pools now (21 October 2026, free-ui.mjs), not the cloud map of levels.
+  freeUi = installFreePlay({ $, save: () => weekUi.save, onPlay: startFree });
+  $("wk-free").onclick = () => freeUi.open();
   syncUnlocks();
   mapView = new LevelMap($("map"), {
     onLevel: selectLevel,
@@ -4130,7 +4243,8 @@ function bind() {
     $("quit-game").hidden = false; // (a window needs a way out that is not the keyboard)
     $("quit-game").onclick = quitGame;
   }
-  $("restart").onclick = () => start(activeBooking);
+  $("restart").onclick = () =>
+    freeChoice ? startFree(freeChoice.pool, freeChoice.level) : start(activeBooking);
   try {
     bindPlaytest();
   } catch (e) {
@@ -4225,7 +4339,8 @@ function bind() {
     e.preventDefault();
     returnMenu();
   });
-  $("play-again").onclick = () => start(activeBooking);
+  $("play-again").onclick = () =>
+    freeChoice ? startFree(freeChoice.pool, freeChoice.level) : start(activeBooking);
   $("back-menu").onclick = returnMenu;
   $("next-level").onclick = () => {
     if (weekUi?.pending) {
@@ -4261,7 +4376,7 @@ function bind() {
     },
     onShortcut: (e) => {
       const key = e.key.toLowerCase();
-      if (mode === "menu" && key === "enter" && (!title?.entered || title.loading || doorsOpening)) return;
+      if (mode === "menu" && key === "enter" && (!title || title.loading || doorsOpening)) return;
       if (
         mode === "menu" &&
         key === "enter" &&
@@ -4370,7 +4485,7 @@ function bind() {
     audio.init();
     audio.playing = !document.hidden && ["playing", "countdown"].includes(mode);
     // (On the menu its own recorded music plays, from the first click on: title.mjs.)
-    if (mode === "menu" && title?.entered && !audio.menu && !doorsOpening && !document.hidden)
+    if (mode === "menu" && title && !audio.menu && !doorsOpening && !document.hidden)
       audio.startMenu("theme", { fade: 3 });
   };
   // A click or a key while the doors open goes straight to the light.
@@ -4437,6 +4552,8 @@ try {
     }
   }
   document.body.classList.toggle("stage", !!menuStage?.ready);
+  if (menuStage?.ready && activeSwimmerChoice() === "models")
+    loadMenuGuests(swimmersLoading).catch((e) => crashlog.error("menu-guests", e));
   title = installTitle({
     $,
     audio,
@@ -4447,7 +4564,6 @@ try {
     isFullscreen: () => !!document.fullscreenElement,
     quit: isDesktop() ? quitGame : null,
     build: BUILD.commit === "dev" ? "" : "BUILD " + String(BUILD.commit).slice(0, 7).toUpperCase(),
-    entry: !testing && !playHunt && !huntStep && !tuning.has("nosound") && !params.has("noentry"),
   });
   applySettings();
   // A new player's first line under the menu says what the game is; a tip from then on.
@@ -4470,6 +4586,12 @@ try {
   }
   audio.init();
   audio.playing = false; // (the menu plays its own music: title.mjs)
+  // The menu's music from the start (21 October 2026: no CLICK TO ENTER). The desktop app plays it at once; a browser holds the
+  // sound until the first click or key, and the fade-in waits with it. (Not for a trial or a hunt.)
+  if (!testing && !playHunt && !huntStep) {
+    audio.preloadMenu();
+    audio.startMenu("theme", { fade: 3 });
+  }
   updateMenu();
   updateUI();
   syncVenue(sim);
@@ -4561,6 +4683,7 @@ try {
       get menuStage() {
         return menuStage;
       },
+      startFree,
       returnMenu,
       get crashlog() {
         return crashlog;

@@ -255,6 +255,8 @@ export const swimmerModelsReady = () => templates.size > 0;
 export const swimmerTemplateIds = () => [...templates.keys()];
 export const figureReady = (id) => figures.has(id);
 const templateFor = (id) => templates.get(id) || figures.get(id);
+// A loaded model by its id, or null (the menu's guests behind the doors: scene/menu-stage.mjs).
+export const swimmerTemplate = (id) => templateFor(id) || null;
 
 // Limbs, in the order the classic swimmer's `arms` and `legs` come: the one at -x (the character's right) first.
 const SIDES = [

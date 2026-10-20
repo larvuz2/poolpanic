@@ -1022,9 +1022,12 @@ export function buildShift(week, card = null, known = week.known || [], seen = n
     // The season finale: Saturday of week 4 at the Grand Gala Arena, at the top of the week's band (never eased).
     finale = week.chapter === FINALE_WEEK && index === SHIFTS_PER_WEEK - 1 && poolOf === FINALE_POOL,
     firstVisit = !!seen && step > 0 && !finale && !seen.includes(poolOf),
+    // (free play names its own difficulty: `week.tier`, freePlayShift)
     drawn = finale
       ? bandOf(week.chapter)[1]
-      : tierFor(week.chapter, index, stream((week.seed ^ Math.imul(step + 11, 2246822519)) >>> 0)),
+      : week.tier
+        ? Math.max(1, Math.min(TOP_TIER, Math.floor(week.tier)))
+        : tierFor(week.chapter, index, stream((week.seed ^ Math.imul(step + 11, 2246822519)) >>> 0)),
     tier = firstVisit ? Math.max(Math.min(drawn, bandOf(week.chapter)[0]), drawn - FIRST_VISIT_EASE) : drawn,
     heat = heatOf(week.chapter),
     // Past the last band: a bigger crowd and higher targets every week (at most half as much again).
@@ -1157,6 +1160,61 @@ export function buildShift(week, card = null, known = week.known || [], seen = n
     finale,
     firstVisit,
     intro: firstVisit || finale ? POOL_INTROS[poolId] || null : null,
+  };
+}
+
+// ---- free play (21 October 2026) -------------------------------------------------------------------------------------
+// The menu's FREE PLAY: any pool the ladder has opened (and the Grand Gala Arena once a run has reached its finale), at a
+// difficulty the player picks; nothing in it touches the week (no Date Fund, no wishes, no shop, no new pool). A difficulty is a
+// level of the season, open once a run has passed it (`save.unlocked`, the highest level a run has passed), Easy always.
+export const FREE_LEVELS = [
+  { id: "easy", name: "Easy", tier: 3 },
+  { id: "normal", name: "Normal", tier: 8 },
+  { id: "hard", name: "Hard", tier: 13 },
+  { id: "expert", name: "Expert", tier: 18 },
+];
+export const freeLevel = (id) => FREE_LEVELS.find((l) => l.id === id) || FREE_LEVELS[0];
+export const freeLevelOpen = (id, unlocked = 1) =>
+  freeLevel(id).tier <= Math.max(FREE_LEVELS[0].tier, Math.floor(unlocked) || 1);
+// The pools in the ladder's order, then the arena: each open or not yet.
+export function freePools(save = {}) {
+  const open = Math.max(LADDER_START, Math.min(LADDER.length, Math.floor(save.ladder) || LADDER_START)),
+    seen = Array.isArray(save.seen) ? save.seen : [];
+  return [
+    ...LADDER.map((id, i) => ({ id, open: i < open })),
+    {
+      id: FINALE_POOL,
+      open: !!save.finale || seen.includes(FINALE_POOL) || (save.bestWeek || 1) > FINALE_WEEK,
+    },
+  ];
+}
+// A free-play shift: the week's own builder at the chosen pool and difficulty (a mid-run day, so a full crowd and the big moment),
+// without the week (`config.week`) and without its wishes, booking or perks; `config.free` says which pool and difficulty.
+export function freePlayShift(poolId, levelId, seed, known = []) {
+  const level = freeLevel(levelId),
+    pool = POOLS[poolId] ? poolId : "club",
+    week = {
+      chapter: 2,
+      shift: 1,
+      seed: seed >>> 0 || 1,
+      pools: Array(SHIFTS_PER_WEEK).fill(pool),
+      history: [],
+      perks: [],
+      known,
+      tier: level.tier,
+    },
+    shift = buildShift(week, null, known);
+  const { week: _week, day: _day, ...config } = shift.config;
+  const free = { pool, level: level.id, name: level.name };
+  return {
+    ...shift,
+    config: { ...config, free },
+    free,
+    wishes: [],
+    booking: null,
+    card: null,
+    cards: [],
+    intro: null,
   };
 }
 

@@ -148,6 +148,7 @@ function trackedGameFiles() {
     "dist/scene/swimmer-models.mjs",
     "dist/story.mjs",
     "dist/week.mjs",
+    "dist/free-ui.mjs",
   ]
     .map(read)
     .join("\n");
