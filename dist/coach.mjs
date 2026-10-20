@@ -278,7 +278,22 @@ export class CoachController {
   }
   // Each layer adds what needs the coach right now, pointing at the next place to go (the life ring before the
   // victim, the treats before the dog). Urgency: 100 is someone in danger, down to ~25 for a leftover errand.
-  collectAlerts() {}
+  // The guided first shift's fins (tutorial.mjs, 21 October 2026): like the life ring, the guest who asks for fins puts a marker
+  // with its metres on the fin rack, and once the coach has a pair, on the guest. Only in the tutorial (`near`: the metres show
+  // from 1 m away, where the other alerts wait for 4).
+  collectAlerts(alerts) {
+    if (!this.config?.tutorial) return;
+    const p = this.people.find((q) => q.finsFirst && !q.hasFins && q.status === "queue"),
+      rack = this.venue.stations?.fins;
+    if (!p || !rack) return;
+    const holding = this.coach.carry === "fins";
+    if (this.coach.carry && !holding) return;
+    alerts.push(
+      holding
+        ? { kind: "fins", icon: "🦶", label: p.name, x: p.x, z: p.z, y: 2.1, urgency: 40, id: p.id, near: 1 }
+        : { kind: "fins", icon: "🦶", label: "Fin rack", x: rack.x, z: rack.z, y: 1.6, urgency: 40, near: 1 },
+    );
+  }
   // The one problem that gets the loud marker: most urgent first, then nearest.
   loudestAlert() {
     if (this.status !== "playing") return null;

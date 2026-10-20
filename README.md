@@ -435,10 +435,14 @@ AAA", the calm before the storm; everything the menu had kept but sorted differe
   a narrow screen gets a wider lens so the coach's walk still fits.
 - **The guests behind the doors** (21 October 2026, the creator: "make this a reality"). The doorway is cut out of the painting and
   behind it is a real morning: paving, a bright sky over the town, the doorway's reveal, and seven guests waiting for seven o'clock
-  (`GUESTS`): four of the swimmers, the fish kid holding his bucket (the painting had him), Marco and Karen, each on the clips they
-  wait with in a shift's queue (IdleScan and IdleScratch, CarryIdle, WaitWatch, Karen's Idle, Complain and Point), impatient: one of
-  their own clips now and then, a shuffle of a step or two and back, a look round (`updateGuest`). Their models are the game's
-  (loaded for the game anyway, except Karen, the kid and Marco, which a shift loads when it needs them); each comes in as it arrives.
+  (`GUESTS`): since the creator's second look (21 October 2026) the famous faces, the leopard man on the left and Cannonball Carl on
+  the right, Marco "the Missile" in the middle with his watch, Valentina warming up, and three of the swimmers; the fish kid is gone
+  (his bucket came through the closed door) and so is Karen. Each plays the clips they wait with in a shift's queue (IdleScan and
+  IdleScratch, Marco's WaitWatch, Valentina's WaitWarmUp), impatient: one of their own clips now and then, a shuffle of a step or two
+  and back, a look round (`updateGuest`). Everyone stands at least half a metre behind the doors, the two round men 0.7 m, and a
+  shuffle never brings anyone nearer (`CLEAR`), so nothing of them comes through the glass. Their models are the game's (the swimmers
+  load for the game anyway; the four figures, `GUEST_FIGURES`, are the files their shifts load, fetched with `loadFigure`); each
+  comes in as it arrives.
   Through the doors they are only shadows: each frame the guests are drawn alone, black on white, from the camera into a half-size
   target (the mask, `renderMask`), and the doors' glass (the leaves' shader, `uLeaf`) reads it where it stands on the screen, blurred
   over a ring of taps, in the painting's colours: warm cream glass, deep brown shadows. So the shadows move as they do, and the water
@@ -449,10 +453,13 @@ AAA", the calm before the storm; everything the menu had kept but sorted differe
   screen and the shift's countdown comes up behind it (about 3.5 s in all; a click goes straight to the doors; reduce motion, a restart
   and the crash hunt's trials start at once; should the stage stop drawing, a watch starts the shift anyway). If the stage cannot load
   (8 s at most) or stops drawing, the painted coach at his pool (`#menu-art`) is behind the menu as before; `?oldmenu` asks for that.
-- **No first screen** (21 October 2026): CLICK TO ENTER is gone at the creator's word. The menu comes straight up and its music with it
-  (the desktop app plays sound at once; a browser holds it until the first click or key, and the fade-in waits with it). The column
-  comes in a line at a time.
-- **The column** (`dist/title.mjs`): the logo, whose one moving detail is a drop of pool water that gathers under it, falls and rings
+- **No first screen** (21 October 2026): CLICK TO ENTER is gone at the creator's word. The menu comes straight up and its music with it.
+  The desktop app plays sound at once. A browser does not let any page play sound before the player's first click or key (Chrome
+  lets a page that was clicked play at once after a reload); the game tries at load, takes every event a browser counts as a click
+  (a touch's is its end), the fade-in waits with it, and while a browser holds the sound the menu's bottom corner says *Click anywhere
+  for sound* (`watchSoundHold` in app.mjs; it never shows in the desktop app). The column comes in a line at a time.
+- **The column** (`dist/title.mjs`): the logo at the top left and the choices at the bottom left (the creator, 21 October 2026),
+  the logo whose one moving detail is a drop of pool water that gathers under it, falls and rings
   out every seven seconds, "By Phatty Acid Generative Studios", then START (always START, never CONTINUE: START shows the week, in the
   shift picker), FREE PLAY, COACH'S LOCKER, SETTINGS, CREDITS, and QUIT in the desktop app. The week's lines and days are not on the menu
   any more (21 October 2026; week-ui.mjs still fills them, hidden). A click on the dark round any window of the menu or of the ⚙ menu is
@@ -639,7 +646,10 @@ The diagnostic of 19 October found that nothing taught the game and the first ho
 - **The guided first shift** (`dist/tutorial.mjs`). The first shift of a player's first run (`!save.tutorial`, Monday of week 1) is
   the gentle minute stretched to 90 s (`TUTORIAL_SECONDS`) with `config.tutorial` on, and a yellow tip under the score says the one
   thing to do next, step by step: select the waiting swimmer, send them to a lane (1), carry fins to the guest who asks for them, send
-  that guest to a lane, mop the wet spot, then *That's the job, coach!* for six seconds. The simulation sets the stage only with the
+  that guest to a lane, mop the wet spot, then *That's the job, coach!* for six seconds. The fins have a marker with metres like the
+  life ring's in a rescue (the loud alert, `collectAlerts` in coach.mjs): *🦶 Fin rack · 9 m* while the guest waits, then the guest's
+  name and metres once the coach has a pair, shown from 1 m away (`near`; the other alerts from 4 m), and only in the tutorial; an
+  arrow at the screen's edge stays under the tip. The simulation sets the stage only with the
   flag on: the second guest asks for fins first, everyone waits 2.5 times longer, and the first swimmer to climb out drips a wet spot.
   **Skip tips** stops them and marks the tutorial done; a finished tutorial is never shown again (`tutorial` in the week save). A
   replay rebuilds the shift from its config, so a tutorial shift replays exactly.
@@ -1223,7 +1233,7 @@ Replay keeps the booking; Next shift asks again. Booked runs count toward the le
 
 ## Audio, accessibility, and feedback
 
-Music is intended from the menu onward, subject to browser audio permissions; the first user gesture unlocks Web Audio (the menu's CLICK TO ENTER). The shifts' music and the effects are procedural; the menu's music and its buttons' sounds are recorded (ElevenLabs, `dist/assets/audio/`). Music and effects are two mixes under the master, with Settings' sliders. Selection, countdown, doors, jumping, landing, dash, service, rescue, and sanitation provide synchronized cues. Panic changes the musical arrangement. Muting must work across those states.
+Music is intended from the menu onward, subject to browser audio permissions: the desktop app plays at once; in a browser the first click or key unlocks Web Audio (the menu says so while it waits). The shifts' music and the effects are procedural; the menu's music and its buttons' sounds are recorded (ElevenLabs, `dist/assets/audio/`). Music and effects are two mixes under the master, with Settings' sliders. Selection, countdown, doors, jumping, landing, dash, service, rescue, and sanitation provide synchronized cues. Panic changes the musical arrangement. Muting must work across those states.
 
 Support keyboard and touch, native clickable swimmer tags, readable skill labels, help, pause, and responsive HUD/control placement. Keep tags below the measured scoreboard edge. Do not let menus or controls obscure the coach on short or portrait displays.
 
@@ -1286,7 +1296,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/platform.mjs`, `dist/achievements.mjs` | The game's side of Steam: a bridge to the desktop app that does nothing in a browser (achievements, rich presence, quit), and the fifteen achievements as pure rules (what earns each, kept on the device, told to Steam when it is there) |
 | `desktop/` | The Steam build: an Electron window around `dist/`, the Steam calls, the progress file for Steam Cloud, packing and SteamPipe scripts, and the notes for Steamworks. Its own README says how to run and build it |
 | `docs/incidents.md` | Every incident, how a shift picks them today, the level-by-level table and the proposed director |
-| `dist/scene/menu-stage.mjs`, `dist/title.mjs` | The main menu's 3D stage (the Old Town Baths before the doors open: the painted wall, the deck, the mirrored pool, the coach pacing, the doors opening on START) and the title screen around it (the first click, the buttons' sounds, Settings, Credits, the tips, START's LOADING %) |
+| `dist/scene/menu-stage.mjs`, `dist/title.mjs` | The main menu's 3D stage (the Old Town Baths before the doors open: the painted wall, the deck, the mirrored pool, the coach pacing, the doors opening on START) and the title screen around it (the guests behind the doors, the buttons' sounds, Settings, Credits, the tips, START's LOADING %) |
 | `dist/story.mjs`, `dist/cinematic.mjs` | The Ocean Fund's rules and the intro and ending scenes as data (pure), and the small full-screen cinematic player |
 | `dist/crashlog.mjs`, `crashlog-hooks.mjs` | The crash log: breadcrumbs, errors, reports and GitHub issue links (pure), and its browser wiring (window errors, console, visibility, WebGL loss, Web Locks) |
 | `dist/trace.mjs`, `dist/scene/footprint.mjs` | What the crash log is fed: the shift's diary (what changed in the simulation, in plain words, one line per change: the coach, the rescue, the rings, the swimmers in trouble, each running incident's stage through its own `describe`, the gear, the pool closing, a stage that has gone on too long, the shift's plan and a periodic pulse of where everything is) and the scene's footprint (nodes, meshes, lights, an estimate of the GPU memory for geometry, textures and shadow maps). Both pure |
@@ -1459,7 +1469,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node kids-check.mjs` | The Kids Pool: its floor plan (three open zones, a gate, no lockers, its toys and song, every station reachable), only kids each in a look of their own, kids running all over the deck (never into the water or a bench) on a stream of their own, one POOL button to the emptiest part, chaotic paddling inside the walls and out when their time is up, a packed pool past ten (room for the party while it is on), a kid's points by their mood and the bot waiting for room, no Marco, more wees, its star targets, and the bot through a shift |
 | `node progress-check.mjs` | A run worth repeating (Phase 2): the pool ladder (three to start, one more with every date, the arena the finale), the week's draw from the pools open (a new pool at once, never two days running, kept in the save), difficulty by week and the smoothed levels, the first visit at the band's foot, the season finale, one money (perks out of the Date Fund, the tip jar and sponsors into it, Marina's texts once), the coach's gear by stars, what a run leaves and what a game over keeps, an older save carried over, the album's stills and scenes, the ending and its credits, and the screens wired |
 | `node phase3-check.mjs` | Depth and feel (Phase 3): the happy streak's tiers (to ×2.5), saves and tips feeding it, its breaks with who broke it and the guest putting it at risk; coaching tips (asked once a workout from their own stream, the coach's E at the lane's end, faster and happier, lapsing); the big moment (scheduled at about two thirds of a shift, never too near either end, one kind for each pool, announced, graded and stamped, waiting for a rescue); the race played start to finish (the lane kept clear, the whistle, the starter going alone, the pile-up); the Lazy River's two ways round (the rapids quicker, loved by thrill-seekers, a chiller's wipeout, too many at once); the rooftop's seating (wishes, verdicts, the cabanas, a VIP's tip in one); and a highlight played from a shift's real record, matching it tick for tick |
-| `node onboarding-check.mjs` | The first ten minutes: a card and an easier first visit for every new pool (never the first Monday), the pools seen and the tutorial kept in the save; the guided first shift played through by a script (select, lane, fins, lane, mop, well done, then quiet) and only with `config.tutorial` on; skipping; the lane verdicts; one meaning per key; the main screen without the old map and the one-card start; the calmer HUD |
+| `node onboarding-check.mjs` | The first ten minutes: a card and an easier first visit for every new pool (never the first Monday), the pools seen and the tutorial kept in the save; the guided first shift played through by a script (select, lane, fins with their marker and metres on the rack then the guest, lane, mop, well done, then quiet; no fins marker outside the tutorial) and only with `config.tutorial` on; skipping; the lane verdicts; one meaning per key; the main screen without the old map and the one-card start; the calmer HUD |
 | `node wet-check.mjs` | Wet spots and the mop: a bucket in every pool, one in five swimmers climbing out dripping a spot (its own random stream), a spot that never dries, a slip and lost points for a guest, the coach down for 1.3 s when he steps in one (not again on his way off it; a jump clears it), the mop grabbed, used and put back (E or Q), spots that merge, and the bot mopping in every pool |
 | `node pee-check.mjs` | The wee: a third of sick guests (half at the Kids Pool), the 🚽 warning and its prevention, a missed one turning the water yellow, emptying the pool and costing as much as a poo, cleared with chlorine alone; a poo still a poo |
 | `node disco-check.mjs` | The Aqua Disco: its floor plan (four zones, no blocks, a stage past the pool, no locker rooms but one door in the back wall that guests and a dog come in and leave by, every station, fixture and queue spot reachable), a class of aqua dancers whatever the level wrote (Marco and the VIPs too, Marco's toast a dancer's), rows down a zone facing the stage with the front row by it, four to a zone comfortable and six packed (moods fall, one toast, in zones), zones not lanes in toasts and stings, the dance routine |

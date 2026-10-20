@@ -5,8 +5,8 @@
 // once the shift is chosen, has the coach walk to the doors and open them: the light floods in and the shift begins.
 //
 // Behind the doors (21 October 2026, the creator: "make this a reality"): the doorway is cut out of the painting and the first
-// guests wait outside in the morning light, real characters (`GUESTS`: the five swimmers, the fish kid with his bucket, Marco
-// and Karen) on their own waiting clips, shuffling, checking a watch, complaining at the door. Through the frosted glass they
+// guests wait outside in the morning light, real characters (`GUESTS`: the leopard man, Cannonball Carl, Marco, Valentina and
+// three swimmers) on their own waiting clips, shuffling, checking a watch, warming up at the door. Through the frosted glass they
 // are only shadows: each frame the guests are drawn alone, black on white, into a small target from the camera (the mask), and
 // the glass of the doors reads it blurred, dark where a guest stands. When the doors open they are there as they are.
 //
@@ -40,43 +40,50 @@ const HALL = { half: 5.6, deck: 2.9, water: -0.2, poolHalf: 4.3, far: 18, ceilin
 const PACE = { z: 1.35, left: -2.7, right: 2.7, speed: 0.78 };
 const DOOR_SPOT = { x: 0, z: 0.85 };
 const COACH_SCALE = 1.08;
-// The first guests, waiting outside for seven o'clock: who (a swimmer's id in swimmer-models.mjs, "kid" and "marco" its figures,
-// "karen"), where (from the doors' middle, z behind them), facing (0: the doors), the clip they wait with (`idle`), the ones they
-// play once now and then (`extras`), and the one a shuffle walks with. The clips are the ones they wait with in a shift's queue.
+// The first guests, waiting outside for seven o'clock: who (a swimmer's id in swimmer-models.mjs, or one of its figures), where
+// (from the doors' middle, z behind them), facing (0: the doors), the clip they wait with (`idle`), the ones they play once now
+// and then (`extras`), and the one a shuffle walks with. The clips are the ones they wait with in a shift's queue. Since 21
+// October 2026 (the creator) the famous faces: the leopard man on the left and Cannonball Carl on the right, Marco "the
+// Missile" in the middle with his watch, Valentina warming up, and three swimmers; no fish kid (his bucket came through the
+// closed door) and no Karen. Everyone stands at least `CLEAR` behind the doors, the round men further, so nothing of them
+// pokes through the glass.
+const CLEAR = 0.5;
 export const GUESTS = [
-  { id: "woman", x: -0.9, z: -0.55, angle: 0.25, idle: "IdleScan", extras: ["IdleScratch"], walk: "Walk" },
-  { id: "heavy-man", x: -0.48, z: -1.1, angle: 0.1, idle: "IdleScan", extras: ["IdleScratch"], walk: "Walk" },
-  { id: "kid", x: -0.38, z: -0.32, angle: -0.15, idle: "CarryIdle", extras: [], walk: "CarryWalk" },
-  { id: "boy", x: 0.22, z: -0.62, angle: -0.1, idle: "IdleScan", extras: ["IdleScratch"], walk: "Walk" },
-  {
-    id: "tall-woman",
-    x: 0.68,
-    z: -1.02,
-    angle: -0.3,
-    idle: "IdleScan",
-    extras: ["IdleScratch"],
-    walk: "Walk",
-  },
+  { id: "leopard", x: -0.86, z: -0.72, angle: 0.32, idle: "IdleScan", extras: ["IdleScratch"], walk: "Walk" },
+  { id: "woman", x: -0.46, z: -1.28, angle: 0.18, idle: "IdleScan", extras: ["IdleScratch"], walk: "Walk" },
+  { id: "boy", x: -0.3, z: -0.55, angle: 0.05, idle: "IdleScan", extras: ["IdleScratch"], walk: "Walk" },
   {
     id: "marco",
-    x: 0.02,
-    z: -1.55,
-    angle: 0,
+    x: 0.12,
+    z: -0.88,
+    angle: -0.05,
     idle: "IdleScan",
     extras: ["WaitWatch", "WaitWatch"],
     walk: "Walk",
   },
   {
-    id: "karen",
-    x: 0.92,
-    z: -0.42,
-    angle: -0.35,
-    idle: "Idle",
-    extras: ["Complain", "Point", "Complain"],
+    id: "tall-woman",
+    x: -0.04,
+    z: -1.62,
+    angle: 0,
+    idle: "IdleScan",
+    extras: ["IdleScratch"],
     walk: "Walk",
-    scale: 0.97,
   },
+  {
+    id: "valentina",
+    x: 0.5,
+    z: -1.3,
+    angle: -0.2,
+    idle: "IdleScan",
+    extras: ["WaitWarmUp", "WaitWarmUp", "IdleScratch"],
+    walk: "Walk",
+  },
+  { id: "carl", x: 0.88, z: -0.72, angle: -0.32, idle: "IdleScan", extras: ["IdleScratch"], walk: "Walk" },
 ];
+// The figures among them (loaded with loadFigure), and the swimmers (the shift's own five).
+const ROUND = new Set(["leopard", "carl"]);
+export const GUEST_FIGURES = ["leopard", "marco", "valentina", "carl"];
 // The doors' times once the coach is at them (seconds): they swing open, the guests step up, the light fills the screen.
 const OPEN = { swing: 1.3, step: 0.45, flash: [1.75, 2.45], then: 2.5 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -845,7 +852,7 @@ export class MenuStage {
           g.mode = "shuffle";
           g.target = {
             x: s.x + (Math.random() - 0.5) * 0.5,
-            z: s.z + (Math.random() - 0.5) * 0.3,
+            z: Math.min(s.z + (Math.random() - 0.5) * 0.3, -CLEAR - (ROUND.has(s.id) ? 0.2 : 0)),
             speed: 0.42,
           };
         } else {

@@ -70,7 +70,7 @@ the same twice: see `docs/incidents.md`).
    **Phase 0** (fix what's broken: the booking bug, cramps spaced out, every pool's star targets recalibrated with cramps on, a
    30 s limit on held clocks, unique names, the results card at 720p, game-over wording, wishes and incidents met, signs only
    for met incidents, a short Help) is **done**. **Phase 1, the first ten minutes** (a guided first shift that teaches by doing,
-   `dist/tutorial.mjs`; a card and a two-levels-easier shift the first time each pool appears, `POOL_INTROS`; the lane choice judged
+   `dist/tutorial.mjs`, its fins marked with metres like the life ring, `near` in coach.mjs; a card and a two-levels-easier shift the first time each pool appears, `POOL_INTROS`; the lane choice judged
    at once, `laneVerdict`; one meaning per key, the numbers for places, Z waves, B bar; the old map off the main screen; a calmer
    HUD; README "The first ten minutes") is **done**. **Phase 2, a run worth repeating** (the pools as a ladder opened across runs,
    three to start and one more with every date; what lasts in the coach's locker: the dates album, coach gear opened by stars, the
@@ -86,8 +86,11 @@ the same twice: see `docs/incidents.md`).
    (ElevenLabs), one column (START, FREE PLAY, COACH'S LOCKER, SETTINGS, CREDITS), START opening the doors into the shift, Settings
    (volumes, brightness, grain, graphics, motion, full screen, Coach Cam mouse) and Credits (`dist/title.mjs`). Since 21 October
    2026: no CLICK TO ENTER (the menu and music at once), START only (never CONTINUE), no week on the menu, a click outside any
-   window is its back button, and **real guests behind the doors** (`GUESTS`: swimmers, the fish kid, Marco, Karen on their waiting
-   clips), seen through the frosted glass as their shadows (a mask of them drawn each frame) and as they are when the doors open. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
+   window is its back button, and **real guests behind the doors** (`GUESTS`: the leopard man left, Cannonball Carl right, Marco in
+   the middle, Valentina and three swimmers on their waiting clips; no fish kid, no Karen; nobody near enough to the doors to come
+   through the glass), seen through the frosted glass as their shadows (a mask of them drawn each frame) and as they are when the
+   doors open; the choices at the bottom left; in a browser, which holds sound until the first click, *Click anywhere for sound* in
+   the corner until then. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
    Phase 2 is done**, no co-op for now, and **keep the reward (the Sunday date) as it is for now** ("we'll change it later").
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
    and Steam Deck support, a settings screen (volumes, key rebinding, full screen; graphics quality exists, in Help: Auto, Low, Medium,

@@ -79,8 +79,7 @@ import {
 import { Recorder, apply as applyInput, REPLAY_LIMITS } from "./replay.mjs";
 import { HighlightPicker, ClipPlayer, HIGHLIGHT } from "./highlight.mjs";
 import { BUILD } from "./version.mjs";
-import { MenuStage, GUESTS } from "./scene/menu-stage.mjs";
-import { loadKaren } from "./scene/karen-view.mjs";
+import { MenuStage, GUESTS, GUEST_FIGURES } from "./scene/menu-stage.mjs";
 import { installTitle, normalizeSettings, volumesOf, grainOpacity, motionReduced } from "./title.mjs";
 import { installFreePlay } from "./free-ui.mjs";
 import { freePlayShift, freeLevel } from "./week.mjs";
@@ -519,10 +518,12 @@ function updateAlert() {
   }
   const b = world.cameraBounds(),
     rect = { left: b.left + 28, right: b.right - 28, top: b.top + 28, bottom: b.bottom - 28 },
+    tutorBox = tutor && !$("tutor").hidden ? $("tutor").getBoundingClientRect() : null,
     p = world.screenPoint(a.x, a.y ?? 1.8, a.z),
-    edge = edgeArrow(p, rect),
+    // (the guided first shift's tip sits at the top: an arrow stays under it)
+    edge = edgeArrow(p, tutorBox ? { ...rect, top: Math.max(rect.top, tutorBox.bottom + 40) } : rect),
     far = Math.hypot(a.x - sim.coach.x, a.z - sim.coach.z),
-    label = a.label + (far > 4 ? " · " + Math.round(far) + " m" : ""),
+    label = a.label + (far > (a.near ?? 4) ? " · " + Math.round(far) + " m" : ""),
     tone = a.urgency >= 85 ? " danger" : "",
     key = [edge ? "edge" : "mark", a.icon, label, tone].join("|");
   marker.hidden = !!edge;
@@ -1936,8 +1937,8 @@ function applySettings(s = settings) {
   motionChoice = s.motion;
   document.body.classList.toggle("calm", reducedMotion.matches);
 }
-// The first guests behind the menu's doors (scene/menu-stage.mjs GUESTS), each as soon as its model is in: the five swimmers
-// (loading for the game anyway), the fish kid and Marco (their figures, which a shift would load), and Karen (karen-view.mjs).
+// The first guests behind the menu's doors (scene/menu-stage.mjs GUESTS), each as soon as its model is in: three of the swimmers
+// (loading for the game anyway), and the leopard man, Carl, Marco and Valentina (their figures, which a shift would load).
 async function loadMenuGuests(swimmersLoading) {
   const add = (spec, template) => template && menuStage?.addGuest(spec, template);
   const want = (id) => GUESTS.find((g) => g.id === id);
@@ -1945,18 +1946,11 @@ async function loadMenuGuests(swimmersLoading) {
   if (swimmersLoading)
     jobs.push(
       swimmersLoading.then(() => {
-        for (const spec of GUESTS) add(spec, swimmerTemplate(spec.id));
+        for (const spec of GUESTS) if (!GUEST_FIGURES.includes(spec.id)) add(spec, swimmerTemplate(spec.id));
       }),
     );
-  for (const id of ["kid", "marco"]) jobs.push(loadFigure(id).then((t) => add(want(id), t)));
-  jobs.push(
-    Promise.all([loadKaren(), import("./assets/SkeletonUtils.js")]).then(([gltf, { clone }]) => {
-      if (!gltf) return;
-      const clips = {};
-      for (const clip of gltf.animations) clips[clip.name] = clip;
-      add(want("karen"), { scene: gltf.scene, clips, clone });
-    }),
-  );
+  // (the leopard man, Carl, Marco and Valentina: the same files their shifts load, kept once loaded)
+  for (const id of GUEST_FIGURES) jobs.push(loadFigure(id).then((t) => add(want(id), t)));
   const results = await Promise.allSettled(jobs);
   crashlog.crumb(
     "menu",
@@ -4490,8 +4484,17 @@ function bind() {
   };
   // A click or a key while the doors open goes straight to the light.
   document.addEventListener("pointerdown", () => doorsOpening && menuStage?.hurry(), { capture: true });
-  document.addEventListener("pointerdown", unlockMusic, { capture: true });
-  document.addEventListener("keydown", unlockMusic, { capture: true });
+  // (every event a browser counts as the player's go-ahead for sound: a touch's is its end, not its start)
+  for (const type of ["pointerdown", "pointerup", "mousedown", "touchend", "click", "keydown"])
+    document.addEventListener(type, unlockMusic, { capture: true });
+}
+// A browser holds the sound until the first click or key (no page may play it sooner), so while it does the menu's corner says
+// so; the desktop app plays at once and never shows it.
+function watchSoundHold() {
+  const held = () =>
+    document.body.classList.toggle("sound-held", !!audio.ctx && audio.ctx.state !== "running");
+  audio.ctx?.addEventListener?.("statechange", held);
+  held();
 }
 try {
   // The crash hunt's character-models test (?nomodels): classic characters for this page only, nothing remembered.
@@ -4591,6 +4594,7 @@ try {
   if (!testing && !playHunt && !huntStep) {
     audio.preloadMenu();
     audio.startMenu("theme", { fade: 3 });
+    watchSoundHold();
   }
   updateMenu();
   updateUI();

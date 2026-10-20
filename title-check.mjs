@@ -212,7 +212,7 @@ const mixed = () => {
     "the painted guests in the light are gone: real ones stand there",
   );
   globalThis.document ??= { createElement: () => ({ getContext: () => null }) };
-  const { STAGE, GUESTS } = await import("./dist/scene/menu-stage.mjs");
+  const { STAGE, GUESTS, GUEST_FIGURES } = await import("./dist/scene/menu-stage.mjs");
   const { IMG, LEAVES, GLASS, PX, wx, wy, HALL, PACE, DOOR_SPOT, OPEN } = STAGE;
   for (const [x0, y0, x1, y1] of GLASS)
     assert.ok(
@@ -228,31 +228,52 @@ const mixed = () => {
   };
   const FILES = {
     woman: "swimmer-woman.glb",
-    "heavy-man": "swimmer-heavy-man.glb",
     boy: "swimmer-boy.glb",
     "tall-woman": "swimmer-tall-woman.glb",
-    kid: "fish-kid.glb",
+    leopard: "leopard-man.glb",
+    carl: "carl.glb",
     marco: "models/marco.glb",
-    karen: "models/karen.glb",
+    valentina: "models/valentina.glb",
   };
   assert.equal(GUESTS.length, 7);
   for (const g of GUESTS) {
     const clips = clipsOf("dist/assets/" + FILES[g.id]);
     for (const name of [g.idle, g.walk, ...g.extras]) assert.ok(clips.has(name), `${g.id} has ${name}`);
-    assert.ok(g.z < -0.2 && g.z > -2, g.id + " waits behind the doors");
+    // (behind the doors, and far enough that nothing of them comes through the closed glass: the fish kid's bucket did)
+    assert.ok(g.z <= -0.5 && g.z > -2, g.id + " waits behind the doors, clear of the glass");
+    if (["leopard", "carl"].includes(g.id))
+      assert.ok(g.z <= -0.7, g.id + "'s belly stays clear of the doors");
     assert.ok(
       g.x > wx(LEAVES.left) + 0.15 && g.x < wx(LEAVES.right) - 0.15,
       g.id + " stands in the doorway's width",
     );
   }
-  assert.ok(
-    GUESTS.some((g) => g.id === "kid" && g.idle === "CarryIdle"),
-    "the boy with the bucket, as in the painting",
+  // The creator's lineup (21 October 2026): the leopard man on one side and Carl on the other, Marco in the middle; no fish kid,
+  // no Karen. The figures are the ones loadFigure knows.
+  const { FIGURES } = await import("./dist/scene/swimmer-models.mjs");
+  const at = (id) => GUESTS.find((g) => g.id === id);
+  assert.ok(at("leopard").x < -0.6 && at("carl").x > 0.6, "the leopard man left, Carl right");
+  assert.ok(Math.abs(at("marco").x) < 0.3, "Marco in the middle");
+  assert.ok(!at("kid") && !at("karen"), "no fish kid and no Karen");
+  for (const id of GUEST_FIGURES) assert.ok(FIGURES.some((f) => f.id === id) && at(id), id + " is a figure");
+  assert.match(
+    stageSrc,
+    /-CLEAR - \(ROUND\.has\(s\.id\) \? 0\.2 : 0\)/,
+    "a shuffle never steps up to the glass",
   );
+  assert.match(app, /for \(const id of GUEST_FIGURES\) jobs\.push\(loadFigure\(id\)/);
+  assert.ok(!/loadKaren/.test(app), "Karen is not loaded for the menu");
   assert.ok(
-    GUESTS.some((g) => g.extras.includes("WaitWatch")) && GUESTS.some((g) => g.extras.includes("Complain")),
-    "impatient",
+    GUESTS.some((g) => g.extras.includes("WaitWatch")),
+    "impatient: a look at the watch",
   );
+  // The choices at the bottom left, under the logo at the top (21 October 2026).
+  assert.match(css, /\.ts-menu \{[^}]*margin-top: auto;/, "the choices at the bottom of the column");
+  // A browser holds sound until the first click: every event that counts unlocks it, and the menu says so meanwhile.
+  assert.match(html, /id="ts-sound" class="ts-sound">🔈 Click anywhere for sound</);
+  assert.match(css, /body\.sound-held \.ts-sound \{\s*display: inline;/);
+  assert.match(app, /\["pointerdown", "pointerup", "mousedown", "touchend", "click", "keydown"\]/);
+  assert.match(app, /audio\.startMenu\("theme", \{ fade: 3 \}\);\s*watchSoundHold\(\);/);
   assert.ok(
     OPEN.flash[0] > OPEN.swing && OPEN.then >= OPEN.flash[1],
     "the doors stand open before the light fills the screen",

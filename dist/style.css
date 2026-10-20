@@ -6011,11 +6011,13 @@ body.menu:not(.freeplay) #settings {
 }
 /* The menu's column of choices: words, not boxes. A hover (or the keyboard's focus) brightens a word, spreads its letters and
    draws a line under it. */
+/* (at the bottom of the column, under the logo at the top: the creator, 21 October 2026) */
 .ts-menu {
   display: grid;
   justify-items: start;
   gap: clamp(0px, 0.6vh, 6px);
-  margin-top: clamp(4px, 1.5vh, 16px);
+  margin-top: auto;
+  padding-top: clamp(4px, 1.5vh, 16px);
 }
 .ts-btn {
   all: unset;
@@ -6119,6 +6121,24 @@ body.menu:not(.freeplay) .ts-footer {
 }
 .ts-build {
   opacity: 0.6;
+}
+/* A browser waiting for the first click before it plays any sound (app.mjs watchSoundHold). */
+.ts-sound {
+  display: none;
+  margin-left: auto;
+  color: rgba(255, 244, 207, 0.85);
+  animation: ts-sound-pulse 2.4s ease-in-out infinite;
+}
+body.sound-held .ts-sound {
+  display: inline;
+}
+body.calm .ts-sound {
+  animation: none;
+}
+@keyframes ts-sound-pulse {
+  50% {
+    opacity: 0.45;
+  }
 }
 /* The column comes in a line at a time as the game opens. */
 body.entered .title-screen > * {
