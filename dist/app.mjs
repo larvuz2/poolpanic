@@ -1768,8 +1768,7 @@ function start(bookingId = null, week = null) {
   $("countdown").hidden = false;
   $("countdown-number").textContent = "3";
   $("countdown-shift").textContent = sim.config.name;
-  $("queue-panel").hidden = false;
-  $("pause").disabled = false;
+  $("queue-panel").hidden = true;
   queueKey = "";
   clearBubbles();
   updateUI();
@@ -1990,12 +1989,33 @@ function pause() {
   sim.status = "paused";
   mode = "paused";
   audio.playing = false;
+  menuLook(true);
   $("pause-dialog").showModal();
   logState();
   crashlog.crumb("pause", "at " + Math.round(sim.time) + " s");
 }
+// The ⚙ button: in a shift it pauses it and opens the menu (resume, how to play, sound, full screen, the camera, restart);
+// anywhere else the same menu opens as settings, with nothing to pause.
+function openMenu() {
+  if (["playing", "countdown"].includes(mode)) return pause();
+  if (mode === "paused") return resume();
+  if ($("pause-dialog").open) return closeSettings();
+  releaseMouse();
+  menuLook(false);
+  $("pause-dialog").showModal();
+}
+function closeSettings() {
+  if ($("pause-dialog").open) $("pause-dialog").close();
+}
+function menuLook(paused) {
+  $("pause-eyebrow").textContent = paused ? "TAKE A BREATHER" : "POOL PANIC";
+  $("pause-title").textContent = paused ? "TAKE FIVE." : "SETTINGS";
+  $("resume").innerHTML = paused ? "BACK IN ▶" : "Close";
+  $("restart").hidden = !paused;
+  $("camera-row").hidden = !paused;
+}
 function resume() {
-  if (mode !== "paused") return;
+  if (mode !== "paused") return closeSettings();
   $("pause-dialog").close();
   sim.status = resumeState;
   mode = resumeState;
@@ -2496,87 +2516,14 @@ function formatTime(t) {
   const s = Math.max(0, Math.ceil(t));
   return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 }
+// The deck's guests are not listed (20 October 2026, the creator: "no need to show all of the cards on the left… we are
+// already seeing that on top of each swimmer"): their names, needs and moods ride on the tags over them. What is left is a small
+// chip for the guest the coach has selected, with what they are doing and the Send home button (a queasy guest is stopped there).
 function updateQueue() {
-  // At the Kids Pool the waiting kids are not listed: they run about the deck and the coach has to catch one (click them, or E).
-  const loose = sim.venue.kids ? sim.people.filter((p) => p.status === "queue") : [];
-  // At the Wave Pool nobody waits: the cards are the guests walking down to the beach (the ones still without a tube first).
-  const waiting = sim.venue.kids
-      ? loose.filter((p) => p.id === sim.selected || p.stomachWarning)
-      : sim.venue.waves
-        ? sim.people
-            .filter((p) => p.status === "queue" || (p.status === "enter" && !p.resumingWorkout))
-            .sort((a, b) => (a.hasFins ? 1 : 0) - (b.hasFins ? 1 : 0))
-        : sim.venue.roof || sim.venue.chill
-          ? sim.people.filter((p) => p.status === "queue" || (p.status === "enter" && p.goal === "waitbed"))
-          : sim.people.filter((p) => p.status === "queue"),
-    problems = sim.people.filter(
-      (p) =>
-        ((p.status === "swim" || ((sim.venue.roof || p.chill) && p.status === "lounge")) &&
-          (p.problem || p.stomachWarning)) ||
-        p.status === "injured" ||
-        p.status === "overboard" ||
-        p.status === "fell-in",
-    );
-  $("queue-count").textContent = sim.venue.kids
-    ? loose.length + " running loose"
-    : sim.venue.waves
-      ? waiting.length + " coming in"
-      : sim.venue.roof
-        ? sim.people.filter((p) => ["swim", "lounge", "enter", "overboard"].includes(p.status)).length +
-          " on the roof"
-        : waiting.length + " waiting";
-  // Swimmers who need the coach come first so a long queue never hides them.
-  const list = [...problems, ...waiting];
-  const guide = guidanceState(sim);
-  const key =
-    list.map((p) => p.id + ":" + p.problem + ":" + p.stomachWarning).join(",") +
-    "|" +
-    (loose.length > 0) +
-    "|" +
-    sim.selected +
-    "|" +
-    guide.swimmerId;
-  if (key !== queueKey) {
-    queueKey = key;
-    $("queue").innerHTML = list.length
-      ? list
-          .map(
-            (p) =>
-              `<button class="swimmer-card ${p.id === sim.selected ? "selected" : ""} ${p.id === guide.swimmerId ? "guided" : ""}" data-swimmer="${p.id}" aria-label="Select ${p.name}, ${roofLook(p).label}${p.problem ? ", needs help" : ""}"><span class="portrait ${p.queasy ? "queasy" : ""}" style="background:${roofLook(p).color}">${roofLook(p).icon}</span><span class="card-info"><strong>${p.name}</strong><small>${cardStatus(p)}</small><span class="patience-track"><i data-hp="${p.id}"></i></span></span><span class="need-icon" data-need="${p.id}"></span></button>`,
-          )
-          .join("")
-      : sim.venue.kids && loose.length
-        ? '<div class="empty-queue"><span>🏃</span> Kids running loose! Click one to catch them.</div>'
-        : sim.venue.roof
-          ? '<div class="empty-queue"><span>🍸</span> Everyone is chilling.</div>'
-          : '<div class="empty-queue"><span>✓</span> All in the swim.</div>';
-  }
-  for (const p of list) {
-    const hp = document.querySelector('[data-hp="' + p.id + '"]');
-    if (hp) {
-      hp.style.width = Math.max(0, p.h) + "%";
-      hp.style.background = moodColor(p.h);
-    }
-    const need = document.querySelector('[data-need="' + p.id + '"]');
-    if (need)
-      need.textContent = p.stomachWarning
-        ? p.sickKind === "pee"
-          ? "🚽"
-          : "💩"
-        : p.queasy && Math.sin(sim.time * 2) > -0.4
-          ? "🤢"
-          : p.problem
-            ? problemIcon(p)
-            : p.needsFins && !p.hasFins
-              ? sim.venue.river || sim.venue.waves
-                ? "🛟"
-                : "🦶"
-              : "";
-  }
   const p = sim.get(sim.selected);
   $("send-home").textContent = p?.stomachWarning ? "Send to locker ↗" : "Send home ↗";
   $("send-home").classList.toggle("urgent", !!p?.stomachWarning);
-  $("selected-detail").hidden = !p;
+  $("queue-panel").hidden = !p || !["playing", "paused", "countdown", "help"].includes(mode);
   $("send-home").hidden =
     !p ||
     !["queue", "enter", "swim"].includes(p.status) ||
@@ -2775,7 +2722,6 @@ function updateUI() {
   $("mop").hidden = !wet && !holding("mop");
   $("assist").disabled = mode !== "playing";
   $("assist").querySelector(".interact-label").textContent = sim.nearestInteraction()?.label || "Interact";
-  $("pause").disabled = !["playing", "countdown"].includes(mode);
   const p = sim.get(sim.selected),
     blocked = sim.laneBlocked(),
     moving = p?.status === "swim" && !p.problem ? p : null;
@@ -4062,10 +4008,6 @@ function bind() {
     const b = e.target.closest("button[data-swimmer]");
     if (b && !b.disabled) pick({ kind: "swimmer", id: Number(b.dataset.swimmer) });
   };
-  $("queue").onclick = (e) => {
-    const b = e.target.closest("[data-swimmer]");
-    if (b) pick({ kind: "swimmer", id: Number(b.dataset.swimmer) });
-  };
   $("send-home").onclick = () => {
     sim.home();
     updateUI();
@@ -4083,9 +4025,10 @@ function bind() {
     audio.init();
     const on = audio.toggle();
     $("sound").classList.toggle("off", !on);
-    $("sound").setAttribute("aria-label", on ? "Mute sound" : "Enable sound");
+    $("sound-label").textContent = on ? "Sound: on" : "Sound: off";
+    toast(on ? "Sound on ♫" : "Sound off");
   };
-  $("pause").onclick = pause;
+  $("settings").onclick = openMenu;
   $("resume").onclick = resume;
   if (isDesktop()) {
     $("quit-game").hidden = false; // (a window needs a way out that is not the keyboard)

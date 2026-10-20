@@ -14,7 +14,7 @@ export const LESSONS = [
     id: "select",
     ready: (sim) => queued(sim).some((p) => !p.finsFirst),
     done: (sim, seen) => seen.assigned > 0 || queued(sim).some((p) => p.id === sim.selected),
-    text: () => "A swimmer is waiting on the deck. Click them, or their card on the left.",
+    text: () => "A swimmer is waiting on the deck. Click them, or walk up to them and press E.",
   },
   {
     id: "lane",

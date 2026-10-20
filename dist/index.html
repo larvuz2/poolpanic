@@ -60,9 +60,6 @@
           <button id="fund-pill" class="fund-pill" title="Ocean Fund · click to watch the story">
             <span aria-hidden="true">🌊</span><b id="fund-now">$0</b
             ><small id="fund-goal">/ $1,500</small></button
-          ><button id="fullscreen" class="icon-btn" aria-label="Toggle fullscreen" title="Fullscreen">
-            ⛶</button
-          ><button id="sound" class="icon-btn" aria-label="Toggle sound" title="Sound · M">♫</button
           ><button
             id="playtest"
             class="icon-btn"
@@ -71,15 +68,9 @@
             hidden
           >
             🐞</button
-          ><button id="help" class="icon-btn" aria-label="How to play" title="How to play · H">?</button
-          ><button id="pause" class="icon-btn" aria-label="Pause game" title="Pause · P">Ⅱ</button>
+          ><button id="settings" class="icon-btn" aria-label="Menu and settings" title="Menu · Esc">⚙</button>
         </nav>
       </header>
-      <div class="view-controls">
-        <button id="zoom-out" aria-label="Zoom out">−</button
-        ><button id="zoom-in" aria-label="Zoom in">+</button
-        ><button id="reset-view" aria-label="Reset camera" title="Reset camera">⌖</button>
-      </div>
       <div id="map" class="map" role="group" aria-label="Season map"></div>
       <div id="menu-art" class="menu-art" aria-hidden="true"></div>
       <section id="week-card" class="week-card" aria-label="This week" hidden>
@@ -136,10 +127,8 @@
           <button id="start" class="primary">START <span>▶</span></button>
         </div>
       </section>
-      <aside id="queue-panel" class="queue-panel" hidden>
-        <div class="panel-heading"><span>ON THE DECK</span><b id="queue-count">0 waiting</b></div>
-        <div id="queue"></div>
-        <div id="selected-detail" hidden></div>
+      <aside id="queue-panel" class="queue-panel" aria-label="Selected guest" hidden>
+        <div id="selected-detail"></div>
         <button id="send-home" class="eject" hidden>Send home ↗</button>
       </aside>
       <div id="combo" class="combo" hidden>
@@ -376,7 +365,8 @@
           <b>WASD / arrows</b> move · <b>Space</b> jump · <b>Shift</b> dash · <b>E</b> pick up / use / select
           · <b>1–5</b> a lane (or a zone, a spring, the pool, the river) · <b>T</b> trampoline · <b>B</b> the
           bar · <b>Z</b> the wave machine · <b>F C R Q</b> fins, chlorine, eye relief, mop · <b>V</b> Coach
-          Cam (first-person view) · <b>P / Esc</b> pause · <b>M</b> music.
+          Cam (first-person view) · <b>P / Esc</b> or <b>⚙</b> pause and settings · <b>+ −</b> zoom ·
+          <b>M</b> music.
         </p>
         <p class="help-log">
           Something broke or froze?
@@ -385,12 +375,26 @@
         </p>
         <button class="primary" data-close>I've got this ↗</button>
       </dialog>
-      <dialog id="pause-dialog" class="modal small-modal">
-        <div class="eyebrow">TAKE A BREATHER</div>
-        <h2>TAKE FIVE.</h2>
-        <p>The pool can wait a moment.</p>
-        <button id="resume" class="primary">BACK IN ▶</button
-        ><button id="restart" class="secondary">Restart this shift</button
+      <dialog id="pause-dialog" class="modal small-modal settings-modal" aria-labelledby="pause-title">
+        <div class="eyebrow" id="pause-eyebrow">TAKE A BREATHER</div>
+        <h2 id="pause-title">TAKE FIVE.</h2>
+        <button id="resume" class="primary">BACK IN ▶</button>
+        <div class="settings-list">
+          <button id="help" class="setting">
+            <i aria-hidden="true">?</i><span>How to play</span><kbd>H</kbd></button
+          ><button id="sound" class="setting">
+            <i aria-hidden="true">♫</i><span id="sound-label">Sound: on</span><kbd>M</kbd></button
+          ><button id="fullscreen" class="setting">
+            <i aria-hidden="true">⛶</i><span>Full screen</span>
+          </button>
+          <div id="camera-row" class="setting camera-row">
+            <i aria-hidden="true">⌖</i><span>Camera</span
+            ><button id="zoom-out" aria-label="Zoom out" title="Zoom out · −">−</button
+            ><button id="zoom-in" aria-label="Zoom in" title="Zoom in · +">+</button
+            ><button id="reset-view" aria-label="Reset camera" title="Reset camera">Reset</button>
+          </div>
+        </div>
+        <button id="restart" class="secondary">Restart this shift</button
         ><button id="quit-game" class="text-btn" hidden>Quit to desktop</button>
       </dialog>
       <dialog id="crash-dialog" class="modal crash-modal" aria-labelledby="crash-title">

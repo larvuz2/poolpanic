@@ -579,8 +579,8 @@ The loop is **the run** ([The week](#the-week-the-main-loop-11-october-2026-rest
 1. On the main screen, **START** (or CONTINUE). Before a shift: the day's pool, the pass mark, Marina's two wishes and the gig
    cards (a booking pays more, with more trouble; it never scores more points).
 2. A synchronized three-second countdown.
-3. A door opens and a swimmer walks to the waiting area (the deck's cards list who is waiting).
-4. Select a swimmer by their world character, clickable name tag, queue card, or E beside them.
+3. A door opens and a swimmer walks to the waiting area (their tag says who they are and what they need; since 20 October 2026 there is no list of the deck's guests on the left).
+4. Select a swimmer by their world character, clickable name tag, or E beside them; a small chip on the left shows who is selected, with **Send home**.
 5. Send them to one of the pool's places: a lane (three, five or two by pool), a zone at the disco, POOL at the Kids Pool, RIVER at
    the Lazy River, a spring at the Hot Springs; swimmers already in the water can be moved to another lane.
 6. Move the coach to deliver equipment and treatments, recover dropped gear, mop wet spots, maintain the water and answer
@@ -600,7 +600,7 @@ A lane assignment is a management action. Equipment pickup, handoff, cleanup, an
 | Space | Jump; climb out near a pool edge during rescue |
 | Shift | Short dash with an internal cooldown |
 | E | Contextual nearby interaction: pickup, handoff, selection, disposal, return, or drop; a coaching tip to a swimmer asking 📣 as they pass the lane's end; the whistle at the blocks to start the race. **Hold** it next to Karen to calm her down |
-| Click swimmer / swimmer tag / queue card | Select a swimmer |
+| Click swimmer / swimmer tag | Select a swimmer |
 | Click lane / lane button, or 1–5 | Assign the selected waiting swimmer, or move a selected swimmer who is already in the water. The numbers only ever send someone to a place (a lane, a zone, a spring, POOL, the river's LAZY LOOP 1 or RAPIDS 2, the rooftop's WATER 1, SUNBED 2 or CABANA 3) |
 | Z | Stop or start the wave machine (Wave Pool) |
 | B | Fetch a tray of margaritas from the bar (Rooftop Pool, Cruise Ship) |
@@ -612,7 +612,7 @@ A lane assignment is a management action. Equipment pickup, handoff, cleanup, an
 | V | Switch between the overview and the Coach Cam (first-person view) during a shift |
 | Mouse / drag in the Coach Cam | Look around; with the mouse captured, click acts on what the crosshair is on. ← / → turn instead of strafing, and the wheel sets the field of view |
 | Touch controls | Movement and actions using the same gameplay intents |
-| Fullscreen button | Fullscreen where supported by the browser |
+| ⚙ (top right) | The one menu: in a shift it pauses (back in, how to play, sound, full screen, the camera's zoom and reset, restart); elsewhere it is the settings. The other corner buttons (pause, help, sound, full screen, zoom) moved into it on 20 October 2026 |
 | Any key or click during a highlight | Skip the replay back to the results |
 
 Dash lasts 0.16 seconds with a 0.82-second cooldown. There is deliberately no dash cooldown meter. It supports carrying and jumping, uses collision substeps, and has streaks and a swoosh. Directional input is normalized so diagonal movement is not faster.
@@ -634,7 +634,7 @@ Geometry, interaction hit volumes, collision proxies, camera framing, and routes
 A switch on the welcome panel turns shifts into a physical first-person view, and **V** flips between it and the overview mid-shift. It is off at every launch (since 15 October 2026, the creator's word: a choice saved before is not brought back) and lasts for the session. The overview stays the default and the reference framing for the game.
 
 - **The camera is the coach's eyes.** It sits at eye height (1.52 m), just above the water while swimming, and travels through dives and climbs. The coach's own body is hidden. Two cartoon forearms (yellow track-jacket sleeves) and whatever the coach carries are drawn in a second pass with their own narrower field of view (56° vertical), so they read clearly and never clip into the world.
-- **Field of view.** 92° horizontal at 16:9, adjustable from 80° to 105° with the mouse wheel or the zoom buttons; the recentre button restores 92°. The vertical angle is kept between 50° and 78°, so phones in portrait are capped instead of fish-eyed. Pitch is limited to ±80°.
+- **Field of view.** 92° horizontal at 16:9, adjustable from 80° to 105° with the mouse wheel, + and − or the ⚙ menu's camera row; its Reset restores 92°. The vertical angle is kept between 50° and 78°, so phones in portrait are capped instead of fish-eyed. Pitch is limited to ±80°.
 - **Two motion systems.** The camera follows the coach directly and stays steady when the coach bumps into things. It only bobs 1–2 cm walking and about 3 cm dashing, dips about 3 cm on landing, kneels while bandaging, and tips back on a slip. The hands hang off springs that settle in roughly 100–200 ms:
   - they keep part of their place in the world on a fast turn and swing after the view;
   - walking, they swing and bounce 2–4× more than the camera;
@@ -967,7 +967,7 @@ Both reuse Splash Park's floor plan exactly (`RESORT_SPEC` in `spatial.mjs`): th
 
 ### VIP guests — levels 17 to 20
 
-A VIP is an ordinary lap swimmer in a gold suit with a crown and a crimson sash (`vipAt` in `SHIFTS` lists where in the arrivals they come; a VIP never takes a daredevil's slot). They tip big: **+150** on top of a served swimmer's points, before the streak multiplier. But they wait less (75% of the normal patience) and in the water being blocked, crowded or in dirty water costs their happiness 1.4× faster. A VIP who storms out costs **−300** instead of −100. They never come with sickness, cramps or a fin request. The queue card and swimmer tag show 👑 and "VIP · Pro" (`swimmerLook` in `dist/sim.mjs`), and the first one of a shift gets a toast. Golden hour introduces them; the results screen counts them (`stats.vips`).
+A VIP is an ordinary lap swimmer in a gold suit with a crown and a crimson sash (`vipAt` in `SHIFTS` lists where in the arrivals they come; a VIP never takes a daredevil's slot). They tip big: **+150** on top of a served swimmer's points, before the streak multiplier. But they wait less (75% of the normal patience) and in the water being blocked, crowded or in dirty water costs their happiness 1.4× faster. A VIP who storms out costs **−300** instead of −100. They never come with sickness, cramps or a fin request. The swimmer tag shows 👑 and "VIP · Pro" (`swimmerLook` in `dist/sim.mjs`), and the first one of a shift gets a toast. Golden hour introduces them; the results screen counts them (`stats.vips`).
 
 ### Storm — level 19 and the Storm drill
 
