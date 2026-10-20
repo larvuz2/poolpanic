@@ -912,18 +912,15 @@ export class MenuStage {
     this.shared.uMasked.value = this.guests.length ? 1 : 0;
     const before = renderer.getRenderTarget(),
       clear = renderer.getClearColor(new THREE.Color()),
-      alpha = renderer.getClearAlpha(),
-      shadows = renderer.shadowMap.enabled;
+      alpha = renderer.getClearAlpha();
     this.maskScene.add(this.guestGroup);
     this.maskScene.overrideMaterial = this.maskMaterial;
-    renderer.shadowMap.enabled = false;
     renderer.setRenderTarget(this.mask);
     renderer.setClearColor(0xffffff, 1);
     renderer.clear();
     if (this.guests.length) renderer.render(this.maskScene, this.camera);
     renderer.setRenderTarget(before);
     renderer.setClearColor(clear, alpha);
-    renderer.shadowMap.enabled = shadows;
     this.outside.add(this.guestGroup);
   }
 
