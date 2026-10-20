@@ -33,7 +33,6 @@ import {
   swimmerLook as baseSwimmerLook,
   freePlayGuests,
   CLASS_ROOM,
-  KIDS_ROOM,
   SENIOR_LOOKS,
   streakTier,
   STREAK_TIERS,
@@ -2725,7 +2724,7 @@ function updateUI() {
   const p = sim.get(sim.selected),
     blocked = sim.laneBlocked(),
     moving = p?.status === "swim" && !p.problem ? p : null;
-  // The Kids Pool's one button: how many are splashing, and whether there is room (KIDS_ROOM).
+  // The Kids Pool's one button: how many are splashing, and whether there is room (sim.kidsRoom: KIDS_ROOM, more for a party).
   const poolBtn = document.querySelector('[data-lane="pool"]');
   if (poolBtn) {
     const kids = sim.people.filter((q) => ["swim", "enter"].includes(q.status) && q.type === "child");
@@ -2733,12 +2732,13 @@ function updateUI() {
       "assignable",
       mode === "playing" && !sim.closed && !sim.rescue && p?.status === "queue",
     );
-    poolBtn.classList.toggle("danger", kids.length > KIDS_ROOM);
+    const room = sim.kidsRoom();
+    poolBtn.classList.toggle("danger", kids.length > room);
     poolBtn.querySelector(".lane-mode").textContent = sim.closed
       ? "CLOSED"
-      : kids.length > KIDS_ROOM
+      : kids.length > room
         ? "PACKED!"
-        : kids.length === KIDS_ROOM
+        : kids.length === room
           ? "FULL"
           : kids.length
             ? "SPLASHING"
@@ -2747,7 +2747,7 @@ function updateUI() {
       p?.status === "queue"
         ? "Send " + p.name + " in!"
         : kids.length
-          ? kids.length + " of " + KIDS_ROOM + " kids splashing"
+          ? kids.length + " of " + room + " kids splashing"
           : "Catch a kid first";
     poolBtn.querySelector(".lane-caps").innerHTML = kids
       .slice(0, 10)

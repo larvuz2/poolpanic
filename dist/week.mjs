@@ -792,7 +792,7 @@ export const WISHES = {
     icon: "🏊",
     text: () => "No collisions in the lanes",
     say: "No bumping into each other! 🏊",
-    fits: (s) => s.total >= 6,
+    fits: (s) => s.total >= 6 && s.lanes !== false,
     met: (r) => r.collisions === 0,
     pay: 20,
   },
@@ -848,6 +848,9 @@ export const WISHES = {
   },
 };
 export const WISHES_PER_SHIFT = 2;
+// The venues without lap lanes, where "No collisions in the lanes" makes no sense (20 October 2026: Marina asked it at the Kids
+// Pool).
+const NO_LAP_LANES = ["disco", "kids", "river", "wave", "roof", "onsen"];
 
 // The wishes of one shift: two that fit it, drawn from its seed. Each says its target and what it pays.
 export function drawWishes(shape, random, payScale = 1) {
@@ -1125,6 +1128,8 @@ export function buildShift(week, card = null, known = week.known || [], seen = n
     incidents: plan.incidents,
     vips: (config.vipAt || []).length,
     daredevils: (config.daredevilAt || []).length,
+    // (lap lanes: where swimmers can collide; not the disco's zones, the Kids Pool, the river, the waves, the roof or the springs)
+    lanes: !NO_LAP_LANES.includes(config.venue),
   };
   const wishes = drawWishes(shape, stream((week.seed ^ Math.imul(index + 3, 362437)) >>> 0), chapter.pay);
   return {

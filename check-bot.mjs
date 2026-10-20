@@ -10,6 +10,9 @@ import { SPRINGS, ONSEN_WATER } from "./dist/onsen-plan.mjs";
 import { springGuests, onsenOutPath } from "./dist/onsen.mjs";
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+export const kidsHaveRoom = (s, p) =>
+  s.people.filter((q) => q.type === "child" && (q.status === "swim" || q.status === "enter")).length <
+    s.kidsRoom() || p.h < 30;
 const CARL_CATCHABLE = ["walking", "windup", "charge", "running", "waiting"];
 
 export class CoachBot {
@@ -72,8 +75,11 @@ export class CoachBot {
     for (const p of s.people.filter((p) => p.status === "queue" && !(p.finsFirst && !p.hasFins))) {
       s.select(p.id);
       if (p.queasy && p.sick) s.home();
-      else if (s.venue.kids) s.assign(s.poolLane());
-      else if (s.venue.river) {
+      // (At the Kids Pool it waits for room: a packed pool makes every kid cross, and a cross kid pays little, sim.mjs
+      // KID_MOOD_PAY. A kid about to give up goes in anyway.)
+      else if (s.venue.kids) {
+        if (kidsHaveRoom(s, p)) s.assign(s.poolLane());
+      } else if (s.venue.river) {
         if (!s.closed && !s.cleanup) s.assign(this.riverRoute(p));
       } else if (p.type === "senior")
         // Senior Aqua Fit: the emptiest open lane, and not Marco's (he is quick, they are not).
