@@ -9,7 +9,7 @@ and the desktop app already have, and what is still to build. Sizes and rules be
 | Stage | What it is | State |
 | --- | --- | --- |
 | **1. The game** | Systems, mechanics, characters, incidents, the loop that makes people play "one more shift" | **Now.** This is where the time goes: it has to work perfectly before anything is polished |
-| **2. Steam readiness** | The desktop app, Steam calls, achievements, cloud saves, controller support, settings, a build pipeline | Started: the app, the bridge, 15 achievements, cloud-ready saves, SteamPipe scripts, bundled fonts. Left: controller, settings screen, Deck |
+| **2. Steam readiness** | The desktop app, Steam calls, achievements, cloud saves, controller support, settings, a build pipeline | Started: the app, the bridge, 15 achievements, cloud-ready saves, SteamPipe scripts, bundled fonts. Left: controller, key rebinding, Deck |
 | **3. Look** | Lighting, textures, the art pass ("pimping out") | Last, on purpose: nothing here should change how it plays |
 | **4. Launch** | Store page, wishlists, demo, review, release | The store page can start long before stage 3 |
 
@@ -23,10 +23,11 @@ and the desktop app already have, and what is still to build. Sizes and rules be
 4. **Decide the name and the price.** Check the name is free (Steam search, the trademark office of your country). Games of this size usually
    cost a few dollars up to about fifteen; it is easy to change before and after release.
 5. **Rights to your own art.** Valve asks, and a publisher or a platform will too:
-   - Steam makes you **disclose AI-generated content** in the store page's content survey: the Meshy models, the Nano Banana pictures, the promo
-     art. Say so honestly; it does not stop a release, hiding it can.
-   - Check in writing that the plans you used (Meshy, fal.ai, the image models) allow **commercial use with no attribution**. A free tier often
-     does not. Keep the invoices and the licence pages with the project.
+   - Steam makes you **disclose AI-generated content** in the store page's content survey: the Meshy and Tripo models, the Nano Banana and
+     GPT Image pictures, the ElevenLabs music and sounds, the promo art. Say so honestly; it does not stop a release, hiding it can.
+   - Check in writing that the plans you used (Meshy, Tripo, fal.ai, the image models, ElevenLabs for the menu's music and the buttons'
+     sounds) allow **commercial use with no attribution**. A free tier often does not. Keep the invoices and the licence pages with the
+     project.
    - The fonts (Barlow Condensed, DM Sans: SIL Open Font License) and three.js (MIT) are fine to ship; their licences are in `dist/assets/`.
 
 ## B. The store page (start it early: wishlists are the biggest thing a launch has)
@@ -59,8 +60,8 @@ Roughly in the order that costs a player the most if it is missing:
 | --- | --- | --- |
 | A game that does not crash, ever | Reviews decide the launch; the crash log and the hunt exist for this | The crash log is in; the iPad crash is not understood; the desktop app is Chromium, which has not shown it |
 | **Controller support** (and the Steam Deck) | Many players use a pad; "Deck Verified" needs it, text readable at 1280 x 800, and a Steam Input layout | Not started: keyboard and touch only. Steam Input can map a pad to the keys meanwhile |
-| A **settings screen**: volume (music and effects apart), graphics (shadows, antialiasing, resolution scale), full screen, key rebinding | Every PC player looks for one; the switches already exist in `dist/tuning.mjs` | Not started |
-| **Quit** in the main menu, and the pause menu | A window needs one | Quit is in the pause menu |
+| A **settings screen**: volume (music and effects apart), graphics (shadows, antialiasing, resolution scale), full screen, key rebinding | Every PC player looks for one | In since 20 October 2026: master, music and effects volumes, brightness, film grain, graphics quality, reduce motion, full screen, Coach Cam mouse. Left: **key rebinding** |
+| **Quit** in the main menu, and the pause menu | A window needs one | In both (QUIT shows in the desktop app only) |
 | More **achievements**, and a list of them in the game | They keep people playing; 15 is the start | 15 are in |
 | **Saves** that cannot be lost | Players are furious about lost progress | Saved to a file, backed up (`progress.previous.json`); Auto-Cloud settings are in `desktop/README.md` |
 | Accessibility: colour-blind safe tags, text size, reduced motion | Valve and players ask; reduced motion is in | Partly |
@@ -68,7 +69,60 @@ Roughly in the order that costs a player the most if it is missing:
 | Real **icon**, window title art, a proper **logo** | `desktop/build/icon.png` is a placeholder | Placeholder |
 | **Dev mode off** by default | Dev mode (Settings, Developer) opens every pool and difficulty in FREE PLAY for testing; a player must earn them | On for the creator's tests: set `DEV_DEFAULT` to `false` in `dist/dev.mjs` before the release build |
 
-## E. Launch
+## E. The last pass before Release
+
+Compared on 21 October 2026 with the Steam launch and release checklists of *Claude Code Game Studios* (an MIT-licensed template for Godot,
+Unity and Unreal projects), keeping only what applies to a single-player game in an Electron window. Most of their list is already above;
+these are the items it had and this file did not. Tick them on the release candidate, the build that goes to review.
+
+**The build**
+
+- [ ] **Dev mode off**: `DEV_DEFAULT` is `false` in `dist/dev.mjs` (section D), and a fresh install shows FREE PLAY with 3 pools.
+- [ ] **No tester leftovers**: the Steam build has no `tester.json`, starts outside playtest mode, has no 🐞 button and no *Send report*
+  in the crash dialog (a Steam build never sends anything: `dist/report-send.mjs`). `?debug`, `?dev` and `?bisect` do nothing a player
+  can reach.
+- [ ] **A version number** in the build (`dist/version.mjs` names the commit) and the same commit **tagged in git** (`v1.0.0`), so a
+  crash report or a review can be traced to the exact code.
+- [ ] **Installs clean from a fresh account**: on a machine (or a new user account) that never ran the game, install from the beta branch
+  and play the first shift. A test on the machine that built it can hide a missing file behind old saves.
+- [ ] **A long session**: play a whole week, six shifts and the Sunday, in one sitting, and watch memory in the system's monitor stay flat
+  (one shift's did in Electron during the crash hunt; do it again on the release build, on Windows).
+- [ ] **No network needed**: unplug, start the game, play a shift (the rule in CLAUDE.md: nothing may need the network once the files
+  are in).
+- [ ] **Steam not running**: start the game without Steam open; with `restartIfNeeded` set to true in `desktop/steam.config.json`
+  (section A, step 3) it should hand itself to Steam.
+- [ ] **Sleep and switching away**: put the computer to sleep mid-shift and wake it, and Alt-Tab away; check the shift pauses (or is
+  safe to come back to) and the music returns.
+- [ ] **Saves in every state**: quit mid-shift, mid-week and on the Sunday, start again, and the run is where it was; Cloud on two machines
+  if you have them.
+
+**The machine it runs on**
+
+- [ ] **Minimum and recommended specs measured, not guessed**: play a busy shift (the Cruise Ship or the Rooftop at a hard level) on the
+  oldest and weakest machine you can find, on Low and on Auto, and write the store page's specs from what held 60 fps (and what held
+  30). The quality tiers are in `dist/gfx.mjs`.
+- [ ] **Screens**: 1280 x 720, 1920 x 1080, 2560 x 1440, 4K and an ultrawide; windowed and full screen; the HUD readable and nothing cut
+  off, and the window's size and full screen remembered.
+- [ ] **The settings saved and restored** after a restart (volumes, graphics, full screen, reduce motion).
+
+**The words and the first ten minutes**
+
+- [ ] **Every line of text proofread** once, in the game (Help, the cards, Marina's texts, the incidents, the results, the credits).
+- [ ] **The tutorial played by someone who has never seen the game**, watched without a word of help.
+- [ ] **The credits complete**: every tool and licence used (section A), every person.
+
+**Support and the day itself**
+
+- [ ] **A support address** for the store page (Steamworks asks for one), and a pinned post in the game's Steam discussions: how to
+  report a bug, the known issues.
+- [ ] **A privacy line** if anything is ever collected: the Steam build collects nothing today, so the store page can say so; a crash
+  report sent by hand (as the tester builds do) would need a privacy policy first.
+- [ ] **Keys for press and streamers** (Steamworks gives review keys) sent a week or two before the date.
+- [ ] **A hotfix rehearsed**: change one line, pack, upload with SteamCMD and set the build live on a test branch, timing it; and know how
+  to **roll back** (in Steamworks, set the previous build live on the default branch).
+- [ ] **Release notes** for the launch build posted as a Steam event, and the first patch's notes ready to write.
+
+## F. Launch
 
 - Release date set in Steamworks; **launch discount** and the price; announce to the wishlists.
 - Watch the first reviews and the crash reports (`crashlog` in the game's own log; Steam also shows crashes by version).
