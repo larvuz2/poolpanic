@@ -6,6 +6,7 @@
 import * as THREE from "./three.module.js";
 import { GLTFLoader } from "./GLTFLoader.js";
 import { OrbitControls } from "./OrbitControls.js";
+import { CoachFace, EXPRESSIONS, EXPRESSION_NAMES } from "./coach-face.mjs"; // (the game's own, dist/scene/coach-face.mjs)
 
 const FPS = 24; // the clips are authored at 24 frames per second
 const POP_DEG = 40; // a bone turning more than this in one frame is flagged
@@ -478,6 +479,7 @@ function activate(character) {
   }
   renderStats(character);
   renderClips(character);
+  renderFace(character);
   const remembered = store.get("clip:" + character.entry.id, null);
   const first = character.clips.find((c) => c.name === remembered) || character.clips[0];
   if (first) selectClip(first, { fade: 0 });
@@ -489,6 +491,73 @@ function activate(character) {
     note("This file has no animation clips.", "info");
   }
   $("#char").value = character.entry.id;
+}
+
+// ---- the face (Coach Waters': coach_face.py's bones, posed by the game's coach-face.mjs) ----------------------------------
+
+// The expression the game shows with a clip (scene.mjs picks it from what is happening; this is the usual pairing).
+const CLIP_FACE = {
+  Startle: "alarm",
+  FreakOut: "panic",
+  Haul: "struggle",
+  Panic: "panic",
+  Run: "focus",
+  IceSlide: "worried",
+  SwimRing: "struggle",
+};
+const FACE_NOTES = {
+  neutral: "At ease: a glance about now and then, a blink every few seconds.",
+  focus: "On his way to a job: a little narrowed, the brows down at the middle.",
+  worried: "A problem on the deck: the eyes wider, the brows up at the middle.",
+  alarm: "The moment trouble starts (with Startle): eyes popped, pupils shrunk to dots, brows shot up.",
+  panic: "Trouble he cannot get to (with FreakOut): huge eyes, pinpoint pupils shaking and darting, the moustache bristling.",
+  struggle: "Heaving at a heavy job or towing a swimmer (with Haul): screwed-up eyes, brows down and squeezed, all straining.",
+  dizzy: "Just slipped on a wet spot: heavy lopsided lids, the pupils going round, the moustache drooping.",
+  dismay: "It went wrong: brows up at the middle, the moustache drooping, looking down.",
+  relief: "A save: soft half-lids, big pupils, the moustache's ends up.",
+};
+function renderFace(character) {
+  if (character.face === undefined) {
+    const face = new CoachFace(character.root);
+    character.face = face.ok ? face : null;
+  }
+  const face = character.face;
+  $("#face-section").hidden = !face;
+  if (!face) return;
+  const row = $("#faces");
+  row.replaceChildren();
+  for (const name of EXPRESSION_NAMES) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.dataset.face = name;
+    b.textContent = name[0].toUpperCase() + name.slice(1);
+    b.addEventListener("click", () => {
+      $("#face-follow").setAttribute("aria-pressed", "false");
+      showFace(name);
+    });
+    row.append(b);
+  }
+  showFace(face.name);
+}
+function showFace(name, now = false) {
+  const face = S.character?.face;
+  if (!face || !EXPRESSIONS[name]) return;
+  face.set(name, now);
+  for (const b of document.querySelectorAll("#faces [data-face]")) b.setAttribute("aria-pressed", String(b.dataset.face === name));
+  $("#face-note").textContent = FACE_NOTES[name] || "";
+}
+function faceCloseUp() {
+  const c = S.character;
+  const head = c?.root.getObjectByName("Face") || c?.root.getObjectByName("Head");
+  if (!head) return;
+  const at = head.getWorldPosition(new THREE.Vector3());
+  const v = camera.position.clone().sub(controls.target).setY(0);
+  if (v.lengthSq() < 1e-6) v.set(0, 0, 1);
+  v.normalize().multiplyScalar(1.3);
+  camera.position.set(at.x + v.x, at.y + 0.08, at.z + v.z);
+  controls.target.copy(at);
+  controls.update();
 }
 
 function renderStats(character) {
@@ -599,6 +668,7 @@ function selectClip(entry, { fade = S.blend } = {}) {
     action.play();
   }
   for (const c of character.clips) c.button?.setAttribute("aria-current", String(c === entry));
+  if (character.face && $("#face-follow").getAttribute("aria-pressed") === "true") showFace(CLIP_FACE[entry.name] || "neutral");
   store.set("clip:" + character.entry.id, entry.name);
   const flags = character.entry.clips?.[entry.name] || {};
   if (!flags.water) dive(null); // leave a pool first, so the camera it brings back is the one lay() keeps
@@ -669,6 +739,8 @@ function tick() {
   if (character) {
     const advance = S.playing ? dt * S.speed : 0;
     character.mixer.update(advance);
+    // the face after the clips (no clip keys it), alive in real time even while the clip is paused
+    character.face?.update(dt, { still: $("#face-live").getAttribute("aria-pressed") !== "true" });
     if (S.ground > 0 && !S.water) floorTexture.offset.y = (floorTexture.offset.y - S.ground * advance) % 1; // the ground runs back under a character facing +Z
     const a = S.clip;
     if (a && S.water) character.root.position.z = runZ(S.water, a.action.time * FPS);
@@ -750,6 +822,13 @@ function wire() {
   showBlend();
 
   for (const b of document.querySelectorAll("#cams [data-az]")) b.addEventListener("click", () => setCamera(Number(b.dataset.az)));
+  $("#face-cam").addEventListener("click", faceCloseUp);
+  for (const id of ["#face-follow", "#face-live"])
+    $(id).addEventListener("click", () => {
+      const on = $(id).getAttribute("aria-pressed") !== "true";
+      $(id).setAttribute("aria-pressed", String(on));
+      if (id === "#face-follow" && on && S.clip) showFace(CLIP_FACE[S.clip.name] || "neutral");
+    });
   for (const b of document.querySelectorAll("[data-bd]")) {
     b.addEventListener("click", () => {
       S.backdrop = b.dataset.bd;

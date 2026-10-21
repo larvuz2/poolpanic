@@ -10,7 +10,11 @@
 //   - moving: Run, played faster or slower with the coach's speed so the feet keep up with the floor;
 //   - swimming: Swim (Run, if the file has no Swim);
 //   - standing: IdleScan, with an IdleScratch now and then.
+// In trouble (21 October 2026): Startle (one shot) when a new incident starts and he is standing, Haul while a heavy job is in
+// his hands (a guest hauled back, a lounger straightened, a guest helped out, a breaker reset), FreakOut when he stands still
+// while something urgent goes unanswered. His face (coach-face.mjs) is posed after the clips, every frame.
 import { THREE } from "./kit.mjs";
+import { CoachFace, coachMood } from "./coach-face.mjs";
 
 export const COACH_KEY = "pool-panic.coach.v1";
 export const CLIPS = {
@@ -23,7 +27,15 @@ export const CLIPS = {
   // The hot springs' ice (18 October 2026): skating along, and sliding on with the arms flung out (the deck has no grip).
   iceSkate: "IceSkate",
   iceSlide: "IceSlide",
+  // Trouble (21 October 2026): the jolt when it starts, heaving at a heavy job, freaking out when it is left alone.
+  startle: "Startle",
+  haul: "Haul",
+  freakOut: "FreakOut",
 };
+// The jobs the coach heaves at (sim.startBusy kinds): Haul plays through them.
+export const HEAVY_JOBS = new Set(["haul", "help-out", "straighten", "breaker"]);
+// Seconds of standing still with something urgent going on before he freaks out.
+const FREAK_AFTER = 0.8;
 const REQUIRED = ["idle", "scratch", "walk", "run"];
 // The speed each clip covers without the feet sliding (Anim Bench's ground estimate), in world units per second.
 export const RUN_SPEED = 3.85;
@@ -105,6 +117,7 @@ export class CoachRig {
     this.rate = 1;
     this.idleFor = 0;
     this.scratchAfter = CoachRig.scratchDelay();
+    this.freakFor = 0;
     this.to("idle", 0);
   }
   static scratchDelay() {
@@ -126,7 +139,22 @@ export class CoachRig {
   // dt: seconds of world time (zero in a hit-stop). speed: the coach's speed. intro: {rate} while the shift's countdown
   // walks him in. prone: swimming (the clip is played on his front, in the water). ring: he holds the life ring.
   // busy: a timed job in hand. ice: "skate" or "slide" on the hot springs' ice (coach.mjs `onIce`, `sliding`).
-  update(dt, { speed = 0, intro = null, prone = false, ring = false, busy = false, ice = null } = {}) {
+  // heavy: the job in hand is a heave (HEAVY_JOBS). startle: a new incident has just started (one frame). urgent: something
+  // that cannot wait is going on (the loudest alert's urgency is high).
+  update(
+    dt,
+    {
+      speed = 0,
+      intro = null,
+      prone = false,
+      ring = false,
+      busy = false,
+      ice = null,
+      heavy = false,
+      startle = false,
+      urgent = false,
+    } = {},
+  ) {
     let want;
     let rate = 1;
     if (intro) {
@@ -151,8 +179,26 @@ export class CoachRig {
       } else if (prone) {
         want = this.actions.swim ? "swim" : "run";
         rate = this.actions.swim ? 1.1 : 1.2;
-      } else want = "idle";
+      } else if (heavy && this.actions.haul) want = "haul";
+      else want = "idle";
     }
+    // The jolt: from standing (not in the middle of a run or a swim), played to its end unless he moves off.
+    if (want === "idle" && startle && this.actions.startle) {
+      this.actions.startle.reset();
+      if (this.current === "startle") this.actions.startle.play();
+      want = "startle";
+    } else if (want === "idle" && this.current === "startle") {
+      const a = this.actions.startle;
+      if (a.time < a.getClip().duration - 0.15) want = "startle";
+    }
+    // Left standing with something urgent unanswered: he freaks out.
+    this.freakFor = want === "idle" && urgent && !busy ? this.freakFor + dt : 0;
+    if (
+      want === "idle" &&
+      this.actions.freakOut &&
+      (this.freakFor > FREAK_AFTER || (urgent && this.current === "freakOut"))
+    )
+      want = "freakOut";
     if (want === "idle") {
       const scratch = this.actions.scratch;
       if (this.current === "scratch") {
@@ -170,7 +216,9 @@ export class CoachRig {
     }
     this.to(
       want,
-      want === "run" || want === "swim" || want === "swimRing" || want === "iceSlide" ? 0.12 : 0.22,
+      want === "run" || want === "swim" || want === "swimRing" || want === "iceSlide" || want === "startle"
+        ? 0.12
+        : 0.22,
     );
     // The playing rate follows the coach's speed smoothly; the other clips play as they are.
     this.rate += (rate - this.rate) * Math.min(1, dt * 14);
@@ -230,6 +278,7 @@ export function introAt(plan, countdown) {
 // Swaps the look of a character() group built as the coach: the classic parts stay (hidden, still posed by the rest of
 // the game), the model goes in beside them. Returns the rig, or null when the classic coach is wanted or the model is
 // not loaded.
+export { coachMood };
 export function attachCoachModel(group, choice = activeChoice()) {
   if (choice !== "panic" || !template) return null;
   const u = group.userData;
@@ -246,13 +295,16 @@ export function attachCoachModel(group, choice = activeChoice()) {
   for (const [key, name] of Object.entries(CLIPS)) {
     if (!template.clips[name]) continue; // (a file without Swim crawls with the Run clip)
     const action = mixer.clipAction(template.clips[name]);
-    if (key === "scratch") {
+    if (key === "scratch" || key === "startle") {
       action.setLoop(THREE.LoopOnce, 1);
       action.clampWhenFinished = true;
     }
     actions[key] = action;
   }
   u.rig = new CoachRig(mixer, actions);
+  // His face: the bones coach_face.py put in the file (none in an older file: then nothing moves but the clips).
+  const face = new CoachFace(model);
+  u.rig.face = face.ok ? face : null;
   return u.rig;
 }
 // Back to the classic coach after the rig has failed: show the hidden parts again.

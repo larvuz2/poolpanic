@@ -63,7 +63,10 @@ the same twice: see `docs/incidents.md`).
    the creator's tests: `DEV_DEFAULT`, to turn off before the Steam release) opens every pool and difficulty there. Marina never appears on the deck: only in texts, wishes and full-screen
    scenes, whose videos the creator will add (`VIDEOS` in `dist/marina.mjs`); until then each scene shows a still (`ART` in
    `dist/story.mjs`, generated from the creator's pictures). The coach is **Coach Waters** (renamed from Coach Panic on 15 October
-   2026; his file is still `coach-panic.glb`). The game always plays the new character models (no crash tier and no saved choice brings
+   2026; his file is still `coach-panic.glb`). Since 21 October 2026 he has **a face that acts** (no mouth: eyes, lids, pupils,
+   brows, moustache on 18 bones under `Face`, `tools/blender/coach_face.py`, run last on his file) and nine expressions the game
+   picks from what happens to him (`dist/scene/coach-face.mjs`: alarm, panic, struggle, dizzy, relief…), with three clips of
+   trouble: **Startle**, **FreakOut**, **Haul** (README, "Coach Waters — the coach's model"). The game always plays the new character models (no crash tier and no saved choice brings
    the classic ones back), the Coach Cam is off at every launch, and the logo is top left.
    **The diagnostic and the plan (19 October 2026).** An analysis of the loop, the hook and the goals (the "Pool Panic Diagnostic"
    page) found the toy great and the game around it unfinished: nothing teaches it, the first hour asks too little then too much,

@@ -28,6 +28,7 @@ node -e '
   fs.writeFileSync(path.join(out, "characters.json"), JSON.stringify(manifest, null, 2) + "\n");
 ' "$here" "$out"
 cp "$here/../../dist/assets/three.module.js" "$out/three.module.js"
+cp "$here/../../dist/scene/coach-face.mjs" "$out/coach-face.mjs" # Coach Waters' face: the game's own module
 for name in GLTFLoader OrbitControls BufferGeometryUtils; do
   sed -e "s#from 'three'#from './three.module.js'#" \
       -e "s#'../utils/BufferGeometryUtils.js'#'./BufferGeometryUtils.js'#" \

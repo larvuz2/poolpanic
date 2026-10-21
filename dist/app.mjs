@@ -3760,6 +3760,7 @@ function events() {
       if (e.type === "save") crashlog.crumb("save", describeEvent(e));
       else if (!isNoisy(e)) crashlog.crumb("event", describeEvent(e));
       if (e.type === "save") achievements.save(e.kind);
+      world.coachMoment?.(e.type); // (his face and his jolt: scene.mjs)
       if (e.type === "countdown") {
         $("countdown-number").textContent = e.value;
         if (!reducedMotion.matches)

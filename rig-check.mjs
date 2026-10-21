@@ -515,10 +515,17 @@ function readRig(file) {
   const skin = glb.json.skins[0];
   const inverseBind = accessor(glb, skin.inverseBindMatrices).values;
   const bones = {};
+  // Coach Waters' face (tools/blender/coach_face.py): the bones under `Face` are his alone and no clip keys them, so they
+  // are kept apart from the skeleton the other characters share (`faceBones`).
+  const faceBones = {};
+  const inFace = (node) => {
+    for (let n = node; n !== undefined; n = parent.get(n)) if (nodes[n].name === "Face") return true;
+    return false;
+  };
   skin.joints.forEach((node, k) => {
     const name = nodes[node].name;
-    assert.ok(!(name in bones), `${file}: two bones are called ${name}`);
-    bones[name] = {
+    assert.ok(!(name in bones) && !(name in faceBones), `${file}: two bones are called ${name}`);
+    (inFace(node) ? faceBones : bones)[name] = {
       index: k,
       parent: parent.has(node) ? nodes[parent.get(node)].name : null,
       rotation: nodes[node].rotation || [0, 0, 0, 1],
@@ -558,6 +565,8 @@ function readRig(file) {
   };
   return {
     bones,
+    faceBones,
+    primitives: glb.json.meshes[meshNode.mesh].primitives.length,
     root: {
       scale: root.scale || [1, 1, 1],
       rotation: root.rotation || [0, 0, 0, 1],
@@ -581,6 +590,44 @@ function readRig(file) {
   };
 }
 
+// Coach Waters' face: its bones are all there, each one's frame at rest is the model's own (no turn, no scale: the game
+// moves them in metres along the model's axes, coach-face.mjs), its bind pose agrees with it, and the face's own mesh (the
+// second primitive) hangs from those bones only.
+const FACE_BONES = ["Face", "Stache", "StacheL", "StacheR"].concat(
+  ...["L", "R"].map((s) => ["Eye", "Lid", "LidLow", "Look", "Pupil", "BrowIn", "BrowOut"].map((b) => b + s)),
+);
+function hasAFace(rig, label, file) {
+  assert.deepEqual(Object.keys(rig.faceBones).sort(), [...FACE_BONES].sort(), `${label}: the face's bones`);
+  for (const [name, bone] of Object.entries(rig.faceBones)) {
+    const w = bone.world;
+    for (const [i, want] of [
+      [0, 1],
+      [5, 1],
+      [10, 1],
+      [1, 0],
+      [2, 0],
+      [4, 0],
+      [6, 0],
+      [8, 0],
+      [9, 0],
+    ])
+      assert.ok(Math.abs(w[i] - want) < 1e-4, `${label}: ${name}'s frame at rest is not the model's own`);
+    const bind = multiply(bone.inverseBind, w);
+    for (let i = 0; i < 16; i++)
+      assert.ok(Math.abs(bind[i] - (i % 5 === 0 ? 1 : 0)) < BIND_ERROR, `${label}: ${name}'s bind matrix`);
+  }
+  assert.equal(rig.primitives, 2, `${label}: the body and the face's own mesh`);
+  const glb = readGlb(file);
+  const prim = glb.json.meshes.find((m) => m.primitives.length === 2).primitives[1];
+  assert.equal(glb.json.materials[prim.material].name, "CoachFace", `${label}: the face's material`);
+  const joints = accessor(glb, prim.attributes.JOINTS_0).values;
+  const weights = accessor(glb, prim.attributes.WEIGHTS_0).values;
+  const faceIndex = new Set(Object.values(rig.faceBones).map((b) => b.index));
+  for (let i = 0; i < joints.length; i++)
+    if (weights[i] > 0)
+      assert.ok(faceIndex.has(joints[i]), `${label}: a vertex of the face hangs from a body bone`);
+}
+
 const manifest = JSON.parse(readFileSync(`${dir}/characters.json`, "utf8"));
 const byId = new Map(manifest.characters.map((c) => [c.id, c]));
 const templates = new Map();
@@ -599,6 +646,8 @@ for (const character of manifest.characters) {
     hopsWithHandsUp(templates.get(source.id), source.name);
     crawlsLikeAFreestyler(templates.get(source.id), source.name);
     holdsTheRingAhead(templates.get(source.id), source.name);
+    if (source.id === "coach-panic")
+      hasAFace(templates.get(source.id), source.name, resolve(dir, source.file));
   }
   const template = templates.get(source.id);
   const rig = readRig(resolve(dir, character.file));
