@@ -79,6 +79,7 @@ import {
 import { Recorder, apply as applyInput, REPLAY_LIMITS } from "./replay.mjs";
 import { HighlightPicker, ClipPlayer, HIGHLIGHT } from "./highlight.mjs";
 import { BUILD } from "./version.mjs";
+import { devOn } from "./dev.mjs";
 import { MenuStage, GUESTS, GUEST_FIGURES } from "./scene/menu-stage.mjs";
 import { installTitle, normalizeSettings, volumesOf, grainOpacity, motionReduced } from "./title.mjs";
 import { installFreePlay } from "./free-ui.mjs";
@@ -1927,6 +1928,12 @@ function applySettings(s = settings) {
   }
   motionChoice = s.motion;
   document.body.classList.toggle("calm", reducedMotion.matches);
+  // (dev mode switched in Settings: the menu's FREE PLAY count follows at once)
+  if (mode === "menu") weekUi?.menu();
+}
+// Dev mode (dev.mjs): every pool and difficulty open in FREE PLAY; the address's ?dev=1 or ?dev=0 wins over the setting.
+function devMode() {
+  return devOn(settings, params);
 }
 // The first guests behind the menu's doors (scene/menu-stage.mjs GUESTS), each as soon as its model is in: three of the swimmers
 // (loading for the game anyway), and the leopard man, Carl, Marco and Valentina (their figures, which a shift would load).
@@ -4132,6 +4139,7 @@ function frame(t) {
 function bind() {
   weekUi = installWeek({
     $,
+    dev: devMode,
     storage: crashStorage,
     startShift: (shift) => start(null, shift),
     returnMenu,
@@ -4162,7 +4170,7 @@ function bind() {
   };
   $("fp-back").onclick = () => weekUi.freePlay(false);
   // FREE PLAY is a window of pools now (21 October 2026, free-ui.mjs), not the cloud map of levels.
-  freeUi = installFreePlay({ $, save: () => weekUi.save, onPlay: startFree });
+  freeUi = installFreePlay({ $, save: () => weekUi.save, onPlay: startFree, dev: devMode });
   $("wk-free").onclick = () => freeUi.open();
   syncUnlocks();
   mapView = new LevelMap($("map"), {

@@ -5,6 +5,8 @@
 
 // Settings' sliders and switches, kept with the other preferences (pool-panic.settings.v1). Volumes and film grain are
 // percentages, brightness a percentage of the venue's own light, sensitivity a percentage of the Coach Cam's mouse look.
+import { DEV_DEFAULT } from "./dev.mjs";
+
 export const SETTING_DEFAULTS = {
   master: 80,
   music: 70,
@@ -14,6 +16,7 @@ export const SETTING_DEFAULTS = {
   sensitivity: 100,
   invertY: false,
   motion: "auto", // "auto" (the system's choice), "on" or "off"
+  dev: DEV_DEFAULT, // dev mode: every pool and difficulty open in FREE PLAY (dev.mjs)
 };
 const LIMITS = {
   master: [0, 100],
@@ -35,6 +38,7 @@ export function normalizeSettings(saved = {}) {
           : fallback;
     } else if (key === "invertY") out[key] = v === true;
     else if (key === "motion") out[key] = ["auto", "on", "off"].includes(v) ? v : fallback;
+    else if (key === "dev") out[key] = typeof v === "boolean" ? v : fallback;
   }
   return out;
 }
@@ -150,6 +154,7 @@ export function installTitle({
     $("set-invert").checked = settings.invertY;
     $("set-motion").checked = motionReduced(settings, matchMedia("(prefers-reduced-motion: reduce)").matches);
     $("set-fullscreen").checked = isFullscreen();
+    $("set-dev").checked = !!settings.dev;
   }
   for (const key of sliders)
     $("set-" + key).addEventListener("input", (e) => {
@@ -162,6 +167,11 @@ export function installTitle({
   for (const key of sliders) $("set-" + key).addEventListener("change", saveSettings);
   $("set-invert").onchange = () => {
     settings.invertY = $("set-invert").checked;
+    apply(settings);
+    saveSettings();
+  };
+  $("set-dev").onchange = () => {
+    settings.dev = $("set-dev").checked;
     apply(settings);
     saveSettings();
   };

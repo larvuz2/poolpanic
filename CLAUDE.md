@@ -59,7 +59,8 @@ the same twice: see `docs/incidents.md`).
    met in week 1, then a fair mix where one that just came is less likely, `RECENT`). A shift not passed pays nothing but the week goes on. Marina's
    wishes for each shift, and a shop whose perks are paid out of the Date Fund (one money). **FREE PLAY** (on the menu since 21 October 2026, `dist/free-ui.mjs`) is
    a window of every pool, like the coach's locker: the pools the ladder has opened, at a difficulty a run has reached (Easy to
-   Expert), a shift without the week (`freePlayShift`) with its own bests. Marina never appears on the deck: only in texts, wishes and full-screen
+   Expert), a shift without the week (`freePlayShift`) with its own bests; **dev mode** (`dist/dev.mjs`, Settings > Developer, `?dev=1`/`?dev=0`, on by default for
+   the creator's tests: `DEV_DEFAULT`, to turn off before the Steam release) opens every pool and difficulty there. Marina never appears on the deck: only in texts, wishes and full-screen
    scenes, whose videos the creator will add (`VIDEOS` in `dist/marina.mjs`); until then each scene shows a still (`ART` in
    `dist/story.mjs`, generated from the creator's pictures). The coach is **Coach Waters** (renamed from Coach Panic on 15 October
    2026; his file is still `coach-panic.glb`). The game always plays the new character models (no crash tier and no saved choice brings

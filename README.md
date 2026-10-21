@@ -490,6 +490,12 @@ AAA", the calm before the storm; everything the menu had kept but sorted differe
   (`freePlayShift` in week.mjs: a mid-run day, so the full crowd, VIPs, Marco and the big moment) without the week: no Date Fund, no
   wishes, no shop, no new pool. It ends on its own results (`finishFree`: stars, score, a new best for that pool and difficulty, kept
   in `pool-panic.free.v1`), and Play again plays it again. The cloud map of levels it replaces is still in the code, unused.
+- **Dev mode** (21 October 2026, the creator: "I need a dev mode so I can test out all of the venues", `dist/dev.mjs`): while it is
+  on, FREE PLAY opens every pool, the Grand Gala Arena too, at every difficulty (its window says *DEV MODE*, the menu's FREE PLAY
+  says *13 pools · dev*); the run, the ladder and the coach's locker keep the player's real progress. A switch in Settings
+  (Developer), saved with the settings; `?dev=1` or `?dev=0` in the address turns it on or off for one page. It is on by default for
+  now (`DEV_DEFAULT`), while the creator tests the venues: the release checklist (`desktop/steam/checklist.md`) says to turn it off
+  before the Steam build.
 - **Checks** (`title-check.mjs`): the settings' defaults and limits, the tips and the loading label, the two mixes and Settings'
   volumes on a fake audio context, the menu music's loop points, fade in and out, and a stop cancelling a track still loading, the
   painting's size and where the doors and their glass are, the guests (each one's clips in its own file, all behind the doors and in

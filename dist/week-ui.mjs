@@ -51,6 +51,7 @@ export function installWeek({
   crumb = () => {},
   presence = () => {},
   celebrate = () => {},
+  dev = () => false, // dev mode (dev.mjs): FREE PLAY shows every pool open
 }) {
   let save = load();
   let shift = null; // the shift being played (or picked)
@@ -135,7 +136,10 @@ export function installWeek({
       `Incidents met: ${met.map((k) => INCIDENTS[k].icon).join(" ") || "none yet"} (${met.length}/${INCIDENT_ORDER.length})`;
     $("wk-locker").innerHTML =
       `<span class="ts-label">COACH'S LOCKER</span><small>${save.stars}★${GEAR[save.gear] ? " · " + GEAR[save.gear].icon : ""}</small>`;
-    $("wk-free").innerHTML = `<span class="ts-label">FREE PLAY</span><small>${openCount()} pools</small>`;
+    $("wk-free").innerHTML =
+      `<span class="ts-label">FREE PLAY</span><small>` +
+      (dev() ? `${LADDER.length + 1} pools · dev` : `${openCount()} pools`) +
+      `</small>`;
   }
   function hideMenu() {
     $("week-card").hidden = true;

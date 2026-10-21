@@ -413,6 +413,33 @@ const mixed = () => {
   assert.ok(freePools({ ladder: 99, finale: true }).every((p) => p.open));
   assert.ok(freeLevelOpen("easy", 1) && !freeLevelOpen("normal", 5) && freeLevelOpen("normal", 8));
   assert.ok(!freeLevelOpen("expert", 17) && freeLevelOpen("expert", 18));
+  // Dev mode (dev.mjs, 21 October 2026): every pool and every difficulty open, whatever the runs have opened; the setting
+  // defaults to DEV_DEFAULT, and ?dev=1 / ?dev=0 win over it for a page.
+  assert.ok(
+    freePools({ ladder: 3 }, true).every((p) => p.open),
+    "dev mode: every pool open, the arena too",
+  );
+  assert.ok(
+    FREE_LEVELS.every((l) => freeLevelOpen(l.id, 1, true)),
+    "dev mode: every difficulty open",
+  );
+  const { devOn, DEV_DEFAULT } = await import("./dist/dev.mjs");
+  assert.equal(normalizeSettings({}).dev, DEV_DEFAULT);
+  assert.equal(normalizeSettings({ dev: false }).dev, false);
+  assert.equal(normalizeSettings({ dev: "yes" }).dev, DEV_DEFAULT);
+  assert.equal(devOn({ dev: false }), false);
+  assert.equal(devOn({ dev: true }), true);
+  assert.equal(devOn({}), DEV_DEFAULT);
+  assert.equal(devOn({ dev: false }, new URLSearchParams("dev=1")), true);
+  assert.equal(devOn({ dev: true }, new URLSearchParams("dev=0")), false);
+  assert.match(html, /id="set-dev"/);
+  assert.match(app, /installFreePlay\(\{[^}]*dev: devMode \}\)/);
+  assert.match(app, /installWeek\(\{\s*\$,\s*dev: devMode,/);
+  assert.match(
+    readFileSync("desktop/steam/checklist.md", "utf8"),
+    /DEV_DEFAULT/,
+    "the release checklist says to turn dev mode off",
+  );
   for (const pool of [...LADDER, "arena"])
     for (const level of FREE_LEVELS) {
       const s = freePlayShift(pool, level.id, 4242);
