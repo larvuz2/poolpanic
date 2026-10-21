@@ -1840,8 +1840,9 @@ export class PoolWorld extends SceneKit {
     const w = this.container.clientWidth,
       h = this.container.clientHeight,
       portrait = w <= 620;
+    // (the left strip holds the column of messages, the right one the water check and the gear: index.html `#hud-rail`)
     return {
-      left: portrait ? 24 : Math.min(255, w * 0.22),
+      left: portrait ? 24 : Math.min(300, w * 0.22),
       right: w - (portrait ? 24 : Math.min(245, w * 0.22)),
       top: portrait ? 151 : 105,
       bottom: portrait ? Math.max(300, h - 366) : h <= 540 ? h - 145 : h - 135,

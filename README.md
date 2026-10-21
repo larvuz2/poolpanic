@@ -644,12 +644,11 @@ The diagnostic of 19 October found that nothing taught the game and the first ho
 - **The main screen** (since 20 October 2026 the Old Town Baths behind it: "The main menu", above) says what the game is: the week card over a picture of the coach at his pool (`#menu-art`), one line on the
   job (*send swimmers to the right lanes, fetch the gear, fix the chaos*), START. The old level map shows only in free play.
 - **The guided first shift** (`dist/tutorial.mjs`). The first shift of a player's first run (`!save.tutorial`, Monday of week 1) is
-  the gentle minute stretched to 90 s (`TUTORIAL_SECONDS`) with `config.tutorial` on, and a yellow tip under the score says the one
+  the gentle minute stretched to 90 s (`TUTORIAL_SECONDS`) with `config.tutorial` on, and a yellow tip at the top of the column of messages on the left says the one
   thing to do next, step by step: select the waiting swimmer, send them to a lane (1), carry fins to the guest who asks for them, send
   that guest to a lane, mop the wet spot, then *That's the job, coach!* for six seconds. The fins have a marker with metres like the
   life ring's in a rescue (the loud alert, `collectAlerts` in coach.mjs): *🦶 Fin rack · 9 m* while the guest waits, then the guest's
-  name and metres once the coach has a pair, shown from 1 m away (`near`; the other alerts from 4 m), and only in the tutorial; an
-  arrow at the screen's edge stays under the tip. The simulation sets the stage only with the
+  name and metres once the coach has a pair, shown from 1 m away (`near`; the other alerts from 4 m), and only in the tutorial. The simulation sets the stage only with the
   flag on: the second guest asks for fins first, everyone waits 2.5 times longer, and the first swimmer to climb out drips a wet spot.
   **Skip tips** stops them and marks the tutorial done; a finished tutorial is never shown again (`tutorial` in the week save). A
   replay rebuilds the shift from its config, so a tutorial shift replays exactly.
@@ -1089,7 +1088,8 @@ Karen (`dist/incidents/karen.mjs`) is the first incident you **hold a key for** 
 
 Chaos only feels funny when the player can read it, so every problem announces itself the same way, one thing at a time points to where to go next, and every save pays off.
 
-- **Stings.** When an incident starts or gets worse, a big sign slams in and names it together with the action, e.g. "LOOSE DOG! Grab the treats · lead Biscuit out". The game slows down for a moment, the overview camera glides over to make room for the incident, and each incident has its own sound. The sign then flies up into the incident banner, which keeps the current step. Stings replace the warning toast they would duplicate.
+- **The column of messages** (21 October 2026, the creator: the messages under the scoreboard blocked the view and each other, the tutorial's tip over an incident's banner; "never block the central view"). Every message of a shift stands in one column on the left, under the logo, where the guests' cards used to be (`#hud-rail` in index.html, `.hud-rail` at the end of style.css), one under the other in this order: the big moment's result, the incident's sting, its banner with the current step, the guided first shift's tip, the streak, the toasts, the selected guest. It sits inside the strip the follow camera keeps clear on the left (`cameraBounds`: up to 300 px, 22% of a narrower window; the column ends 10 px short of it), so the coach is never under it and the middle of the view is the pool's alone; the scoreboard keeps the top. On a phone held upright the column runs across the top instead, under the scoreboard. The highlight replay hides it with the rest of the HUD.
+- **Stings.** When an incident starts or gets worse, a big sign slams in at the top of the column of messages and names it together with the action, e.g. "LOOSE DOG! Grab the treats · lead Biscuit out". The game slows down for a moment, the overview camera glides over to make room for the incident, and each incident has its own sound. The sign then shrinks away and the incident banner takes its place in the column, keeping the current step. Stings replace the warning toast they would duplicate.
   - The first time a player meets an incident, the sting runs longer, the game nearly stops, and a one-line lesson explains how it works (a "NEW" tag marks it). Seen incidents are remembered per device in `localStorage` under `pool-panic.seen.v1`, so later stings are short.
   - Incidents that sting: cramp, tummy trouble, the accident in the pool, fish kid, fish in the pool, loose dog, Cannonball Carl, Karen, flickering lights, blackout, a daredevil waiting over a busy splash lane, the daredevil jumping anyway, and a crash. A clean jump into an empty lane is not an incident.
   - Two incidents at once queue rather than stack. Reduced motion keeps the camera still and drops the bounce, but keeps the slow-down and the sign.

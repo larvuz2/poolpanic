@@ -90,7 +90,9 @@ the same twice: see `docs/incidents.md`).
    the middle, Valentina and three swimmers on their waiting clips; no fish kid, no Karen; nobody near enough to the doors to come
    through the glass), seen through the frosted glass as their shadows (a mask of them drawn each frame) and as they are when the
    doors open; the choices at the bottom left; in a browser, which holds sound until the first click, *Click anywhere for sound* in
-   the corner until then. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
+   the corner until then. **In a shift every message stands in a column on the left** (the incident's sting and banner, the
+   tutorial's tip, the streak, the toasts, the selected guest: `#hud-rail`, 21 October 2026, "never block the central view"),
+   inside the strip the camera keeps clear, so the middle of the view is the pool's alone. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
    Phase 2 is done**, no co-op for now, and **keep the reward (the Sunday date) as it is for now** ("we'll change it later").
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
    and Steam Deck support, a settings screen (volumes, key rebinding, full screen; graphics quality exists, in Help: Auto, Low, Medium,
