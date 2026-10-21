@@ -679,6 +679,135 @@ def ice_slide_clip():
     return {"frames": frames, "breath": 0.0, **keys}
 
 
+# ---- Coach Waters in trouble (21 October 2026) -----------------------------------------------------------------------------
+# The creator: "more personality to the coach … maybe three more animations … chaos, struggle, panic". His face does the rest
+# (dist/scene/coach-face.mjs); these are the body. Made on a scratch copy of the Coach, put into his file with
+# transplant_clips.py, grounded, and his face added last (coach_face.py).
+
+
+def startle_clip():
+    """Startle (one shot, 24 frames, 1 s): the jolt when trouble starts. Standing at ease, he jumps: a small hop on the spot
+    (feet 5 cm up), the body recoiling back from what he has seen (the hips 5 cm back, the back arched 16 degrees, the head
+    thrown back), the arms flung up and out to the sides of the head with the hands spread, the shoulders up to the ears. He
+    lands with the knees bent, freezes there a moment with a tremble, then starts to lower the arms; the game crossfades into
+    whatever comes next."""
+    frames = 24
+    rest = HANGING
+    up = {"space": "chest", "tgt": (0.62, 0.10, 0.62), "pole": (0.9, 0.5, -0.4), "twist": 0}  # flung up and out, by the head
+    up2 = {"space": "chest", "tgt": (0.58, 0.06, 0.56), "pole": (0.9, 0.5, -0.4), "twist": 0}
+    half = {"space": "chest", "tgt": (0.52, -0.18, 0.05), "pole": (0.8, 0.5, -0.8), "twist": 0}  # coming down
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "shrug", "armL", "armR", "footL", "footR")}
+
+    def at(f, table):
+        return keyed_value(table, f)
+
+    hips = [(0, (0, 0, 0)), (2, (0, 0.01, -0.03)), (5, (0, 0.05, 0.06)), (8, (0, 0.06, -0.06)), (11, (0, 0.05, -0.035)),
+            (17, (0, 0.04, -0.04)), (24, (0, 0.02, -0.02))]
+    lift = [(0, 0.0), (2, 0.0), (4, 0.05), (6, 0.03), (8, 0.0), (24, 0.0)]
+    spine = [(0, (0, 0, 0)), (2, (0, 4, 0)), (5, (0, -16, 0)), (9, (0, -12, 0)), (17, (0, -10, 0)), (24, (0, -5, 0))]
+    head = [(0, (0, 0, 0)), (2, (0, 5, 0)), (5, (0, -16, 0)), (9, (0, -10, 0)), (17, (0, -8, 0)), (24, (0, -4, 0))]
+    shrug = [(0, 0.0), (3, 1.0), (16, 0.95), (24, 0.5)]
+    for f in range(frames + 1):
+        shiver = 0.0 if f < 8 or f > 18 else math.sin(f * 2.3)
+        hx, hy, hz = at(f, hips)
+        keys["hips"].append((f, (hx + 0.004 * shiver, hy, hz)))
+        keys["hips_turn"].append((f, (2.0 * shiver, 0.0, 0.0)))
+        keys["spine"].append((f, tuple(at(f, spine))))
+        h = at(f, head)
+        keys["head"].append((f, (h[0] + 3.0 * shiver, h[1], h[2] + 2.0 * shiver)))
+        keys["shrug"].append((f, float(at(f, shrug))))
+        lf = float(at(f, lift))
+        keys["footL"].append((f, (0.0, 0.0, lf)))
+        keys["footR"].append((f, (0.0, 0.0, lf)))
+    flung = [(0, rest), (1, rest), (6, up), (10, up2), (13, up), (16, up2), (19, up), (24, half)]  # (up in five frames)
+    keys["armL"] = list(flung)
+    keys["armR"] = list(flung)
+    return {"frames": frames, "loop": False, "breath": 0.0, **keys}
+
+
+def freak_out_clip():
+    """FreakOut (a loop, 48 frames, 2 s): trouble he is not getting to, and he knows it. Hands clamped to the sides of his
+    head, he twists from side to side looking left and right for help, stamping his feet in turn (four stamps a loop); in the
+    middle the arms fly up over his head and wave, once, before they clutch the head again."""
+    frames = 48
+    tau = 2 * math.pi
+    clutch = {"space": "head", "tgt": (1.05, -0.1, -0.35), "pole": (1.0, 0.1, 0.1), "twist": 0}
+    clutch2 = {"space": "head", "tgt": (1.0, -0.15, -0.1), "pole": (1.0, 0.1, 0.2), "twist": 0}
+    fling_l = {"space": "chest", "tgt": (0.30, -0.02, 0.95), "pole": (0.9, 0.6, 0.0), "twist": 0}
+    fling_r = {"space": "chest", "tgt": (0.42, 0.05, 0.88), "pole": (0.9, 0.6, 0.0), "twist": 0}
+    wave_l = {"space": "chest", "tgt": (0.48, 0.04, 0.85), "pole": (0.9, 0.6, 0.0), "twist": 0}
+    wave_r = {"space": "chest", "tgt": (0.22, -0.04, 0.96), "pole": (0.9, 0.6, 0.0), "twist": 0}
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "shrug", "footL", "footR")}
+
+    def stamp(f, at):
+        d = (f - at) % frames
+        return 0.07 * math.sin(math.pi * d / 6) if d < 6 else 0.0
+
+    for f in range(frames + 1):
+        w = tau * (f % frames) / frames
+        twist = math.sin(2 * w)  # side to side, twice a loop
+        look = math.sin(2 * w + 0.6)
+        jitter = math.sin(f * 2.9) * 0.5 + math.sin(f * 4.1) * 0.5
+        keys["hips"].append((f, (0.02 * twist, 0.01, -0.05 + 0.012 * abs(math.sin(4 * w)))))
+        keys["hips_turn"].append((f, (14.0 * twist, 6.0, 4.0 * twist)))
+        keys["spine"].append((f, (10.0 * twist, 10.0 + 3.0 * jitter, -6.0 * twist)))
+        keys["head"].append((f, (34.0 * look + 4.0 * jitter, -4.0 + 4.0 * math.sin(4 * w), 8.0 * look)))
+        keys["shrug"].append((f, 0.85 + 0.1 * jitter))
+        keys["footL"].append((f, (0.02, 0.04, stamp(f % frames, 0) + stamp(f % frames, 24))))
+        keys["footR"].append((f, (-0.02, 0.04, stamp(f % frames, 12) + stamp(f % frames, 36))))
+    keys["armL"] = [(0, clutch), (6, clutch2), (12, clutch), (18, fling_l), (22, wave_l), (26, fling_l), (30, wave_l), (36, clutch),
+                    (42, clutch2), (48, clutch)]
+    keys["armR"] = [(0, clutch), (6, clutch2), (12, clutch), (18, fling_r), (22, wave_r), (26, fling_r), (30, wave_r), (36, clutch),
+                    (42, clutch2), (48, clutch)]
+    return {"frames": frames, "breath_frames": 12, "breath": 1.5, **keys}
+
+
+def haul_clip():
+    """Haul (a loop, 32 frames, 1.33 s): heaving something heavy toward him with both hands (a guest out of the water, a sun
+    lounger back into its row, a jammed breaker): the feet braced apart, one ahead, the knees bent and the hips low and back,
+    the body leaning back against the weight, the arms out in front, low. Two heaves a loop: the hips sink back and the hands
+    come in, then they give a little; everything trembles with the strain."""
+    frames = 32
+    tau = 2 * math.pi
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "shrug", "armL", "armR", "footL", "footR")}
+    for f in range(frames + 1):
+        w = tau * (f % frames) / frames
+        heave = 0.5 - 0.5 * math.cos(2 * w)  # 0 to 1, twice a loop: 1 is the hardest pull
+        strain = math.sin(f * 3.1) * 0.6 + math.sin(f * 5.3) * 0.4  # a fast tremble
+        keys["hips"].append((f, (0.0, 0.08 + 0.035 * heave + 0.002 * strain, -0.11 - 0.025 * heave)))
+        keys["hips_turn"].append((f, (-6.0, -10.0 - 5.0 * heave, 0.0)))
+        keys["spine"].append((f, (4.0, 4.0 - 4.0 * heave + 0.8 * strain, 0.6 * strain)))
+        keys["head"].append((f, (2.0, 10.0 - 6.0 * heave, 3.0 * strain)))
+        keys["shrug"].append((f, 0.55 + 0.25 * heave))
+        reach = -0.70 + 0.16 * heave  # forward (negative y), the hands coming in as he pulls
+        for side, out in (("L", 0.20), ("R", 0.16)):
+            tgt = (out, reach + 0.005 * strain, -0.42 + 0.06 * heave)
+            keys["arm" + side].append((f, {"space": "chest", "tgt": tgt, "pole": (0.7, 0.5, -0.6), "twist": 0}))
+        keys["footL"].append((f, (0.20, 0.07, 0.0)))
+        keys["footR"].append((f, (-0.16, 0.07, 0.0)))
+    return {"frames": frames, "breath_frames": 16, "breath": 1.2, **keys}
+
+
+def keyed_value(table, f):
+    """A value eased between (frame, value) keys (numbers or tuples), for the clips above that build their keys a frame at
+    a time."""
+    if f <= table[0][0]:
+        v = table[0][1]
+    elif f >= table[-1][0]:
+        v = table[-1][1]
+    else:
+        for (fa, va), (fb, vb) in zip(table, table[1:]):
+            if fa <= f <= fb:
+                u = (f - fa) / (fb - fa)
+                u = u * u * (3 - 2 * u)
+                if isinstance(va, tuple):
+                    v = tuple(a + (b - a) * u for a, b in zip(va, vb))
+                else:
+                    v = va + (vb - va) * u
+                break
+    return tuple(v) if isinstance(v, tuple) else v
+
+
 CLIPS = {
     # What every character does, made on the Coach and moved to the others (transplant_clips.py).
     "shared": {
@@ -716,6 +845,10 @@ CLIPS = {
         # The Mountain Hot Springs' icy deck (18 October 2026): running on the ice, and skidding on it.
         "IceSkate": ice_skate_clip(),
         "IceSlide": ice_slide_clip(),
+        # Trouble (21 October 2026): the jolt when it starts, freaking out when it is left alone, heaving at a heavy job.
+        "Startle": startle_clip(),
+        "FreakOut": freak_out_clip(),
+        "Haul": haul_clip(),
     },
     # The Mountain Hot Springs' guests (18 October 2026): cold, waiting in the snow. Made on a scratch copy of the Coach and moved
     # to every guest who waits there (transplant_clips.py).

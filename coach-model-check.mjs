@@ -136,6 +136,9 @@ function fakeRig() {
     run: action("run"),
     swim: action("swim"),
     swimRing: action("swimRing"),
+    startle: action("startle"),
+    haul: action("haul"),
+    freakOut: action("freakOut"),
   };
   const mixer = {
     advanced: 0,
@@ -251,6 +254,45 @@ function fakeRig() {
   assert.equal(rig.current, "scratch");
   rig.update(1 / 60, { speed: 4 });
   assert.equal(rig.current, "run", "moving ends a scratch at once");
+}
+
+{
+  // Trouble (21 October 2026): the jolt when an incident starts, heaving at a heavy job, freaking out when left standing.
+  const { rig, actions } = fakeRig();
+  rig.update(1 / 60, { speed: 0, startle: true });
+  assert.equal(rig.current, "startle", "a new incident jolts him where he stands");
+  for (let i = 0; i < 10; i++) rig.update(1 / 60, { speed: 0 });
+  assert.equal(rig.current, "startle", "the jolt plays out");
+  actions.startle.time = 5.9;
+  rig.update(1 / 60, { speed: 0 });
+  assert.equal(rig.current, "idle", "then he stands again");
+  rig.update(1 / 60, { speed: 5, startle: true });
+  assert.equal(rig.current, "run", "running, he keeps running: no jolt mid-stride");
+  rig.update(1 / 60, { speed: 0, prone: true, startle: true });
+  assert.equal(rig.current, "swim", "nor in the water");
+  rig.update(1 / 60, { speed: 0, startle: true });
+  rig.update(1 / 60, { speed: 4 });
+  assert.equal(rig.current, "run", "moving off ends the jolt at once");
+  rig.update(1 / 60, { speed: 0, busy: true, heavy: true });
+  assert.equal(rig.current, "haul", "a heavy job is a heave");
+  rig.update(1 / 60, { speed: 0, busy: true });
+  assert.equal(rig.current, "idle", "a light one (a tip, the mop) is not");
+  for (let i = 0; i < 30; i++) rig.update(1 / 60, { speed: 0, urgent: true });
+  assert.equal(rig.current, "idle", "something urgent: a moment to take it in");
+  for (let i = 0; i < 30; i++) rig.update(1 / 60, { speed: 0, urgent: true });
+  assert.equal(rig.current, "freakOut", "left standing with it, he freaks out");
+  rig.update(1 / 60, { speed: 3, urgent: true });
+  assert.equal(rig.current, "run", "running to it is the run");
+  for (let i = 0; i < 90; i++) rig.update(1 / 60, { speed: 0, urgent: true, busy: true });
+  assert.equal(rig.current, "idle", "busy with a job he does not freak out");
+  rig.update(1 / 60, { speed: 0 });
+  assert.equal(rig.freakFor, 0, "and when it is over the count starts again");
+  // A file without the new clips stands as before.
+  const old = fakeRig();
+  for (const k of ["startle", "haul", "freakOut"]) delete old.rig.actions[k];
+  for (let i = 0; i < 90; i++)
+    old.rig.update(1 / 60, { speed: 0, startle: i === 0, heavy: true, busy: true, urgent: true });
+  assert.equal(old.rig.current, "idle", "without them nothing new is played");
 }
 
 // ---- in the scene, with a stand-in model --------------------------------------------------------------------------

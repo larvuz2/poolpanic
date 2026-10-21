@@ -28,7 +28,15 @@ import { Sky, SCENERY } from "./scene/sky.mjs";
 import { windUniforms } from "./scene/geom.mjs";
 import { dayLook, moodLook, DAY_TIMES } from "./scene/daylight.mjs";
 import { character } from "./scene/actors.mjs";
-import { attachCoachModel, dropCoachModel, planIntro, introAt, activeChoice } from "./scene/coach-model.mjs";
+import {
+  attachCoachModel,
+  dropCoachModel,
+  planIntro,
+  introAt,
+  activeChoice,
+  coachMood,
+  HEAVY_JOBS,
+} from "./scene/coach-model.mjs";
 import { attachSwimmerModel, dropSwimmerModel, setQueasy } from "./scene/swimmer-models.mjs";
 import { finsObject, lifeRingObject, skimmerObject, pooObject, bucket } from "./scene/props.mjs";
 import { IncidentView } from "./scene/incident-view.mjs";
@@ -804,6 +812,7 @@ export class PoolWorld extends SceneKit {
     clearWheelchairs(this);
     this.incidentView.clearVisitors();
     this.introPlan = null; // the coach walks in again
+    this.coachMoments = null; // and nothing has startled him yet
   }
   // The coach: Coach Waters when the model is loaded and wanted, else the classic one (coach-model.mjs).
   makeCoach(choice = activeChoice()) {
@@ -1331,6 +1340,15 @@ export class PoolWorld extends SceneKit {
     } else return null;
     return g;
   }
+  // Something happened to the coach (app.mjs passes the shift's events): a new incident startles him, a save relieves
+  // him, something gone wrong dismays him. His face and his Startle clip read these (syncCoach).
+  coachMoment(type) {
+    const m = (this.coachMoments ||= { clock: 0 });
+    const kind = { incident: "startle", save: "save", catastrophe: "fail", "streak-broken": "fail" }[type];
+    if (!kind) return;
+    m[kind] = m.clock;
+    if (kind === "startle") m.fresh = true;
+  }
   syncCoach(sim, time, dt) {
     const c = sim.coach,
       cg = this.coach,
@@ -1440,13 +1458,37 @@ export class PoolWorld extends SceneKit {
     }
     if (rig) {
       try {
+        // What troubles him (render only): a new incident (the jolt), a heavy job, something urgent going unanswered.
+        const moments = (this.coachMoments ||= { clock: 0 });
+        moments.clock += dt;
+        const since = (k) => (moments[k] == null ? null : moments.clock - moments[k]);
+        const speed = Math.hypot(c.vx || 0, c.vz || 0);
+        const heavy = !!c.busy && HEAVY_JOBS.has(c.busy.kind);
+        const urgency = sim.status === "playing" ? sim.loudestAlert?.()?.urgency || 0 : 0;
+        const startle = !!moments.fresh;
+        moments.fresh = false;
         rig.update(dt, {
-          speed: Math.hypot(c.vx || 0, c.vz || 0),
+          speed,
           intro,
           prone: !!(c.swimming || c.waterTransition),
           ring: c.carry === "lifering",
           busy: !!c.busy,
           ice: c.onIce ? (c.sliding ? "slide" : "skate") : null,
+          heavy,
+          startle,
+          urgent: urgency >= 80,
+        });
+        rig.face?.update(dt, {
+          mood: coachMood({
+            slipping: c.slipTime > 0,
+            startled: since("startle"),
+            struggling: heavy || (!!c.swimming && c.carry === "lifering" && !!sim.rescue),
+            saved: since("save"),
+            failed: since("fail"),
+            urgency,
+            moving: speed > 0.9 || !!c.swimming,
+          }),
+          still: this.reducedMotion?.matches,
         });
       } catch (error) {
         // A failing model must not stop the shift: show the classic coach from here on.

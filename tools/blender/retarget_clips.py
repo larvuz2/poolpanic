@@ -36,7 +36,10 @@ common.clean_scene()
 common.import_model(template_path)
 scene = bpy.context.scene
 template = next(o for o in scene.objects if o.type == "ARMATURE")
-template_bones = {b.name for b in template.data.bones}
+# (Coach Waters' face bones, under `Face` (coach_face.py), are his alone and no clip keys them: they are not the skeleton
+# the others share.)
+face_bones = {b.name for b in template.data.bones if any(p.name == "Face" for p in [b, *b.parent_recursive])}
+template_bones = {b.name for b in template.data.bones} - face_bones
 template_height = root_height(template)
 template_actions = set(bpy.data.actions)
 clips = {a.name: a for a in template_actions}
