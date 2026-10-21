@@ -1174,17 +1174,17 @@ export const FREE_LEVELS = [
   { id: "expert", name: "Expert", tier: 18 },
 ];
 export const freeLevel = (id) => FREE_LEVELS.find((l) => l.id === id) || FREE_LEVELS[0];
-export const freeLevelOpen = (id, unlocked = 1) =>
-  freeLevel(id).tier <= Math.max(FREE_LEVELS[0].tier, Math.floor(unlocked) || 1);
-// The pools in the ladder's order, then the arena: each open or not yet.
-export function freePools(save = {}) {
+export const freeLevelOpen = (id, unlocked = 1, all = false) =>
+  all || freeLevel(id).tier <= Math.max(FREE_LEVELS[0].tier, Math.floor(unlocked) || 1);
+// The pools in the ladder's order, then the arena: each open or not yet (`all`: dev mode, every one open, dev.mjs).
+export function freePools(save = {}, all = false) {
   const open = Math.max(LADDER_START, Math.min(LADDER.length, Math.floor(save.ladder) || LADDER_START)),
     seen = Array.isArray(save.seen) ? save.seen : [];
   return [
-    ...LADDER.map((id, i) => ({ id, open: i < open })),
+    ...LADDER.map((id, i) => ({ id, open: all || i < open })),
     {
       id: FINALE_POOL,
-      open: !!save.finale || seen.includes(FINALE_POOL) || (save.bestWeek || 1) > FINALE_WEEK,
+      open: all || !!save.finale || seen.includes(FINALE_POOL) || (save.bestWeek || 1) > FINALE_WEEK,
     },
   ];
 }

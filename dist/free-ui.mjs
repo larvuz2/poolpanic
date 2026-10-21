@@ -45,18 +45,19 @@ export function recordFree(state, pool, level, score, stars) {
 const poolStars = (state, pool) =>
   Math.max(0, ...FREE_LEVELS.map((l) => state.bests[pool + ":" + l.id]?.stars || 0));
 
-export function installFreePlay({ $, save, storage, onPlay }) {
+export function installFreePlay({ $, save, storage, onPlay, dev = () => false }) {
   const state = readFree(storage);
   let chosen = state.last || { pool: "club", level: "easy" };
 
   function render() {
     const s = save() || {},
-      pools = freePools(s),
+      all = !!dev(),
+      pools = freePools(s, all),
       unlocked = s.unlocked || 1;
     if (!pools.find((p) => p.id === chosen.pool)?.open) chosen = { ...chosen, pool: "club" };
-    if (!freeLevelOpen(chosen.level, unlocked)) chosen = { ...chosen, level: "easy" };
+    if (!freeLevelOpen(chosen.level, unlocked, all)) chosen = { ...chosen, level: "easy" };
     const openCount = pools.filter((p) => p.open).length;
-    $("fp-count").textContent = `${openCount} OF ${pools.length} POOLS OPEN`;
+    $("fp-count").textContent = `${openCount} OF ${pools.length} POOLS OPEN` + (all ? " · DEV MODE" : "");
     $("fp-pools").innerHTML = pools
       .map(({ id, open }) => {
         const p = POOLS[id],
@@ -76,7 +77,7 @@ export function installFreePlay({ $, save, storage, onPlay }) {
       })
       .join("");
     $("fp-levels").innerHTML = FREE_LEVELS.map((l) => {
-      const open = freeLevelOpen(l.id, unlocked),
+      const open = freeLevelOpen(l.id, unlocked, all),
         on = l.id === chosen.level;
       return `<button class="fp-diff${on ? " on" : ""}" data-level="${l.id}" ${open ? "" : "disabled"} aria-pressed="${on}" title="${open ? "Level " + l.tier : "Pass level " + l.tier + " in a run to open it"}">${open ? "" : "🔒 "}${l.name}</button>`;
     }).join("");

@@ -66,6 +66,7 @@ Roughly in the order that costs a player the most if it is missing:
 | Accessibility: colour-blind safe tags, text size, reduced motion | Valve and players ask; reduced motion is in | Partly |
 | **Localisation** | The first translations (French, German, Spanish, Portuguese, Chinese, Russian) buy a lot of sales | Not started; all text is in a few modules |
 | Real **icon**, window title art, a proper **logo** | `desktop/build/icon.png` is a placeholder | Placeholder |
+| **Dev mode off** by default | Dev mode (Settings, Developer) opens every pool and difficulty in FREE PLAY for testing; a player must earn them | On for the creator's tests: set `DEV_DEFAULT` to `false` in `dist/dev.mjs` before the release build |
 
 ## E. Launch
 
