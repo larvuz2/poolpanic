@@ -264,6 +264,38 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   assert.ok(POOLS.club && POOL_IDS.length === Object.keys(POOL_INTROS).length);
 }
 
+// 7) The middle of the view is the pool's (21 October 2026): every message stands in the column on the left, where the guests'
+// cards were, inside the strip the follow camera keeps clear; nothing of it is centred under the scoreboard any more.
+{
+  const rail = html.slice(html.indexOf('<div id="hud-rail"'), html.indexOf('<div id="map"'));
+  const order = ["sting", "closure", "tutor", "combo", "toast", "queue-panel"].map((id) =>
+    rail.indexOf(`id="${id}"`),
+  );
+  assert.ok(
+    order.every((i) => i > 0) && order.every((i, k) => !k || i > order[k - 1]),
+    "the sting, the banner, the tip, the streak, the toasts and the selected guest, one under the other",
+  );
+  for (const id of ["sting", "closure", "tutor", "combo", "toast", "queue-panel"])
+    assert.equal(html.split(`id="${id}"`).length, 2, id + " only in the column");
+  assert.match(
+    css,
+    /\.hud-rail \{[^}]*left: var\(--edge\);[^}]*width: calc\(min\(22vw, 300px\) - var\(--edge\) - 10px\);/,
+  );
+  assert.match(css, /\.hud-rail > \.toast,[\s\S]*?\{\s*position: relative;[^}]*transform: none;/);
+  assert.ok(
+    !/body:has\(#(tutor|closure):not\(\[hidden\]\)\) \.combo/.test(css),
+    "nothing stacked by hand under a centred tip",
+  );
+  // The camera keeps the coach out of the column's strip: the column ends 10 px short of the strip's edge.
+  const scene = readFileSync("dist/scene.mjs", "utf8");
+  assert.match(scene, /left: portrait \? 24 : Math\.min\(300, w \* 0\.22\)/);
+  // The sting slams in at the top of the column (no centring), and the big moment's result lands there too.
+  const sting = app.slice(app.indexOf("function showSting("), app.indexOf("function hideMoments("));
+  assert.ok(!sting.includes("-50%") && sting.includes("translateX(${x}px)"), "the sting is not centred");
+  assert.match(app, /\$\("hud-rail"\)\.prepend\(el\)/);
+  assert.ok(!/tutorBox/.test(app), "no arrow pushed under a centred tip");
+}
+
 console.log(
-  "Onboarding checks passed: a card and an easier first visit for every new pool; the guided first shift played through (select, lane, fins, lane, mop, well done) and only when asked for; the lane choice judged at once; one meaning per key (numbers for places, Z waves, B bar); the main screen without the old map; a calmer HUD.",
+  "Onboarding checks passed: a card and an easier first visit for every new pool; the guided first shift played through (select, lane, fins, lane, mop, well done) and only when asked for; the lane choice judged at once; one meaning per key (numbers for places, Z waves, B bar); the main screen without the old map; a calmer HUD; every message in the column on the left, the middle of the view the pool's.",
 );

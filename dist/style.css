@@ -5627,10 +5627,6 @@ body:not(.menu) .week-card {
   line-height: 1.3;
   animation: tutorIn 0.25s ease-out;
 }
-/* The streak banner sits where the tip is: while a tip shows, it moves below it. */
-body:has(#tutor:not([hidden])) .combo {
-  top: 216px;
-}
 .tutor-step {
   flex: 0 0 auto;
   font: 900 15px var(--display);
@@ -5816,11 +5812,6 @@ body.replaying #game > *:not(#world):not(#replay) {
 }
 .camera-row #reset-view {
   font-size: 12px;
-}
-/* The streak badge and an incident's or the big moment's banner both sat just under the scoreboard and covered each other
-   (seen in a play-through, 20 October 2026): while a banner is up, the badge waits below it. */
-body:has(#closure:not([hidden])) .combo {
-  top: 216px;
 }
 /* The results card grew (the week's pay, the highlight) until its buttons fell below a 720p window and had to be scrolled to
    (seen in a play-through, 20 October 2026): they stay pinned to the card's bottom edge, the rest scrolling under them. */
@@ -6598,4 +6589,208 @@ body.calm .grain {
 .freeplay-page #fp-close {
   display: block;
   margin: 12px auto 0;
+}
+
+/* ---- The column of messages (21 October 2026) -------------------------------------------------------------------------- */
+/* The creator: the messages under the scoreboard covered the pool and each other (the tutorial's tip over an incident's
+   banner). They stand one under the other in a column on the left, where the guests' cards used to be, inside the strip the
+   follow camera keeps clear (scene.mjs cameraBounds), so the middle of the view is the pool's alone: the incident's sting
+   and banner, the guided first shift's tip, the streak, the toasts, the selected guest and the big moment's result. */
+.hud-rail {
+  position: absolute;
+  left: var(--edge);
+  top: 112px;
+  bottom: 112px;
+  width: calc(min(22vw, 300px) - var(--edge) - 10px);
+  min-width: 170px;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.hud-rail > .sting,
+.hud-rail > .closure,
+.hud-rail > .tutor,
+.hud-rail > .combo,
+.hud-rail > .toast,
+.hud-rail > .queue-panel,
+.hud-rail > .big-result {
+  position: relative;
+  inset: auto;
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  transform: none;
+  transform-origin: left center;
+}
+.hud-rail > .tutor,
+.hud-rail > .queue-panel {
+  pointer-events: auto;
+}
+/* The tip: its step, its words, Skip tips under them. */
+.hud-rail > .tutor {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  font-size: 15px;
+  animation: railIn 0.25s ease-out;
+}
+.hud-rail > .tutor #tutor-text {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+.hud-rail > .tutor .text-btn {
+  margin-left: auto;
+}
+/* The incident's banner: what to do, in a card. */
+.hud-rail > .closure {
+  align-items: flex-start;
+  padding: 10px 12px;
+  gap: 10px;
+  transform: rotate(-1deg);
+}
+.hud-rail > .closure strong {
+  font-size: 21px;
+  line-height: 1.05;
+}
+.hud-rail > .closure > span {
+  font-size: 26px;
+}
+.hud-rail > .closure p {
+  max-width: none;
+}
+.hud-rail .cleanup-steps {
+  flex-wrap: wrap;
+}
+/* The sting slams in at the top of the column (app.mjs showSting), and the banner takes its place. */
+.hud-rail > .sting {
+  gap: 10px;
+  padding: 12px 14px 12px 12px;
+  box-shadow: 5px 5px 0 var(--ink);
+}
+.hud-rail > .sting .sting-icon {
+  font-size: 36px;
+}
+.hud-rail > .sting .sting-title {
+  font-size: 26px;
+}
+.hud-rail > .sting .sting-verb {
+  font-size: 14px;
+}
+.hud-rail > .sting .sting-how {
+  font-size: 12px;
+}
+.hud-rail > .combo {
+  align-self: flex-start;
+  transform: rotate(-2deg);
+}
+.hud-rail > .combo.tier-up {
+  animation: railComboTier 0.6s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+.hud-rail > .combo.broken {
+  animation: railComboBreak 0.5s ease-out;
+}
+.hud-rail > .toast {
+  text-align: left;
+  animation: railIn 0.2s ease-out;
+}
+.hud-rail > .big-result {
+  align-self: stretch;
+  padding: 12px 14px;
+  font-size: 26px;
+  animation: railResult 2.6s ease-out forwards;
+}
+@keyframes railIn {
+  from {
+    opacity: 0;
+    translate: -10px 0;
+  }
+}
+@keyframes railComboTier {
+  0%,
+  100% {
+    transform: rotate(-2deg) scale(1);
+  }
+  35% {
+    transform: rotate(2deg) scale(1.2);
+  }
+}
+@keyframes railComboBreak {
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+  20% {
+    transform: translateX(-9px) rotate(-6deg);
+  }
+  45% {
+    transform: translateX(7px) rotate(3deg);
+  }
+}
+@keyframes railResult {
+  0% {
+    opacity: 0;
+    transform: translateX(-30px) scale(0.8) rotate(-4deg);
+  }
+  12% {
+    opacity: 1;
+    transform: scale(1.05) rotate(1deg);
+  }
+  20%,
+  80% {
+    opacity: 1;
+    transform: scale(1) rotate(-1deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-20px) scale(0.96);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud-rail > .tutor,
+  .hud-rail > .toast,
+  .hud-rail > .combo.tier-up,
+  .hud-rail > .combo.broken {
+    animation: none;
+  }
+  .hud-rail > .big-result {
+    animation: railResultCalm 2.6s linear forwards;
+  }
+}
+@keyframes railResultCalm {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  8%,
+  85% {
+    opacity: 1;
+  }
+}
+/* A phone held upright has no side strip: the column runs across the top under the scoreboard, as narrow as its words. */
+@media (max-width: 620px) {
+  .hud-rail {
+    left: 12px;
+    right: 12px;
+    top: 150px;
+    bottom: auto;
+    width: auto;
+    min-width: 0;
+    max-height: 48vh;
+    align-items: center;
+    gap: 8px;
+  }
+  .hud-rail > * {
+    max-width: 100%;
+  }
+}
+/* The column is the shift's: the menu, the map and the cinematics show none of it but a toast. */
+body.menu .hud-rail > :not(.toast) {
+  display: none;
 }

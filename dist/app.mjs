@@ -423,29 +423,22 @@ function showSting(sting) {
   world.focusMoment(sting.x, sting.z, Math.min(2, sting.duration));
   audio.sting(sting.kind, sting.first);
   stingAnimation?.cancel();
-  // Slam in, hold, then fly up into the incident banner (which takes over from there).
-  const rect = el.getBoundingClientRect(),
-    rise = Math.round(118 - rect.top),
-    at = (t) => Math.min(0.99, t / ms),
-    frame = (y, scale, turn, opacity, offset) => ({
-      transform: `translate(-50%, ${y}px) scale(${scale}) rotate(${turn}deg)`,
+  // Slam in at the top of the column of messages, hold, then shrink away: the incident banner takes its place there.
+  const at = (t) => Math.min(0.99, t / ms),
+    frame = (x, scale, turn, opacity, offset) => ({
+      transform: `translateX(${x}px) scale(${scale}) rotate(${turn}deg)`,
       opacity,
       offset,
     });
   stingAnimation = el.animate(
     reduced
-      ? [
-          { opacity: 0, transform: "translateX(-50%)" },
-          { opacity: 1, transform: "translateX(-50%)", offset: at(150) },
-          { opacity: 1, transform: "translateX(-50%)", offset: 1 - at(250) },
-          { opacity: 0, transform: "translateX(-50%)" },
-        ]
+      ? [{ opacity: 0 }, { opacity: 1, offset: at(150) }, { opacity: 1, offset: 1 - at(250) }, { opacity: 0 }]
       : [
-          frame(0, 1.75, -7, 0, 0),
-          frame(0, 0.93, -1, 1, at(140)),
+          frame(-70, 1.45, -7, 0, 0),
+          frame(6, 0.95, -1, 1, at(140)),
           frame(0, 1, -2, 1, at(230)),
           frame(0, 1, -2, 1, 1 - at(280)),
-          frame(rise, 0.5, 0, 0, 1),
+          frame(-20, 0.7, 0, 0, 1),
         ],
     { duration: ms, easing: "linear" },
   );
@@ -518,10 +511,8 @@ function updateAlert() {
   }
   const b = world.cameraBounds(),
     rect = { left: b.left + 28, right: b.right - 28, top: b.top + 28, bottom: b.bottom - 28 },
-    tutorBox = tutor && !$("tutor").hidden ? $("tutor").getBoundingClientRect() : null,
     p = world.screenPoint(a.x, a.y ?? 1.8, a.z),
-    // (the guided first shift's tip sits at the top: an arrow stays under it)
-    edge = edgeArrow(p, tutorBox ? { ...rect, top: Math.max(rect.top, tutorBox.bottom + 40) } : rect),
+    edge = edgeArrow(p, rect),
     far = Math.hypot(a.x - sim.coach.x, a.z - sim.coach.z),
     label = a.label + (far > (a.near ?? 4) ? " · " + Math.round(far) + " m" : ""),
     tone = a.urgency >= 85 ? " danger" : "",
@@ -3701,7 +3692,7 @@ function bigResult(e) {
     (e.points > 0 ? "+" : "") +
     e.points +
     " points</small>";
-  $("game").appendChild(el);
+  $("hud-rail").prepend(el); // (at the top of the column of messages, never over the pool)
   setTimeout(() => el.remove(), 2700);
   if (e.result === "great" && !reducedMotion.matches) {
     world.fireworks(e.x || 0, e.z || 0, 4);

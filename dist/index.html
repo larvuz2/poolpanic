@@ -15,11 +15,6 @@
     <main id="game" aria-label="Pool Panic game">
       <div id="world" aria-label="Interactive three-dimensional swimming pool"></div>
       <div id="world-labels"></div>
-      <div id="tutor" class="tutor" role="status" aria-live="polite" hidden>
-        <b id="tutor-step" class="tutor-step">1/5</b>
-        <span id="tutor-text"></span>
-        <button id="tutor-skip" class="text-btn inline">Skip tips</button>
-      </div>
       <!-- Incident moments: the loud alert's marker (on screen) or edge arrow (off screen), and save stamps. -->
       <div id="alert-marker" class="alert-marker" aria-hidden="true" hidden>
         <i class="alert-ring"></i><span class="alert-chip"><b></b><span></span></span>
@@ -71,6 +66,48 @@
           ><button id="settings" class="icon-btn" aria-label="Menu and settings" title="Menu · Esc">⚙</button>
         </nav>
       </header>
+      <!-- The left column of messages (21 October 2026, the creator: "never block the central view"): the incident's sting and
+           banner, the guided first shift's tip, the streak, the toasts, the selected guest and the big moment's result, one
+           under the other where the guests' cards used to be. -->
+      <div id="hud-rail" class="hud-rail">
+        <div id="sting" class="sting" role="alert" hidden>
+          <span class="sting-icon" aria-hidden="true"></span>
+          <div class="sting-body">
+            <strong class="sting-title"></strong><span class="sting-verb"></span
+            ><small class="sting-how"></small>
+          </div>
+          <b class="sting-new">NEW</b>
+        </div>
+        <div id="closure" class="closure" role="status" hidden>
+          <span>💩</span>
+          <div>
+            <strong id="closure-title">EVERYBODY OUT!</strong>
+            <p id="closure-task">Get the pool skimmer</p>
+            <div class="cleanup-steps">
+              <span data-cleanup-step="skim">1 · SKIM</span><span data-cleanup-step="bin">2 · BIN</span
+              ><span data-cleanup-step="hang">3 · HANG</span
+              ><span data-cleanup-step="chlorine">4 · CHLORINE</span>
+            </div>
+            <div class="closure-timer" hidden><i></i></div>
+          </div>
+        </div>
+        <div id="tutor" class="tutor" role="status" aria-live="polite" hidden>
+          <b id="tutor-step" class="tutor-step">1/5</b>
+          <span id="tutor-text"></span>
+          <button id="tutor-skip" class="text-btn inline">Skip tips</button>
+        </div>
+        <div id="combo" class="combo" hidden>
+          <span id="combo-icon">✦</span>
+          <div>
+            <strong id="combo-text">HAPPY STREAK</strong><small id="combo-sub">Keep them smiling!</small>
+          </div>
+        </div>
+        <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+        <aside id="queue-panel" class="queue-panel" aria-label="Selected guest" hidden>
+          <div id="selected-detail"></div>
+          <button id="send-home" class="eject" hidden>Send home ↗</button>
+        </aside>
+      </div>
       <div id="map" class="map" role="group" aria-label="Season map"></div>
       <div id="menu-art" class="menu-art" aria-hidden="true"></div>
       <!-- The main menu (20 October 2026): the title over the Old Town Baths (scene/menu-stage.mjs), the week in a few
@@ -146,25 +183,6 @@
           <button id="start" class="primary">START <span>▶</span></button>
         </div>
       </section>
-      <aside id="queue-panel" class="queue-panel" aria-label="Selected guest" hidden>
-        <div id="selected-detail"></div>
-        <button id="send-home" class="eject" hidden>Send home ↗</button>
-      </aside>
-      <div id="combo" class="combo" hidden>
-        <span id="combo-icon">✦</span>
-        <div>
-          <strong id="combo-text">HAPPY STREAK</strong><small id="combo-sub">Keep them smiling!</small>
-        </div>
-      </div>
-      <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-      <div id="sting" class="sting" role="alert" hidden>
-        <span class="sting-icon" aria-hidden="true"></span>
-        <div class="sting-body">
-          <strong class="sting-title"></strong><span class="sting-verb"></span
-          ><small class="sting-how"></small>
-        </div>
-        <b class="sting-new">NEW</b>
-      </div>
       <aside class="care-panel">
         <div class="panel-heading">
           <span>WATER CHECK</span><span id="water-label" class="quality">SPARKLING</span>
@@ -199,19 +217,6 @@
           </button>
         </div>
       </aside>
-      <div id="closure" class="closure" role="status" hidden>
-        <span>💩</span>
-        <div>
-          <strong id="closure-title">EVERYBODY OUT!</strong>
-          <p id="closure-task">Get the pool skimmer</p>
-          <div class="cleanup-steps">
-            <span data-cleanup-step="skim">1 · SKIM</span><span data-cleanup-step="bin">2 · BIN</span
-            ><span data-cleanup-step="hang">3 · HANG</span
-            ><span data-cleanup-step="chlorine">4 · CHLORINE</span>
-          </div>
-          <div class="closure-timer" hidden><i></i></div>
-        </div>
-      </div>
       <footer class="bottom-bar">
         <div class="pool-status">
           <span class="status-light"></span>
