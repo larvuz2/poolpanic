@@ -96,8 +96,9 @@ the same twice: see `docs/incidents.md`).
    inside the strip the camera keeps clear, so the middle of the view is the pool's alone. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
    Phase 2 is done**, no co-op for now, and **keep the reward (the Sunday date) as it is for now** ("we'll change it later").
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
-   and Steam Deck support, a settings screen (volumes, key rebinding, full screen; graphics quality exists, in Help: Auto, Low, Medium,
-   Standard, High, Ultra, `QUALITY` in `dist/gfx.mjs`), more achievements, localisation.
+   and Steam Deck support, key rebinding (the Settings screen has the rest: volumes, brightness, graphics quality, full screen,
+   motion), more achievements, localisation, and the last pass before release (`desktop/steam/checklist.md`, section E: specs measured on
+   a weak machine, a clean install, a long session, a rehearsed hotfix and rollback, dev mode off).
 3. **The look.** Lighting, textures, the art pass. **Last, on purpose.** Do not polish it unless asked: it must not change how the game plays.
 4. **Launch.** Store page, trailer, wishlists, a demo, review, release.
 
