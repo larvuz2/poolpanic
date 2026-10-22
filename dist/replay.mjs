@@ -38,6 +38,8 @@ export const INPUTS = [
   "triggerChaos",
   "startCramp",
   "toggleWaves",
+  // co-op: another player's input, on their coach (sim.inputAs)
+  "inputAs",
 ];
 export const REPLAY_LIMITS = { inputs: 4000, vectors: 200, checkEvery: 300 };
 
@@ -65,6 +67,11 @@ export function stateHash(sim) {
   mix(sim.arrivalTime * 100);
   mix(sim.coach.x * 100);
   mix(sim.coach.z * 100);
+  // (a co-op crew's other coaches; a single coach hashes as it always did)
+  for (const c of sim.coaches?.slice(1) || []) {
+    mix(c.x * 100);
+    mix(c.z * 100);
+  }
   mix(sim.people.length);
   mix(sim.visitors?.length ?? 0);
   for (const p of sim.people) {

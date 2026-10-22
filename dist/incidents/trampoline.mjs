@@ -44,8 +44,7 @@ export const Trampoline = {
       }
       hurt(sim, p, dt);
     }
-    const c = sim.coach;
-    if (c.carry === "medkit" && sim.medkit.state !== "coach") sim.medkit.state = "coach";
+    if (sim.carrierIndex("medkit") >= 0 && sim.medkit.state !== "coach") sim.medkit.state = "coach";
   },
   interactions(sim, options) {
     const c = sim.coach,

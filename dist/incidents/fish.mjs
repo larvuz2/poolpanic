@@ -88,6 +88,11 @@ export const FishKid = {
       warning: true,
     });
   },
+  // (With a crew: the coach with the net, else the one nearest the fish in the water, or the kid on the deck.)
+  focus: (sim) => ({
+    carry: "fishnet",
+    near: sim.fish && (sim.fish.stage === "loose" ? sim.fish : sim.visitor(sim.fish.kid)),
+  }),
   update(sim, dt) {
     const f = sim.fish;
     if (!f) return;

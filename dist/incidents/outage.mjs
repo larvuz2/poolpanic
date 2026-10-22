@@ -67,13 +67,18 @@ export const PowerOutage = {
       warning: true,
     });
   },
+  // (With a crew: the coach at the fuse box, else the one with the flashlight, else the nearest to the fuse box.)
+  focus(sim) {
+    const busy = sim.coaches.findIndex((c) => c.busy?.kind === "breaker");
+    return busy >= 0 ? busy : { carry: "flashlight", near: sim.venue.fixtures.fuseBox };
+  },
   update(sim, dt) {
     const o = sim.outage;
     if (!o) return;
     o.elapsed += dt;
     if (o.stage === "flicker") {
       // A reset already under way holds the flicker, so finishing it in time is a save, never a blackout too.
-      if (sim.coach.busy?.kind !== "breaker") o.t -= dt;
+      if (!sim.coaches.some((c) => c.busy?.kind === "breaker")) o.t -= dt;
       if (o.t <= 0) {
         o.stage = "dark";
         sim.score -= 100;
@@ -91,7 +96,8 @@ export const PowerOutage = {
       darkChaos(sim, dt);
     } else if (o.stage === "restored") {
       o.t -= dt;
-      if (o.t <= 0 && sim.flashlight.state === "rack" && sim.coach.carry !== "flashlight") sim.outage = null;
+      if (o.t <= 0 && sim.flashlight.state === "rack" && sim.carrierIndex("flashlight") < 0)
+        sim.outage = null;
     }
   },
   interactions(sim, options) {

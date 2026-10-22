@@ -59,6 +59,8 @@ export const LooseDog = {
       warning: true,
     });
   },
+  // (With a crew: the coach with the treats, else the one nearest the dog.)
+  focus: (sim) => ({ carry: "treats", near: sim.dog && sim.visitor(sim.dog.id) }),
   update(sim, dt) {
     const d = sim.dog;
     if (!d) return;

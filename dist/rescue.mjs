@@ -47,6 +47,7 @@ export class RescueController extends SanitationController {
   }
   get lifeRing() {
     return (
+      (this.coach?.carry === "lifering" && this.lifeRings[this.coach.carryOwner]) ||
       this.lifeRings.find((r) => r.state === "coach") ||
       this.lifeRings.find((r) => ["victim", "deck"].includes(r.state)) ||
       this.lifeRings[0]
@@ -156,7 +157,7 @@ export class RescueController extends SanitationController {
       ring = this.lifeRings
         .filter((r) => ["wall", "deck"].includes(r.state))
         .sort((a, b) => distance(c, a) - distance(c, b))[0],
-      carried = this.lifeRings.find((r) => r.state === "coach");
+      carried = c.carry === "lifering" ? this.lifeRings[c.carryOwner] : null;
     if (c.carry === "lifering" && carried && distance(c, carried.mount) < 1.8)
       options.push({
         kind: "ring-return",
@@ -200,8 +201,9 @@ export class RescueController extends SanitationController {
   returnItem() {
     if (this.coach.carry !== "lifering") return super.returnItem();
     if (!this.canInteract()) return false;
-    const r = this.lifeRings.find((r) => r.state === "coach");
-    if (!r) return false;
+    // (the ring this coach holds: with a crew, another may hold one too)
+    const r = this.lifeRings[this.coach.carryOwner];
+    if (!r || r.state !== "coach") return false;
     if (distance(this.coach, r.mount) > 1.8)
       return this.guideTo(r.mount, "Return the life ring to its wall hook.");
     this.coach.carry = null;

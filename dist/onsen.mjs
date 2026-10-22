@@ -518,11 +518,14 @@ function updateMonkeys(sim, dt) {
     if (live < Math.round(byLevel(sim, MONKEY.most))) spawnMonkey(sim);
     O.nextMonkey = between(sim, byLevel(sim, MONKEY.every));
   }
-  const c = sim.coach;
   for (const m of O.monkeys) {
     if (m.stage === "gone") continue;
     m.t += dt;
-    if (ON_DECK.has(m.stage) && c.y < 0.4 && distance(c, m) < MONKEY.touch && !c.busy) {
+    // Any coach on foot running into one shoos it.
+    if (
+      ON_DECK.has(m.stage) &&
+      sim.coaches.some((c) => c.y < 0.4 && distance(c, m) < MONKEY.touch && !c.busy)
+    ) {
       scare(sim, m, MONKEY.shooed, "monkey-shooed");
       continue;
     }
@@ -584,7 +587,8 @@ function updateMonkeys(sim, dt) {
     }
     if (m.stage === "soak") {
       // Wading up to it shoos it out too.
-      if (c.wading && distance(c, m) < MONKEY.touch && !c.busy) scare(sim, m, MONKEY.outPoints, "monkey-out");
+      if (sim.coaches.some((c) => c.wading && distance(c, m) < MONKEY.touch && !c.busy))
+        scare(sim, m, MONKEY.outPoints, "monkey-out");
       continue;
     }
     if (m.stage === "flee" && walk(m, dt, m.speed)) m.stage = "gone";

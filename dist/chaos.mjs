@@ -166,7 +166,15 @@ export class ChaosController extends RescueController {
       entry.done = system.start(this) !== false;
       if (entry.done) (this.met ??= []).push(entry.kind); // (what the player really met: summary().met)
     }
-    for (const system of this.systems) system.update?.(this, dt);
+    // Each incident's update reads "the coach" (who it follows, flees, marches up to): with a crew, the one it is about
+    // (`focus`: the coach holding its item, else the nearest, coach.mjs `focusCoach`).
+    for (const system of this.systems) {
+      if (!system.update) continue;
+      if (this.coaches.length > 1 && system.focus) {
+        const f = system.focus(this);
+        this.as(typeof f === "number" ? f : this.focusCoach(f || {}), () => system.update(this, dt));
+      } else system.update(this, dt);
+    }
     this.updateStorm(dt);
     this.updateHazards(dt);
   }
@@ -275,7 +283,7 @@ export class ChaosController extends RescueController {
               x: d.minX + this.chaosRandom() * (d.maxX - d.minX),
               z: d.minZ + this.chaosRandom() * (d.maxZ - d.minZ),
             };
-      if (distance(spot, this.coach) < 2.2) continue;
+      if (this.coaches.some((c) => distance(spot, c) < 2.2)) continue;
       const puddle = this.addPuddle(spot.x, spot.z, 0.85, 14);
       if (puddle) {
         puddle.rain = true;
