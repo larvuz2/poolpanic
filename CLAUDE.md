@@ -6,7 +6,8 @@ and how to check and ship.
 
 ## The goal
 
-**Publish Pool Panic on Steam and make money with it.** Single player first. Great graphics and lighting are wanted, but at the end. Everything is
+**Publish Pool Panic on Steam and make money with it.** Single player first, and online co-op for up to three over Steam (since 22
+October 2026, below). Great graphics and lighting are wanted, but at the end. Everything is
 weighed against: *does it make a player want one more shift?* The game has to be **addictive** and **spontaneous** (the same level never plays
 the same twice: see `docs/incidents.md`).
 
@@ -97,7 +98,18 @@ the same twice: see `docs/incidents.md`).
    the corner until then. **In a shift every message stands in a column on the left** (the incident's sting and banner, the
    tutorial's tip, the streak, the toasts, the selected guest: `#hud-rail`, 21 October 2026, "never block the central view"),
    inside the strip the camera keeps clear, so the middle of the view is the pool's alone. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
-   Phase 2 is done**, no co-op for now, and **keep the reward (the Sunday date) as it is for now** ("we'll change it later").
+   Phase 2 is done**, and **keep the reward (the Sunday date) as it is for now** ("we'll change it later").
+   **Online co-op (22 October 2026, README "Online co-op")**: PLAY WITH FRIENDS on the menu, up to three players over Steam, the
+   Overcooked way (a friends-only lobby, the overlay's invite or Join Game, a slot each with ◀ ▶ to pick a coach nobody else has, READY,
+   the host picks the pool and difficulty and starts). Three coaches (`dist/crew.mjs`): **Coach Waters** (a single player is always
+   him), **Coach Brooks** (the senior coach: shorter, rounder, grey moustache) and **Coach Rivers** (a young woman coach), the two new
+   ones with every one of Waters' clips and his face (no mouths). A crew of two or three gets more guests, tips and incidents and higher
+   star targets (`CREW`, measured with crews of bots, `CrewBot`). The network is `dist/net.mjs`: the host plays the seeded shift and
+   shares every player's input stamped with its tick; each guest plays the same shift in step (hashes catch a drift). **Anything that
+   changes the simulation must stay deterministic and go through an input method** (in `INPUTS`, replay.mjs), or co-op drifts;
+   `net-check.mjs` plays whole shifts over a laggy network and compares every hash. The simulation has `sim.coaches` and `sim.actor`
+   (whose coach `sim.coach` is); per-tick code that means "the coach" picks one (`focus`, `carrierIndex`, `nearestCoach`) or loops.
+   Co-op is untested over Steam until the creator plays it on two machines (desktop/README.md, "Try co-op over Steam").
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
    and Steam Deck support, key rebinding (the Settings screen has the rest: volumes, brightness, graphics quality, full screen,
    motion), more achievements, localisation, and the last pass before release (`desktop/steam/checklist.md`, section E: specs measured on

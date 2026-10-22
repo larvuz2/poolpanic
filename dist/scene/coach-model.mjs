@@ -81,6 +81,25 @@ export function useCoachTemplate(t) {
 // nothing (and the game carries on with the classic coach) if anything goes wrong.
 export async function loadCoachModel(url = new URL("../assets/coach-panic.glb", import.meta.url).href) {
   if (template) return template;
+  template = await loadCoachFile(url, "Coach Waters");
+  return template;
+}
+// Co-op's other coaches (crew.mjs: Coach Brooks, Coach Rivers), on Coach Waters' skeleton with all his clips and his face:
+// loaded when a crew has them, one template each. Until one has loaded (or if it fails) that player's coach is Coach Waters.
+const crewTemplates = {};
+export const crewModelReady = (look) => look === "waters" || !!crewTemplates[look];
+export async function loadCrewModel(look, file) {
+  if (look === "waters" || !file) return loadCoachModel();
+  if (!(look in crewTemplates))
+    crewTemplates[look] = loadCoachFile(new URL("../assets/" + file, import.meta.url).href, look).then(
+      (t) => (crewTemplates[look] = t),
+    );
+  return crewTemplates[look];
+}
+const templateFor = (look) =>
+  look && look !== "waters" && crewTemplates[look]?.scene ? crewTemplates[look] : template;
+async function loadCoachFile(url, who) {
+  let loaded = null;
   try {
     const [{ GLTFLoader }, { clone }] = await Promise.all([
       import("../assets/GLTFLoader.js"),
@@ -96,12 +115,11 @@ export async function loadCoachModel(url = new URL("../assets/coach-panic.glb", 
       o.castShadow = true;
       o.frustumCulled = false; // a skinned mesh's bounds are those of its bind pose
     });
-    template = { scene: gltf.scene, clips, clone };
+    loaded = { scene: gltf.scene, clips, clone };
   } catch (error) {
-    console.warn("Coach Waters did not load; the classic coach stays.", error);
-    template = null;
+    console.warn(who + " did not load; the classic coach stays.", error);
   }
-  return template;
+  return loaded;
 }
 
 // ---- the clips ----------------------------------------------------------------------------------------------------
@@ -279,10 +297,12 @@ export function introAt(plan, countdown) {
 // the game), the model goes in beside them. Returns the rig, or null when the classic coach is wanted or the model is
 // not loaded.
 export { coachMood };
-export function attachCoachModel(group, choice = activeChoice()) {
-  if (choice !== "panic" || !template) return null;
+export function attachCoachModel(group, choice = activeChoice(), look = "waters") {
+  const t = templateFor(look);
+  if (choice !== "panic" || !t) return null;
   const u = group.userData;
-  const model = template.clone(template.scene);
+  u.look = t === template ? "waters" : look;
+  const model = t.clone(t.scene);
   const kept = new Set([u.carry, u.f]);
   u.classic = u.root.children.filter((child) => !kept.has(child));
   for (const part of u.classic) part.visible = false;
@@ -293,8 +313,8 @@ export function attachCoachModel(group, choice = activeChoice()) {
   const mixer = new THREE.AnimationMixer(model);
   const actions = {};
   for (const [key, name] of Object.entries(CLIPS)) {
-    if (!template.clips[name]) continue; // (a file without Swim crawls with the Run clip)
-    const action = mixer.clipAction(template.clips[name]);
+    if (!t.clips[name]) continue; // (a file without Swim crawls with the Run clip)
+    const action = mixer.clipAction(t.clips[name]);
     if (key === "scratch" || key === "startle") {
       action.setLoop(THREE.LoopOnce, 1);
       action.clampWhenFinished = true;

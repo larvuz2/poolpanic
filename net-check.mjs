@@ -9,6 +9,7 @@ import { stateHash } from "./dist/replay.mjs";
 import { CoopHost, CoopGuest, createHub, NET, Predictor } from "./dist/net.mjs";
 import { crewConfig, CREW, normalCrew } from "./dist/crew.mjs";
 import { SHIFTS } from "./dist/sim.mjs";
+import { CrewBot } from "./check-bot.mjs";
 
 let seed = 99;
 const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
@@ -40,6 +41,30 @@ const build = (shift) => new PoolSimulation(shift.level, shift.seed, shift.optio
     "three coaches at three places",
   );
   assert.equal(CREW.stars[0], 1);
+}
+
+// ---- crews of bots play whole shifts (check-bot.mjs CrewBot): every coach works, the fins stay accounted for -------------
+for (const [level, crew] of [
+  [8, ["waters", "rivers"]],
+  [14, ["brooks", "waters", "rivers"]],
+]) {
+  const bot = new CrewBot(level, 31, { crew });
+  const starts = bot.s.coaches.map((c) => ({ x: c.x, z: c.z }));
+  const busy = bot.bots.map(() => 0);
+  const tick = bot.lead.tickFrame.bind(bot.lead);
+  bot.lead.tickFrame = () => {
+    bot.bots.forEach((b, i) => b.doing && busy[i]++);
+    tick();
+  };
+  bot.run();
+  assert.equal(bot.s.status, "ended", `a crew of ${crew.length} finishes the shift`);
+  bot.s.coaches.forEach((c, i) =>
+    assert.ok(Math.hypot(c.x - starts[i].x, c.z - starts[i].z) > 0.5 || busy[i] > 0, `coach ${i} played`),
+  );
+  assert.ok(
+    busy.every((n) => n > 60),
+    `every coach of the crew had jobs (${busy.join(", ")} frames)`,
+  );
 }
 
 // ---- a lobby and a whole shift over a laggy network ---------------------------------------------------------------------

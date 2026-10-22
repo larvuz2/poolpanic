@@ -131,6 +131,11 @@ function createNet({ getClient, emit, log }) {
     }
   };
   const inLobby = (id) => members().includes(String(id));
+  const presence = (key, value) => {
+    try {
+      client().localplayer.setRichPresence(key, value);
+    } catch {}
+  };
   function listen() {
     const c = client();
     if (!c || handles.length) return;
@@ -176,7 +181,10 @@ function createNet({ getClient, emit, log }) {
   }
   const started = () => {
     listen();
-    if (!poll) poll = setInterval(pump, 4);
+    if (!poll) {
+      poll = setInterval(pump, 4);
+      poll.unref?.(); // (the game's window keeps the app alive, not this)
+    }
   };
   const info = () => ({
     lobby: lobby ? String(lobby.id) : null,
@@ -201,6 +209,8 @@ function createNet({ getClient, emit, log }) {
         if (lobby) lobby.leave();
         lobby = await c.matchmaking.createLobby(1 /* friends only */, 3);
         for (const [k, v] of Object.entries(data)) lobby.setData(String(k), String(v));
+        // ("Join Game" on the host in a friend's Steam friends list starts or brings up the game with this)
+        presence("connect", "+connect_lobby " + String(lobby.id));
         return { ok: true, ...info() };
       } catch (error) {
         lobby = null;
@@ -232,6 +242,7 @@ function createNet({ getClient, emit, log }) {
         lobby?.leave();
       } catch {}
       lobby = null;
+      presence("connect", "");
       return true;
     },
     invite() {
@@ -261,6 +272,15 @@ function createNet({ getClient, emit, log }) {
       }
     },
     info,
+    stop() {
+      clearInterval(poll);
+      poll = null;
+      for (const h of handles.splice(0)) {
+        try {
+          h.disconnect();
+        } catch {}
+      }
+    },
   };
 }
 

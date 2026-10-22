@@ -180,7 +180,7 @@ export class IncidentView {
     this.syncDizzy(sim, time);
     if (w.fishNetRack) w.fishNetRack.visible = sim.fishNet?.state !== "coach";
     if (w.flashlightRack) w.flashlightRack.visible = sim.flashlight?.state !== "coach";
-    if (w.medkitRack) w.medkitRack.visible = sim.coach.carry !== "medkit";
+    if (w.medkitRack) w.medkitRack.visible = !(sim.coaches || [sim.coach]).some((c) => c.carry === "medkit");
     const leading = sim.dog?.stage === "following";
     const pulse = 0.5 + 0.5 * Math.sin(time * 4);
     for (const b of this.doorBeacons) b.material.opacity = leading ? 0.35 + pulse * 0.35 : 0;
@@ -649,7 +649,8 @@ export class IncidentView {
         .multiplyScalar(Math.max(0.06, Math.min(1, k)) * (w.ambience?.lamp ?? 1));
     if (w.stringLights)
       w.stringLights.visible = hour > 0.05 && !(dark || (o?.stage === "flicker" && k < 0.9));
-    const c = sim.coach,
+    // (the coach with the torch, whichever of a crew it is)
+    const c = (sim.coaches || []).find((q) => q.carry === "flashlight") || sim.coach,
       on = c.carry === "flashlight" && k < 0.95;
     this.flashlight.intensity = on ? 70 : 0;
     if (on) {
@@ -784,7 +785,7 @@ export class IncidentView {
   poseInjured(sim, p, g, time) {
     const u = g.userData,
       motion = this.w.reducedMotion.matches ? 0 : 1,
-      b = sim.coach.busy,
+      b = (sim.coaches || []).find((c) => c.busy?.kind === "heal")?.busy || sim.coach.busy,
       sit = p.healing && b?.kind === "heal" ? Math.min(1, b.t / b.duration) : 0,
       theta = -Math.PI / 2 + sit * 1.1,
       h = u.hipsY ?? 0.45;

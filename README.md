@@ -23,7 +23,7 @@ The core promise is: **easy to understand, satisfying to move through, increasin
 
 ## The goal: a paid game on Steam
 
-The game is being made to be **sold on Steam**, with great graphics and lighting in the end. The creator wants it to earn money, so every decision is weighed against two questions: *does this make a player want one more shift?* and *would a stranger who paid for it be happy with it?* The first release is **single player**; multiplayer and anything online are not part of it.
+The game is being made to be **sold on Steam**, with great graphics and lighting in the end. The creator wants it to earn money, so every decision is weighed against two questions: *does this make a player want one more shift?* and *would a stranger who paid for it be happy with it?* Single player comes first; since 22 October 2026 there is also **online co-op for up to three over Steam** (PLAY WITH FRIENDS, [below](#online-co-op-play-with-friends-22-october-2026)).
 
 The work goes in four stages, in this order, and the order is deliberate:
 
@@ -416,6 +416,64 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
 - **Balance** (`week-check.mjs`, the coach bot through three weeks): it passes every shift of each and fills the fund each week.
   **Not verified:** how it feels to a person, which only playtests can say (the ramp, the goals and the prices are the first numbers to
   tune).
+
+### Online co-op: PLAY WITH FRIENDS (22 October 2026)
+
+The creator: "two secondary characters … a senior coach, and … a female, also a coach, same style … No mouths … everything that the
+coach has, the struggles and everything … choose the characters like Overcooked … in the main menu screen, the multiplayer option …
+it has to be very, very simple … in single-player, you're always Coach Waters, and for multiplayer, the host can pick whatever … if we
+are two players, the scaling of the swimmers and incidents increases, and if we are three players, we increase again." Online, up to
+three, over Steam.
+
+- **The coaches** (`dist/crew.mjs` `COACHES`): **Coach Waters** (whom a single player always is), **Coach Brooks** (the senior coach:
+  shorter and rounder, grey hair and moustache, navy cap and polo) and **Coach Rivers** (a young woman coach: yellow cap and polo with
+  teal trim, a ponytail). Both new coaches were drawn with GPT Image 2.5 in Coach Waters' style, no mouths, made 3D with Meshy 7,
+  rigged on Coach Waters' 24-bone skeleton (`rig_from_template.py`) and given **every one of his twelve clips** (`retarget_clips.py`:
+  Run, Walk, the idles, Swim, SwimRing, Panic, IceSkate, IceSlide, Startle, FreakOut, Haul), Brooks with Carl's belly bones and his arms
+  kept off his belly (`belly_bones.py`, `belly_jiggle.py`, `clear_limbs.py`), both grounded, and **his face**: `coach_face.py` now
+  finds a face at another height (from the top of the model), takes `--no-stache` (Rivers: the moustache's three bones are kept and
+  move nothing, so every coach has the same 18 face bones and nine expressions) and `--eye-grow` (Brooks' painted eyes bulge more:
+  1.1). Files: `dist/assets/coach-brooks.glb`, `coach-rivers.glb`, and the portraits the character select shows
+  (`coach-waters|brooks|rivers.webp`). `rig-check.mjs` holds both to the shared skeleton, every retargeted clip and the face; renders of
+  every expression and clip were checked by eye here.
+- **The menu** (`dist/coop-ui.mjs`, the way Overcooked does it on Steam): PLAY WITH FRIENDS opens a window; **Host a shift** opens a
+  friends-only Steam lobby of three; empty slots have **＋ Invite a friend** (the Steam overlay's invite). A friend joins from the
+  invite, from **Join Game** on the host in Steam's friends list (the host's rich presence carries `+connect_lobby`), or by starting the
+  game from the invite (`+connect_lobby` on the command line, `desktop/steam.cjs` `launchLobby`). Everyone has a slot with their coach,
+  ◀ ▶ (or the arrow keys) to change it (**one each**: a coach someone has is skipped) and READY; the host picks the pool and difficulty
+  (any pool the host has opened, as in FREE PLAY; every one in dev mode) and **Start the shift** once everyone is ready. After the
+  shift everyone has the same results; **Back to the crew** returns to the lobby, **Leave the crew** to the menu.
+- **The shift** is a free-play shift at the host's pool and difficulty, the same on every machine (built from the pool, difficulty,
+  seed and the host's met incidents), with a coach per player. The simulation holds `sim.coaches` and an `actor` (whose coach `sim.coach`
+  is); every input method is unchanged and `inputAs(i, name, …)` plays another player's; each incident's per-tick part runs as the
+  coach carrying its item or the nearest (`focus`), the deck physics and the monkeys see every coach, the life rings remember who holds
+  each. A single coach plays and replays exactly as before (replay-check's hashes unchanged).
+- **More of everything for a crew** (`crewConfig`, `CREW`): two coaches get 1.15× the guests, 1.5× the coaching tips, 1.05× the fins
+  asks, 1.6× the incidents and one more at once; three get 1.3×, 1.9×, 1.1×, 2.2× and one more at once. Not many more guests: the lanes
+  hold a shift's guests and an overfull lane makes its swimmers walk out, whoever is on the deck (a crew of bots lost 20 guests a shift
+  with 1.9× the guests); the extra work is in the asks and the incidents, which more hands can answer. The star targets are 1.15× for
+  two and 1.2× for three, measured with crews of coach bots (`check-bot.mjs` `CrewBot`: each bot a coach, a job nobody else is on,
+  every frame its turn) over ten levels and three seeds: average stars 1.37 alone, 1.43 for two, 1.33 for three.
+- **The network** (`dist/net.mjs`): the shift is seeded and ticks in fixed steps, so the host plays it for real and shares only the
+  inputs: every player's input is applied on the host and stamped with the tick it came before, sent to the guests three ticks at a time
+  (20 a second) with a hash of the shift every two seconds; each guest plays the same shift and applies the same inputs before the same
+  ticks, a few ticks behind the host, so every machine shows the same shift (about 2.5 KB a second for three players). A guest's own
+  input waits for the host; its coach is drawn a little ahead meanwhile (`Predictor`, render only). Only input methods with plain
+  arguments are accepted from a guest. A guest who drops leaves their coach standing; coming back (same name), they get the whole log and
+  play it through in a second. Other builds are turned away at the door (`PROTOCOL`, the build's commit). A co-op shift never pauses
+  (the menu opens over it) and has no slow motion. Guidance toasts are the player's who pressed the key (`event.by`).
+- **Steam** (`desktop/steam.cjs` `createNet`, `desktop/preload.cjs` `desktop.steam.net`, `dist/steam-net.mjs`): lobbies through
+  `steamworks.js` matchmaking (friends only, three), the overlay's invite, `GameLobbyJoinRequested` and `+connect_lobby`, messages over
+  Steam's relayed P2P (reliable, JSON), sessions accepted only from the lobby's members and messages read only from them.
+  `desktop/steam.config.json` is still Valve's test app 480, which is enough to try lobbies and P2P between two Steam accounts.
+- **The scene**: every coach in his own model, clips and face, each with his own moments (a startle is his own); the others wear a ring
+  in their coach's colour and their player's name.
+- **Verified here:** `net-check.mjs` (a host and two guests over an in-memory network with up to 18 frames of latency and jitter, random
+  inputs from all three through whole shifts, every guest's shift the host's at every hash and at the end; a rejoin; the lobby's rules;
+  crews of bots through whole shifts), `desktop-check.mjs` (the Steam bridge against a fake `steamworks.js`), and in Chromium two windows
+  of one browser over a BroadcastChannel (dev mode: host, join, pick, ready, start, both coaches moving, both windows the same shift).
+  **Not verified:** two machines over Steam. That needs two Steam accounts on two machines (the creator's Mac and Windows PC), with
+  tester builds: host on one, invite the other, play a shift (desktop/README.md, "Try co-op over Steam").
 
 ### The main menu: the Old Town Baths before the doors open (20 October 2026)
 
@@ -1262,6 +1320,10 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/chaos.mjs` | Incident scheduling, visitors, puddles, the storm's weather and rain puddles, fleeing swimmers, shared hooks, pointer shortcuts |
 | `dist/incidents/*.mjs` | One module per incident: `fish`, `dog`, `carl`, `outage`, `trampoline`, `karen`, `wet` (the wet spots and the mop); plus `twist` (the five mid-shift twists: rush, closure, swim team, aqua class, storm) |
 | `dist/deck-physics.mjs` | Deck contacts, separation, passing and route cooperation |
+| `dist/crew.mjs` | Co-op: the three coaches, and the shift a crew of two or three plays (`crewConfig`, `CREW`) |
+| `dist/net.mjs` | Co-op over the network: the lobby, the host and guests sharing stamped inputs, transports, `Predictor` |
+| `dist/coop-ui.mjs` | PLAY WITH FRIENDS: host, invite, the three slots and their coaches, ready, the host's pool, start |
+| `dist/steam-net.mjs` | Co-op's Steam transport: the lobby and relayed P2P through the desktop app (`desktop.steam.net`) |
 | `dist/spatial.mjs` | The thirteen venues from one pool-geometry function by lane count (two: the Cruise Ship's lane half, its free half past the rope and routes round the loungers by `cruiseRoute`; three lanes: the club, the Aqua Disco and the Kids Pool with layouts of their own; four: Senior Aqua Fit; five: Splash Park, shared by the Lagoon, the Arena and the Aquatic Centre, which has no trampoline), the Wave Pool (a basin of its own size, `basin`, with a beach and the wave house) and the Lazy River (no pool: a river, `riverPlace`: its bridge, stones, docks, walkable test and routes) and the Rooftop Pool (a basin of its own with the infinity edge's gutter, two lifts at opposite ends, routes round the furniture by `roofRoute`); the door helper every venue uses (`arrival.at`, `sideOf`, `isInside`, `isDoorPoint`: a door on a side wall, or a lift along the deck, `alongZ`): stations, fixtures, rings, furniture, deck tests, routing, movement tuning |
 | `dist/waves.mjs`, `dist/wave-pool.mjs` | The Wave Pool's waves (the basin's depth and floor, a crest's speed, shoaling and breaking, how hard it jolts, the surface's profile, the machine's program of sets and calms, the monster and its siren, stopping and starting, the LED board's words; pure) and its bathers (walking in to the beach, a spot to their liking, the jolts and the dizziness, the stars, staggering out, help out, knocked under, the tubes handed out, knocked off and washed ashore, the crowd's impatience while the waves are off, out by the beach dripping; the machine as a system: alerts, hints, the monster's banner, the diary) |
 | `dist/onsen-plan.mjs`, `dist/onsen.mjs` | The Mountain Hot Springs' plan (`SPRINGS`: four irregular basins, their steps and seats, `springLocal`, `springAt`; `BOULDERS`; the walks round them, `onsenRoute`; the springs as a place in the water for the incidents, `ONSEN_WATER`; the forest's edges) and the venue's life (`SOAK`: the cold in the queue, `tickCold`, sending a guest to a spring, getting in, soaking, getting out; `MONKEY`: the snow monkeys, `shooMonkey`, `SnowMonkeys`, the system the incidents' alerts, options, hints and banner come from; its own random stream) |
@@ -1558,7 +1620,7 @@ Earlier notes sometimes describe superseded behavior: three levels instead of th
 
 The implemented prototype is single-player, with twenty finite shifts across four venues (drawn on a two-act campaign map), five swimmer types plus VIP guests, three or five lanes, local progression, equipment errands, chemistry, deck/lane collisions, cramps, lost goggles, stomach emergencies, four chaos incidents, five mid-shift twists (one of them a storm) and the resort trampoline.
 
-Levels beyond twenty, further venues, families, multiplayer, accounts and network leaderboards are **outside the current prototype**, not promised features; the map has no slot for a third act. The release target is **Steam, single player first, as a paid game** (see [The goal](#the-goal-a-paid-game-on-steam)); the price, the launch date, a demo and any platform beyond Steam and the browser have not been decided, and those are the creator's to set.
+Levels beyond twenty, further venues, families, local (couch) multiplayer, accounts and network leaderboards are **outside the current prototype**, not promised features; the map has no slot for a third act. The release target is **Steam, single player first, as a paid game** (see [The goal](#the-goal-a-paid-game-on-steam)); the price, the launch date, a demo and any platform beyond Steam and the browser have not been decided, and those are the creator's to set.
 
 Future design should deepen readable interactions and the one-more-shift feeling. Add an incident only when its warning, response, recovery, timing, and interaction with existing incidents are understandable. The incident-frequency question has an agreed direction (spontaneous draws, in `docs/incidents.md`) but no formula yet: it follows the creator's ranking, so do not invent one or expand scope based on guesses about past conversations.
 
@@ -1570,7 +1632,7 @@ Future design should deepen readable interactions and the one-more-shift feeling
 4. Update coordinates, meshes, hit targets, routes, and collision proxies together when moving equipment or architecture.
 5. Preserve continuous physical movement and swimmer identity, lane, equipment ownership, and unfinished workout through recovery.
 6. Keep simulation state authoritative. Bobbing and other cosmetic motion must not move frozen gameplay positions.
-7. Use the smallest coherent change; do not add a framework, backend, multiplayer system, or unrelated redesign as routine cleanup.
+7. Use the smallest coherent change; do not add a framework, backend, another multiplayer system (co-op is `dist/net.mjs` over Steam), or unrelated redesign as routine cleanup.
 8. Verify the concrete risk with relevant existing checks; for visual changes, distinguish CPU evidence from an actual browser pass.
 9. Update this README when behavior or vision changes. Record what changed and any material verification limits.
 10. Be explicit about where changes were saved: Site source and GitHub are separate unless a synchronization workflow is deliberately established.
