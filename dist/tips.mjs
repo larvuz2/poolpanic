@@ -65,7 +65,8 @@ export function tickTips(sim, p, dt) {
     return;
   if (p.tipAt === undefined) {
     const k = Math.min(1, Math.max(0, (sim.level - 2) / 18)),
-      chance = T.chance[0] + (T.chance[1] - T.chance[0]) * k,
+      // (a co-op crew is asked more: crew.mjs)
+      chance = Math.min(0.95, (T.chance[0] + (T.chance[1] - T.chance[0]) * k) * (sim.config.tipBoost || 1)),
       roll = tipsRandom(sim),
       share = T.at[0] + tipsRandom(sim) * (T.at[1] - T.at[0]);
     p.tipAt = roll < chance ? share * (p.workTarget || 31.2) : Infinity;

@@ -103,7 +103,192 @@ function createSteam({ load = () => require("steamworks.js"), config, log = () =
       !!client &&
       safe(() => (client.localplayer.setRichPresence("status", String(text).slice(0, 120)), true), false),
     openStore: () => !!client && safe(() => (client.overlay.activateToStore(info.appId, 0), true), false),
+    // Online co-op (dist/net.mjs, dist/steam-net.mjs): a friends-only lobby of up to three, invites through the overlay, and the
+    // game's messages over Steam's relayed P2P. `emit(type, data)` tells the game's window what happens.
+    net: (emit) => createNet({ getClient: () => client, emit, log }),
   };
 }
 
-module.exports = { NAME, TEST_APP_ID, createSteam, readConfig };
+// Steam ids cross to the window as strings (a 64-bit number does not fit in a double).
+const MAX_PACKET = 512 * 1024;
+function createNet({ getClient, emit, log }) {
+  let lobby = null,
+    poll = null,
+    handles = [];
+  const client = () => getClient();
+  const self = () => {
+    try {
+      return String(client().localplayer.getSteamId().steamId64);
+    } catch {
+      return null;
+    }
+  };
+  const members = () => {
+    try {
+      return lobby ? lobby.getMembers().map((m) => String(m.steamId64)) : [];
+    } catch {
+      return [];
+    }
+  };
+  const inLobby = (id) => members().includes(String(id));
+  const presence = (key, value) => {
+    try {
+      client().localplayer.setRichPresence(key, value);
+    } catch {}
+  };
+  function listen() {
+    const c = client();
+    if (!c || handles.length) return;
+    const SC = c.callback.SteamCallback;
+    const on = (kind, fn) => {
+      try {
+        handles.push(c.callback.register(kind, fn));
+      } catch (error) {
+        log("Steam callback " + kind + " could not be registered: " + (error?.message || error));
+      }
+    };
+    // Only someone in our lobby may open a P2P session with us.
+    on(SC.P2PSessionRequest, ({ remote }) => {
+      if (inLobby(remote)) c.networking.acceptP2PSession(remote);
+    });
+    // A friend's invite accepted from the overlay or the friends list while the game runs.
+    on(SC.GameLobbyJoinRequested, ({ lobby_steam_id }) => emit("join-request", String(lobby_steam_id)));
+    on(SC.LobbyChatUpdate, ({ lobby: id, user_changed, member_state_change }) => {
+      if (!lobby || String(id) !== String(lobby.id)) return;
+      emit(member_state_change === 0 ? "joined" : "left", String(user_changed));
+    });
+    on(SC.P2PSessionConnectFail, ({ remote, error }) => emit("left", String(remote), error));
+  }
+  function pump() {
+    const c = client();
+    if (!c) return;
+    try {
+      for (let n = 0; n < 200; n++) {
+        const size = c.networking.isP2PPacketAvailable();
+        if (!size) break;
+        const packet = c.networking.readP2PPacket(size);
+        const from = String(packet.steamId.steamId64);
+        if (!inLobby(from) || packet.size > MAX_PACKET) continue;
+        let msg = null;
+        try {
+          msg = JSON.parse(packet.data.toString("utf8"));
+        } catch {}
+        if (msg && typeof msg === "object") emit("message", from, msg);
+      }
+    } catch (error) {
+      log("Steam P2P read failed: " + (error?.message || error));
+    }
+  }
+  const started = () => {
+    listen();
+    if (!poll) {
+      poll = setInterval(pump, 4);
+      poll.unref?.(); // (the game's window keeps the app alive, not this)
+    }
+  };
+  const info = () => ({
+    lobby: lobby ? String(lobby.id) : null,
+    self: self(),
+    owner: lobby ? safeOwner() : null,
+    members: members(),
+  });
+  const safeOwner = () => {
+    try {
+      return String(lobby.getOwner().steamId64);
+    } catch {
+      return null;
+    }
+  };
+  return {
+    available: () => !!client(),
+    async host(data = {}) {
+      const c = client();
+      if (!c) return { ok: false, error: "Steam is not running" };
+      try {
+        started();
+        if (lobby) lobby.leave();
+        lobby = await c.matchmaking.createLobby(1 /* friends only */, 3);
+        for (const [k, v] of Object.entries(data)) lobby.setData(String(k), String(v));
+        // ("Join Game" on the host in a friend's Steam friends list starts or brings up the game with this)
+        presence("connect", "+connect_lobby " + String(lobby.id));
+        return { ok: true, ...info() };
+      } catch (error) {
+        lobby = null;
+        return { ok: false, error: String(error?.message || error).slice(0, 200) };
+      }
+    },
+    async join(id) {
+      const c = client();
+      if (!c) return { ok: false, error: "Steam is not running" };
+      try {
+        started();
+        if (lobby) lobby.leave();
+        lobby = await c.matchmaking.joinLobby(BigInt(String(id)));
+        const data = (() => {
+          try {
+            return lobby.getFullData();
+          } catch {
+            return {};
+          }
+        })();
+        return { ok: true, ...info(), data };
+      } catch (error) {
+        lobby = null;
+        return { ok: false, error: String(error?.message || error).slice(0, 200) };
+      }
+    },
+    leave() {
+      try {
+        lobby?.leave();
+      } catch {}
+      lobby = null;
+      presence("connect", "");
+      return true;
+    },
+    invite() {
+      try {
+        lobby?.openInviteDialog();
+        return !!lobby;
+      } catch {
+        return false;
+      }
+    },
+    setJoinable(on) {
+      try {
+        return !!lobby?.setJoinable(!!on);
+      } catch {
+        return false;
+      }
+    },
+    send(to, msg) {
+      const c = client();
+      if (!c || !inLobby(to)) return false;
+      try {
+        const data = Buffer.from(JSON.stringify(msg), "utf8");
+        if (data.length > MAX_PACKET) return false;
+        return c.networking.sendP2PPacket(BigInt(String(to)), 2 /* reliable */, data);
+      } catch {
+        return false;
+      }
+    },
+    info,
+    stop() {
+      clearInterval(poll);
+      poll = null;
+      for (const h of handles.splice(0)) {
+        try {
+          h.disconnect();
+        } catch {}
+      }
+    },
+  };
+}
+
+// A friend's invite accepted while the game was closed: Steam starts it with `+connect_lobby <id>`.
+function launchLobby(argv = process.argv) {
+  const i = argv.indexOf("+connect_lobby");
+  const id = i >= 0 ? argv[i + 1] : null;
+  return id && /^\d{5,20}$/.test(id) ? id : null;
+}
+
+module.exports = { NAME, TEST_APP_ID, createSteam, readConfig, launchLobby };

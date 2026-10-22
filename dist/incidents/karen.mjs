@@ -91,6 +91,11 @@ export const Karen = {
       warning: true,
     });
   },
+  // (With a crew: the coach calming her, else the one nearest her: she marches up to whoever is closest.)
+  focus(sim) {
+    const calming = sim.coaches.findIndex((c) => c.calming);
+    return calming >= 0 ? calming : { near: sim.karen && sim.visitor(sim.karen.id) };
+  },
   update(sim, dt) {
     // Visitors' annoyance fades by itself (swimmers' is handled where they are moved, in tickAnnoyed).
     for (const v of sim.visitors) if (v.karenAnnoyed > 0) v.karenAnnoyed = Math.max(0, v.karenAnnoyed - dt);
@@ -98,7 +103,7 @@ export const Karen = {
     if (!k) return;
     const v = sim.visitor(k.id);
     if (!v) {
-      sim.coach.calming = false;
+      for (const c of sim.coaches) c.calming = false;
       sim.karen = null;
       return;
     }

@@ -11,7 +11,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const lib = require("./desktop/lib.cjs");
-const { NAME, TEST_APP_ID, createSteam, readConfig } = require("./desktop/steam.cjs");
+const { NAME, TEST_APP_ID, createSteam, readConfig, launchLobby } = require("./desktop/steam.cjs");
 const read = (file) => readFileSync(file, "utf8");
 
 // ---- which file an address means -------------------------------------------------------------------------------------------
@@ -728,6 +728,123 @@ function trackedGameFiles() {
     assert.ok(parses("desktop/" + file), `desktop/${file} parses`);
 }
 
+// ---- co-op over Steam (steam.cjs createNet): a lobby, the overlay's invite, P2P only with the lobby's members ----------------------
+{
+  const calls = [],
+    handlers = {},
+    inbox = [];
+  const ME = 76561190000000001n,
+    FRIEND = 76561190000000002n,
+    STRANGER = 76561190000000003n;
+  const lobby = {
+    id: 109775240000000001n,
+    members: [ME],
+    getMembers() {
+      return this.members.map((steamId64) => ({ steamId64 }));
+    },
+    getOwner: () => ({ steamId64: ME }),
+    setData: (k, v) => (calls.push(["data", k, v]), true),
+    getFullData: () => ({ game: "pool-panic" }),
+    openInviteDialog: () => calls.push(["invite"]),
+    setJoinable: () => true,
+    leave: () => calls.push(["leave"]),
+  };
+  const client = {
+    localplayer: {
+      getName: () => "Coach",
+      getSteamId: () => ({ steamId64: ME }),
+      setRichPresence: (k, v) => calls.push(["presence", k, v]),
+    },
+    utils: { isSteamRunningOnSteamDeck: () => false },
+    apps: { currentGameLanguage: () => "english" },
+    matchmaking: {
+      createLobby: async (type, max) => (calls.push(["create", type, max]), lobby),
+      joinLobby: async (id) => (calls.push(["join", String(id)]), lobby),
+    },
+    networking: {
+      sendP2PPacket: (to, type, data) => (
+        calls.push(["send", String(to), type, JSON.parse(data.toString())]),
+        true
+      ),
+      isP2PPacketAvailable: () => (inbox.length ? inbox[0].data.length : 0),
+      readP2PPacket: () => {
+        const p = inbox.shift();
+        return { data: p.data, size: p.data.length, steamId: { steamId64: p.from } };
+      },
+      acceptP2PSession: (id) => calls.push(["accept", String(id)]),
+    },
+    callback: {
+      SteamCallback: {
+        LobbyChatUpdate: 5,
+        P2PSessionRequest: 6,
+        P2PSessionConnectFail: 7,
+        GameLobbyJoinRequested: 8,
+      },
+      register: (kind, fn) => ((handlers[kind] = fn), { disconnect() {} }),
+    },
+  };
+  const steam = createSteam({
+    load: () => ({ init: () => client, restartAppIfNecessary: () => false, electronEnableSteamOverlay() {} }),
+    config: { enabled: true, appId: 480, restartIfNeeded: false },
+  });
+  steam.start();
+  const events = [];
+  const net = steam.net((type, ...args) => events.push([type, ...args]));
+  const hosted = await net.host({ game: "pool-panic", protocol: 1 });
+  assert.ok(
+    hosted.ok && hosted.lobby === String(lobby.id) && hosted.self === String(ME),
+    "a lobby, its id as text",
+  );
+  assert.deepEqual(calls[0], ["create", 1, 3], "friends only, three at most");
+  assert.ok(
+    calls.some((c) => c[0] === "presence" && c[1] === "connect" && c[2] === "+connect_lobby " + lobby.id),
+    "Join Game in the friends list leads to it",
+  );
+  assert.equal(net.send(String(FRIEND), { t: "hello" }), false, "nothing to someone outside the lobby");
+  lobby.members.push(FRIEND);
+  assert.equal(net.send(String(FRIEND), { t: "hello" }), true);
+  assert.deepEqual(calls.at(-1), ["send", String(FRIEND), 2, { t: "hello" }], "reliable, as JSON");
+  handlers[6]({ remote: STRANGER });
+  handlers[6]({ remote: FRIEND });
+  assert.deepEqual(
+    calls.filter((c) => c[0] === "accept"),
+    [["accept", String(FRIEND)]],
+    "a P2P session only with a member",
+  );
+  inbox.push({ from: STRANGER, data: Buffer.from(JSON.stringify({ t: "in" })) });
+  inbox.push({ from: FRIEND, data: Buffer.from(JSON.stringify({ t: "in", name: "jump" })) });
+  inbox.push({ from: FRIEND, data: Buffer.from("not json") });
+  await new Promise((r) => setTimeout(r, 30));
+  assert.deepEqual(
+    events.filter((e) => e[0] === "message"),
+    [["message", String(FRIEND), { t: "in", name: "jump" }]],
+    "messages from members only, and only whole ones",
+  );
+  handlers[8]({ lobby_steam_id: 4242n, friend_steam_id: FRIEND });
+  handlers[5]({ lobby: lobby.id, user_changed: FRIEND, member_state_change: 1 });
+  assert.deepEqual(events.slice(-2), [
+    ["join-request", "4242"],
+    ["left", String(FRIEND)],
+  ]);
+  assert.equal(net.invite(), true);
+  assert.ok(
+    calls.some((c) => c[0] === "invite"),
+    "the overlay's invite",
+  );
+  net.leave();
+  assert.deepEqual(
+    calls.slice(-2),
+    [["leave"], ["presence", "connect", ""]],
+    "left, and no Join Game any more",
+  );
+  assert.equal(launchLobby(["app", "+connect_lobby", "109775240000000001"]), "109775240000000001");
+  assert.equal(launchLobby(["app", "+connect_lobby", "1; rm"]), null, "only a number");
+  const off = createSteam({ load: () => ({}), config: { enabled: false, appId: 480 } });
+  off.start();
+  assert.equal((await off.net(() => {}).host()).ok, false, "no Steam, no lobby");
+  net.stop?.();
+}
+
 console.log(
-  "Desktop checks passed: files served only from the game's folder with the right types, the CI that makes the test downloads (tester builds only, one place that writes), tester builds (the only build that posts, to a fixed address, from the game's own window, never from a packed Steam build), the progress mirror (player keys only, damaged files refused), links and windows, the Steam wrapper against a fake steamworks.js (it never stops the game), the locked-down window and upload settings, and every desktop script parsing.",
+  "Desktop checks passed: files served only from the game's folder with the right types, the CI that makes the test downloads (tester builds only, one place that writes), tester builds (the only build that posts, to a fixed address, from the game's own window, never from a packed Steam build), the progress mirror (player keys only, damaged files refused), links and windows, the Steam wrapper against a fake steamworks.js (it never stops the game), co-op over Steam (a friends-only lobby of three, Join Game, the invite overlay, P2P with the lobby's members only), the locked-down window and upload settings, and every desktop script parsing.",
 );

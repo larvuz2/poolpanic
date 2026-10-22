@@ -18,7 +18,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const lib = require("./lib.cjs");
-const { createSteam, readConfig } = require("./steam.cjs");
+const { createSteam, readConfig, launchLobby } = require("./steam.cjs");
 
 const log = (...args) => console.log("[pool-panic]", ...args);
 const bundled = path.join(__dirname, "game");
@@ -270,6 +270,32 @@ ipcMain.handle("desktop:report", async (event, text) => {
     clearTimeout(timer);
   }
 });
+// Online co-op over Steam (steam.cjs createNet, the game's dist/steam-net.mjs): the lobby, the invite overlay, the messages.
+const coop = steam.net((type, ...args) => {
+  try {
+    if (win && !win.isDestroyed()) win.webContents.send("steam:net", type, ...args);
+  } catch {}
+});
+// A friend's invite accepted while the game was closed (Steam starts it with +connect_lobby; while it runs, see second-instance).
+let pendingLobby = launchLobby(process.argv);
+const handle = (channel, fn) =>
+  ipcMain.handle(channel, (event, ...args) =>
+    trusted(event) ? fn(...args) : { ok: false, error: "not the game" },
+  );
+handle("steam:net-host", (data) => coop.host(data && typeof data === "object" ? data : {}));
+handle("steam:net-join", (id) =>
+  /^\d{5,20}$/.test(String(id)) ? coop.join(String(id)) : { ok: false, error: "bad lobby" },
+);
+handle("steam:net-info", () => coop.info());
+handle("steam:net-pending", () => {
+  const id = pendingLobby;
+  pendingLobby = null;
+  return id;
+});
+on("steam:net-send", (_event, to, msg) => coop.send(String(to), msg));
+on("steam:net-leave", () => coop.leave());
+on("steam:net-invite", () => coop.invite());
+on("steam:net-joinable", (_event, joinable) => coop.setJoinable(!!joinable));
 on("steam:unlock", (_event, id) => steam.unlock(id));
 on("steam:stat", (_event, name, value) => steam.setStat(name, value));
 on("steam:presence", (_event, text) => steam.richPresence(text));
@@ -305,8 +331,11 @@ async function serve(request) {
 if (started.restart || !app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on("second-instance", () => {
+  app.on("second-instance", (_event, argv) => {
     if (!win) return;
+    // (launched again from a friend's invite: join their lobby in the window already open)
+    const id = launchLobby(argv);
+    if (id) win.webContents.send("steam:net", "join-request", id);
     if (win.isMinimized()) win.restore();
     win.focus();
   });

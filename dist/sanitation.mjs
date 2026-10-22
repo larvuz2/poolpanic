@@ -385,26 +385,26 @@ export class SanitationController extends CoachController {
       }
   }
   updateSanitation(dt) {
-    const c = this.coach,
-      q = this.cleanup;
-    c.scoopCooldown = Math.max(0, (c.scoopCooldown || 0) - dt);
-    if (c.scoopTimer > 0) {
+    const q = this.cleanup;
+    // Each coach's scoop (the skimmer's swing lands a moment after the press).
+    this.forEachCoach((c) => {
+      c.scoopCooldown = Math.max(0, (c.scoopCooldown || 0) - dt);
+      if (!(c.scoopTimer > 0)) return;
       c.scoopTimer = Math.max(0, c.scoopTimer - dt);
-      if (c.scoopTimer === 0) {
-        if (
-          q?.stage === "floating" &&
-          c.carry === "skimmer" &&
-          this.canInteract() &&
-          distance(c, this.waterPoint()) < 1.55 &&
-          distance(c, q) <= this.venue.sanitation.reach &&
-          distance(q, c.scoopTarget) < 0.85
-        ) {
-          q.stage = "caught";
-          c.skimmerLoaded = true;
-          this.feedback("scooped");
-        } else this.emit("scoop-miss");
-      }
-    }
+      if (c.scoopTimer !== 0) return;
+      if (
+        this.cleanup?.stage === "floating" &&
+        c.carry === "skimmer" &&
+        this.canInteract() &&
+        distance(c, this.waterPoint()) < 1.55 &&
+        distance(c, this.cleanup) <= this.venue.sanitation.reach &&
+        distance(this.cleanup, c.scoopTarget) < 0.85
+      ) {
+        this.cleanup.stage = "caught";
+        c.skimmerLoaded = true;
+        this.feedback("scooped");
+      } else this.emit("scoop-miss");
+    });
     if (!q) {
       this.waterBrown = Math.max(0, (this.waterBrown || 0) - dt * 0.15);
       this.waterYellow = Math.max(0, (this.waterYellow || 0) - dt * 0.15);

@@ -6591,6 +6591,151 @@ body.calm .grain {
   margin: 12px auto 0;
 }
 
+/* ---- PLAY WITH FRIENDS (22 October 2026, coop-ui.mjs): three slots, a coach each, ready, the host's pool --------------- */
+.coop-page {
+  max-width: 860px;
+}
+.coop-page .eyebrow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.coop-start {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 8px 0 4px;
+}
+.coop-start #coop-host {
+  width: auto;
+  padding: 12px 28px;
+}
+.coop-rooms {
+  display: grid;
+  gap: 6px;
+}
+.coop-slots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 10px 0 12px;
+}
+.coop-slot {
+  --coach: #4f8d90;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  min-height: 270px;
+  padding: 10px 8px 12px;
+  border-radius: 14px;
+  background: radial-gradient(120% 70% at 50% 25%, color-mix(in srgb, var(--coach) 35%, #0c303b), #0a2229);
+  border: 2px solid color-mix(in srgb, var(--coach) 70%, #0c303b);
+  color: var(--cream);
+  text-align: center;
+}
+.coop-slot.empty {
+  border-style: dashed;
+  background: #0a2229;
+  align-content: center;
+  opacity: 0.8;
+}
+.coop-slot.mine {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--coach) 45%, transparent),
+    0 10px 26px rgba(0, 0, 0, 0.4);
+}
+.coop-slot.away {
+  opacity: 0.55;
+}
+.coop-portrait {
+  height: 170px;
+  display: grid;
+  place-items: end center;
+}
+.coop-portrait img {
+  max-height: 170px;
+  max-width: 100%;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+}
+.coop-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.coop-pick b {
+  font: 800 18px/1.05 var(--display);
+  letter-spacing: 0.5px;
+  color: var(--coach);
+}
+.coop-arrow {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--coach);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--cream);
+  cursor: pointer;
+  font-size: 13px;
+}
+.coop-arrow:hover {
+  background: var(--coach);
+  color: var(--ink);
+}
+.coop-player {
+  font-size: 13px;
+  font-weight: 600;
+}
+.coop-ready {
+  font: 800 13px/1 var(--display);
+  letter-spacing: 1.5px;
+  color: rgba(255, 244, 207, 0.55);
+}
+.coop-slot.ready .coop-ready {
+  color: var(--mint);
+}
+.coop-choice {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.coop-pools,
+.coop-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.coop-chosen {
+  margin: 0;
+}
+.coop-status {
+  font-size: 13px;
+  color: rgba(255, 244, 207, 0.75);
+}
+.coop-page .fp-bar .primary {
+  width: auto;
+  padding: 10px 22px;
+}
+.coop-note {
+  min-height: 1.2em;
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--yellow);
+  text-align: center;
+}
+.coop-page #coop-close {
+  display: block;
+  margin: 8px auto 0;
+}
+@media (max-width: 640px) {
+  .coop-slots {
+    grid-template-columns: 1fr;
+  }
+  .coop-slot {
+    min-height: 0;
+  }
+}
+
 /* ---- The column of messages (21 October 2026) -------------------------------------------------------------------------- */
 /* The creator: the messages under the scoreboard covered the pool and each other (the tutorial's tip over an incident's
    banner). They stand one under the other in a column on the left, where the guests' cards used to be, inside the strip the

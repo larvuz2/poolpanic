@@ -31,6 +31,27 @@ A test build is **not the Steam build**: it starts in **playtest mode** (the �
 read out once), and as you play the game posts its log to the report service, as a web playtest does, so the developer can read what happened
 and what came before a crash. The Steam build has no `tester.json` (the file that makes a test build) and never sends anything.
 
+### Try co-op over Steam (PLAY WITH FRIENDS, two machines)
+
+Online co-op (the main README, "Online co-op") goes over Steam, so it needs **two Steam accounts on two machines** (a free account is
+enough; the app still uses Valve's test app 480, which every account has). On the Mac and the Windows PC:
+
+1. Install Steam on both, and sign in with a **different account on each**. Make the two accounts **Steam friends**.
+2. Download and unzip the test build on both (above), and **start Steam first**, then the game (a test build started outside Steam
+   still finds the running Steam client).
+3. On one machine: **PLAY WITH FRIENDS**, **Host a shift**, then **＋ Invite a friend**: Steam's overlay opens, pick the other account.
+   (Shift+Tab also opens the overlay.)
+4. On the other: accept the invite in Steam (or right-click the host in the friends list, **Join Game**). The game opens the host's
+   lobby: pick a coach with ◀ ▶, then **READY**.
+5. The host picks a pool and a difficulty and presses **Start the shift**. Play it through, then **Back to the crew** for another.
+
+Worth trying: both coaches doing the same job (one fetches fins while the other mops), one machine leaving mid-shift and coming back
+(PLAY WITH FRIENDS, then join again: the coach waits), and the Coach Cam on the guest. Ask for both device codes (the 🐞 panel) after:
+both logs say what each machine saw, and a line `out of step with the host` would be a bug to fix.
+
+Without Steam the same lobby can be tried in **two windows of one browser** (dev mode on, `npm start`, open the game twice: host in one,
+join in the other), which is how it was tested here; Electron's single window cannot do that.
+
 ### On an iPad: stream it from the Mac with Steam Link
 
 There is no Pool Panic app for an iPad (an Electron app runs on Windows, macOS and Linux only), and the game is tested as the desktop app, not

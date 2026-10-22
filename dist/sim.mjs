@@ -1,3 +1,4 @@
+import { crewConfig, normalCrew } from "./crew.mjs";
 import { prepareDeck, resolveDeck, deckHeading } from "./deck-physics.mjs";
 import { waitingInWater, heldInWater } from "./rescue.mjs";
 import { ChaosController, HOLD_LIMIT } from "./chaos.mjs";
@@ -489,7 +490,9 @@ export class PoolSimulation extends ChaosController {
     const lvl = Math.max(1, Math.min(SHIFTS.length, Math.floor(level) || 1));
     const booking = typeof options.booking === "string" ? BOOKINGS[options.booking] : options.booking;
     const base = options.config || SHIFTS[lvl - 1];
-    const config = booking ? applyBooking(base, booking) : base;
+    // (a co-op crew of two or three plays the same shift with more of everything: crew.mjs)
+    const crew = Array.isArray(options.crew) && options.crew.length ? normalCrew(options.crew) : ["waters"];
+    const config = crewConfig(booking ? applyBooking(base, booking) : base, crew.length);
     const venue =
       typeof options.venue === "object" ? options.venue : VENUES[options.venue || config.venue || "club"];
     super(venue);
@@ -512,7 +515,6 @@ export class PoolSimulation extends ChaosController {
     this.score = 0;
     this.streak = 0;
     this.bestStreak = 0;
-    this.selected = null;
     this.contamination = 3;
     this.chlorine = 44;
     this.closed = 0;
@@ -532,7 +534,15 @@ export class PoolSimulation extends ChaosController {
     if (this.venue.onsen) this.onsen = createOnsen(this);
     this.clutter = [];
     this.uid = 0;
+    this.actor = 0;
+    this.coaches = [];
     this.coach = createCoach(this.venue);
+    this.coach.index = 0;
+    this.coach.look = "waters";
+    // A co-op crew (`options.crew`: one coach id per player, the host's first) gets a coach for every player.
+    this.crew = crew;
+    this.coach.look = crew[0];
+    for (const look of crew.slice(1)) this.addCoach(look);
     this.stats = {
       served: 0,
       happy: 0,
@@ -553,6 +563,40 @@ export class PoolSimulation extends ChaosController {
     this.big = createBig(this);
     this.nextArrival = 0;
     this.warnedWater = false;
+  }
+  // Co-op (22 October 2026): another coach for another player, beside the first coach's start, in the look that player picked
+  // ("waters", "senior", "sunny"). Returns the coach's index. Call before the shift starts.
+  addCoach(look = "waters") {
+    const c = createCoach(this.venue),
+      i = this.coaches.length,
+      start = this.venue.coachStart;
+    for (const [dx, dz] of [
+      [1.3 * (i === 1 ? 1 : -1), 0],
+      [0, 1.3 * (i === 1 ? 1 : -1)],
+      [1.3 * (i === 1 ? -1 : 1), 0],
+      [0, 1.3 * (i === 1 ? -1 : 1)],
+      [0.7 * i, 0.7],
+    ])
+      if (this.venue.isDeck(start.x + dx, start.z + dz, this.level, 0.3)) {
+        c.x = start.x + dx;
+        c.z = start.z + dz;
+        break;
+      }
+    c.index = i;
+    c.look = look;
+    this.coaches.push(c);
+    return i;
+  }
+  // Something a player did, as their coach (`as`): the network and the bots use this; single player is always coach 0.
+  inputAs(i, name, ...args) {
+    if (typeof this[name] !== "function" || !this.coaches[i]) return undefined;
+    const before = this.inputBy;
+    this.inputBy = i;
+    try {
+      return this.as(i, () => this[name](...args));
+    } finally {
+      this.inputBy = before;
+    }
   }
   random() {
     this.seed = (Math.imul(this.seed, 1664525) + 1013904223) >>> 0;
@@ -690,8 +734,9 @@ export class PoolSimulation extends ChaosController {
       (B?.kind === "party" && (B.stage === "announce" || B.stage === "live") ? BIG.crowd.party : 0)
     );
   }
+  // (`by`: the coach whose player's input made it, while an input is being applied: a guidance toast is that player's alone)
   emit(type, data = {}) {
-    this.events.push({ type, ...data });
+    this.events.push(this.inputBy == null ? { type, ...data } : { type, by: this.inputBy, ...data });
   }
   // How fast someone goes on foot: Senior Aqua Fit's seniors walk slowly and stooped, and roll their wheelchairs (SENIOR);
   // everyone else at the pace asked for.
@@ -840,7 +885,11 @@ export class PoolSimulation extends ChaosController {
       type !== "aqua" &&
       type !== "child" &&
       index > 2 &&
-      this.random() < (this.config.finChance ?? (this.level === 1 ? 0.24 : 0.38));
+      this.random() <
+        Math.min(
+          0.9,
+          (this.config.finChance ?? (this.level === 1 ? 0.24 : 0.38)) * (this.config.finBoost || 1),
+        );
     const p = {
       id: ++this.uid,
       name: this.freshName((index + Math.floor(this.random() * 5)) % NAMES.length), // (drawn for a star too: the same numbers follow)
@@ -1347,7 +1396,7 @@ export class PoolSimulation extends ChaosController {
           ? [...this.venue.route(p, this.venue.arrival.at(p.side, "outside")), ...this.returnRoute(p.side)]
           : [{ x: p.side * this.venue.pool.corridorX, z: p.z }, ...this.returnRoute(p.side)];
     p.lane = null;
-    if (this.selected === p.id) this.selected = null;
+    this.deselect(p.id);
   }
   dropFins(p) {
     if (!p.hasFins) return;
@@ -1451,7 +1500,7 @@ export class PoolSimulation extends ChaosController {
     const door = this.venue.arrival;
     p.path = [...this.venue.route(p, door.at(p.side, "outside")), ...this.returnRoute(p.side)];
     p.lane = null;
-    if (this.selected === p.id) this.selected = null;
+    this.deselect(p.id);
   }
   // A door is a point every guest must cross exactly; a door in the back wall (crossed along z: the Kids Pool's gate, Senior Aqua
   // Fit's glass doors) is passed once a guest is through it, so a few slow walkers arriving together cannot jostle each other off
@@ -1556,7 +1605,11 @@ export class PoolSimulation extends ChaosController {
     }
     return false;
   }
+  // A tick of the shift is the same on every machine of a co-op crew: it runs as the first coach (coach 0, the host's), whichever
+  // player's machine runs it (sim.actor is the local player's coach between ticks, for what their screen asks: net.mjs), and
+  // each coach's own part of it as that coach.
   tick(dt) {
+    if (this.actor) return this.as(0, () => this.tick(dt));
     dt = Math.min(Math.max(0, dt), 0.1);
     if (this.status === "countdown") {
       const before = Math.ceil(this.countdown);
@@ -1582,7 +1635,7 @@ export class PoolSimulation extends ChaosController {
     this.updateRescue();
     if (this.ship) updateShip(this, dt);
     prepareDeck(this, dt);
-    this.updateCoach(dt);
+    for (let i = 0; i < this.coaches.length; i++) this.as(i, () => this.updateCoach(dt));
     this.updateSanitation(dt);
     this.updateChaos(dt);
     const crowd = this.crowdPanic();

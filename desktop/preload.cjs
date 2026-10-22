@@ -49,6 +49,19 @@ const steam = Object.freeze({
   unlock: (id) => ipcRenderer.send("steam:unlock", String(id)),
   setStat: (name, value) => ipcRenderer.send("steam:stat", String(name), Number(value)),
   richPresence: (text) => ipcRenderer.send("steam:presence", String(text)),
+  // Online co-op (dist/steam-net.mjs): a friends-only lobby, the invite overlay, messages over Steam's relayed P2P. Events come
+  // back as (type, ...args): "message" (from, msg), "joined"/"left" (steam id), "join-request" (lobby id).
+  net: Object.freeze({
+    host: (data) => ipcRenderer.invoke("steam:net-host", data || {}),
+    join: (lobby) => ipcRenderer.invoke("steam:net-join", String(lobby)),
+    info: () => ipcRenderer.invoke("steam:net-info"),
+    pending: () => ipcRenderer.invoke("steam:net-pending"),
+    send: (to, msg) => ipcRenderer.send("steam:net-send", String(to), msg),
+    leave: () => ipcRenderer.send("steam:net-leave"),
+    invite: () => ipcRenderer.send("steam:net-invite"),
+    joinable: (on) => ipcRenderer.send("steam:net-joinable", !!on),
+    onEvent: (fn) => ipcRenderer.on("steam:net", (_event, type, ...args) => fn(type, ...args)),
+  }),
 });
 
 contextBridge.exposeInMainWorld(

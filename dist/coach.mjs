@@ -21,6 +21,79 @@ const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const approach = (v, target, amount) =>
   v < target ? Math.min(target, v + amount) : Math.max(target, v - amount);
 export class CoachController {
+  // ---- the crew: one coach in single player, up to three in co-op (22 October 2026) ------------------------------------
+  // `coaches` holds every coach; `coach` is the one acting now (`actor`): the inputs a player gives, and the coach's own update,
+  // run with `actor` set to that player's coach (`as`), so every method below that reads `this.coach` works for each coach
+  // unchanged. Outside of that it is coach 0 (the host's, the only one in single player). What the world does by itself (an
+  // incident, a guest) asks which coach it is about: the one holding an item (`carrierIndex`), the nearest (`nearestCoach`).
+  get coach() {
+    return this.coaches?.[this.actor ?? 0];
+  }
+  set coach(c) {
+    (this.coaches ??= [])[this.actor ?? 0] = c;
+  }
+  // The guest a coach has picked (each player picks their own), and E held down (hold-to-act incidents read it).
+  get selected() {
+    return this.coach?.selected ?? null;
+  }
+  set selected(id) {
+    if (this.coach) this.coach.selected = id;
+  }
+  get holdInteract() {
+    return !!this.coach?.holding;
+  }
+  set holdInteract(on) {
+    if (this.coach) this.coach.holding = !!on;
+  }
+  // Run `fn` as coach `i` (an input from that player, that coach's update).
+  as(i, fn) {
+    const before = this.actor ?? 0;
+    this.actor = i;
+    try {
+      return fn();
+    } finally {
+      this.actor = before;
+    }
+  }
+  forEachCoach(fn) {
+    for (let i = 0; i < this.coaches.length; i++) this.as(i, () => fn(this.coaches[i], i));
+  }
+  // The coach nearest a point (that `filter` accepts), as an index, or -1.
+  nearestCoach(point, filter = () => true) {
+    let best = -1,
+      bestD = Infinity;
+    this.coaches.forEach((c, i) => {
+      if (!filter(c, i)) return;
+      const d = Math.hypot(c.x - point.x, c.z - point.z);
+      if (d < bestD) ((bestD = d), (best = i));
+    });
+    return best;
+  }
+  // The coach carrying an item (`carry` kind), as an index, or -1.
+  carrierIndex(kind) {
+    return this.coaches.findIndex((c) => c.carry === kind);
+  }
+  // The coach a moment is about: the one carrying `carry` if any, else the nearest to `near`, else coach 0.
+  focusCoach({ carry = null, near = null, filter } = {}) {
+    if (carry) {
+      const kinds = Array.isArray(carry) ? carry : [carry];
+      const held = this.coaches.findIndex((c) => kinds.includes(c.carry));
+      if (held >= 0) return held;
+    }
+    if (near && this.coaches.length > 1) {
+      const i = this.nearestCoach(near, filter);
+      if (i >= 0) return i;
+    }
+    return 0;
+  }
+  // A guest is gone: no coach keeps them picked.
+  deselect(id) {
+    for (const c of this.coaches) if (c.selected === id) c.selected = null;
+  }
+  // Where the coach looks in the Coach Cam (null: the way he walks). In co-op the game shares it like an input (net.mjs).
+  setLook(angle) {
+    this.coach.lookAngle = Number.isFinite(angle) ? angle : null;
+  }
   setMovement(x, z) {
     const n = Math.max(1, Math.hypot(x, z));
     this.coach.input = { x: x / n, z: z / n };
@@ -80,7 +153,7 @@ export class CoachController {
   finCount() {
     return (
       this.finsAvailable +
-      (this.coach.carry === "fins" ? 1 : 0) +
+      this.coaches.filter((c) => c.carry === "fins").length +
       this.people.filter((p) => p.hasFins).length +
       this.clutter.filter((f) => f.type === "fins").length
     );

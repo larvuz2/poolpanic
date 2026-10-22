@@ -35,6 +35,7 @@ import {
   introAt,
   activeChoice,
   coachMood,
+  crewModelReady,
   HEAVY_JOBS,
 } from "./scene/coach-model.mjs";
 import { attachSwimmerModel, dropSwimmerModel, setQueasy } from "./scene/swimmer-models.mjs";
@@ -42,6 +43,7 @@ import { finsObject, lifeRingObject, skimmerObject, pooObject, bucket } from "./
 import { IncidentView } from "./scene/incident-view.mjs";
 import { annoyPose } from "./scene/karen-view.mjs";
 import { readTuning } from "./tuning.mjs";
+import { coachInfo } from "./crew.mjs";
 import { CoachCam, COACH_CAM } from "./scene/coach-cam.mjs";
 import { waitingInWater, heldInWater } from "./rescue.mjs";
 import { bumpLean } from "./deck-physics.mjs";
@@ -499,6 +501,8 @@ export class PoolWorld extends SceneKit {
     this.batchStatic();
     this.coach = this.makeCoach();
     this.scene.add(this.coach);
+    // (a co-op crew's coaches, one group each: the first is this one until the crew is known, syncCoach)
+    this.coachGroups = [this.coach];
     this.coachHalo = this.ring(0.57, 0xffd54d);
     this.scene.add(this.coachHalo);
     this.actionHalo = this.ring(0.66, 0xffe484);
@@ -815,10 +819,86 @@ export class PoolWorld extends SceneKit {
     this.coachMoments = null; // and nothing has startled him yet
   }
   // The coach: Coach Waters when the model is loaded and wanted, else the classic one (coach-model.mjs).
-  makeCoach(choice = activeChoice()) {
+  makeCoach(choice = activeChoice(), look = "waters") {
     const group = character(this, { type: "coach", skin: 1, shape: 0.5 });
-    attachCoachModel(group, choice);
+    attachCoachModel(group, choice, look);
+    group.userData.wants = look;
     return group;
+  }
+  // Co-op (22 October 2026): every coach of the crew, each in its player's look; the local player's coach is the one the
+  // camera follows, the Coach Cam looks through and the yellow ring marks; the others wear a ring in their player's colour
+  // and their name (setCrewNames). One coach (single player) is exactly as before.
+  crewGroup(sim, i) {
+    const look = sim.coaches[i]?.look || "waters";
+    let g = this.coachGroups[i];
+    // (a coach's own model once it has loaded: until then he is Coach Waters)
+    if (g && g.userData.wants === look && (g.userData.look === look || !crewModelReady(look))) return g;
+    if (g) {
+      this.scene.remove(g);
+      if (g.userData.crewHalo) this.scene.remove(g.userData.crewHalo);
+      if (g.userData.nameTag) this.scene.remove(g.userData.nameTag);
+    }
+    g = this.makeCoach(activeChoice(), look);
+    this.scene.add(g);
+    this.coachGroups[i] = g;
+    if (i === 0) this.coach = g;
+    return g;
+  }
+  setCrewNames(names = []) {
+    this.crewNames = names;
+    for (const g of this.coachGroups) if (g?.userData.nameTag) g.userData.nameTag.userData.text = null;
+  }
+  crewDecor(sim, i, g, local) {
+    const u = g.userData;
+    if (local) {
+      if (u.crewHalo) u.crewHalo.visible = false;
+      if (u.nameTag) u.nameTag.visible = false;
+      return;
+    }
+    const info = coachInfo(sim.coaches[i].look),
+      colour = new THREE.Color(info.colour);
+    if (!u.crewHalo) {
+      u.crewHalo = this.ring(0.57, colour);
+      this.scene.add(u.crewHalo);
+    }
+    const c = sim.coaches[i];
+    u.crewHalo.position.set(c.x, 0.034, c.z);
+    u.crewHalo.visible = sim.status !== "ready" && !c.swimming && !c.waterTransition;
+    const text = this.crewNames?.[i] || info.short;
+    if (!u.nameTag) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 256;
+      canvas.height = 64;
+      const sprite = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: new THREE.CanvasTexture(canvas),
+          depthTest: false,
+          transparent: true,
+        }),
+      );
+      sprite.scale.set(2.6, 0.65, 1);
+      sprite.renderOrder = 10;
+      sprite.userData.canvas = canvas;
+      u.nameTag = sprite;
+      this.scene.add(sprite);
+    }
+    if (u.nameTag.userData.text !== text) {
+      const { canvas } = u.nameTag.userData,
+        x = canvas.getContext("2d");
+      x.clearRect(0, 0, 256, 64);
+      x.font = "bold 34px Fredoka, system-ui, sans-serif";
+      x.textAlign = "center";
+      x.textBaseline = "middle";
+      x.lineWidth = 8;
+      x.strokeStyle = "rgba(10,20,40,0.85)";
+      x.strokeText(text, 128, 34);
+      x.fillStyle = info.colour;
+      x.fillText(text, 128, 34);
+      u.nameTag.material.map.needsUpdate = true;
+      u.nameTag.userData.text = text;
+    }
+    u.nameTag.position.set(g.position.x, g.position.y + 2.5, g.position.z);
+    u.nameTag.visible = sim.status !== "ready";
   }
   // Change the coach's look now (How to play), keeping the classic one for going back.
   swapCoach(choice) {
@@ -1350,23 +1430,44 @@ export class PoolWorld extends SceneKit {
     if (kind === "startle") m.fresh = true;
   }
   syncCoach(sim, time, dt) {
+    const crew = sim.coaches || [sim.coach];
+    if (crew.length === 1) return this.syncOneCoach(sim, 0, this.coach, time, dt, true);
+    const me = sim.actor ?? 0;
+    for (let i = 0; i < crew.length; i++) {
+      const g = this.crewGroup(sim, i);
+      // (each coach as itself: what the sim says of "the coach" is this one while he is drawn)
+      sim.as(i, () => this.syncOneCoach(sim, i, g, time, dt, i === me));
+      this.crewDecor(sim, i, g, i === me);
+    }
+    for (let i = crew.length; i < this.coachGroups.length; i++)
+      if (this.coachGroups[i]) this.coachGroups[i].visible = false;
+  }
+  syncOneCoach(sim, index, cg, time, dt, local) {
     const c = sim.coach,
-      cg = this.coach,
       cu = cg.userData;
-    const firstPerson = this.viewMode === "coach";
-    if (firstPerson) this.coachCam.update(sim, time, dt);
-    else if (this.viewDirection && sim.status !== "ready")
-      this.followCoach(c, this.realDt ?? dt, this.attention(sim));
+    const firstPerson = local && this.viewMode === "coach";
+    if (local) {
+      if (firstPerson) this.coachCam.update(sim, time, dt);
+      else if (this.viewDirection && sim.status !== "ready")
+        this.followCoach(this.drawnAt?.(c) || c, this.realDt ?? dt, this.attention(sim));
+    }
     const rig = cu.rig;
-    // Coach Waters walks in while the countdown runs, and is at the spawn point when it reaches zero.
+    // Coach Waters walks in while the countdown runs, and is at the spawn point when it reaches zero. (A crew's other
+    // coaches wait at their places.)
     let intro = null;
-    if (rig && sim.status === "countdown") {
+    if (rig && sim.status === "countdown" && index === 0) {
       this.introPlan ||= planIntro(sim);
       if (this.introPlan.length > 0)
         intro = { ...introAt(this.introPlan, sim.countdown), rate: this.introPlan.rate };
     }
     cg.visible = !firstPerson;
-    cg.position.set(intro ? intro.x : c.x, c.y || 0, intro ? intro.z : c.z);
+    // (a guest's own coach is drawn a little ahead of the shift, where the stick is taking him: net.mjs Predictor)
+    const ahead = local && this.drawAhead ? this.drawAhead : null;
+    cg.position.set(
+      intro ? intro.x : c.x + (ahead?.dx || 0),
+      c.y || 0,
+      intro ? intro.z : c.z + (ahead?.dz || 0),
+    );
     // (Swimming in the Wave Pool, he rides the swell like everyone in it.)
     if (sim.venue?.waves && c.swimming) cg.position.y += surfaceAt(sim.waves?.list || [], c.x);
     // (Wading in the rooftop pool: his feet on its floor.)
@@ -1390,10 +1491,12 @@ export class PoolWorld extends SceneKit {
     );
     cu.root.position.y = walking && !air && !rig ? Math.abs(Math.sin(time * 12)) * 0.045 : 0; // the model bobs in its clips
     cu.root.rotation.x = c.dashTime > 0 && !this.reducedMotion.matches ? 0.25 : 0;
-    this.dashTrail.visible =
-      !firstPerson && c.dashTime > 0 && sim.status === "playing" && !this.reducedMotion.matches;
-    this.dashTrail.position.copy(cg.position);
-    this.dashTrail.rotation.y = c.angle;
+    if (local) {
+      this.dashTrail.visible =
+        !firstPerson && c.dashTime > 0 && sim.status === "playing" && !this.reducedMotion.matches;
+      this.dashTrail.position.copy(cg.position);
+      this.dashTrail.rotation.y = c.angle;
+    }
     const coachLean = bumpLean(c, this.reducedMotion.matches);
     cu.root.rotation.x += coachLean.x;
     cu.root.rotation.z += coachLean.z;
@@ -1401,15 +1504,17 @@ export class PoolWorld extends SceneKit {
     cu.root.scale.set(1 / Math.sqrt(scaleY), scaleY, 1 / Math.sqrt(scaleY));
     cu.shadow.position.y = 0.03 - (c.y || 0);
     cu.shadow.scale.setScalar(1 + (c.y || 0) * 0.25);
-    this.coachHalo.position.set(c.x, 0.034, c.z);
-    this.coachHalo.scale.setScalar(c.dashTime > 0 ? 1.18 : 1);
-    this.coachHalo.visible = sim.status !== "ready" && !firstPerson;
-    const nearby = sim.nearestInteraction(),
-      marker = nearby || c.goal;
-    this.actionHalo.visible = !!marker && sim.status === "playing";
-    if (marker) {
-      this.actionHalo.position.set(marker.x, 0.055, marker.z);
-      this.actionHalo.scale.setScalar(1 + Math.sin(time * 5) * 0.08);
+    if (local) {
+      this.coachHalo.position.set(cg.position.x, 0.034, cg.position.z);
+      this.coachHalo.scale.setScalar(c.dashTime > 0 ? 1.18 : 1);
+      this.coachHalo.visible = sim.status !== "ready" && !firstPerson;
+      const nearby = sim.nearestInteraction(),
+        marker = nearby || c.goal;
+      this.actionHalo.visible = !!marker && sim.status === "playing";
+      if (marker) {
+        this.actionHalo.position.set(marker.x, 0.055, marker.z);
+        this.actionHalo.scale.setScalar(1 + Math.sin(time * 5) * 0.08);
+      }
     }
     cu.carry.visible = !!c.carry;
     cu.carry.scale.setScalar(1 + (c.feedback || 0) * 1.1);
@@ -1447,8 +1552,10 @@ export class PoolWorld extends SceneKit {
         cu.carry.rotation.set(-Math.PI / 2 + 0.28, 0, 0);
         cu.carry.scale.setScalar(0.6);
       }
-      this.coachHalo.visible = false;
-      this.dashTrail.visible = false;
+      if (local) {
+        this.coachHalo.visible = false;
+        this.dashTrail.visible = false;
+      }
     } else cu.shadow.visible = true;
     if (!c.swimming && !c.waterTransition) this.slipPose(cu, c.slipTime, c.slipLength || 0.7);
     if (c.carry === "skimmer") {
@@ -1459,7 +1566,8 @@ export class PoolWorld extends SceneKit {
     if (rig) {
       try {
         // What troubles him (render only): a new incident (the jolt), a heavy job, something urgent going unanswered.
-        const moments = (this.coachMoments ||= { clock: 0 });
+        // (each coach his own moments: what startles one need not startle another, coachMoment)
+        const moments = local ? (this.coachMoments ||= { clock: 0 }) : (cu.moments ||= { clock: 0 });
         moments.clock += dt;
         const since = (k) => (moments[k] == null ? null : moments.clock - moments[k]);
         const speed = Math.hypot(c.vx || 0, c.vz || 0);

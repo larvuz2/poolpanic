@@ -135,6 +135,7 @@
         </div>
         <nav class="ts-menu" aria-label="Main menu">
           <button id="wk-go" class="ts-btn ts-main"><span class="ts-label">START</span></button
+          ><button id="wk-coop" class="ts-btn"><span class="ts-label">PLAY WITH FRIENDS</span></button
           ><button id="wk-free" class="ts-btn"><span class="ts-label">FREE PLAY</span></button
           ><button id="wk-locker" class="ts-btn"><span class="ts-label">COACH'S LOCKER</span></button
           ><button id="ts-settings" class="ts-btn"><span class="ts-label">SETTINGS</span></button
@@ -756,6 +757,31 @@
           <button id="fp-go" class="primary">Play ▶</button>
         </div>
         <button id="fp-close" class="text-btn">Back to the menu</button>
+      </dialog>
+      <!-- PLAY WITH FRIENDS (22 October 2026, coop-ui.mjs): online co-op for up to three over Steam, a coach each. -->
+      <dialog
+        id="coop-dialog"
+        class="modal week-modal locker-modal coop-page"
+        aria-labelledby="coop-title"
+        tabindex="-1"
+      >
+        <div class="eyebrow"><span id="coop-title">PLAY WITH FRIENDS</span><span>UP TO 3 COACHES</span></div>
+        <div id="coop-start" class="coop-start">
+          <p id="coop-intro" class="booking-note"></p>
+          <button id="coop-host" class="primary">Host a shift ▶</button>
+          <div id="coop-rooms" class="coop-rooms"></div>
+        </div>
+        <div id="coop-lobby" class="coop-lobby" hidden>
+          <div id="coop-slots" class="coop-slots"></div>
+          <div id="coop-choice" class="coop-choice"></div>
+          <div class="fp-bar">
+            <span id="coop-status" class="coop-status"></span>
+            <button id="coop-ready" class="primary">READY ✓</button>
+            <button id="coop-go" class="primary">Start the shift ▶</button>
+          </div>
+        </div>
+        <p id="coop-note" class="coop-note" role="status"></p>
+        <button id="coop-close" class="text-btn">Leave · back to the menu</button>
       </dialog>
       <dialog id="results-dialog" class="modal results-modal">
         <div class="eyebrow" id="result-eyebrow">SHIFT COMPLETE</div>

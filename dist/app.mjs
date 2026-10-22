@@ -38,7 +38,13 @@ import {
   STREAK_TIERS,
 } from "./sim.mjs";
 import { PoolWorld } from "./scene.mjs";
-import { activeChoice, chooseCoach, loadCoachModel, coachModelReady } from "./scene/coach-model.mjs";
+import {
+  activeChoice,
+  chooseCoach,
+  loadCoachModel,
+  coachModelReady,
+  loadCrewModel,
+} from "./scene/coach-model.mjs";
 import {
   activeSwimmerChoice,
   chooseSwimmers,
@@ -84,6 +90,11 @@ import { MenuStage, GUESTS, GUEST_FIGURES } from "./scene/menu-stage.mjs";
 import { installTitle, normalizeSettings, volumesOf, grainOpacity, motionReduced } from "./title.mjs";
 import { installFreePlay } from "./free-ui.mjs";
 import { freePlayShift, freeLevel } from "./week.mjs";
+import { installCoop } from "./coop-ui.mjs";
+import { CoopGuest, Predictor } from "./net.mjs";
+import { coachInfo } from "./crew.mjs";
+import { pendingInvite } from "./steam-net.mjs";
+import { COACH_TUNING } from "./spatial.mjs";
 import { playCinematic } from "./cinematic.mjs";
 import { readTuning, isWebKit } from "./tuning.mjs";
 import {
@@ -242,6 +253,9 @@ let input,
   title = null, // the title screen's behaviour (title.mjs)
   doorsOpening = false,
   freeUi = null, // FREE PLAY's window (free-ui.mjs)
+  coopUi = null, // PLAY WITH FRIENDS' window (coop-ui.mjs)
+  // A co-op shift being played (net.mjs): { session, shift, predictor }. Its shift never pauses, nobody's machine slows it.
+  coop = null,
   freeChoice = null, // the pool and difficulty of the free-play shift being played (play again plays it again)
   level = 1,
   mode = "menu",
@@ -1206,6 +1220,7 @@ function startRecorder(drill) {
         ...(shiftGuests && { guests: shiftGuests }),
         // A shift of the week was built, not looked up: the record carries what it was built from.
         ...(weekShift && { week: { config: weekShift.config, perks: weekShift.perks } }),
+        ...(coop && { crew: coop.shift.options.crew }),
       },
       // (a playtest's goes in the log, which keeps to the usual size; a player's own may be longer)
       { inputs: playtest ? REPLAY_LIMITS.inputs : 24000 },
@@ -1775,6 +1790,45 @@ function startFree(pool, levelId) {
   );
   start(null, shift);
 }
+// PLAY WITH FRIENDS (coop-ui.mjs, net.mjs): every machine of the crew builds the same free-play shift from the host's pool,
+// difficulty, seed and met incidents, with a coach for each player; the host plays it, the guests follow it.
+function startCoop(shift, session) {
+  $("coop-dialog").close();
+  coop = { session, shift, predictor: new Predictor() };
+  for (const look of shift.options.crew) loadCrewModel(look, coachInfo(look).model);
+  // (the names over the others' coaches: the player's, or their coach's when they have none)
+  world.setCrewNames?.(
+    shift.options.crew.map((look, i) => {
+      const n = session.player(i)?.name;
+      return n && n !== "Coach" ? n : coachInfo(look).short;
+    }),
+  );
+  const week = freePlayShift(shift.choice.pool, shift.choice.level, shift.seed, shift.known || []);
+  crashlog.crumb(
+    "coop",
+    `co-op · ${session.index === 0 ? "host" : "guest " + session.index} · crew ${shift.options.crew.join(",")} · ${shift.choice.pool} · ${shift.choice.level}`,
+  );
+  nextSeed = shift.seed;
+  if (!session.coopWired) {
+    session.coopWired = true;
+    session.on("closed", () => {
+      if (coop?.session !== session) return;
+      coop = null;
+      world.drawAhead = null;
+      returnMenu();
+      toast("The host left the crew: the shift is over.", true);
+    });
+    session.on("left", (p) => coop && toast(`${p.name} dropped out: their coach waits for them.`, true));
+    session.on("desync", ({ tick }) => crashlog.crumb("coop", "out of step with the host at tick " + tick));
+  }
+  start(null, week);
+}
+function leaveCoop() {
+  if (!coop) return;
+  coop = null;
+  world.drawAhead = null;
+  coopUi?.leave();
+}
 function startNow(bookingId = null, week = null) {
   audio.stopMenu(1);
   freeChoice = week?.free ? { pool: week.free.pool, level: week.free.level } : null;
@@ -1800,6 +1854,7 @@ function startNow(bookingId = null, week = null) {
         config: { ...week.config, ...man },
         booking: week.booking,
         perks: week.perks,
+        ...(coop && { crew: coop.shift.options.crew }),
       })
     : drill
       ? new PoolSimulation(drill.tier, runSeed, { config: { ...drill.config, ...man }, drill: drill.id })
@@ -1813,6 +1868,9 @@ function startNow(bookingId = null, week = null) {
   world.resetActors();
   tracer.reset();
   startRecorder(drill);
+  // (co-op: the session shares this machine's inputs and, on a guest, plays the host's: after the recorder, which then records
+  // what is played, not what is asked)
+  if (coop) coop.session.attach(sim);
   if (playtest) beginPlaytestShift(drill);
   loadCannonballMan(sim);
   loadFishKid(sim);
@@ -2116,6 +2174,13 @@ function shiftTag() {
 
 function pause() {
   if (!["playing", "countdown"].includes(mode)) return;
+  // (a co-op shift goes on for the others: the menu opens over it, as the settings)
+  if (coop) {
+    releaseMouse();
+    menuLook(false);
+    $("pause-dialog").showModal();
+    return;
+  }
   releaseMouse();
   resumeState = sim.status;
   input.clear();
@@ -2142,12 +2207,15 @@ function openMenu() {
 function closeSettings() {
   if ($("pause-dialog").open) $("pause-dialog").close();
 }
+let restartLabel = null;
 function menuLook(paused) {
+  restartLabel ??= $("restart").textContent;
   $("pause-eyebrow").textContent = paused ? "TAKE A BREATHER" : "POOL PANIC";
   $("pause-title").textContent = paused ? "TAKE FIVE." : "SETTINGS";
   $("resume").innerHTML = paused ? "BACK IN ▶" : "Close";
-  $("restart").hidden = !paused;
-  $("camera-row").hidden = !paused;
+  $("restart").hidden = !paused && !coop;
+  $("restart").textContent = coop ? "Leave the crew" : restartLabel;
+  $("camera-row").hidden = !paused && !coop;
 }
 function resume() {
   if (mode !== "paused") return closeSettings();
@@ -2161,7 +2229,7 @@ function resume() {
 function showHelp() {
   if ($("help-dialog").open) return;
   releaseMouse();
-  pausedByHelp = ["playing", "countdown"].includes(mode);
+  pausedByHelp = ["playing", "countdown"].includes(mode) && !coop;
   if (pausedByHelp) {
     helpResumeState = sim.status;
     input.clear();
@@ -2315,6 +2383,39 @@ function finishFree() {
   offerHighlight();
   if (r.stars > 0) world.confetti();
 }
+// A co-op shift is over (every machine has the same results): back to the crew's lobby for another, or leave the crew.
+function finishCoop() {
+  const r = sim.summary(),
+    f = sim.config.free,
+    crew = coop.shift.options.crew.length;
+  richPresence("Looking at the results");
+  $("result-week").hidden = true;
+  $("result-fund").hidden = true;
+  $("result-chunk").hidden = true;
+  $("result-eyebrow").textContent =
+    `CO-OP · ${crew} COACHES · ${sim.config.place.toUpperCase()} · ${freeLevel(f.level).name.toUpperCase()} · SHIFT COMPLETE`;
+  $("result-stars").textContent = Array.from({ length: 3 }, (_, i) => (i < r.stars ? "★" : "☆")).join(" ");
+  $("result-title").textContent =
+    r.stars === 3
+      ? "Dream team. The pool never stood a chance."
+      : r.stars === 2
+        ? "Great teamwork out there."
+        : r.stars === 1
+          ? "You kept each other's heads above water."
+          : "Huddle up. Again.";
+  $("result-score").innerHTML = r.score.toLocaleString() + "<small>POINTS</small>";
+  $("new-best").hidden = true;
+  renderResultDetails(r, null);
+  $("next-level").hidden = true;
+  $("play-again").hidden = false;
+  $("play-again").textContent = "Back to the crew ▶";
+  $("play-again").className = "primary";
+  $("back-menu").textContent = "Leave the crew";
+  $("results-dialog").showModal();
+  $("play-again").focus({ preventScroll: true });
+  offerHighlight();
+  if (r.stars > 0) world.confetti();
+}
 // A shift of the week is over: the week's part of the results (week-ui.mjs), and its buttons.
 function finishWeek() {
   const r = sim.summary(),
@@ -2385,6 +2486,7 @@ function finish() {
   logState();
   crashlog.crumb("shift", "ended · score " + Math.round(sim.score));
   if (sim.config.week && weekUi) return finishWeek();
+  if (coop) return finishCoop();
   if (sim.config.free) return finishFree();
   $("result-week").hidden = true;
   $("play-again").hidden = false;
@@ -3778,7 +3880,9 @@ function events() {
         updateUI();
         logState();
       } else if (e.type === "toast") {
-        if (!(stung && e.warning)) toast(e.text, e.warning);
+        // (co-op: a toast an input made is that player's: "walk to the mop" is for whoever pressed E)
+        const theirs = e.by != null && e.by !== (sim.actor ?? 0);
+        if (!(stung && e.warning) && !theirs) toast(e.text, e.warning);
       } else if (e.type === "points") {
         const i = stamped.indexOf(e.value);
         if (i >= 0) stamped.splice(i, 1);
@@ -4046,7 +4150,7 @@ function frame(t) {
   if (previous) crashlog.frame(t - previous);
   const dt = Math.min((t - previous) / 1000 || 0.016, 0.06),
     // Incident stings slow the game down and saves freeze it for a beat; menus always run at full speed.
-    speed = mode === "playing" ? moments.timeScale(seconds()) : 1;
+    speed = mode === "playing" && !coop ? moments.timeScale(seconds()) : 1;
   previous = t;
   viewClock += dt * speed;
   if (mode === "replay") {
@@ -4057,18 +4161,32 @@ function frame(t) {
     const ok = stage("sim", () => {
       if (world.viewMode === "coach") {
         world.coachCam.turn(input.turn(), dt);
-        sim.coach.lookAngle = world.coachCam.yaw;
-        recorder?.look(sim.coach.lookAngle);
+        // (co-op: the look is shared like an input; it never changes the shift on this machine alone)
+        if (coop) coop.session.look(world.coachCam.yaw);
+        else {
+          sim.coach.lookAngle = world.coachCam.yaw;
+          recorder?.look(sim.coach.lookAngle);
+        }
       }
-      if (!replayRun) {
-        const movement = moveVector();
-        sim.setMovement(movement.x, movement.z);
-      }
-      accumulator = Math.min(0.12, accumulator + dt * speed);
-      while (accumulator >= 1 / 60) {
-        if (replayRun) feedReplay();
-        sim.tick(1 / 60);
-        accumulator -= 1 / 60;
+      const movement = replayRun ? null : moveVector();
+      if (movement) sim.setMovement(movement.x, movement.z);
+      if (coop?.session instanceof CoopGuest) {
+        // A guest plays the host's ticks as they come (net.mjs), its own coach drawn a little ahead.
+        coop.session.advance(dt);
+        const n = Math.max(1, Math.hypot(movement?.x || 0, movement?.z || 0));
+        world.drawAhead = coop.predictor.update(
+          dt,
+          { x: (movement?.x || 0) / n, z: (movement?.z || 0) / n },
+          sim.coach,
+          COACH_TUNING.speed * (sim.perks?.speed ?? 1),
+        );
+      } else {
+        accumulator = Math.min(0.12, accumulator + dt * speed);
+        while (accumulator >= 1 / 60) {
+          if (replayRun) feedReplay();
+          sim.tick(1 / 60);
+          accumulator -= 1 / 60;
+        }
       }
     });
     if (!ok) return snag();
@@ -4173,6 +4291,17 @@ function bind() {
   // FREE PLAY is a window of pools now (21 October 2026, free-ui.mjs), not the cloud map of levels.
   freeUi = installFreePlay({ $, save: () => weekUi.save, onPlay: startFree, dev: devMode });
   $("wk-free").onclick = () => freeUi.open();
+  coopUi = installCoop({
+    $,
+    save: () => weekUi.save,
+    dev: devMode,
+    onStart: startCoop,
+    sounds: { tick: () => audio.effect?.("ui-hover"), go: () => audio.effect?.("ui-click") },
+  });
+  $("wk-coop").onclick = () => coopUi.open();
+  // A guest whose crew's host is gone: back to the menu (the shift cannot go on without its host).
+  // (and a friend's invite that started the game: straight into their lobby, once the menu is up)
+  pendingInvite().then((id) => id && coopUi.join(id));
   syncUnlocks();
   mapView = new LevelMap($("map"), {
     onLevel: selectLevel,
@@ -4238,7 +4367,11 @@ function bind() {
     $("quit-game").onclick = quitGame;
   }
   $("restart").onclick = () =>
-    freeChoice ? startFree(freeChoice.pool, freeChoice.level) : start(activeBooking);
+    coop
+      ? ($("pause-dialog").close(), leaveCoop(), returnMenu())
+      : freeChoice
+        ? startFree(freeChoice.pool, freeChoice.level)
+        : start(activeBooking);
   try {
     bindPlaytest();
   } catch (e) {
@@ -4333,9 +4466,20 @@ function bind() {
     e.preventDefault();
     returnMenu();
   });
-  $("play-again").onclick = () =>
+  $("play-again").onclick = () => {
+    if (coop) {
+      // (co-op: the crew's lobby again, over the menu; the host starts the next shift from there)
+      coop = null;
+      world.drawAhead = null;
+      returnMenu();
+      return coopUi.back();
+    }
     freeChoice ? startFree(freeChoice.pool, freeChoice.level) : start(activeBooking);
-  $("back-menu").onclick = returnMenu;
+  };
+  $("back-menu").onclick = () => {
+    leaveCoop();
+    returnMenu();
+  };
   $("next-level").onclick = () => {
     if (weekUi?.pending) {
       $("results-dialog").close();

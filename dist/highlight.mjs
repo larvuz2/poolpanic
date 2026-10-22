@@ -98,6 +98,8 @@ export function simFromRecord(record) {
       config: { ...record.week.config, ...man },
       booking: record.booking || null,
       perks: record.week.perks || {},
+      // (a co-op shift: its crew, a coach each)
+      ...(record.crew && { crew: record.crew }),
     });
   return new PoolSimulation(record.level, record.seed, {
     booking: record.booking || null,

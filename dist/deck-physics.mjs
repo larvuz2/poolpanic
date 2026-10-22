@@ -45,7 +45,7 @@ function displace(p, x, z, sim) {
 }
 
 export function prepareDeck(sim, dt) {
-  for (const p of [...sim.people, sim.coach]) {
+  for (const p of [...sim.people, ...sim.coaches]) {
     p.bumpTime = Math.max(0, (p.bumpTime || 0) - dt);
     p.bumpCooldown = Math.max(0, (p.bumpCooldown || 0) - dt);
     if (!onDeck(p, sim.venue)) continue;
@@ -67,7 +67,7 @@ export function prepareDeck(sim, dt) {
 export function deckHeading(sim, p, dx, dz) {
   if (!onDeck(p, sim.venue) || !p.bumpTime) return { x: dx, z: dz };
   const obstacles = sim.people.filter((a) => a !== p && onDeck(a, sim.venue));
-  if (sim.coach.y < 0.5) obstacles.push(sim.coach);
+  for (const c of sim.coaches) if (c.y < 0.5 && c !== p) obstacles.push(c);
   for (const a of obstacles) {
     const x = a.x - p.x,
       z = a.z - p.z,
@@ -95,7 +95,7 @@ function bump(p, x, z) {
 
 export function resolveDeck(sim) {
   const people = sim.people.filter((p) => onDeck(p, sim.venue)),
-    coach = sim.coach;
+    onFoot = (c) => !(c.y >= 0.5 || c.swimming || c.waterTransition || c.wading);
   // A few positional passes resolve crowded contacts; no stops, falls, or score penalties.
   for (let pass = 0; pass < 5; pass++) {
     for (let i = 0; i < people.length; i++)
@@ -116,22 +116,38 @@ export function resolveDeck(sim) {
         displace(a, -nx * overlap, -nz * overlap, sim);
         displace(b, nx * overlap, nz * overlap, sim);
       }
-    if (coach.y >= 0.5 || coach.swimming || coach.waterTransition || coach.wading) continue;
-    for (const p of people) {
-      const dx = p.x - coach.x,
-        dz = p.z - coach.z,
-        d = Math.hypot(dx, dz);
-      if (d >= DIAMETER) continue;
-      const nx = d > 0.0001 ? dx / d : Math.cos(coach.angle),
-        nz = d > 0.0001 ? dz / d : -Math.sin(coach.angle);
-      if (resting(p)) p.deckRest ??= { x: p.x, z: p.z };
-      bump(p, nx, nz);
-      bump(coach, -nx, -nz);
-      // Coach keeps responsive controls; swimmers yield most of the small displacement.
-      const overlap = DIAMETER - d + 0.001;
-      displace(p, nx * overlap * 0.85, nz * overlap * 0.85, sim);
-      displace(coach, -nx * overlap * 0.15, -nz * overlap * 0.15, sim);
-    }
+    // Coaches on foot shove guests aside (and each other, evenly).
+    const crew = sim.coaches.filter(onFoot);
+    for (let i = 0; i < crew.length; i++)
+      for (let j = i + 1; j < crew.length; j++) {
+        const a = crew[i],
+          b = crew[j],
+          dx = b.x - a.x,
+          dz = b.z - a.z,
+          d = Math.hypot(dx, dz);
+        if (d >= DIAMETER) continue;
+        const nx = d > 0.0001 ? dx / d : 1,
+          nz = d > 0.0001 ? dz / d : 0,
+          overlap = (DIAMETER - d + 0.001) / 2;
+        displace(a, -nx * overlap, -nz * overlap, sim);
+        displace(b, nx * overlap, nz * overlap, sim);
+      }
+    for (const coach of crew)
+      for (const p of people) {
+        const dx = p.x - coach.x,
+          dz = p.z - coach.z,
+          d = Math.hypot(dx, dz);
+        if (d >= DIAMETER) continue;
+        const nx = d > 0.0001 ? dx / d : Math.cos(coach.angle),
+          nz = d > 0.0001 ? dz / d : -Math.sin(coach.angle);
+        if (resting(p)) p.deckRest ??= { x: p.x, z: p.z };
+        bump(p, nx, nz);
+        bump(coach, -nx, -nz);
+        // Coach keeps responsive controls; swimmers yield most of the small displacement.
+        const overlap = DIAMETER - d + 0.001;
+        displace(p, nx * overlap * 0.85, nz * overlap * 0.85, sim);
+        displace(coach, -nx * overlap * 0.15, -nz * overlap * 0.15, sim);
+      }
   }
 }
 
