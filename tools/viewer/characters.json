@@ -24,6 +24,95 @@
       }
     },
     {
+      "id": "coach-brooks",
+      "name": "Coach Brooks",
+      "file": "../../dist/assets/coach-brooks.glb",
+      "skeleton": "coach-panic",
+      "note": "Co-op's senior coach (22 October 2026): shorter and rounder than Coach Waters, grey hair and moustache, navy cap and polo. No mouth. Meshy 7 mesh from a GPT Image 2.5 picture in Coach Waters' style, rigged on Coach Waters' 24-bone skeleton (rig_from_template.py) with belly bones like Carl's (belly_bones.py, belly_jiggle.py), every one of the Coach's twelve clips retargeted onto him (retarget_clips.py), the arms kept off the belly (clear_limbs.py) and the feet on the floor (ground_clips.py). His face (coach_face.py --eye-grow 1.1, added last): the Coach's 18 face bones and nine expressions, the moustache on its bones.",
+      "extraBones": {
+        "BellyUpper": "Spine01",
+        "BellyMid": "Spine02",
+        "BellyLower": "Hips"
+      },
+      "clips": {
+        "Run": {
+          "pop": true,
+          "why": "the knee swings about 42 degrees a frame in a fast run, as in the Coach's own clip"
+        },
+        "Swim": {
+          "prone": true
+        },
+        "SwimRing": {
+          "prone": true
+        },
+        "Startle": {
+          "open": true,
+          "pop": true,
+          "why": "a jolt: the arms are flung up over the head in a fifth of a second (66 degrees a frame at the shoulders)"
+        }
+      },
+      "retargeted": [
+        "FreakOut",
+        "Haul",
+        "IceSkate",
+        "IceSlide",
+        "IdleScan",
+        "IdleScratch",
+        "Panic",
+        "Run",
+        "Startle",
+        "Swim",
+        "SwimRing",
+        "Walk"
+      ],
+      "face": true,
+      "adjusted": {
+        "LeftArm": 55,
+        "RightArm": 55,
+        "LeftLeg": 55,
+        "RightLeg": 55
+      }
+    },
+    {
+      "id": "coach-rivers",
+      "name": "Coach Rivers",
+      "file": "../../dist/assets/coach-rivers.glb",
+      "skeleton": "coach-panic",
+      "note": "Co-op's third coach (22 October 2026): a young woman coach, yellow cap and polo with teal trim, teal shorts, a ponytail. No mouth. Meshy 7 mesh from a GPT Image 2.5 picture in Coach Waters' style, rigged on Coach Waters' 24-bone skeleton (rig_from_template.py), every one of the Coach's twelve clips retargeted onto her (retarget_clips.py), the feet on the floor (ground_clips.py). Her face (coach_face.py --no-stache, added last): the Coach's 18 face bones and nine expressions (the moustache's three bones move nothing).",
+      "clips": {
+        "Run": {
+          "pop": true,
+          "why": "the knee swings about 42 degrees a frame in a fast run, as in the Coach's own clip"
+        },
+        "Swim": {
+          "prone": true
+        },
+        "SwimRing": {
+          "prone": true
+        },
+        "Startle": {
+          "open": true,
+          "pop": true,
+          "why": "a jolt: the arms are flung up over the head in a fifth of a second (66 degrees a frame at the shoulders)"
+        }
+      },
+      "retargeted": [
+        "FreakOut",
+        "Haul",
+        "IceSkate",
+        "IceSlide",
+        "IdleScan",
+        "IdleScratch",
+        "Panic",
+        "Run",
+        "Startle",
+        "Swim",
+        "SwimRing",
+        "Walk"
+      ],
+      "face": true
+    },
+    {
       "id": "marco",
       "name": "Marco",
       "file": "models/marco.glb",

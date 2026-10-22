@@ -65,9 +65,10 @@ export function stateHash(sim) {
   mix(sim.score);
   mix(sim.time * 100);
   mix(sim.arrivalTime * 100);
-  mix(sim.coach.x * 100);
-  mix(sim.coach.z * 100);
-  // (a co-op crew's other coaches; a single coach hashes as it always did)
+  // (the first coach, whichever player's machine this is; then a co-op crew's others: a single coach hashes as it always did)
+  const first = sim.coaches?.[0] || sim.coach;
+  mix(first.x * 100);
+  mix(first.z * 100);
   for (const c of sim.coaches?.slice(1) || []) {
     mix(c.x * 100);
     mix(c.z * 100);

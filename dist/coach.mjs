@@ -90,6 +90,10 @@ export class CoachController {
   deselect(id) {
     for (const c of this.coaches) if (c.selected === id) c.selected = null;
   }
+  // Where the coach looks in the Coach Cam (null: the way he walks). In co-op the game shares it like an input (net.mjs).
+  setLook(angle) {
+    this.coach.lookAngle = Number.isFinite(angle) ? angle : null;
+  }
   setMovement(x, z) {
     const n = Math.max(1, Math.hypot(x, z));
     this.coach.input = { x: x / n, z: z / n };

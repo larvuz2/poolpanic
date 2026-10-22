@@ -654,6 +654,8 @@ for (const character of manifest.characters) {
   const label = `${character.name} (on ${source.name}'s skeleton)`;
   const extra = character.extraBones || {}; // bones of its own, on top of the template's: name -> the bone it hangs from
   standsOnTheFloor(rig, label, character.clips);
+  // (the co-op coaches, 22 October 2026, have the Coach's face: coach_face.py)
+  if (character.face) hasAFace(rig, label, resolve(dir, character.file));
   hopsWithHandsUp(rig, label);
   crawlsLikeAFreestyler(rig, label);
   for (const [name, flags] of Object.entries(character.clips || {}))

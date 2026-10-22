@@ -54,6 +54,14 @@ STACHE_FALLOFF = 0.02  # metres: the skin round the moustache that follows it, f
 STACHE_HINGE = 0.03  # metres from the middle: where each half of the moustache turns
 
 SKIN_COLOUR_BOX = dict(y=(1.36, 1.53), ax=(0.03, 0.2), z=0.08)
+# Where Coach Waters' face is, in metres up from the floor; another coach's (22 October 2026: Coach Brooks, shorter, and Coach
+# Rivers) is found as far up or down as their head is (DY, from the top of the model), the face itself about the same size.
+WATERS_TOP = 1.75
+DY = 0.0
+
+
+def Y(*v):
+    return tuple(x + DY for x in v) if len(v) > 1 else v[0] + DY
 
 
 def option(args, name, default=None):
@@ -154,7 +162,7 @@ def fit_sphere(points):
     return centre, float(math.sqrt(sol[3] + centre @ centre))
 
 
-def measure(p):
+def measure(p, no_stache=False):
     """The painted face: eyes (centre, radius, where the dot looks), brows (centreline and height along them), the
     moustache's vertices, and the colours."""
     img = p.image.astype(float)
@@ -162,7 +170,7 @@ def measure(p):
     out = {"eyes": {}, "brows": {}}
     whites, dots = [], []
     for side, sx in SIDES:
-        tris = p.in_box(x=(0.0, 0.2) if sx > 0 else (-0.2, 0.0), y=(1.34, 1.56), z=0.06)
+        tris = p.in_box(x=(0.0, 0.2) if sx > 0 else (-0.2, 0.0), y=Y(1.34, 1.56), z=0.06)
         rows, cols, pts = p.texels(tris)
         c = img[rows, cols]
         l = c.mean(axis=1)
@@ -186,11 +194,11 @@ def measure(p):
         whites.append(c[white])
         dots.append(c[dot])
     # brows: dark brown texels on the forehead, above the eyes, below the cap
-    tris = p.in_box(ax=(0.015, 0.2), y=(1.5, 1.6), z=0.07)
+    tris = p.in_box(ax=(0.015, 0.2), y=Y(1.5, 1.6), z=0.07)
     rows, cols, pts = p.texels(tris)
     c = img[rows, cols]
     l = c.mean(axis=1)
-    brown = (l < 85) & (c[:, 0] - c[:, 1] < 40)
+    brown = (l < 85) & (c[:, 0] - c[:, 1] < 40) & (c[:, 2] - c[:, 0] < 15)  # (dark, and not a navy cap's brim: Coach Brooks')
     eyes = out["eyes"]
     for side, sx in SIDES:
         e = eyes[side]
@@ -214,18 +222,20 @@ def measure(p):
     out["pupil_colour"] = np.median(np.concatenate(dots), axis=0)
     # skin round the eyes
     b = SKIN_COLOUR_BOX
-    tris = p.in_box(ax=b["ax"], y=b["y"], z=b["z"])
+    tris = p.in_box(ax=b["ax"], y=Y(*b["y"]), z=b["z"])
     rows, cols, pts = p.texels(tris)
     c = img[rows, cols]
     red = c[:, 0] - c[:, 1]
-    skin = (c.mean(axis=1) > 110) & (red > 30) & (red < 100)
+    hue = 60 * (c[:, 1] - c[:, 2]) / np.maximum(1, c[:, 0] - c[:, 2])
+    # (any skin from Waters' to Rivers', and not a yellow cap's brim: Coach Rivers')
+    skin = (c.mean(axis=1) > 70) & (red > 30) & (red < 120) & (hue > 8) & (hue < 38)
     out["skin_colour"] = np.median(c[skin], axis=0)
     # the moustache: dark vertices under the nose
     V = p.V
     vc = img[np.clip((p.uv[:, 1] * p.H).astype(int), 0, p.H - 1), np.clip((p.uv[:, 0] * p.W).astype(int), 0, p.W - 1)]
     vl = vc.mean(axis=1)
-    core = (V[:, 1] > 1.27) & (V[:, 1] < 1.41) & (np.abs(V[:, 0]) < 0.14) & (V[:, 2] > 0.1) & (vl < 95) & (vc[:, 0] - vc[:, 1] < 40)
-    out["stache"] = np.where(core)[0]
+    core = (V[:, 1] > Y(1.27)) & (V[:, 1] < Y(1.41)) & (np.abs(V[:, 0]) < 0.14) & (V[:, 2] > 0.1) & (vl < 95) & (vc[:, 0] - vc[:, 1] < 40)
+    out["stache"] = np.where(core)[0] if not no_stache else np.zeros(0, int)
     return out
 
 
@@ -362,7 +372,7 @@ def paint_out_brows(p, found):
     img = p.image.astype(float)
     H, W = img.shape[:2]
     forehead = np.zeros((H, W), np.uint8)
-    rows, cols, _ = p.texels(p.in_box(ax=(0.0, 0.21), y=(1.48, 1.61), z=0.05))
+    rows, cols, _ = p.texels(p.in_box(ax=(0.0, 0.21), y=Y(1.48, 1.61), z=0.05))
     forehead[rows, cols] = 1
     forehead = cv2.dilate(forehead, np.ones((3, 3), np.uint8), iterations=2)  # (the texels a filter reads past the edge)
     brow = np.zeros((H, W), np.uint8)
@@ -495,10 +505,20 @@ def main(args):
     debug = option(args, "--debug")
     rig = Rig(src)
     doc, binary = rig.doc, rig.binary
+    global DY
+    _, rest = rig.pose(None, 0.0)
+    DY = float(option(args, "--dy", rest[:, 1].max() - WATERS_TOP))
+    # (Coach Brooks' painted eyes bulge more than Waters': a bigger new ball keeps them inside it, --eye-grow 1.09)
+    global EYE_GROW
+    EYE_GROW = float(option(args, "--eye-grow", EYE_GROW))
+    # (Coach Rivers has no moustache: --no-stache keeps its three bones, so every coach's face has the same 18, and weights
+    # nothing to them)
+    no_stache = "--no-stache" in args
+    print(f"HEIGHT {rest[:, 1].max():.3f} m: the face looked for {DY:+.3f} m from Coach Waters'" + (", no moustache" if no_stache else ""))
     if any(n.get("name") == FACE for n in doc["nodes"]):
         raise SystemExit(f"{src} has a face already: start from the file without one")
     p = Painted(rig)
-    found = measure(p)
+    found = measure(p, no_stache)
     V = p.V
     eyes = found["eyes"]
 
@@ -529,7 +549,7 @@ def main(args):
     # juts out above the brows), and the new eye balls
     head_joint = rig.index[HEAD]
     on_head = np.where(rig.dominant == head_joint)[0]
-    front = p.in_box(ax=(0.0, 0.25), y=(1.45, 1.62), z=0.0)
+    front = p.in_box(ax=(0.0, 0.25), y=Y(1.45, 1.62), z=0.0)
     A, B, C = (V[p.T[front, k]] for k in range(3))
 
     def surface_z(x, y):
@@ -559,7 +579,11 @@ def main(args):
         bones += [("BrowIn" + side, FACE, inner), ("BrowOut" + side, FACE, outer)]
     stache = found["stache"]
     S = V[stache]
-    pivot = np.array([0.0, S[:, 1].max() - 0.012, float(np.percentile(S[:, 2], 70))])
+    if len(stache):
+        pivot = np.array([0.0, S[:, 1].max() - 0.012, float(np.percentile(S[:, 2], 70))])
+    else:
+        # (no moustache: its bones go where one would be, under the nose, a little in front of the face, and move nothing)
+        pivot = np.array([0.0, face_at[1] - 0.115, surface_z(0.0, face_at[1] - 0.115) - 0.01])
     bones += [
         ("Stache", FACE, pivot),
         ("StacheL", "Stache", pivot + [STACHE_HINGE, 0, 0]),
@@ -650,10 +674,12 @@ def main(args):
     dist = np.full(len(V), np.inf)
     from scipy.spatial import cKDTree
 
-    dist[on_head] = cKDTree(S).query(V[on_head])[0]
+    if len(stache):
+        dist[on_head] = cKDTree(S).query(V[on_head])[0]
     w_st = np.where(dist <= 1e-9, 1.0, 1.0 - smoothstep(0.0, STACHE_FALLOFF, dist))
-    w_st[(V[:, 1] > 1.42) | (V[:, 2] < 0.08)] = 0.0
-    w_st[stache] = 1.0
+    w_st[(V[:, 1] > Y(1.42)) | (V[:, 2] < 0.08)] = 0.0
+    if len(stache):
+        w_st[stache] = 1.0
     ends = smoothstep(0.01, 0.065, np.abs(V[:, 0]))  # the ends curl; the middle stays with the moustache's own bone
     joints, weights = rig.joints.copy(), rig.weights.copy()
     touched = np.where(w_st > 1e-4)[0]
