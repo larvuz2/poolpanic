@@ -573,9 +573,10 @@ const RESORT_SPEC = {
   ],
 };
 // Where the massage table stands in the venues that have one (23 October 2026, the creator: "add this massage table in some venues
-// !! not all!!"): its middle, the way its head end points (`angle`) and its front side (`side`, +1: toward +x when the head points
-// along +z), the side a coach faces the camera from. On the far deck, clear of the walks, the stations and the evacuation rows.
-const MASSAGE_TABLE = { x: 14.0, z: -2.35, angle: 0, side: 1 };
+// !! not all!!"): its middle, the way its head end points (`angle`) and its front side (`side`: +1 is the side to the head end's
+// right), the side the first coach works from. Behind the far end of the pool, lying across the deck, clear of the walks, the
+// stations and the evacuation rows: the coach bots' routes do not pass there, so no level plays differently for it being there.
+const MASSAGE_TABLE = { x: -5.5, z: 11.75, angle: Math.PI / 2, side: -1 };
 function massageObstacle(t) {
   const alongX = Math.abs(Math.sin(t.angle || 0)) > 0.5;
   return { x: t.x, z: t.z, hx: alongX ? 1.0 : 0.1, hz: alongX ? 0.1 : 1.0, kind: "massage-table" };

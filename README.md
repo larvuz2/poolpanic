@@ -1199,8 +1199,9 @@ duration as Karen) same progress bar!! 2 coaches, speed things up! … a standar
 cutting salad animation!! … add this massage table in some venues !! not all!!" (`dist/incidents/massage.mjs`).
 
 - **Where.** A massage table stands in four pools (`fixtures.massage` in `dist/spatial.mjs`: its middle, the way its head end
-  points and its front side): the **Sunset Lagoon**, the **Aquatic Centre** and the **Grand Gala Arena** (the far deck, between the
-  bench and the relief station, the same spot in all three) and **Senior Aqua Fit** (the far deck between the glass doors and the
+  points and its front side): the **Sunset Lagoon**, the **Aquatic Centre** and the **Grand Gala Arena** (behind the far end of the
+  pool, lying across the deck, the same spot in all three: there the coach bots' routes do not pass, so no level's star targets
+  move for it; a first spot by the relief station changed a route and dropped the Arena's bot below one star) and **Senior Aqua Fit** (the far deck between the glass doors and the
   fins rack). Only its legs are an obstacle (0.1 m either side of its middle line), so a coach can stand close enough to reach
   across the top. The table is drawn in `dist/scene/massage-view.mjs`: a padded top in teal leatherette, a towel with a mustard
   stripe, a rolled towel at the foot, a face cradle at the head end, turned wooden legs, on a rug, with a bottle of oil.
