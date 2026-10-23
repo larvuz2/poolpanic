@@ -139,6 +139,7 @@ function fakeRig() {
     startle: action("startle"),
     haul: action("haul"),
     freakOut: action("freakOut"),
+    massage: action("massage"),
   };
   const mixer = {
     advanced: 0,
@@ -287,11 +288,23 @@ function fakeRig() {
   assert.equal(rig.current, "idle", "busy with a job he does not freak out");
   rig.update(1 / 60, { speed: 0 });
   assert.equal(rig.freakFor, 0, "and when it is over the count starts again");
+  // At the massage table (23 October 2026): the Massage clip while he massages, urgent or not; a run still comes first.
+  for (let i = 0; i < 90; i++) rig.update(1 / 60, { speed: 0, massage: true, urgent: true, busy: true });
+  assert.equal(rig.current, "massage", "working a guest's back at the massage table");
+  rig.update(1 / 60, { speed: 4, massage: true });
+  assert.equal(rig.current, "run");
   // A file without the new clips stands as before.
   const old = fakeRig();
-  for (const k of ["startle", "haul", "freakOut"]) delete old.rig.actions[k];
+  for (const k of ["startle", "haul", "freakOut", "massage"]) delete old.rig.actions[k];
   for (let i = 0; i < 90; i++)
-    old.rig.update(1 / 60, { speed: 0, startle: i === 0, heavy: true, busy: true, urgent: true });
+    old.rig.update(1 / 60, {
+      speed: 0,
+      startle: i === 0,
+      heavy: true,
+      busy: true,
+      urgent: true,
+      massage: true,
+    });
   assert.equal(old.rig.current, "idle", "without them nothing new is played");
 }
 

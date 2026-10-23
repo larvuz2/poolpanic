@@ -106,7 +106,12 @@ the same twice: see `docs/incidents.md`).
    October **Coach Storm** (the tough coach: shaved head, tattoo sleeves, no moustache), **Coach Fontaine** (an afro, no cap) and
    **Coach Marsh** (the grumpy one, round as Carl and rigged like the leopard man, a scowl even at rest: `--temper`), the new ones with every one of Waters' clips and his face (no mouths); a new coach goes at the end of `COACHES`. **Many hands**
    (`dist/teamwork.mjs`, 23 October 2026): every coach holding E on a hold-E job fills its wheel faster (Karen: 8 s alone, 5 for two, 3 for three), and the
-   wheel shows the faces of the coaches on it, a second ring once two are (no numbers); Karen first, the same for any hold-E job to come. A crew of two or three gets more guests, tips and incidents and higher
+   wheel shows the faces of the coaches on it, a second ring once two are (no numbers); Karen first, then the massage, the same for any hold-E job to come. **The massage** (23 October 2026,
+`dist/incidents/massage.mjs`, README "The massage"): a massage table in some pools only (the Sunset Lagoon, the Aquatic Centre,
+Senior Aqua Fit, the Grand Gala Arena: `fixtures.massage`; the director draws it only there, `VENUE_INCIDENTS`, not one of the
+five in `INCIDENT_ORDER`); the next swimmer out lies on it face down and their patience runs out (−100) unless a coach holds E at
+the table (8/5/3 s, many hands, each coach at a place of their own); every coach has a **Massage** clip (hands pressing in turn,
+like chopping a salad), each made for the table's height (`--massage-lift`), Coach Brooks on a little step. A crew of two or three gets more guests, tips and incidents and higher
    star targets (`CREW`, measured with crews of bots, `CrewBot`). The network is `dist/net.mjs`: the host plays the seeded shift and
    shares every player's input stamped with its tick; each guest plays the same shift in step (hashes catch a drift). **Anything that
    changes the simulation must stay deterministic and go through an input method** (in `INPUTS`, replay.mjs), or co-op drifts;

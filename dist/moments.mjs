@@ -70,6 +70,13 @@ export const STINGS = {
     how: "Karen marches at you complaining, and everyone she passes gets annoyed and loses points. Reach her and HOLD E until the ring fills; let go and it drains.",
     tone: "warning",
   },
+  massage: {
+    icon: "💆",
+    title: "MASSAGE TIME!",
+    verb: "To the table · hold E to massage {name}",
+    how: "{name} is lying on the massage table, and their patience is running out. Reach the table and HOLD E until the wheel fills; with a friend on it too, it goes faster. Let it run out and they storm off, and it costs you.",
+    tone: "warning",
+  },
   carl: {
     icon: "💣",
     fallback: { name: "Carl" }, // (the incident names the man who does it: Carl or the leopard man)
@@ -234,6 +241,7 @@ export const SAVES = {
   "dog-out": { stamp: "GOOD DOG!", tier: 2 },
   "red-card": { stamp: "RED CARD!", tier: 2 },
   karen: { stamp: "CALMED DOWN!", tier: 2 },
+  massage: { stamp: "BLISS!", tier: 2 },
   breaker: { stamp: "SAVE!", tier: 2 },
   lights: { stamp: "LIGHTS ON!", tier: 1 },
   landing: { stamp: "STUCK IT!", tier: 1 },

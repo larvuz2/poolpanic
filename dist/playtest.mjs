@@ -50,6 +50,7 @@ export const INCIDENT_KINDS = {
   dog: "loose dog",
   carl: "cannonball man",
   karen: "Karen",
+  massage: "massage",
   flicker: "power cut",
   crash: "trampoline crash",
   rush: "rush",

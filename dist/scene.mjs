@@ -1,6 +1,12 @@
 // Presentation layer: builds a venue with Three.js and mirrors simulation state every frame. Rendering never
 // advances gameplay; cosmetic motion (bobbing, flapping, wagging) never feeds back into the simulation.
 import { buildMopStation } from "./scene/wet-view.mjs";
+import {
+  buildMassageTable,
+  poseMassageGuest,
+  classicMassagePose,
+  stepObject,
+} from "./scene/massage-view.mjs";
 import { THREE, SceneKit, COLORS, disposeScene } from "./scene/kit.mjs";
 import { glowTexture, gradientTexture } from "./scene/textures.mjs";
 import { buildClub } from "./scene/club.mjs";
@@ -495,6 +501,7 @@ export class PoolWorld extends SceneKit {
     this.camera.updateProjectionMatrix();
     (BUILDERS[venue.id] || buildClub)(this, venue, lighting);
     buildMopStation(this, venue); // (every pool has the mop: incidents/wet.mjs)
+    buildMassageTable(this, venue); // (only where the venue has one: incidents/massage.mjs)
     this.sky = venue.scenery ? new Sky(this, SCENERY[venue.scenery]) : null;
     this.sky?.setVisible(this.viewMode === "coach");
     this.hall?.setCoach(this.viewMode === "coach");
@@ -1165,6 +1172,7 @@ export class PoolWorld extends SceneKit {
       (p.status === "recovering" && p.recoveryStage === "to-bench") ||
       (p.status === "fleeing" && p.fleePhase === "run") ||
       (p.status === "trampoline" && ["toStairs"].includes(p.jumpStage)) ||
+      (p.status === "massage" && p.massage === "walk") || // (off to the massage table)
       p.status === "racewalk"; // (the big moment's racers on their way to the blocks)
     g.position.set(
       p.x,
@@ -1335,6 +1343,7 @@ export class PoolWorld extends SceneKit {
       u.puppet.arms = u.puppet.legs = true;
     }
     this.incidentView.pose(sim, p, g, time);
+    if (p.status === "massage") poseMassageGuest(this, sim, p, g, time);
     // Karen is near: hands over the ears, hunched, head shaking, until she has gone (a model's arms are the classic arms' while
     // they are up: the puppet).
     if (
@@ -1529,6 +1538,13 @@ export class PoolWorld extends SceneKit {
       cu.arms.forEach((a) => a.rotation.set(-1.15, 0, 0));
     }
     this.incidentView.poseCoach(sim, cu, time);
+    // At the massage table: bent over the guest (the model plays its Massage clip), a short coach up on a little step.
+    const massaging = !!c.massaging && !c.swimming,
+      step = massaging ? coachInfo(cu.look || "waters").massageStep || 0 : 0;
+    if (massaging) classicMassagePose(cu, time);
+    cg.position.y += step;
+    if (step && !cu.step) cg.add((cu.step = stepObject(this, step)));
+    if (cu.step) cu.step.visible = step > 0;
     if (c.swimming || c.waterTransition) {
       const transition = c.waterTransition;
       const prone = transition
@@ -1585,6 +1601,7 @@ export class PoolWorld extends SceneKit {
           heavy,
           startle,
           urgent: urgency >= 80,
+          massage: massaging,
         });
         rig.face?.update(dt, {
           mood: coachMood({

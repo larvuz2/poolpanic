@@ -788,6 +788,67 @@ def haul_clip():
     return {"frames": frames, "breath_frames": 16, "breath": 1.2, **keys}
 
 
+# ---- The massage (23 October 2026) ---------------------------------------------------------------------------------------
+# The creator: "a standard massage animation for any coach … close to table facing the laying swimmer … alternate arms up and
+# down on the swimmers back … kind of overcooked cutting salad". The table's top is at hip height (0.78 m) and the swimmer lies
+# on it face down across his front, so the hands work at the height of a back on it, a forearm's length in front of him.
+MASSAGE_POLE = (0.85, 0.55, -0.30)  # the elbows out to the sides and a little back, like a cook's over a chopping board
+MASSAGE_UP = (0.17, -0.64, 0.03)  # a hand lifted off the back
+MASSAGE_DOWN = (0.15, -0.76, -0.18)  # ... and pressed into it
+
+
+def massage_clip(lift=None):
+    """Massage (a loop, 48 frames, 2 s): Coach Waters at the side of the massage table, leaning over the swimmer on it, the
+    hands flat (palms down, `"level"`) working the back in turn like a cook chopping a salad: a hand comes down onto the back
+    and presses (fast, 3 frames), holds a moment, and lifts again while the other comes down, a press every 6 frames (four a
+    second, two from each hand). The shoulders rock toward the pressing hand, the back and the hips dip a little with every
+    press, the head looks down at the hands, and the hands drift together along the back and back again once a loop (the
+    shoulders, then the lower back). The feet stand apart, planted, one a little ahead.
+    `lift` (or `--massage-lift`, in metres on Coach Waters' body) raises the hands (lowers them when negative): the coaches
+    are of many heights and the table is one, so each coach's clip is made with the lift that puts his hands on the back
+    once it is moved onto his body (README of tools/blender, "The massage")."""
+    if lift is None:
+        lift = common.option(common.script_args(), "--massage-lift", 0.0, float)
+    up_z = MASSAGE_UP[2] + lift / 0.45  # (a hand's height in fractions of the reach, about, with the body bent over)
+    down_z = MASSAGE_DOWN[2] + lift / 0.45
+    frames, beat = 48, 12  # a press of one hand every 12 frames; the other hand half a beat behind
+    tau = 2 * math.pi
+
+    def ease(u):
+        return u * u * (3 - 2 * u)
+
+    def press(f, lag):
+        """0 with the hand up, 1 pressed into the back: down in 3 frames, held 2, up in the last 7."""
+        p = ((f - lag) % beat) / beat
+        if p < 0.25:
+            return ease(p / 0.25)
+        if p < 0.42:
+            return 1.0
+        return 1.0 - ease((p - 0.42) / 0.58)
+
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "shrug", "armL", "armR", "footL", "footR")}
+    for f in range(frames + 1):
+        w = tau * (f % frames) / frames
+        drift = math.sin(w)  # along the back and back again, once a loop
+        left, right = press(f, 0), press(f, beat / 2)
+        lean = left - right  # + when the left hand is down
+        dip = max(left, right)
+        keys["hips"].append((f, (0.008 * lean, 0.05 + 0.006 * dip, -0.035 - 0.012 * dip)))
+        keys["hips_turn"].append((f, (4.0 * drift, 10.0, 1.5 * lean)))
+        keys["spine"].append((f, (5.0 * drift + 3.0 * lean, 14.0 + 3.0 * dip, 4.0 * lean)))
+        keys["head"].append((f, (-6.0 * drift - 2.0 * lean, 14.0 + 2.0 * dip, -3.0 * lean)))
+        keys["shrug"].append((f, 0.25 + 0.15 * dip))
+        for side, down in (("L", left), ("R", right)):
+            along = 0.07 * drift * (1 if side == "L" else -1)  # both hands the same way: out on one side is in on the other
+            up, low = (*MASSAGE_UP[:2], up_z), (*MASSAGE_DOWN[:2], down_z)
+            tgt = tuple(u + (d - u) * down for u, d in zip(up, low))
+            tgt = (tgt[0] + along, tgt[1], tgt[2])
+            keys["arm" + side].append((f, {"space": "chest", "tgt": tgt, "pole": MASSAGE_POLE, "twist": 0, "level": 1.0}))
+        keys["footL"].append((f, (0.06, 0.06, 0.0)))
+        keys["footR"].append((f, (-0.03, 0.06, 0.0)))
+    return {"frames": frames, "breath_frames": 24, "breath": 0.6, **keys}
+
+
 def keyed_value(table, f):
     """A value eased between (frame, value) keys (numbers or tuples), for the clips above that build their keys a frame at
     a time."""
@@ -849,6 +910,8 @@ CLIPS = {
         "Startle": startle_clip(),
         "FreakOut": freak_out_clip(),
         "Haul": haul_clip(),
+        # The massage table (23 October 2026): working a swimmer's back, hands in turn like a cook chopping a salad.
+        "Massage": massage_clip(),
     },
     # The Mountain Hot Springs' guests (18 October 2026): cold, waiting in the snow. Made on a scratch copy of the Coach and moved
     # to every guest who waits there (transplant_clips.py).

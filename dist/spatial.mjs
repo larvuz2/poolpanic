@@ -304,6 +304,9 @@ function makeVenue(spec) {
     { ...spec.sanitation.bin, hx: 0.62, hz: 0.62, kind: "waste-bin", minLevel: 3 },
     ...spec.furniture.filter((f) => f.hx).map((f) => ({ x: f.x, z: f.z, hx: f.hx, hz: f.hz, kind: f.kind })),
     { x: spec.fixtures.mop.x, z: spec.fixtures.mop.z, hx: 0.34, hz: 0.34, kind: "mop-bucket" },
+    // The massage table (incidents/massage.mjs), where a venue has one: 2 m long, lying along its `angle` (0 or a right angle).
+    // Only its legs are in the way (0.1 m either side of its middle line): a coach stands close enough to reach across its top.
+    ...(spec.fixtures.massage ? [massageObstacle(spec.fixtures.massage)] : []),
   ];
   const venue = {
     ...spec,
@@ -569,6 +572,14 @@ const RESORT_SPEC = {
     ]),
   ],
 };
+// Where the massage table stands in the venues that have one (23 October 2026, the creator: "add this massage table in some venues
+// !! not all!!"): its middle, the way its head end points (`angle`) and its front side (`side`, +1: toward +x when the head points
+// along +z), the side a coach faces the camera from. On the far deck, clear of the walks, the stations and the evacuation rows.
+const MASSAGE_TABLE = { x: 14.0, z: -2.35, angle: 0, side: 1 };
+function massageObstacle(t) {
+  const alongX = Math.abs(Math.sin(t.angle || 0)) > 0.5;
+  return { x: t.x, z: t.z, hx: alongX ? 1.0 : 0.1, hz: alongX ? 0.1 : 1.0, kind: "massage-table" };
+}
 export const RESORT = makeVenue({
   ...RESORT_SPEC,
   id: "resort",
@@ -584,6 +595,7 @@ export const LAGOON = makeVenue({
   scenery: "lagoon",
   sunAzimuth: 2.45,
   lighting: "golden",
+  fixtures: { ...RESORT_SPEC.fixtures, massage: MASSAGE_TABLE },
 });
 // A domed indoor arena for the season finale: grandstands, spotlights and a very tall roof.
 export const ARENA = makeVenue({
@@ -592,6 +604,7 @@ export const ARENA = makeVenue({
   name: "Grand Gala Arena",
   indoor: true,
   lighting: "gala",
+  fixtures: { ...RESORT_SPEC.fixtures, massage: MASSAGE_TABLE },
 });
 
 // The Aquatic Centre (16 October 2026): an indoor competition pool for serious swimmers. Splash Park's floor plan (the same five
@@ -605,6 +618,7 @@ export const AQUATIC = makeVenue({
   indoor: true,
   lighting: "aquatic",
   trampoline: null,
+  fixtures: { ...RESORT_SPEC.fixtures, massage: MASSAGE_TABLE },
   furniture: [
     ...RESORT_SPEC.furniture.filter((f) => !NOT_AQUATIC.has(f.kind)),
     { kind: "podium", x: 12.4, z: 4.8, hx: 1.35, hz: 0.62 },
@@ -777,6 +791,8 @@ export const SENIOR = makeVenue({
     treats: { x: -12.9, z: 11.3 },
     flashlight: { x: 12.4, z: -9.4 },
     fuseBox: { x: 14.9, z: 11.6, angle: -Math.PI / 2 },
+    // The spa's massage table, on the far deck between the door and the fins rack (incidents/massage.mjs).
+    massage: { x: 10.2, z: -11.6, angle: 0, side: 1 },
   },
   trampoline: null,
   furniture: [

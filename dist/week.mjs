@@ -19,6 +19,7 @@
 //               album), the stars earned (they open the coach's gear, `GEAR`), the best stars at each pool, the story's ending.
 
 import { SHIFTS, MARCO, STAR_CHANCE } from "./sim.mjs";
+import { VENUES } from "./spatial.mjs";
 import { BOOKINGS } from "./bookings.mjs";
 import { planBig } from "./big-moment.mjs";
 
@@ -42,6 +43,19 @@ export const INCIDENTS = {
   carl: { icon: "💣", name: "Cannonball man", cost: 3, weight: 3 },
   outage: { icon: "⚡", name: "Power outage", cost: 3, weight: 3 },
   karen: { icon: "😡", name: "Karen", cost: 2, weight: 3 },
+};
+// The incidents only some pools have, because they need something there (23 October 2026): the massage needs a massage table
+// (incidents/massage.mjs; the venues with one: spatial.mjs). The director draws one like any other incident where the pool
+// has what it needs, from the very first shift it can come in (no surprise to wait for: the table is there to see), and never
+// elsewhere. They are not in INCIDENT_ORDER (the five every pool has, met in week 1).
+export const VENUE_INCIDENTS = {
+  massage: {
+    icon: "💆",
+    name: "Massage",
+    cost: 2,
+    weight: 3,
+    where: (venue) => !!VENUES[venue]?.fixtures?.massage,
+  },
 };
 // A fair mix: an incident that came in the last shift is less likely in this one, and one from the shift before a little less
 // (never ruled out: the same one two shifts running still happens, the creator wants that), and one already drawn for this shift
@@ -908,14 +922,16 @@ export function directShift({
   if (surprise && count === 0) count = 1;
   const last = new Set(recent[recent.length - 1] || []),
     before = new Set(recent[recent.length - 2] || []);
-  const pool = INCIDENT_ORDER.filter((k) => known.includes(k)).map((k) => ({
+  const fair = (k, base) => ({
     kind: k,
-    weight:
-      INCIDENTS[k].weight *
-      (weights[k] ?? 1) *
-      (last.has(k) ? RECENT.last : 1) *
-      (before.has(k) ? RECENT.before : 1),
-  }));
+    weight: base * (weights[k] ?? 1) * (last.has(k) ? RECENT.last : 1) * (before.has(k) ? RECENT.before : 1),
+  });
+  const pool = [
+    ...INCIDENT_ORDER.filter((k) => known.includes(k)).map((k) => fair(k, INCIDENTS[k].weight)),
+    ...Object.entries(VENUE_INCIDENTS)
+      .filter(([, i]) => i.where(venue))
+      .map(([k, i]) => fair(k, i.weight)),
+  ];
   const kinds = [];
   if (surprise) kinds.push(surprise);
   while (kinds.length < count && pool.length) {

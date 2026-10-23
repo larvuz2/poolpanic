@@ -11,7 +11,15 @@
 // the first free ones.
 export const COACHES = [
   { id: "waters", name: "Coach Waters", short: "Waters", model: "coach-panic.glb", colour: "#ff6b3d" },
-  { id: "brooks", name: "Coach Brooks", short: "Brooks", model: "coach-brooks.glb", colour: "#4fb3ff" },
+  // (`massageStep`: the senior coach is too short for the massage table: he works it from a little wooden step this high, metres)
+  {
+    id: "brooks",
+    name: "Coach Brooks",
+    short: "Brooks",
+    model: "coach-brooks.glb",
+    colour: "#4fb3ff",
+    massageStep: 0.07,
+  },
   { id: "rivers", name: "Coach Rivers", short: "Rivers", model: "coach-rivers.glb", colour: "#ffd23d" },
   { id: "storm", name: "Coach Storm", short: "Storm", model: "coach-storm.glb", colour: "#9be33a" },
   {

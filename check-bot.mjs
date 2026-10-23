@@ -430,6 +430,7 @@ export class CoachBot {
       if (s.dog && s.dog.stage !== "leaving" && this.free("dog")) return this.dog;
       const karen = s.karen && s.visitor(s.karen.id);
       if (karen && ["marching", "ranting"].includes(karen.status) && this.free("karen")) return this.karen;
+      if (s.massage?.stage === "lying" && this.free("massage")) return this.massage;
     }
     // The hot springs: a monkey in the water is shooed out at once (whoever the coach is); one on its way, met before it gets there.
     if (s.onsen?.monkeys.some((m) => m.stage === "soak") && this.free("monkeyOut")) return this.monkeyOut;
@@ -859,6 +860,25 @@ export class CoachBot {
     for (let f = 0; f < 60 * 10 && s.karen && s.karen.calming && !this.over; f++) yield* this.frame$();
     s.setHold(false);
   }
+  // To the massage table and hold E until the guest is relaxed (incidents/massage.mjs).
+  *massage$() {
+    const s = this.s,
+      t = s.venue.fixtures.massage,
+      side = {
+        x: t.x + Math.cos(t.angle || 0) * (t.side || 1) * 0.9,
+        z: t.z - Math.sin(t.angle || 0) * (t.side || 1) * 0.9,
+      };
+    yield* this.walkTo$(side, {
+      reach: 0.5,
+      until: () => s.massage?.stage !== "lying" || s.nearestInteraction()?.kind === "massage",
+    });
+    if (s.massage?.stage !== "lying" || s.nearestInteraction()?.kind !== "massage") return;
+    s.setHold(true);
+    s.interact();
+    for (let f = 0; f < 60 * 10 && s.massage?.stage === "lying" && s.coach.massaging && !this.over; f++)
+      yield* this.frame$();
+    s.setHold(false);
+  }
   *outage$() {
     const s = this.s,
       fx = s.venue.fixtures,
@@ -985,6 +1005,7 @@ export const FRAMED = [
   "helpDizzy",
   "helpFallen",
   "karen",
+  "massage",
   "monkey",
   "monkeyOut",
   "mopWet",

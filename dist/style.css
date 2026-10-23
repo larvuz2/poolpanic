@@ -7023,3 +7023,7 @@ body.calm .grain {
 body.menu .hud-rail > :not(.toast) {
   display: none;
 }
+/* A guest on the massage table losing patience (incidents/massage.mjs): the bar goes red. */
+.bubble.massage-edgy .stomach-meter.jump-meter i {
+  background: #e8553f;
+}

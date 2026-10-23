@@ -31,6 +31,8 @@ export const CLIPS = {
   startle: "Startle",
   haul: "Haul",
   freakOut: "FreakOut",
+  // The massage table (23 October 2026): both hands on a guest's back, pressing in turn like a cook chopping a salad.
+  massage: "Massage",
 };
 // The jobs the coach heaves at (sim.startBusy kinds): Haul plays through them.
 export const HEAVY_JOBS = new Set(["haul", "help-out", "straighten", "breaker"]);
@@ -158,7 +160,7 @@ export class CoachRig {
   // walks him in. prone: swimming (the clip is played on his front, in the water). ring: he holds the life ring.
   // busy: a timed job in hand. ice: "skate" or "slide" on the hot springs' ice (coach.mjs `onIce`, `sliding`).
   // heavy: the job in hand is a heave (HEAVY_JOBS). startle: a new incident has just started (one frame). urgent: something
-  // that cannot wait is going on (the loudest alert's urgency is high).
+  // that cannot wait is going on (the loudest alert's urgency is high). massage: working on a guest at the massage table.
   update(
     dt,
     {
@@ -171,6 +173,7 @@ export class CoachRig {
       heavy = false,
       startle = false,
       urgent = false,
+      massage = false,
     } = {},
   ) {
     let want;
@@ -197,7 +200,8 @@ export class CoachRig {
       } else if (prone) {
         want = this.actions.swim ? "swim" : "run";
         rate = this.actions.swim ? 1.1 : 1.2;
-      } else if (heavy && this.actions.haul) want = "haul";
+      } else if (massage && this.actions.massage) want = "massage";
+      else if (heavy && this.actions.haul) want = "haul";
       else want = "idle";
     }
     // The jolt: from standing (not in the middle of a run or a swim), played to its end unless he moves off.

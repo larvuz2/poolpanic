@@ -1,11 +1,13 @@
 """Render many frames of many clips from several views in one Blender session (for contact sheets: Blender starts once).
     tools/blender/run.sh tools/blender/render_grid.py -- model.glb out_dir --clips MonkeyWalk,MonkeyRun [--frames 0,3,6,9]
         [--count 4] [--views side,front,top] [--size 360] [--target 0,0,0.3] [--distance 1.8] [--floor] [--water 0.25]
-        [--engine eevee|workbench]
+        [--engine eevee|workbench] [--box x,y,z,sx,sy,sz]
 Writes out_dir/<clip>_<view>_f<frame>.png. --frames picks the frames of every clip; --count spreads that many over each clip
 instead. Views: front (azimuth 0, the model faces +Z in glTF), side (90, its left side), back (180), three (-35, a three-quarter
 view of its right), top (the game's camera: high, from the front-left, 55 degrees down). --floor adds a grey floor at 0 (to
-see the feet on it); --water H adds a translucent blue sheet at height H metres (to see what shows above a waterline)."""
+see the feet on it); --water H adds a translucent blue sheet at height H metres (to see what shows above a waterline); --box
+adds a grey box (centre x, y, z and sizes, metres, in the glTF's own axes: x left, y up, z forward), a table or a wall to see
+the hands on it."""
 import math
 import os
 import sys
@@ -26,6 +28,7 @@ distance = common.option(args, "--distance", 1.8, float)
 floor = common.flag(args, "--floor")
 water = common.option(args, "--water", None, float)
 engine = common.option(args, "--engine", "eevee")
+box = common.option(args, "--box")
 path, out = args[0], args[1]
 os.makedirs(out, exist_ok=True)
 
@@ -46,6 +49,14 @@ if floor:
     mat = bpy.data.materials.new("floor")
     mat.diffuse_color = (0.55, 0.57, 0.6, 1)
     plane.data.materials.append(mat)
+for one in (box or "").split(";") if box else []:  # several boxes: separated by ";"
+    bx, by, bz, sx, sy, sz = (float(v) for v in one.split(","))
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(bx, -bz, by))  # glTF (x, y up, z forward) is Blender (x, -y, z)
+    cube = bpy.context.active_object
+    cube.scale = (sx, sz, sy)
+    mat = bpy.data.materials.new("box")
+    mat.diffuse_color = (0.75, 0.62, 0.5, 1)
+    cube.data.materials.append(mat)
 if water is not None:
     bpy.ops.mesh.primitive_plane_add(size=3, location=(0, 0, water))
     sheet = bpy.context.active_object
