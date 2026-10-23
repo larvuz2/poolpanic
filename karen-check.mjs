@@ -4,6 +4,7 @@ import { PoolSimulation, SHIFTS } from "./dist/sim.mjs";
 import { KAREN_TUNING as T, KAREN_GESTURES } from "./dist/incidents/karen.mjs";
 import { STINGS, SAVES } from "./dist/moments.mjs";
 import { tick, go, pursue, assignAll } from "./check-helpers.mjs";
+import { TEAM_SPEED, teamSpeed } from "./dist/teamwork.mjs";
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 function shift(seed, level = 4, seconds = 14) {
@@ -162,6 +163,7 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
   const facing = Math.atan2(v.x - s.coach.x, v.z - s.coach.z);
   assert.ok(Math.abs(Math.atan2(Math.sin(s.coach.angle - facing), Math.cos(s.coach.angle - facing))) < 0.05);
   assert.equal(s.visitorTag(v).ring, s.karen.progress, "The ring is on her tag");
+  assert.equal(s.visitorTag(v).team, undefined, "A single player's wheel has no faces");
   // Let go: the ring drains and Karen stays.
   s.setMovement(0, 0);
   s.setHold(false);
@@ -198,6 +200,98 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
 }
 
 // ---------------------------------------------------------------------------------------------------------
+// Many hands (teamwork.mjs, 23 October 2026): in a crew every coach who holds E beside her calms her too, and the ring
+// fills faster with each one; the wheel shows each one's face, in the order they joined; one letting go slows it back down.
+{
+  assert.deepEqual(
+    [teamSpeed(0), teamSpeed(1), teamSpeed(2), teamSpeed(3), teamSpeed(5)],
+    [0, ...TEAM_SPEED, 2.5],
+  );
+  const s = new PoolSimulation(4, 31, { crew: ["waters", "rivers", "brooks"] });
+  s.chaosPlan = [];
+  s.start();
+  for (let f = 0; f < 60 * 14; f++) {
+    assignAll(s);
+    tick(s);
+  }
+  s.triggerChaos("karen");
+  const v = karenOf(s);
+  assert.ok(
+    pursue(
+      s,
+      () => v,
+      () => s.nearestInteraction()?.kind === "calm",
+      60 * 30,
+    ),
+    "Coach Waters reaches her",
+  );
+  s.clearInput();
+  // The other two stand beside Waters, within her reach.
+  for (const i of [1, 2]) {
+    const c = s.coaches[i];
+    c.x = s.coaches[0].x + (i === 1 ? 0.3 : -0.3);
+    c.z = s.coaches[0].z;
+    c.vx = c.vz = 0;
+    s.inputAs(i, "clearInput");
+  }
+  assert.ok(dist(s.coaches[1], v) <= T.reach && dist(s.coaches[2], v) <= T.reach);
+  // Waters alone: the solo pace.
+  s.setHold(true);
+  assert.ok(s.interact());
+  assert.deepEqual(s.karen.helpers, [0]);
+  const rate = (seconds) => {
+    const p = s.karen.progress;
+    for (let f = 0; f < 60 * seconds; f++) tick(s);
+    return (s.karen.progress - p) / seconds;
+  };
+  const solo = rate(0.25);
+  assert.ok(Math.abs(solo - 1 / T.calmTime) < 0.02, `one coach: the solo pace (${solo.toFixed(3)})`);
+  // Rivers joins: a second pair of hands, announced, on the wheel, and faster.
+  assert.equal(s.inputAs(1, "nearestInteraction")?.kind, "calm", "The second coach is offered the calm too");
+  assert.match(s.inputAs(1, "nearestInteraction").label, /help/i);
+  const ups = events(s, "team-up").length;
+  s.inputAs(1, "setHold", true);
+  assert.ok(s.inputAs(1, "interact"));
+  assert.deepEqual(s.karen.helpers, [0, 1]);
+  assert.equal(events(s, "team-up").length, ups + 1, "A second pair of hands is announced");
+  assert.equal(events(s, "team-up").at(-1).helpers, 2);
+  assert.deepEqual(
+    s.visitorTag(v).team,
+    ["waters", "rivers"],
+    "Both faces on the wheel, in the order they joined",
+  );
+  const pair = rate(0.2);
+  assert.ok(
+    Math.abs(pair / solo - TEAM_SPEED[1]) < 0.05,
+    `two coaches: ${TEAM_SPEED[1]}x (${(pair / solo).toFixed(2)})`,
+  );
+  assert.ok(s.coaches[0].calming && s.coaches[1].calming, "Both are planted, calming");
+  // Brooks makes three.
+  s.inputAs(2, "setHold", true);
+  assert.ok(s.inputAs(2, "interact"));
+  assert.equal(events(s, "team-up").at(-1).helpers, 3);
+  assert.deepEqual(s.visitorTag(v).team, ["waters", "rivers", "brooks"]);
+  assert.match(s.karen && Karen_describe(s), /by 3 coaches/);
+  // Rivers lets go: two again (Waters and Brooks), at the pair's pace.
+  s.inputAs(1, "setHold", false);
+  tick(s);
+  assert.deepEqual(s.karen.helpers, [0, 2]);
+  assert.equal(s.coaches[1].calming, false);
+  assert.deepEqual(s.visitorTag(v).team, ["waters", "brooks"]);
+  // On to the end: every helper is freed, and the crew is thanked.
+  for (let f = 0; f < 60 * 5 && v.status !== "calmed"; f++) tick(s);
+  assert.equal(v.status, "calmed", "She calms down");
+  assert.ok(
+    s.coaches.every((c) => !c.calming && !c.calmLatched),
+    "Nobody is left planted",
+  );
+  assert.match(events(s, "toast").at(-1).text, /teamwork/);
+  function Karen_describe(sim) {
+    return sim.systems.find((x) => x.key === "karen").describe(sim);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------
 // A click or a tap (no key down) starts a latched calm: it carries on until the coach moves.
 {
   const s = shift(17);
@@ -213,7 +307,7 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
   );
   s.clearInput();
   assert.ok(s.interact());
-  assert.ok(s.karen.latched);
+  assert.ok(s.coach.calmLatched);
   for (let f = 0; f < 60; f++) tick(s);
   assert.ok(s.karen.calming && s.karen.progress > 0.25, "It carries on by itself");
   s.setMovement(0, 1);

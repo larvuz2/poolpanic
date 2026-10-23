@@ -374,6 +374,11 @@ export class PoolAudio {
       this.tone(90, t, 0.18, 0.2, "sine", 50);
       this.tone(380, t + 0.05, 0.28, 0.1, "sawtooth", 520);
       this.tone(380 * 1.5, t + 0.05, 0.2, 0.04, "square", 700);
+    } else if (type === "team-up") {
+      // Another pair of hands on a hold-E job (teamwork.mjs): a quick rising "ba-dum!", higher for a third.
+      const up = Math.max(0, (e.helpers || 2) - 2) * 3;
+      [523, 659, 784].forEach((f, i) => this.tone(f * 2 ** (up / 12), t + i * 0.06, 0.16, 0.11, "square"));
+      this.tone(1046 * 2 ** (up / 12), t + 0.2, 0.3, 0.09, "triangle");
     } else if (type === "karen-calmed") {
       // A long sigh down, then a small relieved chime.
       this.noise(t, 0.7, 0.07, 700);

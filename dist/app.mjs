@@ -3628,7 +3628,7 @@ function updateBubbles() {
       b = document.createElement("div");
       b.className = "bubble visitor-tag";
       b.innerHTML =
-        '<div class="ring" hidden><b></b></div><div class="face"><span class="type-icon"></span><span class="type-label"></span></div><div class="hp"><i></i></div>';
+        '<div class="ring" hidden><b></b><span class="team"></span></div><div class="face"><span class="type-icon"></span><span class="type-label"></span></div><div class="hp"><i></i></div>';
       $("world-labels").appendChild(b);
       bubbles.set(v.id, b);
     }
@@ -3637,13 +3637,16 @@ function updateBubbles() {
     b.classList.toggle("urgent", !!tag.urgent);
     b.querySelector(".type-icon").textContent = tag.icon;
     b.querySelector(".type-label").textContent = tag.label || "";
-    // A circular progress ring (hold E to calm Karen): filled in degrees through a CSS variable.
+    // The hold-E wheel (calming Karen), Overcooked style: it fills clockwise, with no numbers (E to start, a hand while it
+    // fills). In a crew, each coach holding E on it has their face on the wheel in their colour, and once two are on it the
+    // fill runs through their colours and a second ring goes round it, with a pop as each one joins (teamwork.mjs).
     const ring = b.querySelector(".ring");
     ring.hidden = tag.ring === undefined;
     if (tag.ring !== undefined) {
       ring.style.setProperty("--fill", Math.round(tag.ring * 360) + "deg");
-      ring.classList.toggle("holding", tag.ring > 0.02);
-      ring.firstElementChild.textContent = tag.ring > 0.02 ? Math.round(tag.ring * 100) + "%" : "E";
+      ring.classList.toggle("holding", tag.ring > 0.02 || !!tag.team?.length);
+      put(ring.firstElementChild, tag.ring > 0.02 || tag.team?.length ? "✋" : "E");
+      teamWheel(ring, tag.team || []);
     }
     const meter = b.querySelector(".hp");
     meter.hidden = tag.meter === undefined;
@@ -3669,6 +3672,36 @@ function updateBubbles() {
       sim.level < (data.minLevel || 1) ||
       (data.when ? !data.when(sim) : false) ||
       !screen.visible;
+  }
+}
+// The faces on a hold-E wheel: one per coach on the job, in their colour, the order they joined. A second coach on it turns
+// the wheel into a team wheel (a second ring, the fill through their colours) and every new pair of hands pops it.
+function teamWheel(ring, team) {
+  const key = team.join(" ");
+  if (ring.dataset.team === key) return;
+  const before = ring.dataset.team ? ring.dataset.team.split(" ").length : 0;
+  ring.dataset.team = key;
+  const faces = ring.querySelector(".team");
+  faces.replaceChildren(
+    ...team.map((look) => {
+      const face = document.createElement("i"),
+        c = coachInfo(look);
+      face.style.setProperty("--c", c.colour);
+      face.style.backgroundImage = `url(./assets/coach-${c.id}.webp)`;
+      face.title = c.name;
+      return face;
+    }),
+  );
+  const colours = team.map((look) => coachInfo(look).colour);
+  ring.style.setProperty("--c1", colours[0] || "#ffd24d");
+  ring.style.setProperty("--c2", colours[1] || colours[0] || "#ffd24d");
+  ring.style.setProperty("--c3", colours[2] || colours[1] || colours[0] || "#ffd24d");
+  ring.classList.toggle("team-2", team.length >= 2);
+  ring.classList.toggle("team-3", team.length >= 3);
+  if (team.length > before && team.length > 1) {
+    ring.classList.remove("team-pop");
+    void ring.offsetWidth; // (restart the animation)
+    ring.classList.add("team-pop");
   }
 }
 // ---- the highlight replay (Phase 3, highlight.mjs) --------------------------------------------------------------------
