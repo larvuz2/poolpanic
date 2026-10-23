@@ -1,15 +1,25 @@
 // Co-op crews (22 October 2026, the creator: "if we are two players, the scaling of the swimmers and incidents increases, and if
-// we are three players, we increase again"). Up to three coaches on one shift, each a player online (net.mjs): Coach Waters, whom
-// a single player always is, Coach Brooks, the senior coach (shorter, rounder, a grey moustache) and Coach Rivers. Pure: the
+// we are three players, we increase again"). Up to three coaches on one shift, each a player online (net.mjs), out of five: Coach
+// Waters, whom a single player always is, Coach Brooks, the senior coach (shorter, rounder, a grey moustache), Coach Rivers, and
+// since 23 October 2026 Coach Storm (the tough coach: shaved head, tattoo sleeves) and Coach Fontaine (an afro, no cap). Pure: the
 // shift a crew plays is the solo shift with more of everything, made here from the shift's config before the simulation starts,
 // so the host and every guest build the very same shift from the same config, seed and crew.
 
-// The three coaches a player can be (the character select, coop-ui.mjs), in the order the carousel shows them. `model` is the
-// file in dist/assets (coach-panic.glb is Coach Waters' file of old).
+// The five coaches a player can be (the character select, coop-ui.mjs), in the order the carousel shows them. `model` is the
+// file in dist/assets (coach-panic.glb is Coach Waters' file of old). A new coach goes at the end: a crew's default picks are
+// the first free ones.
 export const COACHES = [
   { id: "waters", name: "Coach Waters", short: "Waters", model: "coach-panic.glb", colour: "#ff6b3d" },
   { id: "brooks", name: "Coach Brooks", short: "Brooks", model: "coach-brooks.glb", colour: "#4fb3ff" },
   { id: "rivers", name: "Coach Rivers", short: "Rivers", model: "coach-rivers.glb", colour: "#ffd23d" },
+  { id: "storm", name: "Coach Storm", short: "Storm", model: "coach-storm.glb", colour: "#9be33a" },
+  {
+    id: "fontaine",
+    name: "Coach Fontaine",
+    short: "Fontaine",
+    model: "coach-fontaine.glb",
+    colour: "#b07cff",
+  },
 ];
 export const COACH_IDS = COACHES.map((c) => c.id);
 export const MAX_CREW = 3;

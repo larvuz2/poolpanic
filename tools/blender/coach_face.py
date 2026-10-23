@@ -1,5 +1,6 @@
 """Give Coach Waters a face that can act: eyes, lids, pupils, brows and moustache on bones the game moves.
-    python3 tools/blender/coach_face.py in.glb out.glb [--debug DIR]
+    python3 tools/blender/coach_face.py in.glb out.glb [--debug DIR] [--no-stache] [--dy M] [--eye-grow K] [--brow-y LO,HI]
+        [--brows-from-eyes] [--brow-height M]
 (plain Python with numpy, PIL and OpenCV, no Blender: the file is read and written like carry_clips.py does, and the clips,
 the body's mesh and its skin stay as they were). The Meshy model's face is painted: two big white eyes with a black dot each,
 two black brows and a moustache, on one textured mesh. Paint cannot move, so this script adds what can:
@@ -58,6 +59,12 @@ SKIN_COLOUR_BOX = dict(y=(1.36, 1.53), ax=(0.03, 0.2), z=0.08)
 # Rivers) is found as far up or down as their head is (DY, from the top of the model), the face itself about the same size.
 WATERS_TOP = 1.75
 DY = 0.0
+# Where the painted brows are looked for, in Waters' metres (with DY). Coach Fontaine's afro comes down to just above her thin
+# brows (23 October 2026), and its edge is as dark as a brow: --brow-y 1.50,1.555 keeps to the brows.
+BROW_Y = (1.5, 1.6)
+# --brows-from-eyes: the brows are not measured but put where Coach Waters' are over his eyes (and nothing is painted out),
+# for a coach whose painted brows are too thin or too close to her hair to find (Coach Fontaine's, under the afro)
+BROWS_FROM_EYES = False
 
 
 def Y(*v):
@@ -194,7 +201,7 @@ def measure(p, no_stache=False):
         whites.append(c[white])
         dots.append(c[dot])
     # brows: dark brown texels on the forehead, above the eyes, below the cap
-    tris = p.in_box(ax=(0.015, 0.2), y=Y(1.5, 1.6), z=0.07)
+    tris = p.in_box(ax=(0.015, 0.2), y=Y(*BROW_Y), z=0.07)
     rows, cols, pts = p.texels(tris)
     c = img[rows, cols]
     l = c.mean(axis=1)
@@ -217,7 +224,16 @@ def measure(p, no_stache=False):
             lo, hi = np.percentile(ys, 5), np.percentile(ys, 95)
             line.append((sx * (a + b) / 2, (lo + hi) / 2, hi - lo))
         out["brows"][side] = {"line": np.array(line), "rows": rows[mine], "cols": cols[mine]}
-    out["brow_colour"] = np.median(c[brown], axis=0)
+    if BROWS_FROM_EYES:
+        for side, sx in SIDES:
+            e = eyes[side]
+            cx, cy, r = abs(e["centre"][0]), e["centre"][1], e["r"]
+            u = np.linspace(0, 1, 8)
+            # (Coach Waters' brows: from 0.46 of the eye's radius inside its centre to 0.65 outside, at the top of the ball,
+            # a little lower at the outer end)
+            line = [(sx * (cx - 0.46 * r + 1.11 * r * t), cy + r * (1.06 - 0.12 * t * t), 0.02) for t in u]
+            out["brows"][side] = {"line": np.array(line), "rows": np.zeros(0, int), "cols": np.zeros(0, int)}
+    out["brow_colour"] = np.median(c[brown], axis=0) if brown.any() else np.array([20.0, 15.0, 12.0])
     out["white_colour"] = np.median(np.concatenate(whites), axis=0)
     out["pupil_colour"] = np.median(np.concatenate(dots), axis=0)
     # skin round the eyes
@@ -372,15 +388,22 @@ def paint_out_brows(p, found):
     img = p.image.astype(float)
     H, W = img.shape[:2]
     forehead = np.zeros((H, W), np.uint8)
-    rows, cols, _ = p.texels(p.in_box(ax=(0.0, 0.21), y=Y(1.48, 1.61), z=0.05))
+    rows, cols, pts = p.texels(p.in_box(ax=(0.0, 0.21), y=Y(1.48, max(1.61, BROW_Y[1] + 0.01)), z=0.05))
     forehead[rows, cols] = 1
+    # the eye balls' texels (kept white); a white texel elsewhere is a light edge baked round a brow that juts out of the
+    # head (Coach Storm's, 23 October 2026) and is painted out with it
+    on_eye = np.zeros((H, W), bool)
+    for side, _ in SIDES:
+        e = found["eyes"][side]
+        near = np.linalg.norm(pts - e["centre"], axis=1) < e["r"] * 1.06
+        on_eye[rows[near], cols[near]] = True
     forehead = cv2.dilate(forehead, np.ones((3, 3), np.uint8), iterations=2)  # (the texels a filter reads past the edge)
     brow = np.zeros((H, W), np.uint8)
     for side, _ in SIDES:
         brow[found["brows"][side]["rows"], found["brows"][side]["cols"]] = 1
     brow = cv2.dilate(brow, np.ones((3, 3), np.uint8), iterations=3)
     red = (img[:, :, 0] - img[:, :, 1] > 80) & (img[:, :, 0] > 100)
-    white = (img.mean(axis=2) > 200) & (img.max(axis=2) - img.min(axis=2) < 45)
+    white = (img.mean(axis=2) > 200) & (img.max(axis=2) - img.min(axis=2) < 45) & on_eye
     mask = (brow > 0) & (forehead > 0) & ~red & ~white
     alpha = cv2.GaussianBlur(mask.astype(np.float32), (0, 0), 1.2)
     alpha = np.where(mask, 1.0, np.where((forehead > 0) & ~red & ~white, np.clip(alpha * 1.6, 0, 1), 0.0))[:, :, None]
@@ -511,6 +534,11 @@ def main(args):
     # (Coach Brooks' painted eyes bulge more than Waters': a bigger new ball keeps them inside it, --eye-grow 1.09)
     global EYE_GROW
     EYE_GROW = float(option(args, "--eye-grow", EYE_GROW))
+    global BROW_Y, BROWS_FROM_EYES
+    BROWS_FROM_EYES = "--brows-from-eyes" in args
+    global BROW_HEIGHT
+    BROW_HEIGHT = float(option(args, "--brow-height", BROW_HEIGHT))  # (Coach Fontaine's are finer: 0.018)
+    BROW_Y = tuple(float(v) for v in option(args, "--brow-y", f"{BROW_Y[0]},{BROW_Y[1]}").split(","))
     # (Coach Rivers has no moustache: --no-stache keeps its three bones, so every coach's face has the same 18, and weights
     # nothing to them)
     no_stache = "--no-stache" in args
