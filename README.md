@@ -1171,6 +1171,18 @@ Karen (`dist/incidents/karen.mjs`) is the first incident you **hold a key for** 
 - **Annoyance.** Everyone standing or walking on the deck within 3.3 m (swimmers in the queue, arriving or heading for the water, people leaving, the kid and Carl; not people in the water) is annoyed: they **stop where they are**, **cover both ears**, **hunch forward** and **shake their head** in disgust. Each person costs 20 points and 6 happiness once, and the streak breaks. Walkers resume where they stopped half a second after she moves on, and ease back into whatever they were doing (idle, walking). A red circle on the floor shows her range.
 - **Calming her.** E next to her (within 2 m) starts the calm-down: **hold E until the ring fills** (3 seconds). The coach plants their feet, faces her and pats the air in front of them with both arms, up and down. Let go or move out of reach and the ring drains in about 1.6 seconds. Clicking or tapping her, or the touch/Interact buttons, starts a *latched* calm-down that carries on by itself until the coach moves. Calmed: +100 (+50 when nobody was annoyed), the "CALMED DOWN!" stamp, a sigh, and she leaves through the nearer locker door; her influence ends at once.
 - **Her look.** Karen is a rigged 3D model (`dist/assets/models/karen.glb`, see [Karen's model](#karens-model)) with five clips: `Walk` (a furious march), `Complain` (left arm up and waving, then the right), `Point` (right arm out, jabbing), `Defeated` (once, a slump and a sigh) and `Idle`. While she rants the simulation cycles complain → point at the **pool** → complain → point at a **random spot** → complain → point at another random spot, turning her to face the target. Red, distorted words (`@#$%!`, `BLAH!`, `GRR!`…) spit out of her head. Until the model has loaded, or when it cannot (the headless checks), a stand-in built like the other characters plays the same states.
+- **Many hands (23 October 2026, co-op).** The creator: "if two players hold E at same time on any incident it speeds things up … a
+  progression wheel above incident … like Overcooked … a visual reference when a second player starts pressing E … (no numbers)."
+  In a crew every coach who holds E beside her calms her too, each with their own hold (`coach.calming`, `coach.calmLatched`;
+  she keeps the list of coaches on her, `helpers`, in the order they joined), and the ring fills faster with each one:
+  `dist/teamwork.mjs` `TEAM_SPEED` [1, 1.8, 2.5], so 3 seconds alone, about 1.7 with two, 1.2 with three. Letting go takes that
+  coach off and the ring slows down again; nobody holding, it drains. The ring is now an **Overcooked-style wheel with no
+  numbers**: E before anyone holds, a hand while it fills. In a crew the wheel wears **the face of each coach on it**, in their
+  colour, in a row over the wheel; from two coaches on it the wheel grows, a second ring goes round it in the new helper's colour
+  (a third ring with three), the fill runs through their colours, the hand waves and the wheel pops as each one joins, with a
+  rising "ba-dum!" (`team-up`). A single player's wheel has no faces and fills at the solo pace, unchanged. `karen-check.mjs` has a
+  crew of three on her (the pace with one, two and three, the faces in order, one letting go); seen in Chromium in a co-op shift
+  over the dev relay (the host's window, three coaches) and on a page of the wheel's states.
 - **Audio.** Her voice is a procedural placeholder (a burst of nasal syllables every 1.3–2.4 seconds while she is loud). To use recordings, put them in `dist/assets/audio/` and list them in `dist/audio-files.mjs` (`AUDIO_FILES.karen`); each squawk then plays one at random.
 - **Prevention is speed.** There is no warning window: the sooner she is calmed, the fewer people she annoys. The bot in `check-bot.mjs` runs to her and holds E; `karen-check.mjs` covers all of it.
 
@@ -1349,6 +1361,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/chaos.mjs` | Incident scheduling, visitors, puddles, the storm's weather and rain puddles, fleeing swimmers, shared hooks, pointer shortcuts |
 | `dist/incidents/*.mjs` | One module per incident: `fish`, `dog`, `carl`, `outage`, `trampoline`, `karen`, `wet` (the wet spots and the mop); plus `twist` (the five mid-shift twists: rush, closure, swim team, aqua class, storm) |
 | `dist/deck-physics.mjs` | Deck contacts, separation, passing and route cooperation |
+| `dist/teamwork.mjs` | Co-op's many hands: a hold-E job fills faster with every coach on it (`TEAM_SPEED`), and the faces on its wheel (`teamTag`); Karen first |
 | `dist/crew.mjs` | Co-op: the six coaches (three at most in a crew), and the shift a crew of two or three plays (`crewConfig`, `CREW`) |
 | `dist/net.mjs` | Co-op over the network: the lobby, the host and guests sharing stamped inputs, transports, `Predictor` |
 | `dist/coop-ui.mjs` | PLAY WITH FRIENDS: host, invite, the three slots and their coaches, ready, the host's pool, start |

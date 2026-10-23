@@ -4,6 +4,9 @@
 // arms; she rants the whole time). Let go, or step away, and the ring drains. Calmed, she sighs and leaves through
 // the same door, and her influence is gone. The simulation only reports facts: the sounds, the red scribbles, the
 // annoyed poses and the calming gesture are all the presentation layer's.
+// With a crew (23 October 2026, teamwork.mjs) every coach who holds E beside her calms her too, and the ring fills faster
+// with each one on it; each coach's hold is their own (`coach.calming`, `coach.calmLatched`), the ring is hers.
+import { teamSpeed, joinTeam, teamTag } from "../teamwork.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -61,7 +64,7 @@ export const Karen = {
       k.stage +
       " · " +
       (sim.visitor(k.id)?.status ?? "gone") +
-      (k.calming ? " · being calmed" : "")
+      (k.calming ? " · being calmed" + (k.helpers.length > 1 ? ` by ${k.helpers.length} coaches` : "") : "")
     );
   },
   detail(sim) {
@@ -76,6 +79,7 @@ export const Karen = {
       stage: "approach",
       progress: 0,
       calming: false,
+      helpers: [], // the coaches holding E on her, in the order they joined (teamwork.mjs)
       latched: false,
       annoyed: new Set(),
       repath: 0,
@@ -91,10 +95,10 @@ export const Karen = {
       warning: true,
     });
   },
-  // (With a crew: the coach calming her, else the one nearest her: she marches up to whoever is closest.)
+  // (With a crew: the first coach calming her, else the one nearest her: she marches up to whoever is closest.)
   focus(sim) {
-    const calming = sim.coaches.findIndex((c) => c.calming);
-    return calming >= 0 ? calming : { near: sim.karen && sim.visitor(sim.karen.id) };
+    const k = sim.karen;
+    return k?.helpers?.length ? k.helpers[0] : { near: k && sim.visitor(k.id) };
   },
   update(sim, dt) {
     // Visitors' annoyance fades by itself (swimmers' is handled where they are moved, in tickAnnoyed).
@@ -103,7 +107,7 @@ export const Karen = {
     if (!k) return;
     const v = sim.visitor(k.id);
     if (!v) {
-      for (const c of sim.coaches) c.calming = false;
+      for (const c of sim.coaches) c.calming = c.calmLatched = false;
       sim.karen = null;
       return;
     }
@@ -161,10 +165,12 @@ export const Karen = {
       c = sim.coach;
     if (!k) return;
     const v = sim.visitor(k.id);
-    if (!v || !["marching", "ranting"].includes(v.status) || !inReach(sim, v)) return;
+    if (!v || !["marching", "ranting"].includes(v.status) || !inReach(sim, v) || c.calming) return;
     options.push({
       kind: "calm",
-      label: "✋ Hold E · calm Karen down",
+      label: k.helpers.length
+        ? "✋ Hold E · help calm Karen (faster together)"
+        : "✋ Hold E · calm Karen down",
       x: v.x,
       z: v.z,
       rank: -330 + distance(c, v),
@@ -206,7 +212,7 @@ export const Karen = {
     if (!k || v.kind !== "karen") return null;
     if (["calmed", "leaving"].includes(v.status)) return { icon: "😌", label: "Karen" };
     if (v.status === "entering") return { icon: "😡", label: "Karen", urgent: true };
-    return { icon: "😡", label: "Karen", urgent: true, ring: k.progress };
+    return { icon: "😡", label: "Karen", urgent: true, ring: k.progress, team: teamTag(sim, k.helpers) };
   },
 };
 
@@ -217,8 +223,7 @@ function coachTarget(sim) {
   const spots = sim.venue.edgeSpots();
   return spots.reduce((best, s) => (distance(s, c) < distance(best, c) ? s : best), spots[0]);
 }
-function inReach(sim, v) {
-  const c = sim.coach;
+function inReach(sim, v, c = sim.coach) {
   return !c.swimming && !c.waterTransition && distance(c, v) <= T.reach;
 }
 
@@ -268,28 +273,42 @@ function rant(sim, k, v, dt) {
   }
 }
 
+// A coach presses E beside her (run as that coach: the actor). Pressed with the key down: they calm her while it is held.
+// Clicked or tapped: until they move or step away.
 function beginCalm(sim, k) {
+  const c = sim.coach;
+  c.calming = true;
+  c.calmLatched = !c.holding;
   k.calming = true;
-  // Pressed with the key down: calm while it is held. Clicked or tapped: calm until the coach moves or steps away.
-  k.latched = !sim.holdInteract;
-  sim.coach.calming = true;
+  const before = k.helpers.length;
+  if (joinTeam(k.helpers, sim.actor ?? 0) && before > 0) {
+    // A second (or third) pair of hands: the wheel and the sound say so (teamwork.mjs).
+    const v = sim.visitor(k.id);
+    sim.emit("team-up", { x: v?.x ?? c.x, z: v?.z ?? c.z, kind: "karen", helpers: k.helpers.length });
+  }
   return true;
 }
 
+// Every coach on her keeps calming while they hold E (or stay put after a click) and stay in reach; the ring fills at the
+// speed of the hands on it (teamwork.mjs), and drains when nobody is.
 function calm(sim, k, v, dt) {
-  const c = sim.coach,
-    moving = !!(c.input?.x || c.input?.z);
+  const playing = sim.status === "playing";
+  k.helpers = k.helpers.filter((i) => {
+    const c = sim.coaches[i];
+    if (!c) return false;
+    const moving = !!(c.input?.x || c.input?.z),
+      holding = c.holding || (c.calmLatched && !moving),
+      on = c.calming && holding && inReach(sim, v, c) && playing;
+    if (!on) c.calming = c.calmLatched = false;
+    return on;
+  });
+  k.calming = k.helpers.length > 0;
   if (k.calming) {
-    const holding = sim.holdInteract || (k.latched && !moving);
-    if (!holding || !inReach(sim, v) || sim.status !== "playing") {
-      k.calming = false;
-      k.latched = false;
+    for (const i of k.helpers) {
+      const c = sim.coaches[i];
+      c.angle = Math.atan2(v.x - c.x, v.z - c.z);
     }
-  }
-  c.calming = k.calming;
-  if (k.calming) {
-    c.angle = Math.atan2(v.x - c.x, v.z - c.z);
-    k.progress = clamp(k.progress + dt / T.calmTime, 0, 1);
+    k.progress = clamp(k.progress + (dt * teamSpeed(k.helpers.length)) / T.calmTime, 0, 1);
     if (k.progress >= 1) return calmed(sim, k, v);
   } else k.progress = Math.max(0, k.progress - dt / T.release);
 }
@@ -298,8 +317,12 @@ function calmed(sim, k, v) {
   const clean = k.annoyed.size === 0,
     value = T.reward + (clean ? T.cleanBonus : 0);
   k.calming = false;
-  k.latched = false;
-  sim.coach.calming = false;
+  for (const i of k.helpers) {
+    const c = sim.coaches[i];
+    if (c) c.calming = c.calmLatched = false;
+  }
+  k.team = k.helpers.length; // (how many calmed her: the diary and a crew's toast)
+  k.helpers = [];
   k.stage = "calmed";
   v.status = "calmed";
   v.timer = T.sigh;
@@ -312,6 +335,6 @@ function calmed(sim, k, v) {
   sim.save("karen", v, value, { name: "Karen" });
   sim.emit("karen-calmed", { x: v.x, z: v.z });
   sim.emit("toast", {
-    text: `Karen calms down and leaves. +${value}${clean ? " · nobody was annoyed" : ""}`,
+    text: `Karen calms down and leaves. +${value}${clean ? " · nobody was annoyed" : ""}${k.team > 1 ? " · teamwork!" : ""}`,
   });
 }

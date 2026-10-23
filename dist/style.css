@@ -2590,6 +2590,10 @@ button.bubble:focus-visible .face {
 /* Hold-to-act progress: a ring that fills clockwise (Karen's calm-down). */
 .bubble .ring {
   --fill: 0deg;
+  --c1: #ffd24d;
+  --c2: #ffd24d;
+  --c3: #ffd24d;
+  position: relative;
   width: 52px;
   height: 52px;
   border-radius: 50%;
@@ -2600,6 +2604,86 @@ button.bubble:focus-visible .face {
     conic-gradient(#ffd24d var(--fill), #5b2b24 0);
   box-shadow: 0 2px 6px #12202a66;
   margin-bottom: 2px;
+}
+/* Many hands (teamwork.mjs): the faces of the coaches holding E on it, in a row over the wheel, each in its coach's colour;
+   with two or more the wheel grows, the fill runs through their colours and a second ring goes round it in the newest
+   helper's colour; it pops as each one joins. No numbers anywhere. */
+.bubble .ring .team {
+  position: absolute;
+  left: 50%;
+  top: -18px;
+  transform: translateX(-50%);
+  display: flex;
+}
+.bubble .ring .team:empty {
+  display: none;
+}
+.bubble .ring .team i {
+  width: 26px;
+  height: 26px;
+  margin: 0 -4px;
+  border-radius: 50%;
+  border: 2px solid var(--c);
+  background-color: #fff4dc;
+  background-repeat: no-repeat;
+  background-size: 260% auto;
+  background-position: 46% 9%;
+  box-shadow: 0 1px 3px #12202a88;
+}
+.bubble .ring.team-2 {
+  width: 60px;
+  height: 60px;
+  background:
+    radial-gradient(circle closest-side, #143d49 0 64%, transparent 66%),
+    conic-gradient(var(--c1), var(--c2) var(--fill), #5b2b24 0);
+  box-shadow:
+    0 0 0 3px #143d49,
+    0 0 0 6px var(--c2),
+    0 0 16px 4px color-mix(in srgb, var(--c2) 55%, transparent),
+    0 2px 6px #12202a66;
+}
+.bubble .ring.team-3 {
+  width: 66px;
+  height: 66px;
+  background:
+    radial-gradient(circle closest-side, #143d49 0 62%, transparent 64%),
+    conic-gradient(var(--c1), var(--c2) calc(var(--fill) / 2), var(--c3) var(--fill), #5b2b24 0);
+  box-shadow:
+    0 0 0 3px #143d49,
+    0 0 0 6px var(--c2),
+    0 0 0 9px #143d49,
+    0 0 0 12px var(--c3),
+    0 0 20px 6px color-mix(in srgb, var(--c3) 55%, transparent),
+    0 2px 6px #12202a66;
+}
+.bubble .ring.team-2 b {
+  font-size: 20px;
+  animation: team-hands 0.35s ease-in-out infinite alternate;
+}
+.bubble .ring.team-pop {
+  animation: team-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes team-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  55% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes team-hands {
+  to {
+    transform: scale(1.18) rotate(-8deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bubble .ring.team-pop,
+  .bubble .ring.team-2 b {
+    animation: none;
+  }
 }
 .bubble .ring[hidden] {
   display: none;
