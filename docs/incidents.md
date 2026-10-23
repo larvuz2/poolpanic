@@ -102,7 +102,7 @@ tips his fish into one, the cannonball man bombs into one, a floater closes them
 | Incident | Levels | What happens |
 | --- | --- | --- |
 | 🐶 **Loose dog** | 4, 8 to 10, 13, 15 to 20 (Kids' party booking) | Steals fins, bowls people over, shakes out puddles. Fetch the treats and lead it to a locker door (+150). |
-| 😡 **Karen** | 4 only, 74 to 94 s in | Storms out of a locker door at the coach. Everyone within 3.3 m stops, covers their ears and loses 20 points (once each). Hold E beside her for 3 seconds (+100, +50 if nobody was annoyed). |
+| 😡 **Karen** | 4 only, 74 to 94 s in | Storms out of a locker door at the coach. Everyone within 3.3 m stops, covers their ears and loses 20 points (once each). Hold E beside her for 8 seconds (5 with two coaches, 3 with three) (+100, +50 if nobody was annoyed). |
 | ⚡ **Power outage** | 7 to 10, 14 to 16, 18 to 20 (Night swim booking) | 7 seconds of flicker; reset the fuse box in time (+100). Missed: a blackout (−100), swimmers bump into each other. Flashlight, then breakers (+100). |
 | 💧 **Wet spots** (16 October 2026) | every level, every pool | One swimmer in five climbing out drips a wet spot by the ladder, and it never dries. Whoever walks or runs over it slips, is cross (−12 mood) and costs 25. Grab the mop from its bucket (Q or E), mop the spot (E, +10), put the mop back. A chore, not counted among a shift's incidents; at the Kids Pool, where kids run everywhere, it bites hardest. |
 | 🦶 **Slips: fins and puddles** | every level; puddles from the dog, Carl and the storm | Anyone who steps on a dropped fin or a puddle falls on their back and gets up; a swimmer loses 6 happiness. Jump them or pick up the fins. Puddles dry in about 14 seconds. |

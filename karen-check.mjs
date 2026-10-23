@@ -4,7 +4,7 @@ import { PoolSimulation, SHIFTS } from "./dist/sim.mjs";
 import { KAREN_TUNING as T, KAREN_GESTURES } from "./dist/incidents/karen.mjs";
 import { STINGS, SAVES } from "./dist/moments.mjs";
 import { tick, go, pursue, assignAll } from "./check-helpers.mjs";
-import { TEAM_SPEED, teamSpeed } from "./dist/teamwork.mjs";
+import { teamTime } from "./dist/teamwork.mjs";
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 function shift(seed, level = 4, seconds = 14) {
@@ -158,7 +158,10 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
   const at = { x: s.coach.x, z: s.coach.z };
   s.setMovement(1, 0); // the arrow keys do nothing while calming
   for (let f = 0; f < 60 * 1; f++) tick(s);
-  assert.ok(s.karen.progress > 0.25 && s.karen.progress < 0.45, "About a third of the ring after a second");
+  assert.ok(
+    s.karen.progress > 0.08 && s.karen.progress < 0.18,
+    "About an eighth of the ring after a second (8 s alone)",
+  );
   assert.ok(dist(s.coach, at) < 0.01, "The coach is planted while calming");
   const facing = Math.atan2(v.x - s.coach.x, v.z - s.coach.z);
   assert.ok(Math.abs(Math.atan2(Math.sin(s.coach.angle - facing), Math.cos(s.coach.angle - facing))) < 0.05);
@@ -178,10 +181,18 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
   assert.ok(s.interact());
   const score = s.score,
     annoyed = s.karen.annoyed.size;
-  for (let f = 0; f < 60 * 5 && v.status !== "calmed"; f++) tick(s);
+  for (let f = 0; f < 60 * 10 && v.status !== "calmed"; f++) tick(s);
   assert.equal(v.status, "calmed", "She calms down");
   assert.equal(s.coach.calming, false);
-  assert.equal(s.score, score + T.reward + (annoyed ? 0 : T.cleanBonus));
+  // (her reward: other points can come in during the 8 seconds, so it is read from her own points pop)
+  const reward = T.reward + (s.karen.annoyed.size ? 0 : T.cleanBonus);
+  assert.ok(
+    events(s, "points").some(
+      (e) => e.value === reward && Math.abs(e.x - v.x) < 0.01 && Math.abs(e.z - v.z) < 0.01,
+    ),
+    "Her reward is paid where she stands",
+  );
+  assert.ok(s.score >= score + reward - T.penalty * (s.karen.annoyed.size - annoyed), "...and counted");
   assert.ok(
     events(s, "save").some((e) => e.kind === "karen"),
     "The save stamps",
@@ -203,9 +214,10 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
 // Many hands (teamwork.mjs, 23 October 2026): in a crew every coach who holds E beside her calms her too, and the ring
 // fills faster with each one; the wheel shows each one's face, in the order they joined; one letting go slows it back down.
 {
+  assert.deepEqual(T.calmTimes, [8, 5, 3], "8 seconds alone, 5 for two, 3 for three (the creator's)");
   assert.deepEqual(
-    [teamSpeed(0), teamSpeed(1), teamSpeed(2), teamSpeed(3), teamSpeed(5)],
-    [0, ...TEAM_SPEED, 2.5],
+    [0, 1, 2, 3, 5].map((n) => teamTime(T.calmTimes, n)),
+    [8, 8, 5, 3, 3],
   );
   const s = new PoolSimulation(4, 31, { crew: ["waters", "rivers", "brooks"] });
   s.chaosPlan = [];
@@ -245,7 +257,7 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
     return (s.karen.progress - p) / seconds;
   };
   const solo = rate(0.25);
-  assert.ok(Math.abs(solo - 1 / T.calmTime) < 0.02, `one coach: the solo pace (${solo.toFixed(3)})`);
+  assert.ok(Math.abs(solo - 1 / 8) < 0.01, `one coach: 8 seconds (${(1 / solo).toFixed(2)} s)`);
   // Rivers joins: a second pair of hands, announced, on the wheel, and faster.
   assert.equal(s.inputAs(1, "nearestInteraction")?.kind, "calm", "The second coach is offered the calm too");
   assert.match(s.inputAs(1, "nearestInteraction").label, /help/i);
@@ -261,10 +273,7 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
     "Both faces on the wheel, in the order they joined",
   );
   const pair = rate(0.2);
-  assert.ok(
-    Math.abs(pair / solo - TEAM_SPEED[1]) < 0.05,
-    `two coaches: ${TEAM_SPEED[1]}x (${(pair / solo).toFixed(2)})`,
-  );
+  assert.ok(Math.abs(1 / pair - 5) < 0.2, `two coaches: 5 seconds (${(1 / pair).toFixed(2)} s)`);
   assert.ok(s.coaches[0].calming && s.coaches[1].calming, "Both are planted, calming");
   // Brooks makes three.
   s.inputAs(2, "setHold", true);
@@ -272,6 +281,8 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
   assert.equal(events(s, "team-up").at(-1).helpers, 3);
   assert.deepEqual(s.visitorTag(v).team, ["waters", "rivers", "brooks"]);
   assert.match(s.karen && Karen_describe(s), /by 3 coaches/);
+  const trio = rate(0.2);
+  assert.ok(Math.abs(1 / trio - 3) < 0.15, `three coaches: 3 seconds (${(1 / trio).toFixed(2)} s)`);
   // Rivers lets go: two again (Waters and Brooks), at the pair's pace.
   s.inputAs(1, "setHold", false);
   tick(s);
@@ -279,7 +290,7 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
   assert.equal(s.coaches[1].calming, false);
   assert.deepEqual(s.visitorTag(v).team, ["waters", "brooks"]);
   // On to the end: every helper is freed, and the crew is thanked.
-  for (let f = 0; f < 60 * 5 && v.status !== "calmed"; f++) tick(s);
+  for (let f = 0; f < 60 * 10 && v.status !== "calmed"; f++) tick(s);
   assert.equal(v.status, "calmed", "She calms down");
   assert.ok(
     s.coaches.every((c) => !c.calming && !c.calmLatched),
@@ -309,7 +320,7 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
   assert.ok(s.interact());
   assert.ok(s.coach.calmLatched);
   for (let f = 0; f < 60; f++) tick(s);
-  assert.ok(s.karen.calming && s.karen.progress > 0.25, "It carries on by itself");
+  assert.ok(s.karen.calming && s.karen.progress > 0.08, "It carries on by itself");
   s.setMovement(0, 1);
   tick(s);
   assert.equal(s.karen.calming, false, "Moving cancels it");
@@ -409,7 +420,7 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
   }
   assert.ok(Math.max(...swing) - Math.min(...swing) > 0.5, "...swinging up and down");
   // Calmed: she leaves and the room goes back to normal.
-  for (let f = 0; f < 60 * 5 && v.status !== "calmed"; f++) frames(1);
+  for (let f = 0; f < 60 * 10 && v.status !== "calmed"; f++) frames(1);
   assert.equal(v.status, "calmed");
   s.setHold(false);
   frames(60 * 3);

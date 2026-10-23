@@ -105,7 +105,7 @@ the same twice: see `docs/incidents.md`).
    him), **Coach Brooks** (the senior coach: shorter, rounder, grey moustache), **Coach Rivers** (a young woman coach), and since 23
    October **Coach Storm** (the tough coach: shaved head, tattoo sleeves, no moustache), **Coach Fontaine** (an afro, no cap) and
    **Coach Marsh** (the grumpy one, round as Carl and rigged like the leopard man, a scowl even at rest: `--temper`), the new ones with every one of Waters' clips and his face (no mouths); a new coach goes at the end of `COACHES`. **Many hands**
-   (`dist/teamwork.mjs`, 23 October 2026): every coach holding E on a hold-E job fills its wheel faster (1×, 1.8×, 2.5×), and the
+   (`dist/teamwork.mjs`, 23 October 2026): every coach holding E on a hold-E job fills its wheel faster (Karen: 8 s alone, 5 for two, 3 for three), and the
    wheel shows the faces of the coaches on it, a second ring once two are (no numbers); Karen first, the same for any hold-E job to come. A crew of two or three gets more guests, tips and incidents and higher
    star targets (`CREW`, measured with crews of bots, `CrewBot`). The network is `dist/net.mjs`: the host plays the seeded shift and
    shares every player's input stamped with its tick; each guest plays the same shift in step (hashes catch a drift). **Anything that

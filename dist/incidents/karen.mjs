@@ -6,7 +6,7 @@
 // annoyed poses and the calming gesture are all the presentation layer's.
 // With a crew (23 October 2026, teamwork.mjs) every coach who holds E beside her calms her too, and the ring fills faster
 // with each one on it; each coach's hold is their own (`coach.calming`, `coach.calmLatched`), the ring is hers.
-import { teamSpeed, joinTeam, teamTag } from "../teamwork.mjs";
+import { teamTime, joinTeam, teamTag } from "../teamwork.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -16,7 +16,7 @@ export const KAREN_TUNING = {
   stop: 1.25, // she stops this far from the coach and starts in
   resume: 2.2, // the coach steps further away than this and she follows
   reach: 2.0, // how close the coach must be to calm her
-  calmTime: 3, // seconds of holding E
+  calmTimes: [8, 5, 3], // seconds of holding E: one coach alone, two together, three (23 October 2026, the creator's)
   release: 1.6, // seconds for a full ring to drain once E is let go
   radius: 3.3, // her annoying range, in metres
   linger: 0.55, // an annoyed person stays annoyed this long after she moves on
@@ -308,7 +308,7 @@ function calm(sim, k, v, dt) {
       const c = sim.coaches[i];
       c.angle = Math.atan2(v.x - c.x, v.z - c.z);
     }
-    k.progress = clamp(k.progress + (dt * teamSpeed(k.helpers.length)) / T.calmTime, 0, 1);
+    k.progress = clamp(k.progress + dt / teamTime(T.calmTimes, k.helpers.length), 0, 1);
     if (k.progress >= 1) return calmed(sim, k, v);
   } else k.progress = Math.max(0, k.progress - dt / T.release);
 }

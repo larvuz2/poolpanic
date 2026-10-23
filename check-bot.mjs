@@ -856,7 +856,7 @@ export class CoachBot {
     if (!s.karen || s.nearestInteraction()?.kind !== "calm") return;
     s.setHold(true);
     s.interact();
-    for (let f = 0; f < 60 * 6 && s.karen && s.karen.calming && !this.over; f++) yield* this.frame$();
+    for (let f = 0; f < 60 * 10 && s.karen && s.karen.calming && !this.over; f++) yield* this.frame$();
     s.setHold(false);
   }
   *outage$() {
