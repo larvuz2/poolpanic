@@ -84,7 +84,7 @@ export async function loadCoachModel(url = new URL("../assets/coach-panic.glb", 
   template = await loadCoachFile(url, "Coach Waters");
   return template;
 }
-// Co-op's other coaches (crew.mjs: Coach Brooks, Rivers, Storm, Fontaine), on Coach Waters' skeleton with all his clips and his face:
+// Co-op's other coaches (crew.mjs: Coach Brooks, Rivers, Storm, Fontaine, Marsh), on Coach Waters' skeleton with all his clips and his face:
 // loaded when a crew has them, one template each. Until one has loaded (or if it fails) that player's coach is Coach Waters.
 const crewTemplates = {};
 export const crewModelReady = (look) => look === "waters" || !!crewTemplates[look];

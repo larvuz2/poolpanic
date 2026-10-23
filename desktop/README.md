@@ -42,7 +42,7 @@ enough; the app still uses Valve's test app 480, which every account has). On th
 3. On one machine: **PLAY WITH FRIENDS**, **Host a shift**, then **＋ Invite a friend**: Steam's overlay opens, pick the other account.
    (Shift+Tab also opens the overlay.)
 4. On the other: accept the invite in Steam (or right-click the host in the friends list, **Join Game**). The game opens the host's
-   lobby: pick a coach with ◀ ▶ (five to choose from: Waters, Brooks, Rivers, Storm, Fontaine; the host can change theirs too), then
+   lobby: pick a coach with ◀ ▶ (six to choose from: Waters, Brooks, Rivers, Storm, Fontaine, Marsh; the host can change theirs too), then
    **READY**.
 5. The host picks a pool and a difficulty and presses **Start the shift**. Play it through, then **Back to the crew** for another.
 

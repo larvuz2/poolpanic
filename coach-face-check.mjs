@@ -76,6 +76,26 @@ for (const name of EXPRESSION_NAMES) {
   }
 }
 assert.ok(EXPRESSION_NAMES.length >= 8, "neutral and the faces of trouble");
+{
+  // A coach's resting face (Coach Marsh's scowl, coach_face.py --temper): over every expression, the brows moved by it and
+  // the lids lowered only where the expression leaves them open, so a fright still opens his eyes.
+  const temper = { browIn: [0.006, -0.009], browOut: [0, 0.004], lid: 80 };
+  const calm = expressionFor("neutral", "L", temper),
+    fright = expressionFor("alarm", "L", temper),
+    plain = expressionFor("alarm", "L");
+  assert.deepEqual(calm.browIn, [0.006, -0.009], "a scowl at rest");
+  assert.equal(calm.lid, 80, "heavy lids at rest");
+  assert.ok(
+    Math.abs(fright.browIn[1] - (plain.browIn[1] - 0.009)) < 1e-9,
+    "the fright's brows from his scowl",
+  );
+  assert.equal(fright.lid, plain.lid, "…and his eyes as wide as anyone's");
+  assert.deepEqual(
+    expressionFor("neutral", "L", null),
+    expressionFor("neutral", "L"),
+    "no temper, no change",
+  );
+}
 
 // ---- the mood ------------------------------------------------------------------------------------------------------
 assert.equal(coachMood({}), "neutral");

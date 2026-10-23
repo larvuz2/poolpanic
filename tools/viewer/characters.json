@@ -201,6 +201,56 @@
       "face": true
     },
     {
+      "id": "coach-marsh",
+      "name": "Coach Marsh",
+      "file": "../../dist/assets/coach-marsh.glb",
+      "skeleton": "coach-panic",
+      "note": "Co-op's sixth coach (23 October 2026, the creator: \"a grumpy overweight coach … rigs and animation similar to leopard man … No mouth … use carl as reference\"): round as Carl, 1.66 m, bald with a grey-brown fringe, heavy scowling brows, a bottle-green polo with orange trim stretched over the belly, navy shorts with an orange stripe. No mouth. Meshy 7 mesh from a GPT Image 2.5 picture made from Coach Waters' and Carl's. Made like the leopard man and Carl: Coach Waters' 24-bone skeleton (rig_from_template.py) plus the three belly bones (belly_bones.py), every one of the Coach's twelve clips retargeted onto him (retarget_clips.py), the belly's motion baked into every clip (belly_jiggle.py: it lags the body, bounces on steps and landings, rises with each breath in the idles; Startle played once), the arms swung out of the belly (by up to 60 degrees) and the knees' bend cut where a shin would go into it (clear_limbs.py --arm-max 62; in Swim more gently, --arm-max 35 --overlap 0.04, so the stroke still reaches down past the body: a forearm brushes the belly by up to 6 cm under water), the feet on the floor (ground_clips.py). No Cannonball: he is a coach. His face (coach_face.py --no-stache --dy -0.02 --temper, added last): the Coach's 18 face bones and nine expressions, over a resting scowl kept in the Face bone's extras (temper: the brows down at the middle, heavier lids) that the game lays over every expression.",
+      "extraBones": {
+        "BellyUpper": "Spine01",
+        "BellyMid": "Spine02",
+        "BellyLower": "Hips"
+      },
+      "clips": {
+        "Run": {
+          "pop": true,
+          "why": "the knee swings about 42 degrees a frame in a fast run, as in the Coach's own clip"
+        },
+        "Swim": {
+          "prone": true
+        },
+        "SwimRing": {
+          "prone": true
+        },
+        "Startle": {
+          "open": true,
+          "pop": true,
+          "why": "a jolt: the arms are flung up over the head in a fifth of a second (66 degrees a frame at the shoulders)"
+        }
+      },
+      "retargeted": [
+        "FreakOut",
+        "Haul",
+        "IceSkate",
+        "IceSlide",
+        "IdleScan",
+        "IdleScratch",
+        "Panic",
+        "Run",
+        "Startle",
+        "Swim",
+        "SwimRing",
+        "Walk"
+      ],
+      "face": true,
+      "adjusted": {
+        "LeftArm": 62,
+        "RightArm": 62,
+        "LeftLeg": 55,
+        "RightLeg": 55
+      }
+    },
+    {
       "id": "marco",
       "name": "Marco",
       "file": "models/marco.glb",

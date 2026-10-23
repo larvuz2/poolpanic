@@ -159,10 +159,18 @@ const SIDES = ["L", "R"];
 const BLINK = 0.15; // seconds, down and up
 const BROW_CLEAR = 0.006 + 0.004; // half a brow's depth and a gap: how far in front of an eye ball a brow keeps
 
-// The full numbers of an expression for one side (the defaults filled in, the side's own overrides on top).
-export function expressionFor(name, side) {
+// The full numbers of an expression for one side (the defaults filled in, the side's own overrides on top). `temper`: a
+// coach's own resting face, from the `Face` bone's extras (coach_face.py --temper), over every expression: Coach Marsh (23
+// October 2026, the grumpy coach) scowls even when nothing is wrong. {browIn, browOut}: added to every expression's brows;
+// lid: the upper lids' resting place where an expression leaves them open (100), so a fright still opens his eyes wide.
+export function expressionFor(name, side, temper = null) {
   const e = EXPRESSIONS[name] || {};
-  return { ...NEUTRAL, ...e, ...(e[side] || {}) };
+  const out = { ...NEUTRAL, ...e, ...(e[side] || {}) };
+  if (!temper) return out;
+  for (const k of ["browIn", "browOut"])
+    if (temper[k]) out[k] = out[k].map((v, i) => v + (temper[k][i] || 0));
+  if (temper.lid != null && out.lid === NEUTRAL.lid) out.lid = temper.lid;
+  return out;
 }
 const NUMERIC = Object.keys(NEUTRAL);
 function mix(a, b, u) {
@@ -202,11 +210,15 @@ export class CoachFace {
     this.ok = !!face && SIDES.every((s) => BONES.slice(1).every((b) => this.bones[b + s]));
     if (!this.ok) return;
     this.info = face.userData || {};
+    this.temper = this.info.temper || null;
     this.rest = {};
     for (const o of Object.values(this.bones))
       this.rest[o.name] = { p: o.position.clone(), q: o.quaternion.clone(), s: o.scale.clone() };
     this.name = "neutral";
-    this.current = { L: expressionFor("neutral", "L"), R: expressionFor("neutral", "R") };
+    this.current = {
+      L: expressionFor("neutral", "L", this.temper),
+      R: expressionFor("neutral", "R", this.temper),
+    };
     this.time = 0;
     this.blinkIn = 1 + random() * 3;
     this.blinkT = -1;
@@ -220,7 +232,7 @@ export class CoachFace {
     if (name !== this.name && name === "alarm") this.blinkT = -1; // a fright never comes with the eyes shut
     this.name = name;
     if (now) {
-      this.current = { L: expressionFor(name, "L"), R: expressionFor(name, "R") };
+      this.current = { L: expressionFor(name, "L", this.temper), R: expressionFor(name, "R", this.temper) };
       const g = this.current.L.gaze;
       this.gaze = [g[0], g[1]];
       this.gazeTo = [0, 0];
@@ -233,7 +245,8 @@ export class CoachFace {
     this.time += dt;
     const speed = SPEED[this.name] || 8,
       u = 1 - Math.exp(-speed * dt);
-    for (const side of SIDES) this.current[side] = mix(this.current[side], expressionFor(this.name, side), u);
+    for (const side of SIDES)
+      this.current[side] = mix(this.current[side], expressionFor(this.name, side, this.temper), u);
     const e = this.current.L;
     // blinks
     let close = 0;

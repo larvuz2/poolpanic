@@ -450,6 +450,21 @@ three, over Steam.
   both are on the Anim Bench, and `rig-check.mjs` holds them like the others (Storm's arms and legs, and Fontaine's knees by half a
   degree, as `clear_limbs.py` turned them: `adjusted` in the manifest). Every expression and the clips were rendered and checked by
   eye here; neither has been seen in a shift over Steam.
+- **The grumpy coach (23 October 2026)**, the creator: "one more coach a grumpy overweight coach!! Make sure rigs and animation are
+  similar to leopard man!! No mouth..use carl as reference." **Coach Marsh**: as round as Carl (whose T-pose picture was the second
+  reference, with Coach Waters', for GPT Image 2.5), 1.66 m, bald with a grey-brown fringe, heavy scowling brows, no mouth and no
+  moustache, a bottle-green polo with orange trim stretched over the belly, navy shorts with an orange stripe, the whistle on the
+  belly. Rigged **like the leopard man and Carl**: Waters' skeleton plus the three belly bones (`belly_bones.py`), all twelve of Waters'
+  clips, the belly's lag, bounce and breath baked into every clip (`belly_jiggle.py`, Startle played once), the arms swung out of the
+  belly and the knees' bend cut where a shin would go into it (`clear_limbs.py --arm-max 62`; Swim more gently, `--arm-max 35
+  --overlap 0.04`, or its stroke would no longer reach down past the body: a forearm brushes the belly under water), grounded; no
+  Cannonball (he is a coach). His face has the 18 bones and nine expressions, and a **resting scowl**: `coach_face.py --temper` keeps
+  a coach's own resting face in the `Face` bone's extras (his: the brows down at the middle, heavier lids) and
+  `dist/scene/coach-face.mjs` lays it over every expression (`expressionFor(name, side, temper)`; the lids only where an expression
+  leaves them open, so a fright still opens his eyes wide). Six coaches to choose from now, three at most in a crew. Files:
+  `coach-marsh.glb`, `coach-marsh.webp`; on the Anim Bench; `rig-check.mjs` holds him to the skeleton, the clips, the belly bones and
+  the face (his arms turned by up to 62 degrees, `adjusted`), `coach-face-check.mjs` the temper. Every expression and the clips were
+  rendered and checked by eye here; he has not been seen in a shift over Steam.
 - **The menu** (`dist/coop-ui.mjs`, the way Overcooked does it on Steam): PLAY WITH FRIENDS opens a window; **Host a shift** opens a
   friends-only Steam lobby of three; empty slots have **＋ Invite a friend** (the Steam overlay's invite). A friend joins from the
   invite, from **Join Game** on the host in Steam's friends list (the host's rich presence carries `+connect_lobby`), or by starting the
@@ -1334,7 +1349,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/chaos.mjs` | Incident scheduling, visitors, puddles, the storm's weather and rain puddles, fleeing swimmers, shared hooks, pointer shortcuts |
 | `dist/incidents/*.mjs` | One module per incident: `fish`, `dog`, `carl`, `outage`, `trampoline`, `karen`, `wet` (the wet spots and the mop); plus `twist` (the five mid-shift twists: rush, closure, swim team, aqua class, storm) |
 | `dist/deck-physics.mjs` | Deck contacts, separation, passing and route cooperation |
-| `dist/crew.mjs` | Co-op: the five coaches (three at most in a crew), and the shift a crew of two or three plays (`crewConfig`, `CREW`) |
+| `dist/crew.mjs` | Co-op: the six coaches (three at most in a crew), and the shift a crew of two or three plays (`crewConfig`, `CREW`) |
 | `dist/net.mjs` | Co-op over the network: the lobby, the host and guests sharing stamped inputs, transports, `Predictor` |
 | `dist/coop-ui.mjs` | PLAY WITH FRIENDS: host, invite, the three slots and their coaches, ready, the host's pool, start |
 | `dist/steam-net.mjs` | Co-op's Steam transport: the lobby and relayed P2P through the desktop app (`desktop.steam.net`) |
