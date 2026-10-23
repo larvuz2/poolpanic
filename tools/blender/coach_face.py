@@ -1,6 +1,6 @@
 """Give Coach Waters a face that can act: eyes, lids, pupils, brows and moustache on bones the game moves.
     python3 tools/blender/coach_face.py in.glb out.glb [--debug DIR] [--no-stache] [--dy M] [--eye-grow K] [--brow-y LO,HI]
-        [--brows-from-eyes] [--brow-height M]
+        [--brows-from-eyes] [--brow-height M] [--temper JSON]
 (plain Python with numpy, PIL and OpenCV, no Blender: the file is read and written like carry_clips.py does, and the clips,
 the body's mesh and its skin stay as they were). The Meshy model's face is painted: two big white eyes with a black dot each,
 two black brows and a moustache, on one textured mesh. Paint cannot move, so this script adds what can:
@@ -65,6 +65,9 @@ BROW_Y = (1.5, 1.6)
 # --brows-from-eyes: the brows are not measured but put where Coach Waters' are over his eyes (and nothing is painted out),
 # for a coach whose painted brows are too thin or too close to her hair to find (Coach Fontaine's, under the afro)
 BROWS_FROM_EYES = False
+# --temper JSON: the coach's resting face, kept in the Face bone's extras and laid over every expression by the game (Coach
+# Marsh, the grumpy coach: '{"browIn": [0.006, -0.009], "browOut": [0, 0.004], "lid": 80}', a scowl even at rest)
+TEMPER = None
 
 
 def Y(*v):
@@ -538,6 +541,8 @@ def main(args):
     BROWS_FROM_EYES = "--brows-from-eyes" in args
     global BROW_HEIGHT
     BROW_HEIGHT = float(option(args, "--brow-height", BROW_HEIGHT))  # (Coach Fontaine's are finer: 0.018)
+    global TEMPER
+    TEMPER = json.loads(option(args, "--temper", "null"))
     BROW_Y = tuple(float(v) for v in option(args, "--brow-y", f"{BROW_Y[0]},{BROW_Y[1]}").split(","))
     # (Coach Rivers has no moustache: --no-stache keeps its three bones, so every coach's face has the same 18, and weights
     # nothing to them)
@@ -751,6 +756,9 @@ def main(args):
                          "outer": [round(float(v), 5) for v in brow_meshes[side][4][1]]} for side, _ in SIDES},
         "stache": [round(float(v), 5) for v in pivot],
     }
+    if TEMPER:
+        # a coach's resting face over every expression (dist/scene/coach-face.mjs expressionFor): Coach Marsh's scowl
+        face["extras"]["temper"] = TEMPER
     pack.repack()
     write_glb(dst, doc, pack.binary)
     print("FACE", len(bones), "bones;", len(P), "vertices,", len(T), "triangles;", len(touched), "moustache vertices weighted")

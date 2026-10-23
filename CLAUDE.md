@@ -101,10 +101,10 @@ the same twice: see `docs/incidents.md`).
    Phase 2 is done**, and **keep the reward (the Sunday date) as it is for now** ("we'll change it later").
    **Online co-op (22 October 2026, README "Online co-op")**: PLAY WITH FRIENDS on the menu, up to three players over Steam, the
    Overcooked way (a friends-only lobby, the overlay's invite or Join Game, a slot each with ◀ ▶ to pick a coach nobody else has, READY,
-   the host picks the pool and difficulty and starts). Five coaches (`dist/crew.mjs`): **Coach Waters** (a single player is always
+   the host picks the pool and difficulty and starts). Six coaches (`dist/crew.mjs`): **Coach Waters** (a single player is always
    him), **Coach Brooks** (the senior coach: shorter, rounder, grey moustache), **Coach Rivers** (a young woman coach), and since 23
-   October **Coach Storm** (the tough coach: shaved head, tattoo sleeves, no moustache) and **Coach Fontaine** (an afro, no cap), the
-   new ones with every one of Waters' clips and his face (no mouths); a new coach goes at the end of `COACHES`. A crew of two or three gets more guests, tips and incidents and higher
+   October **Coach Storm** (the tough coach: shaved head, tattoo sleeves, no moustache), **Coach Fontaine** (an afro, no cap) and
+   **Coach Marsh** (the grumpy one, round as Carl and rigged like the leopard man, a scowl even at rest: `--temper`), the new ones with every one of Waters' clips and his face (no mouths); a new coach goes at the end of `COACHES`. A crew of two or three gets more guests, tips and incidents and higher
    star targets (`CREW`, measured with crews of bots, `CrewBot`). The network is `dist/net.mjs`: the host plays the seeded shift and
    shares every player's input stamped with its tick; each guest plays the same shift in step (hashes catch a drift). **Anything that
    changes the simulation must stay deterministic and go through an input method** (in `INPUTS`, replay.mjs), or co-op drifts;

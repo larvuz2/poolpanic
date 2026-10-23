@@ -1,11 +1,12 @@
 // Co-op crews (22 October 2026, the creator: "if we are two players, the scaling of the swimmers and incidents increases, and if
-// we are three players, we increase again"). Up to three coaches on one shift, each a player online (net.mjs), out of five: Coach
+// we are three players, we increase again"). Up to three coaches on one shift, each a player online (net.mjs), out of six: Coach
 // Waters, whom a single player always is, Coach Brooks, the senior coach (shorter, rounder, a grey moustache), Coach Rivers, and
-// since 23 October 2026 Coach Storm (the tough coach: shaved head, tattoo sleeves) and Coach Fontaine (an afro, no cap). Pure: the
+// since 23 October 2026 Coach Storm (the tough coach: shaved head, tattoo sleeves), Coach Fontaine (an afro, no cap) and Coach
+// Marsh (the grumpy one: round as Carl, bald, a scowl even at rest). Pure: the
 // shift a crew plays is the solo shift with more of everything, made here from the shift's config before the simulation starts,
 // so the host and every guest build the very same shift from the same config, seed and crew.
 
-// The five coaches a player can be (the character select, coop-ui.mjs), in the order the carousel shows them. `model` is the
+// The six coaches a player can be (the character select, coop-ui.mjs), in the order the carousel shows them. `model` is the
 // file in dist/assets (coach-panic.glb is Coach Waters' file of old). A new coach goes at the end: a crew's default picks are
 // the first free ones.
 export const COACHES = [
@@ -20,6 +21,7 @@ export const COACHES = [
     model: "coach-fontaine.glb",
     colour: "#b07cff",
   },
+  { id: "marsh", name: "Coach Marsh", short: "Marsh", model: "coach-marsh.glb", colour: "#1fbf8f" },
 ];
 export const COACH_IDS = COACHES.map((c) => c.id);
 export const MAX_CREW = 3;
