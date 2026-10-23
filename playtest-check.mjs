@@ -327,7 +327,7 @@ const memory = () => {
   );
   assert.match(
     lines.at(-1),
-    /^- Incidents not seen yet: stomach, spill, dog, carl, flicker, crash, rush, team, class, closure, storm$/,
+    /^- Incidents not seen yet: stomach, spill, dog, carl, massage, flicker, crash, rush, team, class, closure, storm$/,
   );
   const all = new Coverage();
   all.begin({ level: 1 });

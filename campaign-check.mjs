@@ -609,7 +609,10 @@ const emitted = (s, type, kind) => s.events.filter((e) => e.type === type && e.k
   assert.ok(
     aq.obstacles.some((o) => o.kind === "podium") && aq.obstacles.some((o) => o.kind === "team-bench"),
   );
-  for (const [name, at] of [...Object.entries(aq.stations), ...Object.entries(aq.fixtures)])
+  // (the massage table is reached from its sides, which massage-check.mjs holds to the deck)
+  for (const [name, at] of [...Object.entries(aq.stations), ...Object.entries(aq.fixtures)].filter(
+    ([name]) => name !== "massage",
+  ))
     assert.ok(
       aq.isDeck(at.x + (at.x > 0 ? -0.9 : 0.9), at.z, 3, 0.3) || aq.isDeck(at.x, at.z + 1.2, 3, 0.3),
       name + " can be reached",

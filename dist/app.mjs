@@ -1164,6 +1164,7 @@ const TRIGGERS = [
   ["dog", "🐶 Loose dog"],
   ["carl", "💣 Cannonball man"],
   ["karen", "😡 Karen"],
+  ["massage", "💆 Massage"],
   ["outage", "⚡ Power cut"],
 ];
 let pulseClock = 0,
@@ -1305,6 +1306,7 @@ const crampCandidate = () =>
 // Why a trigger is not offered right now, or "" when it is.
 function triggerBlocker(key) {
   if (!ptPaused || ptResume !== "playing") return "start a shift";
+  if (key === "massage" && !sim.venue.fixtures?.massage) return "no massage table here";
   if (key === "cramp")
     return sim.level < 2
       ? "from level 2"
@@ -3263,23 +3265,25 @@ function updateUI() {
                       ? "Is that kid carrying a FISH?"
                       : sim.karen && !["calmed", "leaving"].includes(sim.visitor(sim.karen.id)?.status)
                         ? "Karen is complaining. Everyone is annoyed."
-                        : sim.carl
-                          ? sim.carl.name + " is loose. Brace for splash."
-                          : sim.dog && sim.dog.stage !== "leaving"
-                            ? "There’s a dog on the deck!"
-                            : sim.get(sim.jumper)?.jumpStage === "waiting"
-                              ? "A daredevil is waiting on the tower."
-                              : sim.laneClosed() >= 0
-                                ? laneWord(sim) + " " + (sim.laneClosed() + 1) + " is closed · wet floor."
-                                : chaos > 3
-                                  ? "Keep calm. Mostly calm."
-                                  : chaos > 0
-                                    ? "Someone needs a little love."
-                                    : sim.streak >= 3
-                                      ? "Now we’re in the swim of it."
-                                      : count > 3
-                                        ? "The deck is getting crowded."
-                                        : "Looking good, coach.";
+                        : sim.massage?.stage === "lying"
+                          ? "Someone is waiting on the massage table."
+                          : sim.carl
+                            ? sim.carl.name + " is loose. Brace for splash."
+                            : sim.dog && sim.dog.stage !== "leaving"
+                              ? "There’s a dog on the deck!"
+                              : sim.get(sim.jumper)?.jumpStage === "waiting"
+                                ? "A daredevil is waiting on the tower."
+                                : sim.laneClosed() >= 0
+                                  ? laneWord(sim) + " " + (sim.laneClosed() + 1) + " is closed · wet floor."
+                                  : chaos > 3
+                                    ? "Keep calm. Mostly calm."
+                                    : chaos > 0
+                                      ? "Someone needs a little love."
+                                      : sim.streak >= 3
+                                        ? "Now we’re in the swim of it."
+                                        : count > 3
+                                          ? "The deck is getting crowded."
+                                          : "Looking good, coach.";
   $("hint").textContent =
     sim.incidentHint() ||
     (sim.coach.carry === "skimmer"
@@ -3549,13 +3553,21 @@ function updateBubbles() {
       b.className = "bubble";
       b.dataset.swimmer = String(p.id);
       b.innerHTML =
-        '<span class="rescue-marker" hidden>🛟</span><div class="face"><span class="type-icon"></span><span class="type-label"></span><span class="mood-icon"></span></div><div class="hp"><i></i></div><span class="stomach-meter" hidden><i></i><b></b></span><span class="label-name"></span>';
+        '<span class="rescue-marker" hidden>🛟</span><div class="ring" hidden><b></b><span class="team"></span></div><div class="face"><span class="type-icon"></span><span class="type-label"></span><span class="mood-icon"></span></div><div class="hp"><i></i></div><span class="stomach-meter" hidden><i></i><b></b></span><span class="label-name"></span>';
       $("world-labels").appendChild(b);
       bubbles.set(p.id, b);
     }
     const screen = world.project(
       p.x,
-      p.status === "swim" ? (p.type === "aqua" ? 1.15 : 0.8) : p.status === "injured" ? 1.15 : 2 + (p.y || 0),
+      p.status === "swim"
+        ? p.type === "aqua"
+          ? 1.15
+          : 0.8
+        : p.status === "injured"
+          ? 1.15
+          : p.status === "massage" && p.massage !== "walk"
+            ? 1.55
+            : 2 + (p.y || 0),
       p.z,
     );
     // (Only what changed is written: a tag is updated every frame and most frames change nothing in it. 16 October 2026.)
@@ -3574,17 +3586,42 @@ function updateBubbles() {
     putProp(b.querySelector(".rescue-marker"), "hidden", !rescuing);
     b.classList.toggle("stomach-warning", !!p.stomachWarning);
     b.classList.toggle("injured", p.status === "injured");
-    // One countdown bar: stomach trouble, or a daredevil losing patience on the tower.
+    // An incident's wheel on the guest's own tag (the massage table: the hold-E wheel with the coaches' faces on it, as on
+    // Karen's, incidents/massage.mjs) and its patience as the countdown bar.
+    const own = sim.personTag?.(p) || null,
+      ring = b.querySelector(".ring");
+    putProp(ring, "hidden", own?.ring === undefined);
+    if (own?.ring !== undefined) {
+      ring.style.setProperty("--fill", Math.round(own.ring * 360) + "deg");
+      ring.classList.toggle("holding", own.ring > 0.02 || !!own.team?.length);
+      put(ring.firstElementChild, own.ring > 0.02 || own.team?.length ? "✋" : "E");
+      teamWheel(ring, own.team || []);
+    }
+    b.classList.toggle("massage-edgy", !!own?.edgy);
+    // One countdown bar: stomach trouble, a daredevil losing patience on the tower, or a guest on the massage table.
     const jumpWait = p.status === "trampoline" && p.jumpStage === "waiting",
+      waiting = own?.patience !== undefined,
       asking = !!p.ask && p.status === "swim" && !p.problem && !p.stomachWarning,
       stomach = b.querySelector(".stomach-meter");
-    putProp(stomach, "hidden", !p.stomachWarning && !jumpWait && !asking);
-    stomach.classList.toggle("jump-meter", jumpWait);
+    putProp(stomach, "hidden", !p.stomachWarning && !jumpWait && !asking && !waiting);
+    stomach.classList.toggle("jump-meter", jumpWait || waiting);
     stomach.classList.toggle("tip-meter", asking);
     b.classList.toggle("asking", asking);
     if (!stomach.hidden) {
-      const left = jumpWait ? p.jumpPatience : asking ? TIPS.limit - p.ask.t : p.sicknessTimer,
-        total = jumpWait ? sim.config.jumpPatience || 15 : asking ? TIPS.limit : p.sicknessDuration;
+      const left = waiting
+          ? own.left
+          : jumpWait
+            ? p.jumpPatience
+            : asking
+              ? TIPS.limit - p.ask.t
+              : p.sicknessTimer,
+        total = waiting
+          ? own.left / Math.max(0.001, own.patience)
+          : jumpWait
+            ? sim.config.jumpPatience || 15
+            : asking
+              ? TIPS.limit
+              : p.sicknessDuration;
       putStyle(stomach.querySelector("i"), "width", Math.round(Math.max(0, (left / total) * 100)) + "%");
       put(stomach.querySelector("b"), Math.ceil(left) + "s");
     }
@@ -3849,6 +3886,7 @@ const BREAKS = {
   cannonball: "a cannonball",
   fish: "a fish in the pool",
   karen: "Karen annoyed {name}",
+  massage: "{name} gave up on a massage",
   crash: "a trampoline crash",
   slip: "{name} slipped",
   overboard: "{name} went over the edge",
@@ -3941,7 +3979,8 @@ function events() {
       } else if (e.type === "fish-caught") {
         world.splash(e.x, -0.1, e.z, 18);
       } else if (e.type === "karen-arrive") world.kick(0.15);
-      else if (e.type === "karen-calmed") world.sparkle(e.x, e.z);
+      else if (e.type === "karen-calmed" || e.type === "massage-done") world.sparkle(e.x, e.z);
+      else if (e.type === "massage-angry") world.kick(0.2);
       else if (e.type === "cannonball") {
         world.bigSplash(e.x, e.z, 1.6);
         world.incidentView.ripple(e.x, e.z);

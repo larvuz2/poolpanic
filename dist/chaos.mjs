@@ -8,6 +8,7 @@ import { LooseDog } from "./incidents/dog.mjs";
 import { CannonballCarl } from "./incidents/carl.mjs";
 import { PowerOutage } from "./incidents/outage.mjs";
 import { Karen, annoyable } from "./incidents/karen.mjs";
+import { Massage } from "./incidents/massage.mjs";
 import { planTwists, startTwist } from "./incidents/twist.mjs";
 import { WetSpots, useMop } from "./incidents/wet.mjs";
 import { CoachTips } from "./tips.mjs";
@@ -37,6 +38,7 @@ export const SYSTEMS = [
   LooseDog,
   Trampoline,
   Karen,
+  Massage,
   WaveMachine,
   RooftopParty,
   ShipDeck,
@@ -534,6 +536,14 @@ export class ChaosController extends RescueController {
     super.collectInteractions(options);
     if (!this.canInteract()) return;
     for (const system of this.systems) system.interactions?.(this, options);
+  }
+  // What an incident shows on a guest's own tag (the massage's wheel and patience, incidents/massage.mjs), or null.
+  personTag(p) {
+    for (const system of this.systems) {
+      const tag = system.personTag?.(this, p);
+      if (tag) return tag;
+    }
+    return null;
   }
   collectAlerts(alerts) {
     super.collectAlerts(alerts);

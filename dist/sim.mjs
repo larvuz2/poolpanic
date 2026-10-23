@@ -5,6 +5,7 @@ import { ChaosController, HOLD_LIMIT } from "./chaos.mjs";
 import { ENTRY, VENUES, createCoach } from "./spatial.mjs";
 import { BOOKINGS, applyBooking } from "./bookings.mjs";
 import { WetSpots, wetSpotAt, slippedInWet } from "./incidents/wet.mjs";
+import { Massage } from "./incidents/massage.mjs";
 import { tickTips } from "./tips.mjs";
 import { createBig, BIG } from "./big-moment.mjs";
 import {
@@ -1457,6 +1458,11 @@ export class PoolSimulation extends ChaosController {
         p.stunned = Math.max(p.stunned || 0, 1);
         // One in five drips a wet spot where they got out (incidents/wet.mjs).
         WetSpots.climbedOut(this, p, { x: p.x, z: p.exitEnd * (P.endWalkZ + 0.15) });
+        // A massage table waiting for someone (incidents/massage.mjs): this swimmer goes to it instead of home.
+        if (this.massage && Massage.claim(this, p)) {
+          this.emit("splash", { x: p.x, z: p.exitEnd * P.climbZ });
+          return true;
+        }
         // Reach the outside corner first, then follow the long side back to the locker (on the cruise ship, the ship's routes).
         if (this.venue.cruise) {
           p.path = [
@@ -1653,7 +1659,8 @@ export class PoolSimulation extends ChaosController {
         this.tickFleeing(p, dt) ||
         this.tickSwitch(p, dt) ||
         this.tickJumper(p, dt) ||
-        p.status === "injured"
+        p.status === "injured" ||
+        p.status === "massage" // (on the way to the massage table, or on it: incidents/massage.mjs moves them)
       )
         continue;
       p.eyeCooldown = Math.max(0, p.eyeCooldown - dt);

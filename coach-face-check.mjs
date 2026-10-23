@@ -35,7 +35,7 @@ for (const a of json.animations)
       `${a.name} keys ${nodes[ch.target.node].name}: the face is the game's to drive`,
     );
 const names = json.animations.map((a) => a.name);
-for (const key of ["startle", "haul", "freakOut"])
+for (const key of ["startle", "haul", "freakOut", "massage"])
   assert.ok(names.includes(CLIPS[key]), `the file has ${CLIPS[key]}`);
 assert.ok(HEAVY_JOBS.has("haul") && HEAVY_JOBS.has("help-out") && !HEAVY_JOBS.has("mop"), "the heavy jobs");
 
@@ -220,5 +220,5 @@ const seeded =
   face.reset();
 }
 console.log(
-  `Coach face checks passed: 18 face bones that no clip keys, ${EXPRESSION_NAMES.length} expressions (each one doing what it says on the real bones), the mood from what is happening to him, blinks and glances when alive and stillness when asked, the head left alone, and the three clips of trouble in the file.`,
+  `Coach face checks passed: 18 face bones that no clip keys, ${EXPRESSION_NAMES.length} expressions (each one doing what it says on the real bones), the mood from what is happening to him, blinks and glances when alive and stillness when asked, the head left alone, and the three clips of trouble and the massage in the file.`,
 );

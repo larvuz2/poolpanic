@@ -379,6 +379,21 @@ export class PoolAudio {
       const up = Math.max(0, (e.helpers || 2) - 2) * 3;
       [523, 659, 784].forEach((f, i) => this.tone(f * 2 ** (up / 12), t + i * 0.06, 0.16, 0.11, "square"));
       this.tone(1046 * 2 ** (up / 12), t + 0.2, 0.3, 0.09, "triangle");
+    } else if (type === "massage-lie") {
+      // Flopping face down onto the padded table: a soft thump and a contented hum.
+      this.tone(110, t, 0.22, 0.16, "sine", 70);
+      this.noise(t, 0.18, 0.05, 500);
+      this.tone(262, t + 0.18, 0.4, 0.06, "triangle", 247);
+    } else if (type === "massage-done") {
+      // Bliss: a long "aaah" sliding down, then a warm major chime.
+      this.tone(392, t, 0.8, 0.09, "triangle", 262);
+      this.noise(t, 0.6, 0.04, 600);
+      [523, 659, 784, 1047].forEach((f, i) => this.tone(f, t + 0.5 + i * 0.08, 0.3, 0.08, "sine"));
+    } else if (type === "massage-angry") {
+      // Up off the table in a huff: a slap on the cushion and a cross "hmph!".
+      this.noise(t, 0.08, 0.14, 1600);
+      this.tone(180, t + 0.05, 0.25, 0.14, "sawtooth", 120);
+      this.tone(300, t + 0.3, 0.18, 0.1, "square", 220);
     } else if (type === "karen-calmed") {
       // A long sigh down, then a small relieved chime.
       this.noise(t, 0.7, 0.07, 700);
@@ -720,6 +735,8 @@ export class PoolAudio {
           );
           this.noise(at + 0.5, 0.15, 0.06, 2800);
         },
+        // A spa's three soft bells, rising (someone is waiting on the massage table).
+        massage: () => [659, 784, 988].forEach((f, i) => this.tone(f, at + i * 0.16, 0.35, 0.09, "sine")),
         carl: () => {
           this.tone(1800, at, 0.3, 0.07, "sine", 2400);
           this.tone(160, at + 0.05, 0.45, 0.12, "sawtooth", 420);

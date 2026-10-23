@@ -38,6 +38,14 @@ def measure(path):
     if len(roots) != 1:
         raise SystemExit(f"{arm.name} has {len(roots)} root bones, expected one")
     meshes = common.meshes()
+    # A coach's face (coach_face.py) hangs from its own bones under Face, which Blender's importer reads wrong (it puts a
+    # moustache 2.4 m under the floor): those vertices are left out. A face is never the lowest point of a body anyway.
+    face = arm.data.bones.get("Face")
+    face_bones = {b.name for b in face.children_recursive} | {"Face"} if face else set()
+    keep = {}
+    for mesh in meshes:
+        groups = {g.index for g in mesh.vertex_groups if g.name in face_bones}
+        keep[mesh.name] = np.array([not any(g.group in groups and g.weight > 0 for g in v.groups) for v in mesh.data.vertices])
     arm.animation_data_create()
     result = {}
     for action in sorted(bpy.data.actions, key=lambda a: a.name):
@@ -57,7 +65,10 @@ def measure(path):
                 co = np.empty(len(data.vertices) * 3)
                 data.vertices.foreach_get("co", co)
                 matrix = np.array(posed.matrix_world)
-                low = min(low, float((co.reshape(-1, 3) @ matrix[:3, :3].T + matrix[:3, 3])[:, 2].min()))
+                points = co.reshape(-1, 3)
+                if len(keep[mesh.name]) == len(points):
+                    points = points[keep[mesh.name]]
+                low = min(low, float((points @ matrix[:3, :3].T + matrix[:3, 3])[:, 2].min()))
                 posed.to_mesh_clear()
             heights.append(low)
         result[action.name] = np.array(heights)
