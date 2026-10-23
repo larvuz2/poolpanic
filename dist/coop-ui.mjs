@@ -1,8 +1,9 @@
 // PLAY WITH FRIENDS on the menu (22 October 2026): online co-op for up to three, the way Overcooked does it on Steam. The host
 // opens a friends-only lobby and invites friends through the Steam overlay (or a friend joins from "Join Game" in the friends
 // list, or starts the game from the invite); everyone in the lobby has a slot with their coach, picked with ◀ ▶ (each coach
-// once: Coach Waters, Coach Brooks, Coach Rivers, crew.mjs), and READY; the host picks the pool and difficulty (any pool the
-// host has opened, as in FREE PLAY) and starts once everyone is ready. The shift itself is played through net.mjs.
+// once, out of five: Coach Waters, Brooks, Rivers, Storm and Fontaine, crew.mjs), and READY; the host picks the pool and
+// difficulty (any pool the host has opened, as in FREE PLAY) and starts once everyone is ready. The shift itself is played
+// through net.mjs.
 // Single player never comes here: one player is always Coach Waters.
 //
 // Without Steam (a browser, or the app with Steam off) the lobby can still be tried on one machine in two windows of the same

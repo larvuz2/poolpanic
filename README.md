@@ -436,6 +436,20 @@ three, over Steam.
   1.1). Files: `dist/assets/coach-brooks.glb`, `coach-rivers.glb`, and the portraits the character select shows
   (`coach-waters|brooks|rivers.webp`). `rig-check.mjs` holds both to the shared skeleton, every retargeted clip and the face; renders of
   every expression and clip were checked by eye here.
+- **Two more coaches (23 October 2026)**, the creator: "one more coach, but without a mustache … a lot of tattoos, but it needs to
+  have coaching cloth, same as others … like the tough coach. And … one more female, maybe with an afro, no cap." **Coach Storm** (the
+  tough coach: a shaved head, heavy brows, no moustache, both arms in full tattoo sleeves and a tattoo on his neck, a charcoal polo with
+  lime trim, black shorts with a lime stripe, the whistle) and **Coach Fontaine** (a big afro and no cap, gold hoops, a violet polo with
+  mint trim, white shorts with a violet stripe). Made the same way (GPT Image 2.5, Meshy 7, Waters' skeleton, all twelve clips,
+  `clear_limbs.py` for Storm's big arms, grounded, the face), at the end of `COACHES` so the crews' default picks are unchanged: five
+  coaches to choose from, three at most in a crew. The face needed two new options in `coach_face.py`: `--brow-y LO,HI` (where the
+  painted brows are looked for, in Waters' metres; Storm's sit higher) and `--brows-from-eyes` with `--brow-height` (Fontaine's painted
+  brows are fine lines right under the afro's dark edge, which the brow finder took for a brow: her new brows are put where Waters' are
+  over his eyes, finer, and nothing is painted out); a white texel next to a brow is painted out with it unless it is on an eye (the
+  light edge Meshy baked round Storm's jutting brows). Files: `coach-storm.glb`, `coach-fontaine.glb`, `coach-storm|fontaine.webp`;
+  both are on the Anim Bench, and `rig-check.mjs` holds them like the others (Storm's arms and legs, and Fontaine's knees by half a
+  degree, as `clear_limbs.py` turned them: `adjusted` in the manifest). Every expression and the clips were rendered and checked by
+  eye here; neither has been seen in a shift over Steam.
 - **The menu** (`dist/coop-ui.mjs`, the way Overcooked does it on Steam): PLAY WITH FRIENDS opens a window; **Host a shift** opens a
   friends-only Steam lobby of three; empty slots have **＋ Invite a friend** (the Steam overlay's invite). A friend joins from the
   invite, from **Join Game** on the host in Steam's friends list (the host's rich presence carries `+connect_lobby`), or by starting the
@@ -1320,7 +1334,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/chaos.mjs` | Incident scheduling, visitors, puddles, the storm's weather and rain puddles, fleeing swimmers, shared hooks, pointer shortcuts |
 | `dist/incidents/*.mjs` | One module per incident: `fish`, `dog`, `carl`, `outage`, `trampoline`, `karen`, `wet` (the wet spots and the mop); plus `twist` (the five mid-shift twists: rush, closure, swim team, aqua class, storm) |
 | `dist/deck-physics.mjs` | Deck contacts, separation, passing and route cooperation |
-| `dist/crew.mjs` | Co-op: the three coaches, and the shift a crew of two or three plays (`crewConfig`, `CREW`) |
+| `dist/crew.mjs` | Co-op: the five coaches (three at most in a crew), and the shift a crew of two or three plays (`crewConfig`, `CREW`) |
 | `dist/net.mjs` | Co-op over the network: the lobby, the host and guests sharing stamped inputs, transports, `Predictor` |
 | `dist/coop-ui.mjs` | PLAY WITH FRIENDS: host, invite, the three slots and their coaches, ready, the host's pool, start |
 | `dist/steam-net.mjs` | Co-op's Steam transport: the lobby and relayed P2P through the desktop app (`desktop.steam.net`) |
