@@ -48,6 +48,7 @@ export const tipsVenue = (venue) =>
   !venue.waves &&
   !venue.roof &&
   !venue.onsen &&
+  !venue.dive &&
   !venue.cruise;
 const LAP = new Set(["beginner", "intermediate", "advanced", "senior"]);
 

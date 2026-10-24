@@ -3,7 +3,7 @@
 // they have no model (the classic figure's arms working the back in turn). The coach's model plays its Massage clip
 // (coach-model.mjs); a coach too short for the table stands on a little wooden step (crew.mjs `massageStep`), drawn in scene.mjs.
 import { THREE } from "./kit.mjs";
-import { TABLE } from "../incidents/massage.mjs";
+import { TABLE, tablesOf, sessionOf } from "../incidents/massage.mjs";
 
 const LEATHER = 0x2f7f7a,
   SEAM = 0x24615d,
@@ -18,9 +18,12 @@ export const LIE_Y = 0.36;
 // The table: a padded top in teal leatherette, a white towel with a mustard stripe over the middle, a rolled towel at the foot, a face
 // cradle at the head end, four turned wooden legs braced near the floor, on a rug. 2 m long, 0.6 m wide, its top at 0.58 m. The
 // group's +z is the head end (the venue's `angle`).
+// (Every table the venue has: most have one, the Jumping Pool's massage corner two side by side.)
 export function buildMassageTable(w, venue) {
-  const t = venue.fixtures?.massage;
-  if (!t) return null;
+  const tables = tablesOf(venue);
+  return tables.length ? tables.map((t, k) => buildTable(w, t, k))[0] : null;
+}
+function buildTable(w, t, k) {
   const g = w.group(t.x, 0, t.z, w.scene, t.angle || 0),
     top = TABLE.top,
     half = TABLE.half,
@@ -60,7 +63,7 @@ export function buildMassageTable(w, venue) {
     x: t.x,
     y: 1.7,
     z: t.z,
-    when: (s) => s.massage?.stage === "lying" && !s.massage.helpers?.length,
+    when: (s) => (s.massages || []).some((m) => m.table === k && m.stage === "lying" && !m.helpers?.length),
   });
   return g;
 }
@@ -71,7 +74,7 @@ export function poseMassageGuest(w, sim, p, g, time) {
     motion = w.reducedMotion?.matches ? 0 : 1,
     fit = u.fit || 1;
   if (p.massage === "walk") return; // (walking over: the walk the deck already has)
-  const m = sim.massage,
+  const m = sessionOf(sim, p),
     on = p.massage === "lying" ? 1 : smooth(Math.max(0, Math.min(1, p.climb ?? 0))),
     working = !!m?.helpers?.length,
     edgy = !!p.massageEdgy;

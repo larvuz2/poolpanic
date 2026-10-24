@@ -76,8 +76,8 @@ const guest = (s, plan = ["pool"], spec = {}) => {
     assert.equal(a.sideOf(a.at(side, "outside")), side);
     assert.ok(a.isDoorPoint(a.at(side, "door")));
   }
-  // Every other venue's doors are exactly where they always were (mirrored across x).
-  for (const venue of Object.values(VENUES).filter((x) => x !== v)) {
+  // Every other venue's doors (but the Jumping Pool's garden gates, also at the ends) are exactly where they always were.
+  for (const venue of Object.values(VENUES).filter((x) => x !== v && !x.arrival.alongZ)) {
     const d = venue.arrival;
     for (const side of [-1, 1]) {
       assert.deepEqual(d.at(side, "inside"), { x: side * d.insideX, z: d.insideZ }, venue.id);

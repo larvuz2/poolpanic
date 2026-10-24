@@ -57,6 +57,9 @@ export const VENUE_INCIDENTS = {
     where: (venue) => !!VENUES[venue]?.fixtures?.massage,
   },
 };
+// The roaming incidents a pool leaves out (its venue's `skips`, spatial.mjs): the director never draws them there, nor springs
+// them as its surprise.
+export const venueSkips = (venue) => VENUES[venue]?.skips || [];
 // A fair mix: an incident that came in the last shift is less likely in this one, and one from the shift before a little less
 // (never ruled out: the same one two shifts running still happens, the creator wants that), and one already drawn for this shift
 // is much less likely to come twice in it.
@@ -326,6 +329,24 @@ export const POOLS = {
     ],
     twists: { team: 0, class: 0, closure: 0 },
   },
+  // The Jumping Pool (24 October 2026): a country club's deep diving pool with a station at each end, LOW, MID and HIGH (dive.mjs).
+  // Send each guest to the height their skill can take; a hot tub for the guests who only came for it (its tummy trouble the only
+  // kind here: `sickRate` makes it likelier), and the open massage corner for the divers out of a failed jump. No swim team, no
+  // class, no lane to close; Karen and the outage still come (its venue's `skips`), Marco too (from the HIGH board, a triple).
+  dive: {
+    name: "The Jumping Pool",
+    icon: "🤸",
+    style: { venue: "dive", lighting: "dive", aqua: false, peeShare: 0.45 },
+    events: [
+      "Diving day",
+      "Springboard Sunday",
+      "High dive open",
+      "Belly flop contest",
+      "Club splash",
+      "Summer dive-off",
+    ],
+    twists: { team: 0, class: 0, closure: 0 },
+  },
   arena: { name: "Grand Gala Arena", icon: "🏟️", levels: [20] },
 };
 export const POOL_IDS = Object.keys(POOLS);
@@ -384,6 +405,11 @@ export const POOL_INTROS = {
     rule: "Guests get cold waiting in the snow 🥶, and snow monkeys 🐒 want the warm water.",
     action: "Send guests to a spring (1–4). Run into a monkey to shoo it.",
   },
+  dive: {
+    rule: "Two diving stations: LOW 🟢, MID 🟡, HIGH 🔴. Beginners low, intermediates mid, Pros high. Too high and they wipe out!",
+    action:
+      "Click a guest, then 1 LOW, 2 MID, 3 HIGH (4 the hot tub ♨️). E beside a 😎 show-off checks them.",
+  },
   arena: {
     rule: "The season finale: five lanes, a big crowd and lots of VIPs 👑.",
     action: "VIPs tip big but hate waiting: serve them first.",
@@ -408,6 +434,7 @@ export const LADDER = [
   "river",
   "cruise",
   "roof",
+  "dive",
 ];
 export const LADDER_START = 3;
 export const FINALE_WEEK = 4;
@@ -576,6 +603,18 @@ const SCORE_SCALE = {
     [10, 2.05],
     [15, 1.75],
     [20, 1.9],
+  ],
+  // The Jumping Pool (24 October 2026): the coach bot knows every guest's height at a glance (it checks the show-offs first), so
+  // on Splash Park's targets it made 3.4, 2.9, 3.2, 1.9, 2.0 and 2.2 times the two-star target at difficulties 3 to 18. These ask
+  // for about 1.4 of it from difficulty 4, where the Mountain Hot Springs' bot sits (1.3 to 1.5), a little under Splash Park's and
+  // the Lagoon's; up to difficulty 11 the scale is held at week-check's ceiling (2.2), which leaves the bot more over the target at
+  // 2, 3, 9 and 10 (about 2 times).
+  dive: [
+    [3, 2.2],
+    [7, 2],
+    [11, 2.2],
+    [13, 1.5],
+    [20, 1.7],
   ],
 };
 
@@ -854,6 +893,16 @@ export const WISHES = {
     met: (r, n, st) => (st.vips || 0) >= n,
     pay: 30,
   },
+  // (The Jumping Pool: clean dives, a few of them, from any board.)
+  dives: {
+    icon: "✨",
+    text: (n) => `${n} clean dive${n > 1 ? "s" : ""}`,
+    say: "Show me some perfect dives! ✨",
+    fits: (s) => !!s.dive,
+    goal: (s) => Math.max(3, Math.min(8, Math.round(s.total * 0.3))),
+    met: (r, n, st) => (st.cleanDives || 0) >= n,
+    pay: 25,
+  },
   flips: {
     icon: "🤸",
     text: (n) => `${n} clean trampoline flip${n > 1 ? "s" : ""}`,
@@ -867,7 +916,7 @@ export const WISHES = {
 export const WISHES_PER_SHIFT = 2;
 // The venues without lap lanes, where "No collisions in the lanes" makes no sense (20 October 2026: Marina asked it at the Kids
 // Pool).
-const NO_LAP_LANES = ["disco", "kids", "river", "wave", "roof", "onsen"];
+const NO_LAP_LANES = ["disco", "kids", "river", "wave", "roof", "onsen", "dive"];
 
 // The wishes of one shift: two that fit it, drawn from its seed. Each says its target and what it pays.
 export function drawWishes(shape, random, payScale = 1) {
@@ -916,9 +965,10 @@ export function directShift({
   if (slots > 0) count = Math.max(1, slots + (random() < 0.3 ? -1 : random() < 0.35 ? 1 : 0));
   count = Math.min(slots + heat + 1, count + extraBudget + heat);
   // A surprise: the next incident in the order, in every shift from the first Tuesday until the player has met them all.
-  const next = INCIDENT_ORDER.find((k) => !known.includes(k));
+  const next = INCIDENT_ORDER.find((k) => !known.includes(k)),
+    skips = venueSkips(venue);
   random(); // (the roll the surprise used to take: kept, so the rest of the draw stays as it was)
-  const surprise = next && index >= 1 ? next : null;
+  const surprise = next && index >= 1 && !skips.includes(next) ? next : null;
   if (surprise && count === 0) count = 1;
   const last = new Set(recent[recent.length - 1] || []),
     before = new Set(recent[recent.length - 2] || []);
@@ -927,7 +977,9 @@ export function directShift({
     weight: base * (weights[k] ?? 1) * (last.has(k) ? RECENT.last : 1) * (before.has(k) ? RECENT.before : 1),
   });
   const pool = [
-    ...INCIDENT_ORDER.filter((k) => known.includes(k)).map((k) => fair(k, INCIDENTS[k].weight)),
+    ...INCIDENT_ORDER.filter((k) => known.includes(k) && !skips.includes(k)).map((k) =>
+      fair(k, INCIDENTS[k].weight),
+    ),
     ...Object.entries(VENUE_INCIDENTS)
       .filter(([, i]) => i.where(venue))
       .map(([k, i]) => fair(k, i.weight)),
@@ -1152,6 +1204,7 @@ export function buildShift(week, card = null, known = week.known || [], seen = n
     daredevils: (config.daredevilAt || []).length,
     // (lap lanes: where swimmers can collide; not the disco's zones, the Kids Pool, the river, the waves, the roof or the springs)
     lanes: !NO_LAP_LANES.includes(config.venue),
+    dive: config.venue === "dive",
   };
   const wishes = drawWishes(shape, stream((week.seed ^ Math.imul(index + 3, 362437)) >>> 0), chapter.pay);
   return {

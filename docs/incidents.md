@@ -89,6 +89,20 @@ it, +40; the failure is the hop in, −50, and everyone in that spring panicking
 out from the rim, E, or wading up to it, +25). The coach slides on the ice. Every incident still comes, in the springs (the fish kid
 tips his fish into one, the cannonball man bombs into one, a floater closes them all), Marco too (for a soak).
 
+**At the Jumping Pool** (24 October 2026) the trouble is the height (`dist/dive.mjs`). **A wipeout** 💥: a diver sent higher than
+their skill freezes at the edge (the warning: the 😰 at the send, the shaking at the edge, the tag's skill against the board's
+colour; the prevention window is the send itself, and a guest walking to a line or standing in one can still be sent lower); one
+height too high wipes out 40% of the time and a beginner on HIGH 70%; the failure is a tumble and a huge splash, −150 off MID, −220
+off HIGH; the recovery is the cramp's: a ring to the diver in the water, the ladder, then a massage bed or home. A frightened diver
+may **chicken out** instead (−60, they climb down and go home). **Too low** is no incident but costs: a bored pencil jump, a fraction
+of the points and a cross guest. **A show-off** 😎 (from level 4) says Pro and is mostly a beginner: E beside them checks. **A
+line-cutter** 😤 (from level 5, the `line-cut` incident): the last in a line pushes to its front and argues (the warning: the
+alert and the sting; the window: 7 s of arguing; the failure: they go first and the line is crosser; the recovery: E beside them,
+back of the line, +40). **A blocked landing**: a diver waits at the edge until the water below is clear (the 🤸 alert), crosser by
+the second, and jumps anyway after 11 s. **No chlorine, poo or vomit in the diving pool**: tummy trouble comes only to the hot tub's
+own guests and closes the tub, as in the springs. Carl and the leopard man come as divers, not incidents (no Carl, fish kid or dog
+incident here); Karen, the blackout, wet spots and the massage (two beds) still come, Marco too (he dives).
+
 ### Starts on the deck, ends in the pool
 
 | Incident | Levels | What happens |

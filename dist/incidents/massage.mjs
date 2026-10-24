@@ -61,9 +61,11 @@ export function tablePoint(fixture, along, across) {
 export const tableApproach = (fixture) => tablePoint(fixture, 0, -(TABLE.width + 0.6));
 // The way to the table from anywhere on the deck: round the pool to the walk along its side nearest the table, along it to the
 // table's level, then across (a straight line from the far corner would cut through the trampoline tower or the podium).
-export function tableRoute(venue, from) {
-  const on = tableApproach(venue.fixtures.massage),
-    walk = { x: Math.sign(on.x || 1) * venue.pool.corridorX, z: on.z };
+export function tableRoute(venue, from, fixture = venue.fixtures.massage) {
+  const on = tableApproach(fixture);
+  // (The Jumping Pool's deck routes round everything itself: dive-plan.mjs.)
+  if (venue.dive) return venue.route(from, on);
+  const walk = { x: Math.sign(on.x || 1) * venue.pool.corridorX, z: on.z };
   return [...venue.route(from, walk), on];
 }
 // How far a point is from the table's top (0 on it).
@@ -76,188 +78,174 @@ function fromTable(fixture, p) {
   return Math.hypot(Math.max(0, along), Math.max(0, across));
 }
 
-const table = (sim) => sim.venue.fixtures?.massage || null;
+// Every massage table a venue has: most have one (`fixtures.massage`); the Jumping Pool's corner has a second (`massageMore`).
+export const tablesOf = (venue) =>
+  [venue.fixtures?.massage, ...(venue.fixtures?.massageMore || [])].filter(Boolean);
+// The table a session is at (`m.table`, its index in tablesOf), and the first table free of any session.
+const table = (sim, m) => tablesOf(sim.venue)[m?.table ?? 0] || null;
+function freeTable(sim) {
+  const tables = tablesOf(sim.venue);
+  for (let k = 0; k < tables.length; k++) if (!sim.massages.some((m) => m.table === k)) return k;
+  return -1;
+}
+// The session a guest is in (on the way to a table, or on it), or null.
+export const sessionOf = (sim, p) => (sim.massages || []).find((m) => m.id === p.id) || null;
+function newSession(sim, k, director) {
+  return {
+    uid: (sim.massageUid = (sim.massageUid || 0) + 1),
+    table: k,
+    director, // (the director's incident, drawn like any other; else a rescued diver's, dive.mjs)
+    id: null,
+    stage: "waiting", // for someone to climb out of the pool
+    waited: 0,
+    t: 0,
+    progress: 0,
+    patience: T.patience,
+    helpers: [], // the coaches working on the guest, in the order they joined (teamwork.mjs)
+    spots: {}, // coach index -> SPOTS index
+    angry: false,
+    elapsed: 0,
+  };
+}
+function endSession(sim, m) {
+  sim.massages = sim.massages.filter((x) => x !== m);
+}
 // Who may ask for a massage: a grown-up who has had their swim (no child, nobody in a wheelchair, no racer, no chiller).
 const eligible = (p) => p.type !== "child" && !p.wheelchair && !p.racer && !p.chill && p.served !== false;
 
 export const Massage = {
   key: "massage",
   init(sim) {
-    sim.massage = null;
+    // The sessions under way, one a table (`sim.massage` is the first of them: most venues only ever have one).
+    sim.massages = [];
+    Object.defineProperty(sim, "massage", {
+      get() {
+        return this.massages[0] || null;
+      },
+      configurable: true,
+    });
   },
-  isActive: (sim) => !!sim.massage,
-  // Only where there is a table, and only while someone is swimming who could come out wanting one.
-  canStart: (sim) => !!table(sim) && sim.people.some((p) => p.status === "swim" && eligible(p)),
+  // An incident while the director's session is on (a rescued diver's own massage is no incident, dive.mjs).
+  isActive: (sim) => sim.massages.some((m) => m.director),
+  // Only where there is a free table, and only while someone is swimming who could come out wanting one.
+  canStart: (sim) =>
+    freeTable(sim) >= 0 &&
+    sim.people.some(
+      (p) => (p.status === "swim" || (p.status === "dive" && p.dive !== "line")) && eligible(p),
+    ),
   describe(sim) {
-    const m = sim.massage;
-    if (!m) return "";
-    const p = m.id != null ? sim.get(m.id) : null;
-    return (
-      "stage " +
-      m.stage +
-      (p ? " · " + p.name : "") +
-      (m.helpers.length
-        ? " · being massaged" + (m.helpers.length > 1 ? ` by ${m.helpers.length} coaches` : "")
-        : "")
-    );
+    return sim.massages
+      .map((m) => {
+        const p = m.id != null ? sim.get(m.id) : null;
+        return (
+          (sim.massages.length > 1 ? "table " + (m.table + 1) + " " : "") +
+          "stage " +
+          m.stage +
+          (p ? " · " + p.name : "") +
+          (m.helpers.length
+            ? " · being massaged" + (m.helpers.length > 1 ? ` by ${m.helpers.length} coaches` : "")
+            : "")
+        );
+      })
+      .join(" | ");
   },
   detail(sim) {
     const m = sim.massage,
       p = m?.id != null ? sim.get(m.id) : null;
-    return m && { at: p && { x: p.x, z: p.z }, done: m.progress, patience: m.patience };
+    return (
+      m && {
+        at: p && { x: p.x, z: p.z },
+        done: m.progress,
+        patience: m.patience,
+        tables: sim.massages.length,
+      }
+    );
   },
   start(sim) {
-    if (!table(sim)) return false;
-    sim.massage = {
-      id: null,
-      stage: "waiting", // for someone to climb out of the pool
-      waited: 0,
-      t: 0,
-      progress: 0,
-      patience: T.patience,
-      helpers: [], // the coaches working on the guest, in the order they joined (teamwork.mjs)
-      spots: {}, // coach index -> SPOTS index
-      angry: false,
-      elapsed: 0,
-    };
+    const k = freeTable(sim);
+    if (k < 0) return false;
+    sim.massages.push(newSession(sim, k, true));
+    return true;
+  },
+  // A guest straight to a free table (the Jumping Pool's rescued divers, dive.mjs: "exit or massage area"). True when they went.
+  request(sim, p) {
+    const k = freeTable(sim);
+    if (k < 0 || !eligible({ ...p, served: true })) return false;
+    const m = newSession(sim, k, false);
+    sim.massages.push(m);
+    begin(sim, m, p);
     return true;
   },
   // The next swimmer out of the pool (sim.tickWaterExit, as they reach the deck) takes the table. True when they did.
   claim(sim, p) {
-    const m = sim.massage,
-      f = table(sim);
-    if (!m || m.stage !== "waiting" || !f || !eligible(p)) return false;
-    m.id = p.id;
-    m.stage = "walk";
-    p.status = "massage";
-    p.massage = "walk";
-    p.path = tableRoute(sim.venue, p);
-    sim.emit("chaos", { kind: "massage" });
-    sim.incident("massage", p, { id: p.id, name: p.name });
-    sim.emit("toast", {
-      text: `💆 ${p.name} wants a massage! Get to the massage table and hold E.`,
-      warning: true,
-    });
+    const m = sim.massages.find((x) => x.stage === "waiting");
+    if (!m || !table(sim, m) || !eligible(p)) return false;
+    begin(sim, m, p);
     return true;
   },
   focus(sim) {
     const m = sim.massage;
-    return m?.helpers?.length ? m.helpers[0] : { near: table(sim) || undefined };
+    return m?.helpers?.length ? m.helpers[0] : { near: table(sim, m) || undefined };
   },
   update(sim, dt) {
-    const m = sim.massage;
-    if (!m) return;
-    m.elapsed += dt;
-    if (m.stage === "waiting") {
-      m.waited += dt;
-      if (m.waited > T.wait) sim.massage = null; // (nobody came out: the table stays free)
-      return;
-    }
-    const p = sim.get(m.id),
-      f = table(sim);
-    if (!p || p.status !== "massage" || !f) return release(sim, m);
-    const on = tablePoint(f, 0, 0),
-      head = Math.atan2(tableFrame(f).a.x, tableFrame(f).a.z);
-    switch (m.stage) {
-      case "walk":
-        if (sim.moveAlong(p, dt, sim.pace(p, T.walk))) {
-          m.stage = p.massage = "climb";
-          m.t = 0;
-          m.from = { x: p.x, z: p.z };
-        }
-        return;
-      case "climb": {
-        m.t = Math.min(1, m.t + dt / T.climb);
-        p.x = m.from.x + (on.x - m.from.x) * m.t;
-        p.z = m.from.z + (on.z - m.from.z) * m.t;
-        p.angle = head;
-        p.climb = m.t; // (how far onto the table: the scene's pose)
-        if (m.t >= 1) {
-          m.stage = p.massage = "lying";
-          sim.emit("massage-lie", { x: p.x, z: p.z, id: p.id });
-        }
-        return;
-      }
-      case "lying":
-        p.x = on.x;
-        p.z = on.z;
-        p.angle = head;
-        work(sim, m, p, f, dt);
-        return;
-      case "rise": {
-        m.t = Math.min(1, m.t + dt / T.rise);
-        p.climb = 1 - m.t;
-        const side = tableApproach(f);
-        p.x = on.x + (side.x - on.x) * m.t;
-        p.z = on.z + (side.z - on.z) * m.t;
-        if (m.t >= 1) {
-          // Off home: round the pool to the door they came in by (the same way out as everyone's).
-          p.status = "exit";
-          p.exitPhase = "deck";
-          p.massage = null;
-          p.climb = 0;
-          p.path = [
-            ...sim.venue.route(p, sim.venue.arrival.at(p.side, "outside")),
-            ...sim.returnRoute(p.side),
-          ];
-          sim.massage = null;
-        }
-        return;
-      }
-    }
+    for (const m of [...sim.massages]) updateSession(sim, m, dt);
   },
   interactions(sim, options) {
-    const m = sim.massage,
-      c = sim.coach,
-      f = table(sim);
-    if (!m || m.stage !== "lying" || !f || c.massaging || !inReach(sim, f, c)) return;
-    const p = sim.get(m.id);
-    if (!p) return;
-    options.push({
-      kind: "massage",
-      label: m.helpers.length
-        ? `💆 Hold E · help massage ${p.name} (faster together)`
-        : `💆 Hold E · massage ${p.name}`,
-      x: p.x,
-      z: p.z,
-      rank: -325 + fromTable(f, c),
-      run: () => beginMassage(sim, m),
-    });
+    const c = sim.coach;
+    if (c.massaging) return;
+    for (const m of sim.massages) {
+      const f = table(sim, m);
+      if (m.stage !== "lying" || !f || !inReach(sim, f, c)) continue;
+      const p = sim.get(m.id);
+      if (!p) continue;
+      options.push({
+        kind: "massage",
+        label: m.helpers.length
+          ? `💆 Hold E · help massage ${p.name} (faster together)`
+          : `💆 Hold E · massage ${p.name}`,
+        x: p.x,
+        z: p.z,
+        rank: -325 + fromTable(f, c),
+        run: () => beginMassage(sim, m),
+      });
+    }
   },
   alert(sim, alerts) {
-    const m = sim.massage,
-      p = m?.id != null && sim.get(m.id);
-    if (!p || !["walk", "climb", "lying"].includes(m.stage)) return;
-    const edgy = m.stage === "lying" && m.patience < T.patience * T.edgy;
-    alerts.push({
-      kind: "massage",
-      icon: edgy ? "😤" : "💆",
-      label: p.name,
-      x: p.x,
-      z: p.z,
-      y: 1.6,
-      urgency: m.helpers.length ? 40 : edgy ? 84 : 66,
-      id: p.id,
-    });
+    for (const m of sim.massages) {
+      const p = m.id != null && sim.get(m.id);
+      if (!p || !["walk", "climb", "lying"].includes(m.stage)) continue;
+      const edgy = m.stage === "lying" && m.patience < T.patience * T.edgy;
+      alerts.push({
+        kind: "massage",
+        icon: edgy ? "😤" : "💆",
+        label: p.name,
+        x: p.x,
+        z: p.z,
+        y: 1.6,
+        urgency: m.helpers.length ? 40 : edgy ? 84 : 66,
+        id: p.id,
+      });
+    }
   },
   hint(sim) {
-    const m = sim.massage,
-      p = m?.id != null && sim.get(m.id);
-    if (!p || !["walk", "climb", "lying"].includes(m.stage)) return "";
+    const m = urgent(sim),
+      p = m && sim.get(m.id);
+    if (!p) return "";
     if (m.helpers.length) return "💆 Keep holding E · massaging " + p.name;
-    return inReach(sim, table(sim), sim.coach)
+    return inReach(sim, table(sim, m), sim.coach)
       ? "💆 Hold E at the table to massage " + p.name
       : "💆 " + p.name + " wants a massage · run to the table, then hold E";
   },
   panel(sim) {
-    const m = sim.massage,
-      p = m?.id != null && sim.get(m.id);
-    if (!p || !["walk", "climb", "lying"].includes(m.stage)) return null;
-    const near = inReach(sim, table(sim), sim.coach),
-      edgy = m.stage === "lying" && m.patience < T.patience * T.edgy;
+    const m = urgent(sim),
+      p = m && sim.get(m.id);
+    if (!p) return null;
+    const near = inReach(sim, table(sim, m), sim.coach),
+      edgy = m.stage === "lying" && m.patience < T.patience * T.edgy,
+      both = sim.massages.filter((x) => ["walk", "climb", "lying"].includes(x.stage)).length > 1;
     return {
       icon: edgy ? "😤" : "💆",
-      title: edgy ? `${p.name.toUpperCase()} IS LOSING PATIENCE!` : "MASSAGE TIME!",
+      title: edgy ? `${p.name.toUpperCase()} IS LOSING PATIENCE!` : both ? "TWO MASSAGES!" : "MASSAGE TIME!",
       task: Massage.hint(sim),
       steps: [
         { label: "🏃 TO THE TABLE", active: !near, done: near },
@@ -267,8 +255,8 @@ export const Massage = {
   },
   // The guest's own tag (app.mjs): the wheel, the faces on it, and the patience left.
   personTag(sim, p) {
-    const m = sim.massage;
-    if (!m || m.id !== p.id || !["climb", "lying"].includes(m.stage)) return null;
+    const m = sessionOf(sim, p);
+    if (!m || !["climb", "lying"].includes(m.stage)) return null;
     return {
       ring: m.progress,
       team: teamTag(sim, m.helpers),
@@ -278,6 +266,92 @@ export const Massage = {
     };
   },
 };
+
+// The session that needs the coach most: one on its way or lying with nobody on it, the least patient first.
+function urgent(sim) {
+  const live = sim.massages.filter((m) => m.id != null && ["walk", "climb", "lying"].includes(m.stage));
+  return (
+    live.sort(
+      (a, b) =>
+        (a.helpers.length ? 1 : 0) - (b.helpers.length ? 1 : 0) ||
+        (a.stage === "lying" ? 0 : 1) - (b.stage === "lying" ? 0 : 1) ||
+        a.patience - b.patience,
+    )[0] || null
+  );
+}
+// A guest takes a session's table: off they go to it.
+function begin(sim, m, p) {
+  m.id = p.id;
+  m.stage = "walk";
+  p.status = "massage";
+  p.massage = "walk";
+  p.path = tableRoute(sim.venue, p, table(sim, m));
+  sim.emit("chaos", { kind: "massage" });
+  sim.incident("massage", p, { id: p.id, name: p.name });
+  sim.emit("toast", {
+    text: m.director
+      ? `💆 ${p.name} wants a massage! Get to the massage table and hold E.`
+      : `💆 ${p.name} needs a massage after that! Get to the massage corner and hold E.`,
+    warning: true,
+  });
+}
+function updateSession(sim, m, dt) {
+  m.elapsed += dt;
+  if (m.stage === "waiting") {
+    m.waited += dt;
+    if (m.waited > T.wait) endSession(sim, m); // (nobody came out: the table stays free)
+    return;
+  }
+  const p = sim.get(m.id),
+    f = table(sim, m);
+  if (!p || p.status !== "massage" || !f) return release(sim, m);
+  const on = tablePoint(f, 0, 0),
+    head = Math.atan2(tableFrame(f).a.x, tableFrame(f).a.z);
+  switch (m.stage) {
+    case "walk":
+      if (sim.moveAlong(p, dt, sim.pace(p, T.walk))) {
+        m.stage = p.massage = "climb";
+        m.t = 0;
+        m.from = { x: p.x, z: p.z };
+      }
+      return;
+    case "climb": {
+      m.t = Math.min(1, m.t + dt / T.climb);
+      p.x = m.from.x + (on.x - m.from.x) * m.t;
+      p.z = m.from.z + (on.z - m.from.z) * m.t;
+      p.angle = head;
+      p.climb = m.t; // (how far onto the table: the scene's pose)
+      if (m.t >= 1) {
+        m.stage = p.massage = "lying";
+        sim.emit("massage-lie", { x: p.x, z: p.z, id: p.id });
+      }
+      return;
+    }
+    case "lying":
+      p.x = on.x;
+      p.z = on.z;
+      p.angle = head;
+      work(sim, m, p, f, dt);
+      return;
+    case "rise": {
+      m.t = Math.min(1, m.t + dt / T.rise);
+      p.climb = 1 - m.t;
+      const side = tableApproach(f);
+      p.x = on.x + (side.x - on.x) * m.t;
+      p.z = on.z + (side.z - on.z) * m.t;
+      if (m.t >= 1) {
+        // Off home: round the pool to the door they came in by (the same way out as everyone's).
+        p.status = "exit";
+        p.exitPhase = "deck";
+        p.massage = null;
+        p.climb = 0;
+        p.path = [...sim.venue.route(p, sim.venue.arrival.at(p.side, "outside")), ...sim.returnRoute(p.side)];
+        endSession(sim, m);
+      }
+      return;
+    }
+  }
+}
 
 function inReach(sim, f, c = sim.coach) {
   return !!f && !c.swimming && !c.waterTransition && fromTable(f, c) <= T.reach;
@@ -361,7 +435,7 @@ function release(sim, m) {
   }
   m.helpers = [];
   m.spots = {};
-  sim.massage = null;
+  endSession(sim, m);
 }
 function finish(sim, m, p) {
   for (const i of m.helpers) {

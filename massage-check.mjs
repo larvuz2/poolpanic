@@ -30,8 +30,13 @@ assert.ok(LAGOON > 0, "a level at the Sunset Lagoon");
     .filter((v) => v.fixtures?.massage)
     .map((v) => v.id)
     .sort();
-  assert.deepEqual(withTable, ["aquatic", "arena", "lagoon", "senior"], "a table at four venues only");
-  for (const id of withTable) {
+  assert.deepEqual(
+    withTable,
+    ["aquatic", "arena", "dive", "lagoon", "senior"],
+    "a table at five venues only",
+  );
+  // (The Jumping Pool's massage corner, two beds and no lanes, is dive-check's.)
+  for (const id of withTable.filter((id) => id !== "dive")) {
     const v = VENUES[id],
       t = v.fixtures.massage;
     assert.ok(
@@ -316,5 +321,5 @@ function toTable(s, i = 0, across = 1) {
 }
 
 console.log(
-  "Massage checks passed: a table at four venues (the Sunset Lagoon, the Aquatic Centre, Senior Aqua Fit, the Grand Gala Arena) where nothing else is, the director drawing it only there (about a shift in three), the next swimmer out lying down on it, the patience running only while nobody is on it, hold E to fill the wheel (8 s, 5 for two, 3 for three, each coach at a place of their own, their faces on the wheel), the bliss and its points, the storm-off and its cost, no table no massage, no child, the same twice.",
+  "Massage checks passed: a table at four venues (the Sunset Lagoon, the Aquatic Centre, Senior Aqua Fit, the Grand Gala Arena) and two beds at the Jumping Pool where nothing else is, the director drawing it only there (about a shift in three), the next swimmer out lying down on it, the patience running only while nobody is on it, hold E to fill the wheel (8 s, 5 for two, 3 for three, each coach at a place of their own, their faces on the wheel), the bliss and its points, the storm-off and its cost, no table no massage, no child, the same twice.",
 );

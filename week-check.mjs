@@ -187,6 +187,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     "roof",
     "cruise",
     "onsen",
+    "dive",
     "arena",
   ]);
   const sitsOut = new Set(),
@@ -397,6 +398,7 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       "roof",
       "cruise",
       "onsen",
+      "dive",
     ])
       // (the Lazy River's late crowd outgrows its ten tubes: its targets drop to 0.4, recalibrated 19 October 2026; Phase 3,
       // 20 October, recalibrated every pool again with the big moment, the tips and the streak's tiers, which the Aqua Disco and

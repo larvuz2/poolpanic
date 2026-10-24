@@ -8,6 +8,9 @@ import { ROOF, ROOF_BEDS } from "./dist/roof-plan.mjs";
 import { slide } from "./dist/ship.mjs";
 import { SPRINGS, ONSEN_WATER } from "./dist/onsen-plan.mjs";
 import { springGuests, onsenOutPath } from "./dist/onsen.mjs";
+import { SKILL, boardOpen, tubFull, chooseBoard } from "./dist/dive.mjs";
+import { TUB_LANE } from "./dist/dive-plan.mjs";
+import { tablesOf, tablePoint, TABLE, SPOTS } from "./dist/incidents/massage.mjs";
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 export const kidsHaveRoom = (s, p) =>
@@ -106,6 +109,7 @@ export class CoachBot {
     // (Up on the roof the coach seats the guests waiting by the lift: rooftop.mjs SEATS.)
     if (s.venue.roof) return this.manageRoof();
     if (s.venue.onsen) return this.manageSprings();
+    if (s.venue.dive) return this.manageDive();
     for (const p of s.people.filter((p) => p.status === "queue" && !(p.finsFirst && !p.hasFins))) {
       s.select(p.id);
       if (p.queasy && p.sick) s.home();
@@ -204,6 +208,32 @@ export class CoachBot {
         v = seatVerdict(s, p, want);
       s.select(p.id);
       s.assign(v && v.good ? want : want === 2 && seatVerdict(s, p, 1)?.good !== false ? 1 : 0);
+    }
+    s.selected = null;
+  }
+  // The Jumping Pool (dive.mjs): each guest to the height they can take, the hot tub's own guests to the tub. A proactive coach
+  // checks a show-off first (the `check` task walks over); a reactive one believes them (HIGH). A height not open yet is waited for,
+  // unless the guest is about to give up (then the highest open one below it).
+  manageDive() {
+    const s = this.s;
+    const waiting = s.people
+      .filter((p) => p.status === "queue")
+      .sort((a, b) => (b.vip ? 1 : 0) - (a.vip ? 1 : 0) || a.h - b.h);
+    for (const p of waiting) {
+      s.select(p.id);
+      if (p.tubOnly) {
+        if (!tubFull(s) && !s.cleanup && !s.closed) s.assign(TUB_LANE);
+        continue;
+      }
+      if (p.bluff && !p.revealed && this.proactive && p.h > 25) continue;
+      const want = p.bluff && !p.revealed ? 2 : SKILL[p.type];
+      let h = want;
+      if (!boardOpen(s, h)) {
+        if (p.h > 35) continue;
+        while (h > 0 && !boardOpen(s, h)) h--;
+      }
+      if (chooseBoard(s, p, h) < 0) continue;
+      s.assign(h);
     }
     s.selected = null;
   }
@@ -407,8 +437,15 @@ export class CoachBot {
       c = s.coach;
     if ((s.rescue?.kind === "crash" || s.people.some((p) => p.status === "injured")) && this.free("crash"))
       return this.crash;
-    // (A wave knockout at the Wave Pool: the cramp's rescue, which the bot otherwise never meets.)
-    if (s.venue.waves && s.rescue?.stage === "stranded" && this.free("crash")) return this.crash;
+    // (A wave knockout at the Wave Pool, a failed jump at the Jumping Pool: the cramp's rescue, which the bot otherwise never meets.)
+    if ((s.venue.waves || s.venue.dive) && s.rescue?.stage === "stranded" && this.free("crash"))
+      return this.crash;
+    // (The Jumping Pool: a line-cutter sent to the back, a show-off checked before they are sent up.)
+    if (s.venue.dive && this.proactive) {
+      if (s.dive?.cut?.argue > 0 && this.free("lineCut")) return this.lineCut;
+      if (s.people.some((p) => p.status === "queue" && p.bluff && !p.revealed) && this.free("checkBluff"))
+        return this.checkBluff;
+    }
     if (
       this.proactive &&
       s.big?.kind === "race" &&
@@ -430,7 +467,7 @@ export class CoachBot {
       if (s.dog && s.dog.stage !== "leaving" && this.free("dog")) return this.dog;
       const karen = s.karen && s.visitor(s.karen.id);
       if (karen && ["marching", "ranting"].includes(karen.status) && this.free("karen")) return this.karen;
-      if (s.massage?.stage === "lying" && this.free("massage")) return this.massage;
+      if (s.massages?.some((m) => m.stage === "lying") && this.free("massage")) return this.massage;
     }
     // The hot springs: a monkey in the water is shooed out at once (whoever the coach is); one on its way, met before it gets there.
     if (s.onsen?.monkeys.some((m) => m.stage === "soak") && this.free("monkeyOut")) return this.monkeyOut;
@@ -863,19 +900,20 @@ export class CoachBot {
   // To the massage table and hold E until the guest is relaxed (incidents/massage.mjs).
   *massage$() {
     const s = this.s,
-      t = s.venue.fixtures.massage,
-      side = {
-        x: t.x + Math.cos(t.angle || 0) * (t.side || 1) * 0.9,
-        z: t.z - Math.sin(t.angle || 0) * (t.side || 1) * 0.9,
-      };
+      m = (s.massages || []).find((q) => q.stage === "lying"),
+      t = (m && tablesOf(s.venue)[m.table]) || s.venue.fixtures.massage,
+      // (where a coach stands to work: the table's first place, incidents/massage.mjs SPOTS)
+      side = tablePoint(t, SPOTS[0].along, SPOTS[0].side * TABLE.stand);
     yield* this.walkTo$(side, {
-      reach: 0.5,
-      until: () => s.massage?.stage !== "lying" || s.nearestInteraction()?.kind === "massage",
+      reach: 0.3,
+      until: () => m?.stage !== "lying" || s.nearestInteraction()?.kind === "massage",
     });
-    if (s.massage?.stage !== "lying" || s.nearestInteraction()?.kind !== "massage") return;
+    if (m?.stage !== "lying") return;
+    // (Not in reach after all, or another job nearer: a moment, then the task is chosen afresh.)
+    if (s.nearestInteraction()?.kind !== "massage") return yield* this.wait$(0.5);
     s.setHold(true);
     s.interact();
-    for (let f = 0; f < 60 * 10 && s.massage?.stage === "lying" && s.coach.massaging && !this.over; f++)
+    for (let f = 0; f < 60 * 10 && m.stage === "lying" && s.coach.massaging && !this.over; f++)
       yield* this.frame$();
     s.setHold(false);
   }
@@ -921,10 +959,40 @@ export class CoachBot {
     for (let f = 0; f < 240 && s.dog?.stage === "following"; f++) yield* this.frame$();
   }
   // Trampoline crash: a ring for every victim, then the medical kit for everyone on the deck.
+  // ---- the Jumping Pool ----
+  // A line-cutter: walk over and send them to the back (E).
+  *lineCut$() {
+    const s = this.s,
+      p = s.dive?.cut && s.get(s.dive.cut.id);
+    if (!p) return yield* this.wait$(2);
+    if (s.coach.swimming) return yield* this.climbOut$();
+    yield* this.chase$(
+      () => p,
+      () => !(s.dive?.cut?.argue > 0) || s.nearestInteraction()?.kind === "cut",
+      600,
+    );
+    if (s.dive?.cut?.argue > 0 && !(yield* this.use$("cut", 30))) yield* this.wait$(2);
+  }
+  // A show-off in the queue: walk over and check them (E), then the queue's manager sends them where they belong.
+  *checkBluff$() {
+    const s = this.s,
+      c = s.coach,
+      p = s.people
+        .filter((q) => q.status === "queue" && q.bluff && !q.revealed)
+        .sort((a, b) => distance(a, c) - distance(b, c))[0];
+    if (!p) return yield* this.wait$(2);
+    if (c.swimming) return yield* this.climbOut$();
+    yield* this.chase$(
+      () => p,
+      () => p.revealed || p.status !== "queue" || s.nearestInteraction()?.kind === "check",
+      600,
+    );
+    if (!p.revealed && p.status === "queue" && !(yield* this.use$("check", 30))) yield* this.wait$(2);
+  }
   *crash$() {
     const s = this.s,
       c = s.coach;
-    if (s.rescue?.kind === "crash" || (s.venue.waves && s.rescue)) {
+    if (s.rescue?.kind === "crash" || ((s.venue.waves || s.venue.dive) && s.rescue)) {
       if (s.rescue.stage !== "stranded") return yield* this.wait$(1);
       if (c.swimming) return yield* this.climbOut$();
       if (c.carry !== "lifering") {
@@ -990,6 +1058,7 @@ export const FRAMED = [
   "approach",
   "carl",
   "chase",
+  "checkBluff",
   "climbOut",
   "coachTip",
   "crash",
@@ -1005,6 +1074,7 @@ export const FRAMED = [
   "helpDizzy",
   "helpFallen",
   "karen",
+  "lineCut",
   "massage",
   "monkey",
   "monkeyOut",

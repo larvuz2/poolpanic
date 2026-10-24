@@ -137,6 +137,9 @@ export function buildPool(
     coping: copingLook = null,
     band: bandColor = 0x2d7f8c,
     ladders = { color: 0xe4e9dc, metalness: 0.35, rung: 0xe7e9d8 },
+    // How deep the basin's floor lies (a diving pool's is deep: the Jumping Pool), and where its ladders stand ([x, z] pairs).
+    depth = 1.42,
+    ladderAt = null,
   } = {},
 ) {
   const lanes = venue.lanes,
@@ -155,7 +158,7 @@ export function buildPool(
     1.7,
   );
   const floor = new THREE.Mesh(new THREE.BoxGeometry(width + 0.05, 0.15, halfZ * 2 + 0.4), floorMat);
-  floor.position.set(0, -1.42, 0);
+  floor.position.set(0, -depth, 0);
   floor.receiveShadow = true;
   w.scene.add(floor);
   const wallTex = wallMap || mosaicTexture({ seed: 17, base: wallTiles[0], grout: wallTiles[1] });
@@ -166,15 +169,17 @@ export function buildPool(
     w.poolUniforms,
     0.8,
   );
+  const wallH = depth - 0.22,
+    wallY = -0.25 - wallH / 2;
   for (const x of [-halfX, halfX]) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.2, halfZ * 2 + 0.4), wallMat);
-    m.position.set(x, -0.85, 0);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, wallH, halfZ * 2 + 0.4), wallMat);
+    m.position.set(x, wallY, 0);
     m.receiveShadow = true;
     w.scene.add(m);
   }
   for (const z of [-halfZ, halfZ]) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(width + 0.1, 1.2, 0.16), wallMat);
-    m.position.set(0, -0.85, z);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(width + 0.1, wallH, 0.16), wallMat);
+    m.position.set(0, wallY, z);
     m.receiveShadow = true;
     w.scene.add(m);
   }
@@ -378,7 +383,7 @@ export function buildPool(
     }
   }
   // Pool ladders with rails and submerged rungs.
-  for (const [x, z] of [
+  for (const [x, z] of ladderAt || [
     [-halfX, 5],
     [halfX, -4.1],
   ]) {

@@ -39,7 +39,7 @@ for (const [id, v] of Object.entries(VENUES)) {
     ...Object.values(v.stations),
     ...Object.entries(v.fixtures)
       .filter(([k]) => k !== "mop")
-      .map(([, p]) => p),
+      .flatMap(([, p]) => (Array.isArray(p) ? p : [p])),
   ])
     assert.ok(Math.hypot(p.x - m.x, p.z - m.z) > 1.8, id + ": the bucket is apart from the other gear");
 }

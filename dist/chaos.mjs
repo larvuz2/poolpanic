@@ -19,6 +19,8 @@ import { RooftopParty } from "./rooftop.mjs";
 import { ShipDeck } from "./ship.mjs";
 import { SnowMonkeys, onsenOutPath } from "./onsen.mjs";
 import { nearestSpring } from "./onsen-plan.mjs";
+import { DivingBoards, tubOutPath } from "./dive.mjs";
+import { inTub } from "./dive-plan.mjs";
 import {
   Trampoline,
   tickJumper,
@@ -43,6 +45,7 @@ export const SYSTEMS = [
   RooftopParty,
   ShipDeck,
   SnowMonkeys,
+  DivingBoards,
   CoachTips,
   WetSpots,
 ];
@@ -128,6 +131,7 @@ export class ChaosController extends RescueController {
   chaosBlocker(system, ignoreStatus = false) {
     if (!ignoreStatus && this.status !== "playing") return "the shift is not running";
     if (system.isActive(this)) return "it is already going on";
+    if (this.venue.skips?.includes(system.key)) return "not at this pool";
     if (this.rescue) return "a rescue is going on";
     if (this.cleanup) return "a cleanup is going on";
     if (this.closed) return "the pool is closed";
@@ -158,6 +162,11 @@ export class ChaosController extends RescueController {
         // A twist waits out a rescue, a cleanup or a closed pool, but not for the incident cap: it is no incident.
         if (this.rescue || this.cleanup || this.closed) continue;
         entry.done = startTwist(this, entry);
+        continue;
+      }
+      // (an incident this pool leaves out, from a booking: never here)
+      if (this.venue.skips?.includes(entry.kind)) {
+        entry.done = true;
         continue;
       }
       const system = this.system(entry.kind);
@@ -337,6 +346,14 @@ export class ChaosController extends RescueController {
     p.circleDir = this.chaosRandom() < 0.5 ? -1 : 1;
     p.circleAngle = this.chaosRandom() * Math.PI * 2;
     const river = this.venue.river;
+    // (Out of the Jumping Pool's hot tub: over its coping, then the panic.)
+    if (this.venue.dive && inTub(p.x, p.z, -0.2)) {
+      const [water, deck] = tubOutPath(p);
+      p.fleePhase = "swim";
+      p.fleeTarget = water;
+      p.fleeLanding = deck;
+      return;
+    }
     if (this.venue.onsen) {
       // Out of a hot spring: to the rim beside them (or its steps), up onto it, then the panic.
       if (this.venue.onsen.inWater(p.x, p.z, -0.2)) {

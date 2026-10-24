@@ -232,7 +232,8 @@ function darkChaos(sim, dt) {
       sim.chaosRandom() < 0.25 &&
       !sim.venue.river &&
       !sim.venue.waves &&
-      !sim.venue.onsen
+      !sim.venue.onsen &&
+      !sim.venue.dive
     ) {
       a.problem = "goggles";
       sim.clutter.push({ id: ++sim.uid, type: "goggles", owner: a.id, x: sim.lanes[lane], z: -9.6 });

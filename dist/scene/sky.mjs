@@ -82,6 +82,19 @@ export const SCENERY = {
     fireflies: 0,
     seed: 97,
   },
+  // The Jumping Pool's country club (24 October 2026): rolling green hills all round, no sea and no palms (the scene plants its own
+  // trees), birds, a hot-air balloon or two.
+  garden: {
+    sea: false,
+    hills: [74, 98, 124],
+    palms: 0,
+    boats: 0,
+    birds: 12,
+    balloons: 2,
+    lanterns: 0,
+    fireflies: 0,
+    seed: 131,
+  },
   skyline: {
     sea: false,
     hills: [],

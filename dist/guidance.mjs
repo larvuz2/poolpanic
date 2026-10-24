@@ -48,7 +48,8 @@ export function laneVerdict(sim, p, lane) {
       ? { good: false, text: "They'll get bored 😬" }
       : { good: true, text: "Nice and lazy 🐢👍" };
   }
-  if (!p || v.kids || v.river || v.waves || v.roof || v.onsen || v.class || !(p.type in SPEED)) return null;
+  if (!p || v.kids || v.river || v.waves || v.roof || v.onsen || v.dive || v.class || !(p.type in SPEED))
+    return null;
   const others = sim.people.filter(
     (a) => a !== p && a.lane === lane && ["swim", "enter", "switch"].includes(a.status) && a.type in SPEED,
   );

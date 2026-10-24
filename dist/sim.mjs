@@ -52,6 +52,19 @@ import {
   tickCold,
   updateOnsen,
 } from "./onsen.mjs";
+import {
+  createDive,
+  diveSpawn,
+  sendDiver,
+  tickDiver,
+  tickTubEnter,
+  walkToTub,
+  updateDive,
+  beginDiveExit,
+  tickDiveExit,
+  shownType,
+} from "./dive.mjs";
+import { TUB_LANE } from "./dive-plan.mjs";
 export { LANES, STATIONS } from "./spatial.mjs";
 export const TYPES = {
   beginner: { label: "Beginner", color: "#71ba54", speed: 0.55, icon: "🐢" },
@@ -103,6 +116,15 @@ export const FREE_PLAY_SCALE = (level) => FREE_PLAY[Math.max(1, Math.min(FREE_PL
 export function swimmerLook(p) {
   const t = TYPES[p.type];
   if (p.star) return { ...t, icon: "🚀", label: "VIP · The Missile", color: "#e9a92b" };
+  // (The Jumping Pool, dive.mjs: a guest only here for the hot tub, and a show-off who says they are a Pro until checked.)
+  if (p.tubOnly) {
+    const look = { ...t, icon: "♨️", label: "Hot tub", color: "#e8875a" };
+    return p.vip ? { ...look, icon: "👑", label: "VIP · Hot tub", color: "#e9a92b" } : look;
+  }
+  if (p.bluff && shownType(p) !== p.type) {
+    const look = { ...TYPES.advanced, icon: "😎", label: "Show-off (Pro?)", color: "#f0a83a" };
+    return p.vip ? { ...look, icon: "👑", label: "VIP · Show-off (Pro?)", color: "#e9a92b" } : look;
+  }
   if (p.racer) return { ...t, icon: "🏁", label: "Racer", color: "#e2533f" };
   // (The Lazy River's guests, Phase 3: a thrill-seeker or a chiller, for the way round: river-ride.mjs ROUTES.)
   if (p.type === "rider" && p.thrill !== undefined) {
@@ -533,6 +555,8 @@ export class PoolSimulation extends ChaosController {
     if (this.venue.cruise) this.ship = createShip(this);
     // The hot springs' snow monkeys (onsen.mjs), from a stream of their own.
     if (this.venue.onsen) this.onsen = createOnsen(this);
+    // The Jumping Pool's boards, lines and line-cutters (dive.mjs), from a stream of their own.
+    if (this.venue.dive) this.dive = createDive(this);
     this.clutter = [];
     this.uid = 0;
     this.actor = 0;
@@ -993,6 +1017,7 @@ export class PoolSimulation extends ChaosController {
     if (type === "rider") riderSpawn(this, p);
     if (this.venue.waves) batherSpawn(this, p);
     if (this.venue.onsen) onsenSpawn(this, p);
+    if (this.venue.dive) diveSpawn(this, p, spec);
     if (this.venue.roof || (this.venue.chill && chillGuest(this, p))) roofSpawn(this, p);
     if (type === "senior") {
       // A senior: one of four looks, patient (they know the pool takes time), cramps more often, a steady swimmer of their own pace,
@@ -1146,6 +1171,8 @@ export class PoolSimulation extends ChaosController {
   walk(p, target, mode = "enter") {
     // (At the Lazy River every way into the water is the boarding dock.)
     if (this.venue.river) return walkToRiver(this, p, mode);
+    // (At the Jumping Pool, back to the hot tub.)
+    if (this.venue.dive && p.lane === TUB_LANE) return walkToTub(this, p, mode);
     // (At the hot springs, back to their spring.)
     if (this.venue.onsen && p.lane != null) return walkToSpring(this, p, mode);
     // (At the Wave Pool, down to the beach and into the waves.)
@@ -1173,6 +1200,11 @@ export class PoolSimulation extends ChaosController {
   assign(lane) {
     // (Up on the roof the numbers seat a guest waiting by the lift: rooftop.mjs SEATS.)
     if (this.venue.roof && this.status === "playing") return Number.isInteger(lane) && seatGuest(this, lane);
+    // (At the Jumping Pool the numbers send a guest to a height, 1 to 3, or the hot tub, 4: dive.mjs.)
+    if (this.venue.dive && this.status === "playing") {
+      if (this.coach.carry === "chlorine" && !this.get(this.selected)) return this.deliverWater(lane);
+      return Number.isInteger(lane) && lane >= 0 && lane <= TUB_LANE && sendDiver(this, lane);
+    }
     if (!Number.isInteger(lane) || lane < 0 || lane >= this.lanes.length) return false;
     if (this.status !== "playing") return false;
     if (this.venue.waves) {
@@ -1393,7 +1425,8 @@ export class PoolSimulation extends ChaosController {
             this.venue.roof ||
             p.chill ||
             this.venue.cruise ||
-            this.venue.onsen
+            this.venue.onsen ||
+            this.venue.dive
           ? [...this.venue.route(p, this.venue.arrival.at(p.side, "outside")), ...this.returnRoute(p.side)]
           : [{ x: p.side * this.venue.pool.corridorX, z: p.z }, ...this.returnRoute(p.side)];
     p.lane = null;
@@ -1410,6 +1443,7 @@ export class PoolSimulation extends ChaosController {
     if (this.venue.waves) return beginWaveExit(this, p);
     if (p.chill) return beginRoofExit(this, p);
     if (this.venue.onsen) return beginOnsenExit(this, p);
+    if (this.venue.dive) return beginDiveExit(this, p);
     // Finish in the water at the nearer end, then climb out beside the blocks.
     const P = this.venue.pool;
     p.exitEnd = p.z >= 0 ? 1 : -1;
@@ -1434,6 +1468,7 @@ export class PoolSimulation extends ChaosController {
     if (this.venue.waves) return tickWaveExit(this, p, dt);
     if (p.chill) return tickRoofExit(this, p, dt);
     if (this.venue.onsen) return tickOnsenExit(this, p, dt);
+    if (this.venue.dive) return tickDiveExit(this, p, dt);
     if (p.status !== "exit" || !["water", "climb"].includes(p.exitPhase)) return false;
     if (p.exitPhase === "water") {
       p.actualSpeed = Math.max(1.6, p.desiredSpeed || 2.1);
@@ -1659,6 +1694,7 @@ export class PoolSimulation extends ChaosController {
         this.tickFleeing(p, dt) ||
         this.tickSwitch(p, dt) ||
         this.tickJumper(p, dt) ||
+        (this.dive && tickDiver(this, p, dt)) || // (the Jumping Pool's divers: dive.mjs moves them)
         p.status === "injured" ||
         p.status === "massage" // (on the way to the massage table, or on it: incidents/massage.mjs moves them)
       )
@@ -1693,6 +1729,7 @@ export class PoolSimulation extends ChaosController {
         if (this.venue.river && tickRiverEnter(this, p, dt)) continue;
         if (this.venue.waves && tickWaveEnter(this, p, dt)) continue;
         if (this.venue.onsen && tickOnsenEnter(this, p, dt)) continue;
+        if (this.venue.dive && tickTubEnter(this, p, dt)) continue;
         if (p.chill && tickRoofEnter(this, p, dt)) continue;
         if (this.tickChair(p, dt)) continue;
         if (
@@ -1749,6 +1786,7 @@ export class PoolSimulation extends ChaosController {
     if (this.venue.river) updateRiver(this, dt);
     else if (this.venue.waves) updateWavePool(this, dt);
     else if (this.venue.onsen) updateOnsen(this, dt);
+    else if (this.venue.dive) updateDive(this, dt);
     else {
       if (this.venue.chill) updateRooftop(this, dt);
       if (!this.venue.roof) for (let i = 0; i < this.lanes.length; i++) this.updateLane(i, dt);
@@ -1788,7 +1826,9 @@ export class PoolSimulation extends ChaosController {
             "lounge",
             "overboard",
             "fell-in",
-          ].includes(p.status)
+          ].includes(p.status) ||
+          // (the Jumping Pool: still walking to a board, or waiting in its line)
+          (p.status === "dive" && ["walk", "line"].includes(p.dive))
         ) {
           this.stats.lost++;
           this.score -= this.config.closingPenalty ?? 100;

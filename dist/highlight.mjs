@@ -20,6 +20,8 @@ export const HIGHLIGHT = {
 // What makes a clip, and how good a one: an event of the simulation, its weight and its title.
 const INCIDENTS = {
   crash: [10, "💥 TRAMPOLINE CRASH!"],
+  "dive-fail": [9, "💥 WIPEOUT!"],
+  "line-cut": [4, "😤 LINE CUTTER!"],
   spill: [9, "💩 EVERYBODY OUT!"],
   pee: [8, "💛 WHO PEED?!"],
   "fish-loose": [8, "🐟 FISH IN THE POOL!"],
@@ -41,6 +43,16 @@ const OTHERS = {
   cannonball: () => [9, "💣 CANNONBALL!"],
   "race-go": () => [7, "🏁 THE RACE!"],
   landing: () => [5, "🤸 STUCK THE LANDING!"],
+  // (The Jumping Pool: a flop off a platform, a cannonball from up high, a clean dive off the top, a chicken.)
+  "dive-splash": (e) =>
+    e.ball && e.h >= 1
+      ? [8, "💣 CANNONBALL FROM " + (e.h === 2 ? "THE TOP!" : "MID!")]
+      : e.flat && e.outcome === "flop"
+        ? [7, e.h ? "💥 SMAAACK!" : "🫃 BELLY FLOP!"]
+        : e.outcome === "clean" && e.h === 2
+          ? [6, "✨ PERFECT TEN!"]
+          : null,
+  "dive-chicken": () => [6, "🐔 CHICKENED OUT!"],
   drop: (e) => (e.headline ? [8, "🎧 THE HEADLINE DROP!"] : null),
   "big-done": (e) => (e.result === "great" ? [8, "⭐ " + (e.words || "SHOWSTOPPER").toUpperCase()] : null),
   rapids: (e) => (e.thrill ? null : [5, "😱 THE RAPIDS!"]),

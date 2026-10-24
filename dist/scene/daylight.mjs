@@ -297,6 +297,7 @@ export const DAY_TIMES = {
   roof: 0.62,
   cruise: 0.4,
   onsen: 0.74,
+  dive: 0.05,
 };
 
 // The storm palette every colour is pulled toward. `dim` darkens it after dark.

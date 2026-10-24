@@ -263,7 +263,8 @@ const run = (rig, frames, state) => {
   run(rig, 5, { panic: true });
   assert.equal(rig.current, "panic", "a panicking swimmer plays the Panic clip");
   assert.ok(
-    actions.panic.time >= 0 && actions.panic.time < 6,
+    // (started at a random moment of its 6 s, then played 5 frames that the fake mixer does not wrap)
+    actions.panic.time >= 0 && actions.panic.time < 6 + 6 / 60,
     "from some moment of it (a crowd does not hop in step)",
   );
   run(rig, 30, { panic: true });

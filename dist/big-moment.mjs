@@ -18,6 +18,8 @@
 // - 🌊 **The rogue wave** (the Cruise Ship): the biggest roll of the voyage, three bells. Everyone who slides in helped out, every
 //   row of loungers straightened.
 // - 🐒 **The troop** (the Mountain Hot Springs): four snow monkeys out of the forest at once. Not one in a spring.
+// - 🤸 **The dive show** (the Jumping Pool): five divers arrive together for the show; every one of them should go in clean before
+//   the music stops (the right height for each, show-offs checked).
 //
 // Each goes: waiting → announced (BIG.announce seconds: a sting, the banner, a countdown) → live → done, graded great, good or
 // missed, with its points and a stamp. It waits out a rescue, a clean-up or a closed pool, and incidents wait for it. Its own
@@ -44,8 +46,8 @@ export const BIG = {
   pileUp: 50, // points lost for each swimmer in the race lane at the start
   raceFail: 100,
   // the arrivals
-  crowd: { encore: 5, party: 6, parade: 5 },
-  window: { encore: 22, party: 26, parade: 30 },
+  crowd: { encore: 5, party: 6, parade: 5, showcase: 5 },
+  window: { encore: 22, party: 26, parade: 30, showcase: 40 },
   // the monster set
   monsters: 3,
   monsterGap: 5,
@@ -100,6 +102,12 @@ export const BIG_KINDS = {
     verb: "Hold on! · then help them out and straighten the rows",
     how: "The biggest roll of the voyage. Whoever slides into the pool needs a hand out, and every row of loungers needs straightening.",
   },
+  showcase: {
+    icon: "🤸",
+    title: "THE DIVE SHOW!",
+    verb: "Five divers · every one in clean",
+    how: "Five divers arrive together for the show. Send each one to the height they can take: a clean entry from every one of them before the music stops.",
+  },
   troop: {
     icon: "🐒",
     title: "THE TROOP!",
@@ -121,6 +129,7 @@ export const BIG_RESULTS = {
       headline: "Best night ever!",
       rogue: "Shipshape!",
       troop: "Not one!",
+      showcase: "Perfect tens!",
     },
   },
   good: {
@@ -134,6 +143,7 @@ export const BIG_RESULTS = {
       headline: "Nobody went over",
       rogue: "Nearly shipshape",
       troop: "Only one got in",
+      showcase: "A good show",
     },
   },
   miss: {
@@ -147,6 +157,7 @@ export const BIG_RESULTS = {
       headline: "Over the edge!",
       rogue: "All at sea",
       troop: "Monkey business",
+      showcase: "Belly flop show",
     },
   },
 };
@@ -157,6 +168,7 @@ export function bigKind(venue) {
   if (venue.roof) return "headline";
   if (venue.cruise) return "rogue";
   if (venue.onsen) return "troop";
+  if (venue.dive) return "showcase";
   if (venue.class) return "encore";
   if (venue.kids) return "party";
   if (venue.river) return "parade";
@@ -220,7 +232,7 @@ function announce(sim, B) {
     const senior = !!sim.venue.seniors,
       names = senior ? ["Speedy Dot", "Turbo Ted"] : ["Rocket", "Torpedo"];
     B.racers = [-1, 1].map((side, i) => makeRacer(sim, B, side, names[i], senior));
-  } else if (B.kind === "encore" || B.kind === "party" || B.kind === "parade") {
+  } else if (B.kind === "encore" || B.kind === "party" || B.kind === "parade" || B.kind === "showcase") {
     const n = T.crowd[B.kind],
       extras = Array.from({ length: n }, (_, i) => ({
         at: sim.arrivalTime + 0.4 + i * 0.7,
@@ -417,6 +429,17 @@ function live(sim, B, dt) {
     }
     if (racers.some((p) => p.raceStage === "swim")) return false;
     B.result = B.crashed ? "miss" : B.byCoach ? "great" : "good";
+    return true;
+  }
+  if (B.kind === "showcase") {
+    // Over when the music stops, or when every one of the show's divers has gone in (or gone home).
+    const mine = sim.people.filter((p) => p.big),
+      done = mine.filter((p) => p.diveResult || p.status === "gone" || (p.status === "exit" && !p.served));
+    if (B.t < T.window.showcase && (mine.length < T.crowd.showcase || done.length < mine.length))
+      return false;
+    const clean = mine.filter((p) => p.diveResult === "clean" || (p.tubOnly && p.served)).length;
+    B.score = clean + "/" + mine.length;
+    B.result = clean >= mine.length ? "great" : clean * 2 >= mine.length ? "good" : "miss";
     return true;
   }
   if (B.kind === "encore" || B.kind === "party" || B.kind === "parade") {

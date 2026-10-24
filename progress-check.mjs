@@ -76,7 +76,7 @@ function playWeek(save, starsEach = 3) {
 
 // 1) The ladder: twelve pools in the creator's order, the arena kept for the finale; three open on a first run.
 {
-  assert.equal(LADDER.length, 12);
+  assert.equal(LADDER.length, 13);
   assert.deepEqual(
     [...LADDER, FINALE_POOL].sort(),
     [...POOL_IDS].sort(),
@@ -86,7 +86,7 @@ function playWeek(save, starsEach = 3) {
   assert.ok(!LADDER.includes(FINALE_POOL));
   assert.deepEqual(openPools(3, 1), ["club", "resort", "kids"]);
   assert.deepEqual(openPools(0, 1), ["club", "resort", "kids"], "never fewer than three");
-  assert.equal(openPools(99, 2).length, 12);
+  assert.equal(openPools(99, 2).length, 13);
   assert.ok(!openPools(12, FINALE_WEEK).includes(FINALE_POOL), "the arena is only the finale in week 4");
   assert.ok(openPools(12, FINALE_WEEK + 1).includes(FINALE_POOL), "and joins the draw after it (endless)");
   const fresh = normalizeWeekSave({});
@@ -359,9 +359,9 @@ function playWeek(save, starsEach = 3) {
   r = playWeek(again, 3);
   assert.ok(r.won && !r.ending && again.finale);
   // The ladder stops at the last pool.
-  const full = normalizeWeekSave({ ladder: 12 });
+  const full = normalizeWeekSave({ ladder: 13 });
   r = playWeek(full, 3);
-  assert.ok(r.won && r.newPool === null && full.ladder === 12);
+  assert.ok(r.won && r.newPool === null && full.ladder === 13);
 }
 
 // 8) The save from before Phase 2: every pool played stays open (and one more for each week reached), the dates reached go in the
