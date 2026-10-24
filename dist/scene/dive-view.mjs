@@ -55,7 +55,7 @@ export function divePose(w, sim, p, g, time, dt) {
   // The hot tub's guests: sitting in it, wading in or out.
   if (
     p.lane === TUB_LANE ||
-    (["swim", "enter", "exit", "evacuating", "fleeing"].includes(p.status) && inTub(p.x, p.z, -0.05))
+    (["swim", "enter", "exit", "evacuating", "fleeing"].includes(p.status) && inTub(p.x, p.z, -0.5))
   )
     return poseTub(w, sim, p, g, time, dt);
   return false;
@@ -309,17 +309,21 @@ function airPose(w, u, p, b, time, motion) {
 function poseTub(w, sim, p, g, time, dt) {
   const u = g.userData,
     motion = w.reducedMotion?.matches ? 0 : 1,
-    inside = tubLocal(p.x, p.z).inside,
-    k = clamp(inside / 0.55, 0, 1);
-  if (["queue", "arriving", "gone"].includes(p.status) || inside < -0.1) return false;
+    inside = tubLocal(p.x, p.z).inside;
+  if (["queue", "arriving", "gone"].includes(p.status) || inside < -0.5) return false;
   reset(u);
   u.soreEyes.visible = p.problem === "eyes";
   u.shadow.visible = false;
   const fit = u.fit || 1,
     speed = footSpeed(u, p, dt),
     seated = p.status === "swim" && speed < 0.2 && !sim.rescue && !p.stomachWarning;
-  // Up over the rim and down onto the floor (a raised tub).
-  let y = k < 1 ? TUB_HOP * Math.sin(Math.PI * Math.min(1, k * 1.15)) : TUB_WADE;
+  // Up over the wall from the step and down onto the floor (a raised tub).
+  let y =
+    inside < 0
+      ? TUB_HOP * clamp((inside + 0.5) / 0.5, 0, 1)
+      : inside < 0.2
+        ? TUB_HOP + (TUB_WADE - TUB_HOP) * (inside / 0.2)
+        : TUB_WADE;
   if (seated) {
     u.sink = Math.min(1, (u.sink || 0) + dt * 1.6);
     y =
@@ -377,7 +381,8 @@ export function buildDiveCast(w, ctx) {
         depthWrite: false,
       }),
     );
-    s.userData = { t: i / 12, a: (i * 2.39) % TAU, r: 0.4 + ((i * 0.37) % 1) * 1.2 };
+    // (spread along the long tub: `a` across, `r` along)
+    s.userData = { t: i / 12, a: ((i * 0.61) % 1) - 0.5, r: (((i * 0.37) % 1) - 0.5) * 2 };
     ctx.live.add(s);
     return s;
   });
@@ -433,15 +438,18 @@ function syncDive(w, sim, time, dt, ctx) {
   for (const s of ctx.steam) {
     const u = s.userData;
     u.t = (u.t + dt * 0.18) % 1;
-    const r = u.r + u.t * 0.4;
-    s.position.set(TUB.x + Math.cos(u.a + u.t) * r, TUB_WATER + u.t * 2.0, TUB.z + Math.sin(u.a + u.t) * r);
+    s.position.set(
+      TUB.x + u.a * TUB.hx * 1.4 + Math.sin(u.t * 3 + u.r) * 0.15,
+      TUB_WATER + u.t * 2.0,
+      TUB.z + u.r * (TUB.hz - 0.3),
+    );
     s.scale.setScalar(0.6 + u.t * 1.6);
     s.material.opacity = Math.sin(u.t * Math.PI) * 0.22 * (motion ? 1 : 0.5);
   }
   // Bubbles in the tub now and then.
   if (motion && Math.random() < dt * 4) {
-    const a = Math.random() * TAU,
-      r = Math.random() * (TUB.r - 0.4);
-    w.splash(TUB.x + Math.cos(a) * r, TUB_WATER + 0.02, TUB.z + Math.sin(a) * r, 1, true, 0xffffff);
+    const bx = (Math.random() - 0.5) * 2 * (TUB.hx - 0.2),
+      bz = (Math.random() - 0.5) * 2 * (TUB.hz - 0.2);
+    w.splash(TUB.x + bx, TUB_WATER + 0.02, TUB.z + bz, 1, true, 0xffffff);
   }
 }

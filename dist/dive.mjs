@@ -40,9 +40,9 @@ import {
   tubSeats,
   tubLocal,
   clampInTub,
+  tubEdge,
   tubOutPath,
 } from "./dive-plan.mjs";
-import { springPoint } from "./onsen-plan.mjs";
 import { WetSpots, addWetSpot } from "./incidents/wet.mjs";
 import { Massage } from "./incidents/massage.mjs";
 
@@ -382,6 +382,7 @@ export function tickDiver(sim, p, dt) {
       p.angle = b.angle;
       p.hesitate = Math.max(0, p.hesitate - dt);
       if (p.hesitate > 0) return true;
+      if (sim.time >= sim.config.duration) return true; // (the time is up: the last jumps in flight land, nobody new goes)
       if (p.jump.outcome === "chicken") return chickenOut(sim, p, b);
       // (Nobody jumps into a rescue, a loose fish or a blackout: they wait at the edge.)
       const clear =
@@ -1023,23 +1024,25 @@ function tickTubExit(sim, p, dt) {
 // A floater in the tub (sanitation.mjs): off its edge, it turns back into the water.
 export function keepInTub(q) {
   const l = tubLocal(q.x, q.z);
-  if (l.inside >= 0.45) return;
-  const back = clampInTub(q.x, q.z, 0.5);
+  if (l.inside >= 0.25) return;
+  const back = clampInTub(q.x, q.z, 0.3);
   q.vx = (TUB.x - q.x) * 0.25 - q.vx * 0.4;
   q.vz = (TUB.z - q.z) * 0.25 - q.vz * 0.4;
   q.x = back.x;
   q.z = back.z;
 }
 // Where something lost in the tub starts (a floater, a cloud): where the guest was, a little in from the edge.
-export const tubWaterSpot = (p) => clampInTub(p.x, p.z, 0.6);
-// Where the coach serves a guest in the tub, and where he pours the water care in: the rim nearest.
-export function tubRim(at, out = 0.45) {
-  const l = tubLocal(at.x, at.z);
-  return springPoint(TUB, l.th, 1 + (TUB.rim + TUB.deck + out) / TUB.r);
+export const tubWaterSpot = (p) => clampInTub(p.x, p.z, 0.35);
+// Where the coach serves a guest in the tub, and where he pours the water care in: the nearest edge he can stand at (the pool's side
+// or an end: the hedge's side is against the hedge).
+export function tubRim(at, out = 0.36) {
+  const w = TUB.rim + TUB.deck + out,
+    e = tubEdge(at.x, at.z, w);
+  return e.x < TUB.x - 0.01 ? { x: TUB.x + TUB.hx + w, z: e.z } : e;
 }
 export function tubWaterPoint(at) {
-  const l = tubLocal(at.x, at.z);
-  return springPoint(TUB, l.th, 1 - 0.3 / TUB.r);
+  const e = tubEdge(at.x, at.z, -0.3);
+  return e.x < TUB.x - 0.01 ? { x: TUB.x + TUB.hx - 0.3, z: e.z } : e;
 }
 export { tubOutPath };
 
@@ -1202,6 +1205,12 @@ export const DivingBoards = {
   key: "boards",
   // Not an incident: the venue's own life (it never counts towards the incidents a shift may run at once).
   isActive: () => false,
+  // A jump already under way when the time runs out lands before the shift ends (its points count): a second or two at most,
+  // and never a new one (nobody leaves a board once the clock has stopped).
+  holdsClock: (sim) =>
+    !!sim.dive &&
+    sim.time >= sim.config.duration &&
+    sim.people.some((p) => p.status === "dive" && (p.dive === "air" || p.dive === "bounce")),
   describe(sim) {
     const D = sim.dive;
     if (!D) return "";

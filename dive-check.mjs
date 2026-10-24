@@ -98,11 +98,28 @@ const inStation = (x, z) => STATIONS.some((s) => x > s.x0 && x < s.x1 && z > s.z
   assert.ok(
     diveWalkable(tubSteps().deck.x, tubSteps().deck.z) && inTub(tubSteps().water.x, tubSteps().water.z),
   );
-  assert.ok(!inPool(TUB.x, TUB.z, TUB.r + 0.5), "the tub away from the pool");
-  // The massage corner: two beds side by side.
+  assert.ok(
+    TUB.x + TUB.hx + TUB.rim + TUB.deck < -(DIVE.halfX + 0.65 + 0.5),
+    "the tub off the pool, a walk between",
+  );
+  assert.ok(TUB.hz > 2 * TUB.hx, "a long tub, along the pool");
+  // The massage corner: two beds end to end along the walk, lengthwise along the pool (the near side kept narrow).
   assert.equal(MASSAGE_BEDS.length, 2);
   assert.equal(tablesOf(v).length, 2, "the venue has both massage beds");
-  assert.ok(Math.abs(MASSAGE_BEDS[0].z - MASSAGE_BEDS[1].z) < 0.01, "side by side");
+  assert.ok(
+    Math.abs(MASSAGE_BEDS[0].x - MASSAGE_BEDS[1].x) < 0.01 &&
+      Math.abs(MASSAGE_BEDS[0].z - MASSAGE_BEDS[1].z) > 2.2,
+    "end to end",
+  );
+  for (const b of MASSAGE_BEDS) assert.equal(b.angle, 0, "lengthwise along the pool");
+  assert.ok(v.deck.minX > -10, "a narrow near side");
+  // Nothing on the narrow walk (the tub's wall) may stand where the coach climbs out of the pool's long sides.
+  for (const sx of [-1, 1])
+    for (let z = -v.pool.swimZ; z <= v.pool.swimZ; z += 0.1)
+      assert.ok(
+        v.isDeck(sx * v.pool.climbOutX, z, 18),
+        `the coach can climb out at x ${sx * v.pool.climbOutX}, z ${z.toFixed(1)}`,
+      );
   for (const t of tablesOf(v)) {
     for (const sp of SPOTS) {
       const at = tablePoint(t, sp.along, sp.side * TABLE.stand);
