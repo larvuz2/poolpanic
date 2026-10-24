@@ -404,22 +404,28 @@ function lineMarks(ctx, b) {
 
 function hotTub(ctx) {
   const { w, live } = ctx,
-    r = TUB.r,
-    rim = TUB.rim,
     H = TUB_TOP,
-    deck = TUB.deck || 0;
-  // A raised tub (the paving runs on under it): a teak cabinet, an octagon round a round bowl, its top a step up from the deck.
-  const outer = r + rim + deck,
-    shape = new THREE.Shape();
-  for (let k = 0; k <= 8; k++) {
-    const a = (k / 8) * TAU + Math.PI / 8;
-    shape[k ? "lineTo" : "moveTo"](Math.cos(a) * outer, Math.sin(a) * outer);
-  }
-  const bowl = new THREE.Path();
-  bowl.absarc(0, 0, r, 0, TAU, true);
-  shape.holes.push(bowl);
+    hx = TUB.hx,
+    hz = TUB.hz,
+    wall = TUB.rim + TUB.deck,
+    ox = hx + wall,
+    oz = hz + wall;
+  // A long raised tub (the paving runs on under it) in a teak cabinet, along the walk by the pool.
+  const shape = new THREE.Shape();
+  shape.moveTo(-ox, -oz);
+  shape.lineTo(ox, -oz);
+  shape.lineTo(ox, oz);
+  shape.lineTo(-ox, oz);
+  shape.closePath();
+  const hole = new THREE.Path();
+  hole.moveTo(-hx, -hz);
+  hole.lineTo(-hx, hz);
+  hole.lineTo(hx, hz);
+  hole.lineTo(hx, -hz);
+  hole.closePath();
+  shape.holes.push(hole);
   const cabinet = new THREE.Mesh(
-    new THREE.ExtrudeGeometry(shape, { depth: H, bevelEnabled: false, curveSegments: 40 }),
+    new THREE.ExtrudeGeometry(shape, { depth: H, bevelEnabled: false }),
     w.mat(TEAK, { roughness: 0.7 }),
   );
   cabinet.rotation.x = -Math.PI / 2;
@@ -427,73 +433,38 @@ function hotTub(ctx) {
   cabinet.castShadow = cabinet.receiveShadow = true;
   w.scene.add(cabinet);
   // Dark battens up its sides.
-  for (let k = 0; k < 8; k++) {
-    const a = (k / 8) * TAU,
-      R = outer * Math.cos(Math.PI / 8) + 0.01;
-    w.box(
-      0.08,
-      H - 0.04,
-      0.05,
-      TEAK_DARK,
-      TUB.x + Math.cos(a) * R,
-      H / 2,
-      TUB.z - Math.sin(a) * R,
-      0.01,
-    ).rotation.y = a + Math.PI / 2;
-  }
-  const coping = new THREE.Mesh(
-    new THREE.TorusGeometry(r + rim / 2, rim / 2, 10, 48),
-    w.mat(0xeee6d6, { roughness: 0.5 }),
-  );
-  coping.rotation.x = Math.PI / 2;
-  coping.position.set(TUB.x, H + 0.02, TUB.z);
-  w.scene.add(coping);
-  // The bowl: turquoise, its seat ledge, its floor just above the deck.
+  for (const sx of [-1, 1])
+    for (let k = -2; k <= 2; k++)
+      w.box(0.05, H - 0.04, 0.08, TEAK_DARK, TUB.x + sx * (ox + 0.01), H / 2, TUB.z + (k * oz) / 2.5, 0.01);
+  for (const sz of [-1, 1])
+    w.box(0.08, H - 0.04, 0.05, TEAK_DARK, TUB.x, H / 2, TUB.z + sz * (oz + 0.01), 0.01);
+  // The coping: a pale stone frame round the water.
+  const stone = 0xeee6d6,
+    cw = TUB.rim;
+  for (const sx of [-1, 1])
+    w.box(cw, 0.06, 2 * (hz + cw), stone, TUB.x + sx * (hx + cw / 2), H + 0.03, TUB.z, 0.02);
+  for (const sz of [-1, 1]) w.box(2 * hx, 0.06, cw, stone, TUB.x, H + 0.03, TUB.z + sz * (hz + cw / 2), 0.02);
+  // The bowl: turquoise walls, a seat ledge along each long side, its floor just above the deck.
   const shell = new THREE.Mesh(
-    new THREE.CylinderGeometry(r, r - 0.12, H, 40, 1, true),
+    new THREE.BoxGeometry(2 * hx, H, 2 * hz),
     new THREE.MeshStandardMaterial({ color: 0x4fc3d6, roughness: 0.3, side: THREE.BackSide }),
   );
   shell.position.set(TUB.x, H / 2, TUB.z);
   w.scene.add(shell);
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(r - 0.12, 40), w.mat(0x3fb0c6, { roughness: 0.4 }));
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.set(TUB.x, 0.01, TUB.z);
-  w.scene.add(floor);
-  const ledge = new THREE.Mesh(
-    new THREE.TorusGeometry(r - 0.22, 0.18, 8, 40),
-    w.mat(0x6fd3e0, { roughness: 0.35 }),
-  );
-  ledge.rotation.x = Math.PI / 2;
-  ledge.position.set(TUB.x, 0.2, TUB.z);
-  w.scene.add(ledge);
-  // The steps up to its rim on the pool side, and a rail.
+  for (const sx of [-1, 1])
+    w.box(0.26, 0.3, 2 * hz - 0.1, 0x6fd3e0, TUB.x + sx * (hx - 0.13), 0.15, TUB.z, 0.03);
+  // The steps up to its rim at the end toward the massage beds, and a rail.
   const st = tubSteps(),
-    dx = st.water.x - st.deck.x,
-    dz = st.water.z - st.deck.z,
-    len = Math.hypot(dx, dz),
-    ux = dx / len,
-    uz = dz / len,
-    edge = { x: TUB.x - ux * outer, z: TUB.z - uz * outer };
+    e = Math.sign(st.deck.z - TUB.z) || 1,
+    edgeZ = TUB.z + e * oz;
   for (let i = 0; i < 2; i++) {
     const h = (H * (i + 1)) / 3,
-      back = 0.62 - i * 0.3;
-    w.box(0.32, h, 1.0, TEAK, edge.x - ux * back, h / 2, edge.z - uz * back, 0.02).rotation.y = Math.atan2(
-      ux,
-      uz,
-    );
+      back = 0.55 - i * 0.28;
+    w.box(1.0, h, 0.3, TEAK, TUB.x, h / 2, edgeZ + e * back, 0.02);
   }
-  w.rod(
-    [edge.x - ux * 0.75 + uz * 0.6, 0, edge.z - uz * 0.75 - ux * 0.6],
-    [edge.x - ux * 0.75 + uz * 0.6, 0.95, edge.z - uz * 0.75 - ux * 0.6],
-    0.03,
-    RAIL,
-  );
-  w.rod(
-    [edge.x - ux * 0.75 + uz * 0.6, 0.95, edge.z - uz * 0.75 - ux * 0.6],
-    [edge.x + uz * 0.6, H + 0.75, edge.z - ux * 0.6],
-    0.03,
-    RAIL,
-  );
+  const rx = TUB.x + ox - 0.05;
+  w.rod([rx, 0, edgeZ + e * 0.75], [rx, 0.95, edgeZ + e * 0.75], 0.03, RAIL);
+  w.rod([rx, 0.95, edgeZ + e * 0.75], [rx, H + 0.75, edgeZ], 0.03, RAIL);
   // The water: a glowing turquoise disc that clouds over with a mess (the view's), bubbling.
   const waterMat = new THREE.MeshPhysicalMaterial({
     color: 0x7fe3ee,
@@ -505,7 +476,7 @@ function hotTub(ctx) {
     emissiveIntensity: 0.25,
     clearcoat: 1,
   });
-  const water = new THREE.Mesh(new THREE.CircleGeometry(r + 0.01, 48), waterMat);
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(2 * hx + 0.02, 2 * hz + 0.02), waterMat);
   water.rotation.x = -Math.PI / 2;
   water.position.set(TUB.x, TUB_WATER_Y, TUB.z);
   water.renderOrder = 2;
@@ -524,58 +495,60 @@ function hotTub(ctx) {
 
 function spaCorner(ctx) {
   const { w } = ctx,
-    beds = [...MASSAGE_BEDS].sort((a, b) => a.x - b.x),
-    outer = beds[0], // (the bed by the hedge)
-    cx = (beds[0].x + beds[beds.length - 1].x) / 2,
-    cz = MASSAGE_BEDS[0].z;
-  // Warm non-slip tiles under both beds. (Open to the sky: it is on the camera's side, so no pergola hides the beds.)
+    beds = [...MASSAGE_BEDS].sort((a, b) => a.z - b.z),
+    first = beds[0],
+    last = beds[beds.length - 1],
+    cx = first.x,
+    z0 = first.z - 1.35,
+    z1 = last.z + 1.35;
+  // Warm non-slip tiles in a strip under both beds, along the walk. (Open to the sky: nothing over the beds hides them.)
   const tiles = mosaicTexture({ seed: 61, base: "#d39a6a", grout: "#e7c39a" });
-  tiles.repeat.set(5, 4);
+  tiles.repeat.set(2, (z1 - z0) / 1.2);
   w.textures.push(tiles);
   const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(5.6, 3.6),
+    new THREE.PlaneGeometry(2.3, z1 - z0),
     new THREE.MeshStandardMaterial({ map: tiles, roughness: 0.8 }),
   );
   floor.rotation.x = -Math.PI / 2;
-  floor.position.set(cx - 0.3, 0.006, cz);
+  floor.position.set(cx - 0.25, 0.006, (z0 + z1) / 2);
   floor.receiveShadow = true;
   w.scene.add(floor);
-  // The equipment shelf against the hedge: folded towels, oils, a stack of stones, facing the pool.
-  const shelf = w.group(outer.x - 1.35, 0, cz, w.scene, Math.PI / 2);
-  for (const y of [0.25, 0.75, 1.25]) w.box(2.0, 0.05, 0.5, TEAK, 0, y, 0, 0.01, shelf);
-  for (const x of [-0.95, 0.95]) w.box(0.06, 1.4, 0.5, TEAK_DARK, x, 0.7, 0, 0.01, shelf);
+  // A low shelf past the last bed: folded towels, oils, a stack of stones, facing the pool.
+  const shelf = w.group(cx - 0.9, 0, z1 + 0.15, w.scene, 0);
+  for (const y of [0.25, 0.6]) w.box(1.3, 0.05, 0.42, TEAK, 0, y, 0, 0.01, shelf);
+  for (const x of [-0.62, 0.62]) w.box(0.05, 0.9, 0.42, TEAK_DARK, x, 0.45, 0, 0.01, shelf);
   const towel = [0xffffff, 0x8fd1c9, 0xf7e7c4];
-  for (let i = 0; i < 4; i++)
-    for (let j = 0; j < 3; j++)
-      w.box(0.38, 0.09, 0.32, towel[(i + j) % 3], -0.7 + i * 0.47, 0.32 + j * 0.095, 0, 0.03, shelf);
-  for (let i = 0; i < 5; i++)
-    w.cyl(0.05, 0.06, 0.2, i % 2 ? 0xd38a2c : 0x9bbf6a, -0.7 + i * 0.35, 0.88, 0, shelf, 10);
   for (let i = 0; i < 3; i++)
-    w.ball(0.09 - i * 0.015, 0x3a3a3a, 0.6, 1.33 + i * 0.12, 0, shelf, [1.3, 0.6, 1.3]);
-  // The relaxation sign: a low board on two posts at the corner's far end, turned to the camera.
-  const sx = cx - 0.3,
-    sz = cz + 2.05;
-  for (const dx of [-1.05, 1.05]) w.box(0.08, 0.95, 0.08, 0xfbf8f1, sx + dx, 0.47, sz, 0.02);
+    for (let j = 0; j < 2; j++)
+      w.box(0.34, 0.09, 0.3, towel[(i + j) % 3], -0.42 + i * 0.42, 0.32 + j * 0.095, 0, 0.03, shelf);
+  for (let i = 0; i < 4; i++)
+    w.cyl(0.05, 0.06, 0.18, i % 2 ? 0xd38a2c : 0x9bbf6a, -0.5 + i * 0.33, 0.72, 0, shelf, 10);
+  for (let i = 0; i < 3; i++)
+    w.ball(0.08 - i * 0.015, 0x3a3a3a, 0.45, 0.68 + i * 0.1, 0, shelf, [1.3, 0.6, 1.3]);
+  // The relaxation sign: a low board on two posts by the shelf, turned to the camera.
+  const sx = cx + 0.45,
+    sz = z1 + 0.2;
+  for (const dx of [-0.5, 0.5]) w.box(0.06, 0.8, 0.06, 0xfbf8f1, sx, 0.4, sz + dx, 0.02);
   const sign = w.textPlane(
     "RELAX · MASSAGE",
-    2.4,
-    0.4,
+    1.5,
+    0.3,
     "#f6efdf",
     "#5f8f6a",
-    sx,
-    0.9,
-    sz - 0.05,
+    sx - 0.04,
+    0.78,
+    sz,
     w.scene,
     46,
   );
-  sign.rotation.y = Math.PI;
-  sign.rotation.x = -0.35;
-  // A plant in a big pot by the hedge, at the corner's far end.
-  const g = propModel("potted-plant", { height: 1.3 }, (q) => {
-    w.cyl(0.3, 0.24, 0.5, TERRACOTTA, 0, 0.25, 0, q);
-    w.ball(0.5, 0x4f8f3c, 0, 0.85, 0, q);
+  sign.rotation.y = -Math.PI / 2;
+  sign.rotation.x = 0;
+  // A plant in a pot by the hedge, before the first bed.
+  const g = propModel("potted-plant", { height: 1.1 }, (q) => {
+    w.cyl(0.26, 0.2, 0.45, TERRACOTTA, 0, 0.22, 0, q);
+    w.ball(0.42, 0x4f8f3c, 0, 0.75, 0, q);
   });
-  g.position.set(outer.x - 1.3, 0, cz + 2.0);
+  g.position.set(cx - 1.15, 0, z0 - 0.1);
   w.scene.add(g);
 }
 
@@ -644,7 +617,7 @@ function garden(ctx) {
     w.scene.add(g);
   };
   for (let z = R.minZ - 3; z <= R.maxZ + 3; z += 5.2) {
-    tree(R.minX - 4.5 - rand() * 3, z + rand() * 2, 1 + rand() * 0.3);
+    tree(R.minX - 8.2 - rand() * 3, z + rand() * 2, 1 + rand() * 0.3); // (well back: the camera looks over this side)
     if (Math.abs(z) > 4) cypress(R.maxX + 2.0, z + 1.3, 1 + rand() * 0.2);
   }
   for (let x = R.minX - 2; x <= R.maxX + 2; x += 5.5)
@@ -885,7 +858,7 @@ function pickVolumes(ctx) {
     w.springRims.push(rim);
   }
   // The hot tub.
-  const disc = new THREE.CircleGeometry(TUB.r + TUB.rim, 40);
+  const disc = new THREE.PlaneGeometry(2 * (TUB.hx + TUB.rim), 2 * (TUB.hz + TUB.rim));
   disc.rotateX(-Math.PI / 2);
   const pick = new THREE.Mesh(disc, new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
   pick.position.set(TUB.x, TUB_WATER_Y + 0.05, TUB.z);
@@ -900,13 +873,14 @@ function pickVolumes(ctx) {
   glow.renderOrder = 3;
   w.scene.add(glow);
   w.springHighlights.push(glow);
-  const pts = [];
-  for (let k = 0; k <= 48; k++) {
-    const a = (k / 48) * TAU;
-    pts.push(
-      new THREE.Vector3(TUB.x + Math.cos(a) * (TUB.r + 0.05), 0.08, TUB.z + Math.sin(a) * (TUB.r + 0.05)),
-    );
-  }
+  const gx = TUB.hx + TUB.rim + TUB.deck + 0.05,
+    gz = TUB.hz + TUB.rim + TUB.deck + 0.05,
+    pts = [
+      [-gx, -gz],
+      [gx, -gz],
+      [gx, gz],
+      [-gx, gz],
+    ].map(([x, z]) => new THREE.Vector3(TUB.x + x, 0.08, TUB.z + z));
   const rim = new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints(pts),
     new THREE.LineBasicMaterial({ color: 0xffdf52, transparent: true, opacity: 1, depthWrite: false }),

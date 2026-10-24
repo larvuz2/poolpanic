@@ -392,7 +392,8 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   bored pencil jump, ×0.35 one height under (×0.2 two) and 30 (50) mood gone, "Boring…" (a Pro on the springboard earns about a
   sixth of a clean HIGH dive and is cross); the usual bonuses for a happy, quick or VIP guest. **The failed jump** (`failed`): an
   uncontrolled tumble, a huge splash, −150 off MID, −220 off HIGH, and the diver winded in the water: **the cramp's rescue**, no new
-  system (`sim.rescue.kind` `dive`; the ring, the swim, the ladder); anyone landed on needs a ring too. Out by a ladder, a rescued
+  system (`sim.rescue.kind` `dive`; the ring, the swim, the ladder); anyone landed on needs a ring too. **When the time runs out** a jump
+  already in flight lands before the shift ends (its points count: `DivingBoards.holdsClock`), and nobody new leaves a board. Out by a ladder, a rescued
   diver lies down on a free massage bed (`diverRescued`, `Massage.request`) or goes home. **A chicken** climbs back down (−60, the
   guest lost). **The landing**: a diver jumps only when the water below is clear (`landingClear`, `LANDING.reach` 1.5 m: a diver
   swimming out, a rescue, the coach); waiting at the edge they grow cross (the 🤸 "Clear the landing!" alert) and after 11 s jump
@@ -402,7 +403,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   `stats.checked`); believe one and send them HIGH, and it is a beginner on HIGH. **Line-cutters** 😤 (from level 5, every 26 to 44
   s when a line has two or more): the last in a line pushes to the front and argues there for 7 s, the line crosser by the second;
   E beside them sends them to the back (+40, a save: BACK OF THE LINE!), or they win and go first and the line is crosser still
-  (`updateCut`, `sendBack`, the `line-cut` incident). **The hot tub** ♨️ (TUB, key 4, on the near side by the coach, with the massage corner): a guest in five comes only for it (they say
+  (`updateCut`, `sendBack`, the `line-cut` incident). **The hot tub** ♨️ (TUB, key 4, a long rectangle on the narrow near side by the coach, with the massage beds): a guest in five comes only for it (they say
   so; a diver sent there or a soaker sent to a board is refused), six seats, 20 to 30 s soaking; **only its guests have tummy
   trouble** (a third of them from level 3, a wee or a poo, `peeShare` 0.45), and a floater closes the tub, not the pool: the
   skimmer, the water care and the tub reopened as in the springs. **No chlorine, no poo and no vomit in the diving pool** (nobody
@@ -1049,14 +1050,18 @@ The overview shows the pool and its deck; the Coach Cam shows the world around t
   (`LIGHTING.dive`, the time of day 0.05; the Coach Cam's sky has the `garden` scenery). **The pool**: deep (4.2 m) and blue over a
   mosaic floor, a tile band, ladders on the long sides, pale pavers round it. **The stations**: at each end the green springboard on
   its fulcrum (it bends under a diver and rings on after the take-off, a damped spring), the yellow 3 m and red 6 m platforms on
-  white towers with their height plates, steel stairs with rails, a painted mark for each line and a sign at each foot. On the
-  near side, by the coach (moved there the same day, the creator: "switch the hot tub and massage area… closer to camera where
-  coach spawn"): **the hot tub**, a raised one in an octagonal teak cabinet with steps up its side, with its own water (it clouds
-  when soiled), steam, bubbles and a glow, the skimmer on the hedge beside it and the waste bin and its water care close by;
-  **the spa corner**, two massage beds on warm tiles open to the sky (no pergola, which would hide them from the camera), a shelf
-  of towels and oils against the hedge, a low RELAX sign, a plant. The towels, the eye care, the rescue bench and the lifeguard's
-  chair are on the far side. The camera leans toward the near side (`cameraFollow.biasX`, scene.mjs `followCoach`) so the tub and
-  both beds stay clear of the HUD's buttons. **Round it**: a striped lawn, clipped hedges and flower beds, round
+  white towers with their height plates, steel stairs with rails, a painted mark for each line and a sign at each foot. **The near
+  side is narrow** (the camera's side, where the coach starts; the creator, 24 October 2026: first "switch the hot tub and massage
+  area… closer to camera where coach spawn", then "make the lower area of this pool thinner… a rectangular hot tub and rotate…
+  the massage tables so they are parallel to pool… the ui blocks the tallest platform"): about 3.5 m from the pool's edge to the
+  hedge, a walk along the pool and, along it, **the hot tub**, a long raised rectangle in a teak cabinet (two rows of three seats
+  facing each other, steps at its end toward the beds; its own water, which clouds when soiled, steam, bubbles and a glow), with
+  the skimmer on the hedge past its end and its water care before it, and **the massage beds**, end to end along the walk,
+  lengthwise along the pool, on warm tiles open to the sky (a low shelf of towels and oils, a RELAX sign, a plant), the waste bin
+  between them. The towels, the eye care, the rescue bench and the lifeguard's chair are on the far side. The camera stands back
+  a little and leans toward the far side (`cameraScale` 1.5, `cameraFollow.biasX` 3.3, scene.mjs `followCoach`), so both
+  HIGH platforms and a diver on them are clear of the score panel at the top while the tub and both beds stay clear of the
+  buttons at the bottom. **Round it**: a striped lawn, clipped hedges and flower beds, round
   trees and cypresses, sunbeds and parasols, the white clubhouse with its green shutters and its sign, the garden gates. **The
   cast** (`divePose`): a diver in line, up the stairs, walking out (frightened: knees in, arms hugged; bored: hands on hips; a
   show-off strutting); at the edge a scared diver shakes and peeks over; in the air the body turns through its spin (tucked into a

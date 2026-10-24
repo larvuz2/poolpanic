@@ -1355,12 +1355,13 @@ export const DIVE = makeVenue({
     outsideZ: 14.2,
   },
   lockers: [],
-  queue: { alongZ: true, startX: -11.6, stepX: 1.05, startZ: 12.0, stepZ: 1.1, perRow: 3 },
-  // (The near side, the camera's, has the hot tub and the massage corner: the coach starts between them.)
-  coachStart: { x: -7.9, z: 0.2 },
-  cameraScale: 1.1,
-  // (leaning toward the near side, where the hot tub and the massage corner are, and following the coach a little further)
-  cameraFollow: { kx: 0.3, maxX: 4.0, biasX: -2.8 },
+  queue: { alongZ: true, startX: -9.3, stepX: 1.05, startZ: 12.0, stepZ: 1.1, perRow: 3 },
+  // (The near side, the camera's, is a narrow walk with the hot tub and the massage beds: the coach starts between them.)
+  coachStart: { x: -6.9, z: -0.2 },
+  cameraScale: 1.5,
+  // (stood back and leaning toward the far side, so both HIGH boards and a diver on them clear the score panel at the top
+  // while the narrow near side, the tub and the beds, stays above the buttons at the bottom)
+  cameraFollow: { kx: 0.24, maxX: 3.2, biasX: 3.3 },
   props: [
     "mop",
     "mop-bucket",
@@ -1374,19 +1375,19 @@ export const DIVE = makeVenue({
   ],
   stations: {
     fins: { x: 12.9, z: -3.0 }, // (nobody needs fins here: a rack of towels)
-    chlorine: { x: -12.9, z: 6.4 }, // the hot tub's water care, on the near side by the massage corner
+    chlorine: { x: -9.1, z: -6.3 }, // the hot tub's water care, on the near side past the tub's far end
     relief: { x: 12.9, z: 6.6 },
   },
-  // The skimmer on the near hedge beside the hot tub, the waste bin between the tub and the massage corner.
-  sanitation: { rack: { x: -13.0, z: -0.2 }, bin: { x: -12.6, z: 1.3 }, reach: 6.2 },
+  // The skimmer on the near hedge between the hot tub and the massage beds, the waste bin between the two beds.
+  sanitation: { rack: { x: -9.3, z: -0.2 }, bin: { x: -8.8, z: 3.25 }, reach: 6.2 },
   ringMounts: [
-    { x: -13.75, z: -7.4, angle: Math.PI / 2 },
-    { x: -13.75, z: 7.9, angle: Math.PI / 2 },
+    { x: -10.05, z: -7.8, angle: Math.PI / 2 },
+    { x: -10.05, z: 7.3, angle: Math.PI / 2 },
     { x: 13.75, z: 4.0, angle: -Math.PI / 2 },
   ],
   rescue: { bench: { x: 12.7, z: 0.4 }, approach: { x: 11.4, z: 0.4 } },
-  // Where the hot tub's guests wait while it is closed (a floater, a wee): on the near deck between the tub and the massage corner.
-  evacSpots: [0.7, 1.5].flatMap((z) => [-8.0, -9.0, -10.0, -11.0].map((x) => ({ x, z }))),
+  // Where the hot tub's guests wait while it is closed (a floater, a wee): on the walk in front of it.
+  evacSpots: [-4.4, -3.6, -2.8, -2.0, -1.2, -0.4].map((z) => ({ x: -6.75, z })),
   fixtures: {
     fishNet: { x: 13.75, z: -8.6, angle: -Math.PI / 2 },
     treats: { x: 12.6, z: -7.2 },
@@ -1401,10 +1402,9 @@ export const DIVE = makeVenue({
     ...DIVE_STATION_BOXES,
     { kind: "bench", x: 12.7, z: 0.4, angle: -Math.PI / 2, hx: 0.49, hz: 1.2 },
     { kind: "towel-rack", x: 12.9, z: -3.0, hx: 0.5, hz: 1.0 },
-    { kind: "station", x: -12.9, z: 6.4, hx: 0.6, hz: 0.9 },
+    { kind: "station", x: -9.1, z: -6.3, hx: 0.6, hz: 0.9 },
     { kind: "station", x: 12.9, z: 6.6, hx: 0.6, hz: 0.9 },
     { kind: "lifeguard", x: 8.4, z: -5.2, hx: 0.6, hz: 0.6 },
-    { kind: "spa-shelf", x: -13.05, z: 3.6, hx: 0.3, hz: 1.1 },
     { kind: "planter", x: 8.2, z: 5.6, hx: 0.5, hz: 0.5 },
     { kind: "planter", x: 7.0, z: -13.6, hx: 0.5, hz: 0.5 },
     { kind: "planter", x: 12.8, z: 13.4, hx: 0.5, hz: 0.5 },
