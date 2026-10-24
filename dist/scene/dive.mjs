@@ -406,9 +406,10 @@ function hotTub(ctx) {
   const { w, live } = ctx,
     r = TUB.r,
     rim = TUB.rim,
-    H = TUB_TOP;
+    H = TUB_TOP,
+    deck = TUB.deck || 0;
   // A raised tub (the paving runs on under it): a teak cabinet, an octagon round a round bowl, its top a step up from the deck.
-  const outer = r + rim + 0.75,
+  const outer = r + rim + deck,
     shape = new THREE.Shape();
   for (let k = 0; k <= 8; k++) {
     const a = (k / 8) * TAU + Math.PI / 8;
@@ -523,9 +524,11 @@ function hotTub(ctx) {
 
 function spaCorner(ctx) {
   const { w } = ctx,
-    cx = (MASSAGE_BEDS[0].x + MASSAGE_BEDS[1].x) / 2,
+    beds = [...MASSAGE_BEDS].sort((a, b) => a.x - b.x),
+    outer = beds[0], // (the bed by the hedge)
+    cx = (beds[0].x + beds[beds.length - 1].x) / 2,
     cz = MASSAGE_BEDS[0].z;
-  // Warm non-slip tiles under both beds.
+  // Warm non-slip tiles under both beds. (Open to the sky: it is on the camera's side, so no pergola hides the beds.)
   const tiles = mosaicTexture({ seed: 61, base: "#d39a6a", grout: "#e7c39a" });
   tiles.repeat.set(5, 4);
   w.textures.push(tiles);
@@ -534,28 +537,11 @@ function spaCorner(ctx) {
     new THREE.MeshStandardMaterial({ map: tiles, roughness: 0.8 }),
   );
   floor.rotation.x = -Math.PI / 2;
-  floor.position.set(cx + 0.3, 0.006, cz);
+  floor.position.set(cx - 0.3, 0.006, cz);
   floor.receiveShadow = true;
   w.scene.add(floor);
-  // A pergola over it: four white posts and slats, a vine on it.
-  for (const x of [cx - 2.4, cx + 2.9])
-    for (const z of [cz - 1.7, cz + 1.7]) w.box(0.16, 2.8, 0.16, 0xfbf8f1, x, 1.4, z, 0.03);
-  for (let k = 0; k < 9; k++) w.box(5.6, 0.08, 0.1, 0xfbf8f1, cx + 0.25, 2.84, cz - 1.75 + k * 0.44, 0.02);
-  for (const z of [cz - 1.7, cz + 1.7]) w.box(5.7, 0.16, 0.14, 0xfbf8f1, cx + 0.25, 2.74, z, 0.02);
-  const vine = w.mat(0x4f8f3c, { roughness: 0.9 });
-  const rand = rngOf(77);
-  for (let k = 0; k < 26; k++)
-    w.ball(
-      0.22 + rand() * 0.18,
-      vine,
-      cx - 2.3 + rand() * 5.2,
-      2.92 + rand() * 0.12,
-      cz - 1.7 + rand() * 3.4,
-      w.scene,
-      [1.4, 0.5, 1],
-    );
-  // The equipment shelf at the back: folded towels, oils, a stack of stones.
-  const shelf = w.group(MASSAGE_BEDS[1].x + 1.55, 0, cz, w.scene, -Math.PI / 2);
+  // The equipment shelf against the hedge: folded towels, oils, a stack of stones, facing the pool.
+  const shelf = w.group(outer.x - 1.35, 0, cz, w.scene, Math.PI / 2);
   for (const y of [0.25, 0.75, 1.25]) w.box(2.0, 0.05, 0.5, TEAK, 0, y, 0, 0.01, shelf);
   for (const x of [-0.95, 0.95]) w.box(0.06, 1.4, 0.5, TEAK_DARK, x, 0.7, 0, 0.01, shelf);
   const towel = [0xffffff, 0x8fd1c9, 0xf7e7c4];
@@ -566,32 +552,31 @@ function spaCorner(ctx) {
     w.cyl(0.05, 0.06, 0.2, i % 2 ? 0xd38a2c : 0x9bbf6a, -0.7 + i * 0.35, 0.88, 0, shelf, 10);
   for (let i = 0; i < 3; i++)
     w.ball(0.09 - i * 0.015, 0x3a3a3a, 0.6, 1.33 + i * 0.12, 0, shelf, [1.3, 0.6, 1.3]);
-  // The relaxation sign, on the pergola's front beam.
+  // The relaxation sign: a low board on two posts at the corner's far end, turned to the camera.
+  const sx = cx - 0.3,
+    sz = cz + 2.05;
+  for (const dx of [-1.05, 1.05]) w.box(0.08, 0.95, 0.08, 0xfbf8f1, sx + dx, 0.47, sz, 0.02);
   const sign = w.textPlane(
     "RELAX · MASSAGE",
-    2.6,
-    0.42,
+    2.4,
+    0.4,
     "#f6efdf",
     "#5f8f6a",
-    cx + 0.25,
-    2.5,
-    cz - 1.8,
+    sx,
+    0.9,
+    sz - 0.05,
     w.scene,
     46,
   );
   sign.rotation.y = Math.PI;
-  // Plants in big pots at its corners.
-  for (const [x, z] of [
-    [cx - 2.6, cz - 2.0],
-    [cx - 2.6, cz + 2.0],
-  ]) {
-    const g = propModel("potted-plant", { height: 1.3 }, (s) => {
-      w.cyl(0.3, 0.24, 0.5, TERRACOTTA, 0, 0.25, 0, s);
-      w.ball(0.5, 0x4f8f3c, 0, 0.85, 0, s);
-    });
-    g.position.set(x, 0, z);
-    w.scene.add(g);
-  }
+  sign.rotation.x = -0.35;
+  // A plant in a big pot by the hedge, at the corner's far end.
+  const g = propModel("potted-plant", { height: 1.3 }, (q) => {
+    w.cyl(0.3, 0.24, 0.5, TERRACOTTA, 0, 0.25, 0, q);
+    w.ball(0.5, 0x4f8f3c, 0, 0.85, 0, q);
+  });
+  g.position.set(outer.x - 1.3, 0, cz + 2.0);
+  w.scene.add(g);
 }
 
 // ---- the garden and the clubhouse ---------------------------------------------------------------------------------------
@@ -800,7 +785,7 @@ function dressing(ctx) {
       g.position.set(f.x, 0, f.z);
       g.rotation.y = Math.PI / 2;
       w.scene.add(g);
-    } else if (f.kind === "lifeguard") lifeguardChair(w, f.x, f.z, Math.PI / 2);
+    } else if (f.kind === "lifeguard") lifeguardChair(w, f.x, f.z, f.x < 0 ? Math.PI / 2 : -Math.PI / 2);
     else if (f.kind === "planter") {
       const g = propModel("palm-planter", { height: 2.0 }, (s) => {
         w.box(0.9, 0.6, 0.9, 0xf6efdf, 0, 0.3, 0, 0.06, s);
@@ -810,8 +795,10 @@ function dressing(ctx) {
       w.scene.add(g);
     }
   }
-  station(w, "chlorine", venue.stations.chlorine, 0x8fc4cf, "HOT TUB CARE", 0);
-  station(w, "relief", venue.stations.relief, 0xcfe0e8, "EYE CARE", Math.PI / 2);
+  // (each faces the pool from its own side's hedge)
+  const facing = (at) => (at.x < 0 ? Math.PI / 2 : -Math.PI / 2);
+  station(w, "chlorine", venue.stations.chlorine, 0x8fc4cf, "HOT TUB CARE", facing(venue.stations.chlorine));
+  station(w, "relief", venue.stations.relief, 0xcfe0e8, "EYE CARE", facing(venue.stations.relief));
   sanitationCorner(w, venue);
   rescueStations(w, venue);
   fishNetHook(w, venue.fixtures.fishNet);

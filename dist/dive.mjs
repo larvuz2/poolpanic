@@ -1033,9 +1033,9 @@ export function keepInTub(q) {
 // Where something lost in the tub starts (a floater, a cloud): where the guest was, a little in from the edge.
 export const tubWaterSpot = (p) => clampInTub(p.x, p.z, 0.6);
 // Where the coach serves a guest in the tub, and where he pours the water care in: the rim nearest.
-export function tubRim(at, out = 0.55) {
+export function tubRim(at, out = 0.45) {
   const l = tubLocal(at.x, at.z);
-  return springPoint(TUB, l.th, 1 + (TUB.rim + out) / TUB.r);
+  return springPoint(TUB, l.th, 1 + (TUB.rim + TUB.deck + out) / TUB.r);
 }
 export function tubWaterPoint(at) {
   const l = tubLocal(at.x, at.z);

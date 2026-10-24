@@ -9,8 +9,10 @@
 // yellow MID platform in the middle and the red HIGH platform farthest away (so its tower never hides the water). Each board has its
 // own stairs going up from the deck behind the station, and its own line at the stairs' foot. The guests come in through two garden
 // gates in the end hedges, at the near corners, and wait on the lawn by their gate until the coach sends them somewhere. Out of the
-// water by the ladders on the long sides. On the far side: the hot tub (left) and the open massage corner (right, two beds side by
-// side). Round it all, the country club's garden: hedges, flower beds, trees and the clubhouse.
+// water by the ladders on the long sides. On the near side, by the coach (the creator, 24 October 2026: "switch the hot tub and
+// massage area… closer to camera where coach spawn"): the hot tub (left) and the open massage corner (right, two beds side by side);
+// the towels, the eye care and the rescue bench on the far side. Round it all, the country club's garden: hedges, flower beds, trees
+// and the clubhouse beyond the far side.
 import { springPoint, springLocal } from "./onsen-plan.mjs";
 import { blockRoute } from "./roof-plan.mjs";
 
@@ -129,12 +131,12 @@ export function nearestLadder(p, sx = null) {
   return best;
 }
 
-// The hot tub: a round tub sunk in a teak deck on the far side, six seats round its rim, its steps toward the pool. The same shape
-// as a hot spring (onsen-plan.mjs `springPoint`), with no wobble.
+// The hot tub: a raised round tub in a teak cabinet on the near side, six seats round its rim, its steps toward the massage corner.
+// The same shape as a hot spring (onsen-plan.mjs `springPoint`), with no wobble.
 export const TUB = {
   id: 0,
-  x: 10.0,
-  z: -5.6,
+  x: -10.3,
+  z: -3.2,
   rx: 2.0,
   rz: 2.0,
   a2: 0,
@@ -142,10 +144,13 @@ export const TUB = {
   a3: 0,
   p3: 0,
   cap: 6,
-  entry: Math.PI,
+  entry: Math.PI / 2,
 };
 TUB.r = 2.0;
 TUB.rim = 0.4; // the tub's coping (not walkable: the tub's wall)
+TUB.deck = 0.2; // the teak cabinet round it, past the coping (not walkable either)
+// How far out from the water's edge a body clears the cabinet.
+const TUB_WALL = TUB.rim + TUB.deck;
 export function tubLocal(x, z) {
   return springLocal(TUB, x, z);
 }
@@ -153,7 +158,7 @@ export function tubLocal(x, z) {
 export const inTub = (x, z, margin = 0) => tubLocal(x, z).inside > margin;
 // The tub's steps: where a guest stands on the deck to get in, the first place in the water, and the facing in.
 export function tubSteps() {
-  const deck = springPoint(TUB, TUB.entry, 1 + (TUB.rim + 0.5) / TUB.r),
+  const deck = springPoint(TUB, TUB.entry, 1 + (TUB_WALL + 0.45) / TUB.r),
     water = springPoint(TUB, TUB.entry, 1 - 0.7 / TUB.r);
   return { deck, water, angle: Math.atan2(water.x - deck.x, water.z - deck.z) };
 }
@@ -177,24 +182,24 @@ export function clampInTub(x, z, margin = 0.4) {
 export function tubOutPath(p) {
   const l = tubLocal(p.x, p.z),
     water = springPoint(TUB, l.th, 1 - 0.35 / TUB.r),
-    deck = springPoint(TUB, l.th, 1 + (TUB.rim + 0.55) / TUB.r);
+    deck = springPoint(TUB, l.th, 1 + (TUB_WALL + 0.55) / TUB.r);
   if (diveWalkable(deck.x, deck.z, 0.3)) return [water, deck];
   const s = tubSteps();
   return [s.water, s.deck];
 }
 
-// The massage corner: two beds side by side, heads to the far hedge, their fronts to the camera (incidents/massage.mjs reads them:
-// `fixtures.massage` the first, `fixtures.massageMore` the second).
+// The massage corner: two beds side by side on the near side, their heads toward the right-hand end, their fronts to the camera
+// (incidents/massage.mjs reads them: `fixtures.massage` the first, by the pool, `fixtures.massageMore` the second, by the hedge).
 export const MASSAGE_BEDS = [
-  { x: 9.0, z: 5.6, angle: 0, side: -1 },
-  { x: 11.5, z: 5.6, angle: 0, side: -1 },
+  { x: -9.2, z: 3.6, angle: 0, side: -1 },
+  { x: -11.7, z: 3.6, angle: 0, side: -1 },
 ];
 
 // ---- walking -------------------------------------------------------------------------------------------------------------
 
 // Can a body of radius `r` stand at (x, z) as far as the plan goes (the rest, the furniture, is the venue's)? Out of the tub.
 export function diveWalkable(x, z, r = 0) {
-  return tubLocal(x, z).inside < -(TUB.rim + r);
+  return tubLocal(x, z).inside < -(TUB_WALL + r);
 }
 // What a walk goes round: the pool (with its coping), the two stations, the tub (its square), and the furniture the venue passes in
 // (spatial.mjs: benches, stations, the lifeguard's chair, the massage beds…).
@@ -203,7 +208,7 @@ export function diveBlocks(furniture = []) {
   return [
     [-(DIVE.halfX + P), DIVE.halfX + P, -(DIVE.halfZ + 0.35), DIVE.halfZ + 0.35],
     ...STATIONS.map((s) => [s.x0, s.x1, s.z0, s.z1]),
-    [TUB.x - TUB.r - TUB.rim, TUB.x + TUB.r + TUB.rim, TUB.z - TUB.r - TUB.rim, TUB.z + TUB.r + TUB.rim],
+    [TUB.x - TUB.r - TUB_WALL, TUB.x + TUB.r + TUB_WALL, TUB.z - TUB.r - TUB_WALL, TUB.z + TUB.r + TUB_WALL],
     ...furniture
       .filter((f) => f.hx && f.block !== false)
       .map((f) => [f.x - f.hx, f.x + f.hx, f.z - f.hz, f.z + f.hz]),

@@ -402,7 +402,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   `stats.checked`); believe one and send them HIGH, and it is a beginner on HIGH. **Line-cutters** 😤 (from level 5, every 26 to 44
   s when a line has two or more): the last in a line pushes to the front and argues there for 7 s, the line crosser by the second;
   E beside them sends them to the back (+40, a save: BACK OF THE LINE!), or they win and go first and the line is crosser still
-  (`updateCut`, `sendBack`, the `line-cut` incident). **The hot tub** ♨️ (TUB, key 4): a guest in five comes only for it (they say
+  (`updateCut`, `sendBack`, the `line-cut` incident). **The hot tub** ♨️ (TUB, key 4, on the near side by the coach, with the massage corner): a guest in five comes only for it (they say
   so; a diver sent there or a soaker sent to a board is refused), six seats, 20 to 30 s soaking; **only its guests have tummy
   trouble** (a third of them from level 3, a wee or a poo, `peeShare` 0.45), and a floater closes the tub, not the pool: the
   skimmer, the water care and the tub reopened as in the springs. **No chlorine, no poo and no vomit in the diving pool** (nobody
@@ -415,7 +415,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   and Marco dives (an intermediate or a Pro; a triple). **The big moment** is **THE DIVE SHOW** (`showcase`): five big guests at once
   and 40 s to land them clean. **Its song** (`diveScore`): a 126 BPM swing in B♭ with a brass stab and a slide whistle (not listened
   to: checked by CPU only). The bot sends each guest to the height they can take and soaker to the tub, checks show-offs and sends
-  cutters back when proactive, and rings wipeouts (`check-bot.mjs` `manageDive`). Star targets: `scoreScale` asks 2.2 times the level's up to difficulty 3, 2 to 7, 2.2 to 11, 1.5 to 13 and 1.7 after (calibrated 24 October 2026: on the plain targets the expert coach bot made 3.4, 2.9, 3.2, 1.9, 2.0 and 2.2 times the two-star target at difficulties 3 to 18; on these, 40 fresh shifts at difficulties 3 to 20 all passed, at 2.5 stars on average and 1.1 to 1.9 times the two-star target, about where Splash Park's and the Lagoon's bots sit).
+  cutters back when proactive, and rings wipeouts (`check-bot.mjs` `manageDive`). Star targets: `scoreScale` asks 2.2 times the level's up to difficulty 11, 1.5 to 13 and 1.7 after (calibrated 24 October 2026: on the plain targets the expert coach bot made 3.4, 2.9, 3.2, 1.9, 2.0 and 2.2 times the two-star target at difficulties 3 to 18; on these, 40 fresh shifts at difficulties 3 to 20 all passed, at 2.5 stars on average and 1.1 to 1.9 times the two-star target, about where Splash Park's and the Lagoon's bots sit).
 - **VIPs in every shift** (the creator, 16 October 2026: "always"). `vipCount`: one even in the gentle first minute, two from the
   next shift, one more every three shifts, at most six; the Aquatic Centre one more. In free play every level that had none gets
   them too (one, and one more every six levels: `freePlayGuests`). A served VIP is worth +150 and a lost one costs 300: with more of
@@ -1049,9 +1049,14 @@ The overview shows the pool and its deck; the Coach Cam shows the world around t
   (`LIGHTING.dive`, the time of day 0.05; the Coach Cam's sky has the `garden` scenery). **The pool**: deep (4.2 m) and blue over a
   mosaic floor, a tile band, ladders on the long sides, pale pavers round it. **The stations**: at each end the green springboard on
   its fulcrum (it bends under a diver and rings on after the take-off, a damped spring), the yellow 3 m and red 6 m platforms on
-  white towers with their height plates, steel stairs with rails, a painted mark for each line and a sign at each foot. **The hot
-  tub** on a teak deck with its own water (it clouds when soiled), steam, bubbles and a glow; **the spa corner** with two massage
-  beds under a pergola, a shelf of towels and oils, plants. **Round it**: a striped lawn, clipped hedges and flower beds, round
+  white towers with their height plates, steel stairs with rails, a painted mark for each line and a sign at each foot. On the
+  near side, by the coach (moved there the same day, the creator: "switch the hot tub and massage area… closer to camera where
+  coach spawn"): **the hot tub**, a raised one in an octagonal teak cabinet with steps up its side, with its own water (it clouds
+  when soiled), steam, bubbles and a glow, the skimmer on the hedge beside it and the waste bin and its water care close by;
+  **the spa corner**, two massage beds on warm tiles open to the sky (no pergola, which would hide them from the camera), a shelf
+  of towels and oils against the hedge, a low RELAX sign, a plant. The towels, the eye care, the rescue bench and the lifeguard's
+  chair are on the far side. The camera leans toward the near side (`cameraFollow.biasX`, scene.mjs `followCoach`) so the tub and
+  both beds stay clear of the HUD's buttons. **Round it**: a striped lawn, clipped hedges and flower beds, round
   trees and cypresses, sunbeds and parasols, the white clubhouse with its green shutters and its sign, the garden gates. **The
   cast** (`divePose`): a diver in line, up the stairs, walking out (frightened: knees in, arms hugged; bored: hands on hips; a
   show-off strutting); at the edge a scared diver shakes and peeks over; in the air the body turns through its spin (tucked into a
