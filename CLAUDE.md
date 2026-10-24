@@ -58,7 +58,8 @@ the same twice: see `docs/incidents.md`).
    wipeout is the cramp's ring rescue, then a massage bed or home) or chickens out, too low a bored pencil jump, few points and a
    cross guest; every jump drawn under gravity with its own launch, spin and entry; 😎 show-offs who say Pro (E checks them), 😤
    line-cutters (E sends them back), divers waiting for a clear landing; no chlorine, poo or vomit in the diving pool, but a hot
-   tub, TUB 4, for guests who only come for it, with the springs' poo and wee; two massage beds side by side; Carl and the leopard
+   tub, TUB 4, for guests who only come for it, with the springs' poo and wee; two massage beds side by side (the tub and the beds
+   on the near side by the coach, the camera leaning toward them: `cameraFollow.biasX`); Carl and the leopard
    man come as divers (cannonballs, not incidents: no Carl, fish kid or dog incident there); its big moment THE DIVE SHOW;
    `dist/dive.mjs`, `dist/dive-plan.mjs`, `dist/scene/dive.mjs`, `dist/scene/dive-view.mjs`; a swing with a slide whistle) and
    the Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts

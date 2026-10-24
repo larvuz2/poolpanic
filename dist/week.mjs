@@ -606,12 +606,11 @@ const SCORE_SCALE = {
   ],
   // The Jumping Pool (24 October 2026): the coach bot knows every guest's height at a glance (it checks the show-offs first), so
   // on Splash Park's targets it made 3.4, 2.9, 3.2, 1.9, 2.0 and 2.2 times the two-star target at difficulties 3 to 18. These ask
-  // for about 1.4 of it from difficulty 4, where the Mountain Hot Springs' bot sits (1.3 to 1.5), a little under Splash Park's and
-  // the Lagoon's; up to difficulty 11 the scale is held at week-check's ceiling (2.2), which leaves the bot more over the target at
-  // 2, 3, 9 and 10 (about 2 times).
+  // for about 1.4 of it from difficulty 12, where the Mountain Hot Springs' bot sits (1.3 to 1.5), a little under Splash Park's
+  // and the Lagoon's; up to difficulty 11 the scale is held at week-check's ceiling (2.2), which leaves the bot more over the target
+  // there (1.4 to 2.3 times).
+  // (Remeasured when the hot tub and the massage corner moved to the near side, by the coach: a shorter walk to both.)
   dive: [
-    [3, 2.2],
-    [7, 2],
     [11, 2.2],
     [13, 1.5],
     [20, 1.7],

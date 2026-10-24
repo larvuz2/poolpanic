@@ -2088,8 +2088,9 @@ export class PoolWorld extends SceneKit {
   }
   followCoach(c, dt, focus = []) {
     const follow = this.venue.cameraFollow || { kx: 0.22, maxX: 2.4 };
+    // (`biasX` leans the view toward one side of the deck, the Jumping Pool's near side with its hot tub and massage corner.)
     const target = new THREE.Vector3(
-      clamp(c.x * follow.kx, -follow.maxX, follow.maxX),
+      clamp(c.x * follow.kx, -follow.maxX, follow.maxX) + (follow.biasX || 0),
       0.45,
       clamp(c.z * 0.13, -1.5, 1.5) - 3.2,
     );
