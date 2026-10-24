@@ -682,6 +682,118 @@ export function onsenScore(step, panic = false) {
   return out;
 }
 
+// ---- the Jumping Pool's song (24 October 2026) --------------------------------------------------------------------------------
+// A sunny poolside swing at 126 BPM in B♭ (B♭maj7 G7 Cm7 F7, a bar each, round and round): the ride on the beats with a swung
+// "and" before each, a brush on two and four, a walking bass, electric-piano chords on the Charleston (one and the "and" of two),
+// and the tune on the vibes, swung. Eight bars of the tune, then eight with a slide whistle answering it (down and up, like a
+// diver) and the marimba rolling up the chords; the springboard's boing on the bar that ends each phrase.
+export const DIVE_BPM = 126;
+export const DIVE_STEP = 60 / DIVE_BPM / 4;
+export const DIVE_ROOTS = [46, 43, 48, 41]; // B♭2 G2 C3 F2
+const DIVE_CHORD = [
+  [0, 4, 7, 11],
+  [0, 4, 7, 10],
+  [0, 3, 7, 10],
+  [0, 4, 7, 10],
+];
+// The tune: eight bars of [step, MIDI note], swung (on the beats and the steps just before them).
+const DIVE_BARS = [
+  [
+    [0, 74],
+    [3, 77],
+    [4, 79],
+    [11, 77],
+    [12, 74],
+  ],
+  [
+    [0, 71],
+    [4, 74],
+    [8, 77],
+    [12, 79],
+  ],
+  [
+    [0, 75],
+    [3, 74],
+    [4, 72],
+    [8, 70],
+    [12, 67],
+  ],
+  [
+    [0, 69],
+    [4, 72],
+    [8, 75],
+  ],
+  [
+    [0, 70],
+    [3, 74],
+    [4, 77],
+    [8, 81],
+    [12, 79],
+  ],
+  [
+    [0, 79],
+    [3, 77],
+    [4, 74],
+    [8, 71],
+    [12, 74],
+  ],
+  [
+    [0, 72],
+    [4, 75],
+    [8, 79],
+    [11, 77],
+    [12, 75],
+  ],
+  [
+    [0, 74],
+    [8, 72],
+    [12, 70],
+  ],
+];
+export const DIVE_TUNE = DIVE_BARS.map((bar) => Object.fromEntries(bar));
+export const DIVE_INTRO = 2;
+export const DIVE_CYCLE = 16;
+export const diveSection = (bar) =>
+  bar < DIVE_INTRO ? "intro" : (bar - DIVE_INTRO) % DIVE_CYCLE < 8 ? "tune" : "whistle";
+export function diveScore(step, panic = false) {
+  const out = [],
+    bar = Math.floor(step / STEPS_PER_BAR),
+    s = step % STEPS_PER_BAR,
+    chord = bar % 4,
+    root = DIVE_ROOTS[chord],
+    tones = DIVE_CHORD[chord],
+    part = diveSection(bar),
+    inCycle = bar < DIVE_INTRO ? bar : (bar - DIVE_INTRO) % DIVE_CYCLE,
+    add = (voice, extra = {}) => out.push({ voice, ...extra });
+  // The swing: the ride on the beats and the swung "and" before each, a brush on two and four, a snap on four.
+  if (s % 4 === 0) add("ride", { vol: 1 });
+  if (s % 4 === 3) add("ride", { vol: 0.55 });
+  if (s === 4 || s === 12) add("brush");
+  if (s === 12 && part !== "intro") add("snap");
+  // The walking bass: a note a beat, up the chord and leaning into the next.
+  const walk = [0, 4, 7, chord === 3 ? 11 : 9];
+  if (s % 4 === 0) add("walk", { note: root + walk[s / 4], len: DIVE_STEP * 3.4, vol: s === 0 ? 1 : 0.8 });
+  if (part === "intro") {
+    if (s === 0 || s === 6) add("comp", { notes: tones.map((n) => root + 24 + n), vol: 0.8 });
+    if (bar === 1 && s === 12) add("boing");
+    return out;
+  }
+  // The Charleston on the electric piano.
+  if (s === 0 || s === 6) add("comp", { notes: tones.map((n) => root + 24 + n), vol: s ? 0.7 : 0.9 });
+  const n = DIVE_TUNE[inCycle % 8][s];
+  if (part === "tune") {
+    if (n) add("vibe", { note: n });
+  } else {
+    // The slide whistle answers the tune's phrases (down like a dive, up again), the marimba rolls up the chords.
+    if (s % 2 === 0) add("marimba", { notes: [root + 36 + tones[(s / 2) % 4]], vol: 0.6 });
+    if (n && inCycle % 2 === 0) add("slide", { note: n + 12, to: n, len: DIVE_STEP * 3 });
+    if (n && inCycle % 2 === 1 && s === 0) add("slide", { note: n - 5, to: n + 7, len: DIVE_STEP * 6 });
+  }
+  if (inCycle % 8 === 7 && s === 12) add("boing");
+  if (panic && s % 4 === 0 && Math.floor(s / 4) % 2 === 0) add("alarm", { note: s === 0 ? 84 : 79 });
+  return out;
+}
+
 export const SONGS = {
   disco: { step: STEP, score: discoScore, level: 1 },
   // (The kids' lighter voices, brought up to the disco's loudness: measured from both songs rendered offline.)
@@ -698,6 +810,8 @@ export const SONGS = {
   cruise: { step: CRUISE_STEP, score: cruiseScore, level: 2.05 },
   // (The hot springs' soft voices, set to the river's level; not measured.)
   onsen: { step: ONSEN_STEP, score: onsenScore, level: 2.05 },
+  // (The Jumping Pool's swing: the cruise's soft voices and the vibes, set to its level; not measured.)
+  dive: { step: DIVE_STEP, score: diveScore, level: 2.05 },
 };
 
 const release = (...nodes) => {
@@ -905,6 +1019,10 @@ export class DiscoMusic {
         break;
       case "whistle":
         this.voice("sine", 880, t, 0.5, 0.045, this.synth, 1760, 0.05);
+        break;
+      // The Jumping Pool's song's slide whistle: from one note to another over its length.
+      case "slide":
+        this.voice("sine", midi(n.note), t, n.len, 0.045 * vol, this.synth, midi(n.to), 0.02);
         break;
       // Senior Aqua Fit's song's own voices.
       case "walk":

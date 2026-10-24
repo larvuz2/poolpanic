@@ -11,6 +11,16 @@ import {
   onsenRoute,
   onsenEdgeSpots,
 } from "./onsen-plan.mjs";
+import {
+  DIVE as DIVE_PLAN,
+  HEIGHTS,
+  TUB,
+  STATIONS as DIVE_STATIONS,
+  MASSAGE_BEDS,
+  DIVE_WATER,
+  diveWalkable,
+  makeDiveRoute,
+} from "./dive-plan.mjs";
 //
 // Everything a system needs to know about a location lives in a venue: lanes, basin bounds, deck walking
 // corridors, doors, queue rows, stations, rescue fixtures and simple collision proxies. Scenes, routes,
@@ -296,6 +306,9 @@ function makeVenue(spec) {
   }
   // The Mountain Hot Springs have no basin either: four springs in the snow (onsen-plan.mjs).
   const onsen = spec.onsen || null;
+  // The Jumping Pool: a lane pool's basin, and a hot tub on the far deck (dive-plan.mjs), walked round by routes of its own.
+  const dive = spec.dive || null,
+    diveRoute = dive ? makeDiveRoute([...spec.furniture, ...massageBlocks(spec.fixtures)]) : null;
   const obstacles = [
     ...(river || onsen ? [] : [{ x: 0, z: 0, hx: pool.solidX, hz: pool.solidZ, kind: "pool" }]),
     ...(spec.blocks === false
@@ -307,6 +320,7 @@ function makeVenue(spec) {
     // The massage table (incidents/massage.mjs), where a venue has one: 2 m long, lying along its `angle` (0 or a right angle).
     // Only its legs are in the way (0.1 m either side of its middle line): a coach stands close enough to reach across its top.
     ...(spec.fixtures.massage ? [massageObstacle(spec.fixtures.massage)] : []),
+    ...(spec.fixtures.massageMore || []).map(massageObstacle),
   ];
   const venue = {
     ...spec,
@@ -330,7 +344,8 @@ function makeVenue(spec) {
             Math.abs(z - b.z) < b.hz + radius,
         ) &&
         (!river || river.walkable(x, z, radius)) &&
-        (!onsen || onsenWalkable(x, z, radius))
+        (!onsen || onsenWalkable(x, z, radius)) &&
+        (!dive || diveWalkable(x, z, radius))
       );
     },
     // Out of the doorway and on the deck (a guest or a visitor who came in has cleared the door).
@@ -367,6 +382,8 @@ function makeVenue(spec) {
       if (river) return river.route(from, to);
       // (The hot springs: round the springs and the boulders, onsen-plan.mjs.)
       if (onsen) return onsenRoute(from, to);
+      // (The Jumping Pool: round the pool, the diving stations, the hot tub and the deck's furniture, dive-plan.mjs.)
+      if (dive) return diveRoute(from, to);
       // (The Rooftop Pool: round the basin on the near side only, the sunbeds, the cabanas and the bar, roof-plan.mjs.)
       if (spec.roof) return roofRoute(from, to);
       // (The cruise ship: round the whole pool (both halves), the rows of loungers, the bar and the lobbies, cruise-plan.mjs.)
@@ -577,6 +594,13 @@ const RESORT_SPEC = {
 // right), the side the first coach works from. Behind the far end of the pool, lying across the deck, clear of the walks, the
 // stations and the evacuation rows: the coach bots' routes do not pass there, so no level plays differently for it being there.
 const MASSAGE_TABLE = { x: -5.5, z: 11.75, angle: Math.PI / 2, side: -1 };
+// The massage beds as boxes a route goes round (the Jumping Pool's two: dive-plan.mjs), their legs' box a little padded.
+function massageBlocks(fixtures = {}) {
+  return [fixtures.massage, ...(fixtures.massageMore || [])].filter(Boolean).map((t) => {
+    const alongX = Math.abs(Math.sin(t.angle || 0)) > 0.5;
+    return { x: t.x, z: t.z, hx: alongX ? 1.0 : 0.32, hz: alongX ? 0.32 : 1.0 };
+  });
+}
 function massageObstacle(t) {
   const alongX = Math.abs(Math.sin(t.angle || 0)) > 0.5;
   return { x: t.x, z: t.z, hx: alongX ? 1.0 : 0.1, hz: alongX ? 0.1 : 1.0, kind: "massage-table" };
@@ -1290,6 +1314,100 @@ export const ONSEN = makeVenue({
   ],
 });
 
+// The Jumping Pool (24 October 2026, dive-plan.mjs, dive.mjs): an open-air country club. One big deep pool with no lanes, a diving
+// station at each end (LOW springboard, MID and HIGH platforms, each with its own stairs and line), two garden gates at the near
+// corners (crossed along z, like the rooftop's lifts), the guests waiting on the lawn by their gate, the hot tub and the open massage
+// corner (two beds) on the far deck. The "lanes" are where the coach sends a guest: LOW, MID, HIGH (1 to 3) and the hot tub (4).
+const DIVE_STATION_BOXES = DIVE_STATIONS.map((s) => ({
+  kind: "dive-station",
+  side: s.side,
+  x: (s.x0 + s.x1) / 2,
+  z: (s.z0 + s.z1) / 2,
+  hx: (s.x1 - s.x0) / 2,
+  hz: (s.z1 - s.z0) / 2,
+  block: false, // (dive-plan.mjs routes round the stations itself)
+}));
+export const DIVE = makeVenue({
+  id: "dive",
+  name: "The Jumping Pool",
+  indoor: false,
+  scenery: "garden",
+  sunAzimuth: 2.35,
+  lighting: "dive",
+  doorWord: "a garden gate",
+  dive: DIVE_WATER,
+  // The roaming incidents it leaves out (week.mjs, chaos.mjs): Carl and the leopard man come to dive here, as guests (dive.mjs; the
+  // creator: "not incidents!!!"), and nothing gets into its deep diving pool but divers (no fish kid, no dog).
+  skips: ["carl", "fish", "dog"],
+  basin: { halfX: DIVE_PLAN.halfX, halfZ: DIVE_PLAN.halfZ },
+  wetChance: 0.3, // (everyone climbs out of a deep pool dripping)
+  blocks: false,
+  lanes: [...HEIGHTS.map((h) => h.x), TUB.x],
+  deck: DIVE_PLAN.deck,
+  room: DIVE_PLAN.room,
+  doors: {
+    alongZ: true,
+    doorX: DIVE_PLAN.gateX,
+    insideX: DIVE_PLAN.gateX,
+    outsideX: DIVE_PLAN.gateX,
+    insideZ: 16.4,
+    doorZ: 15.0,
+    outsideZ: 14.2,
+  },
+  lockers: [],
+  queue: { alongZ: true, startX: -11.6, stepX: 1.05, startZ: 12.0, stepZ: 1.1, perRow: 3 },
+  coachStart: { x: -8.6, z: 0 },
+  cameraScale: 1.1,
+  cameraFollow: { kx: 0.24, maxX: 3.2 },
+  props: [
+    "mop",
+    "mop-bucket",
+    "swim-ring",
+    "sunbed",
+    "parasol",
+    "potted-plant",
+    "palm-planter",
+    "towel-cart",
+    "side-table",
+  ],
+  stations: {
+    fins: { x: -12.9, z: -3.0 }, // (nobody needs fins here: a rack of towels)
+    chlorine: { x: 8.0, z: -11.4 }, // the hot tub's water care
+    relief: { x: -12.9, z: 4.2 },
+  },
+  sanitation: { rack: { x: 13.0, z: -1.4 }, bin: { x: 12.7, z: -10.4 }, reach: 6.2 },
+  ringMounts: [
+    { x: -13.75, z: -6.2, angle: Math.PI / 2 },
+    { x: -13.75, z: 6.2, angle: Math.PI / 2 },
+    { x: 13.75, z: 1.4, angle: -Math.PI / 2 },
+  ],
+  rescue: { bench: { x: -12.7, z: 1.0 }, approach: { x: -11.4, z: 1.0 } },
+  // Where the hot tub's guests wait while it is closed (a floater, a wee): on the far deck between the tub and the massage corner.
+  evacSpots: [0.4, 1.6].flatMap((z) => [7.8, 8.8, 9.8, 10.8, 11.8].map((x) => ({ x, z }))),
+  fixtures: {
+    fishNet: { x: -13.75, z: -8.6, angle: Math.PI / 2 },
+    treats: { x: -12.6, z: 8.4 },
+    flashlight: { x: 12.4, z: 9.8 },
+    fuseBox: { x: 13.75, z: 12.4, angle: -Math.PI / 2 },
+    mop: { x: 7.4, z: 11.2 },
+    massage: MASSAGE_BEDS[0],
+    massageMore: MASSAGE_BEDS.slice(1),
+  },
+  trampoline: null,
+  furniture: [
+    ...DIVE_STATION_BOXES,
+    { kind: "bench", x: -12.7, z: 0.35, angle: Math.PI / 2, hx: 0.49, hz: 1.2 },
+    { kind: "towel-rack", x: -12.9, z: -3.0, hx: 0.5, hz: 1.0 },
+    { kind: "station", x: 8.0, z: -11.4, hx: 0.9, hz: 0.6 },
+    { kind: "station", x: -12.9, z: 4.2, hx: 0.6, hz: 0.9 },
+    { kind: "lifeguard", x: -8.4, z: -5.2, hx: 0.6, hz: 0.6 },
+    { kind: "spa-shelf", x: 13.05, z: 5.6, hx: 0.3, hz: 1.1 },
+    { kind: "planter", x: -8.2, z: 5.6, hx: 0.5, hz: 0.5 },
+    { kind: "planter", x: 7.0, z: -13.6, hx: 0.5, hz: 0.5 },
+    { kind: "planter", x: 12.8, z: 13.4, hx: 0.5, hz: 0.5 },
+  ],
+});
+
 export const VENUES = {
   club: CLUB,
   resort: RESORT,
@@ -1304,6 +1422,7 @@ export const VENUES = {
   roof: ROOFTOP,
   cruise: CRUISE,
   onsen: ONSEN,
+  dive: DIVE,
 };
 
 export function createCoach(venue = CLUB) {

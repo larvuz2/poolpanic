@@ -2,6 +2,7 @@ import { CoachController } from "./coach.mjs";
 import { ENTRY } from "./spatial.mjs";
 import { WAVE } from "./waves.mjs";
 import { onsenOutPath, onsenWaterSpot, keepInSpring } from "./onsen.mjs";
+import { tubOutPath, tubWaterSpot, keepInTub } from "./dive.mjs";
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export class SanitationController extends CoachController {
@@ -230,6 +231,11 @@ export class SanitationController extends CoachController {
       p.path = onsenOutPath(this, p);
       return;
     }
+    // (Out of the Jumping Pool's hot tub: over its coping beside them, or out by its steps.)
+    if (this.venue.dive && p.evacWater) {
+      p.path = tubOutPath(p);
+      return;
+    }
     // (Out of the waves: up the beach.)
     if (this.venue.waves && p.evacWater) {
       p.path = [
@@ -310,6 +316,8 @@ export class SanitationController extends CoachController {
     const river = this.venue.river,
       P = this.venue.pool;
     if (this.venue.onsen) return onsenWaterSpot(p);
+    // (At the Jumping Pool only the hot tub has tummy trouble: dive.mjs.)
+    if (this.venue.dive) return tubWaterSpot(p);
     return river
       ? river.clamp(p.x, p.z, 0.9)
       : { x: clamp(p.x, -P.entryX, P.entryX), z: clamp(p.z, -P.entryZ, P.entryZ) };
@@ -429,6 +437,7 @@ export class SanitationController extends CoachController {
       const P = this.venue.pool,
         river = this.venue.river;
       if (this.venue.onsen) keepInSpring(q);
+      else if (this.venue.dive) keepInTub(q);
       else if (river) {
         // Kept in the river's channel: off a bank it turns back into the water.
         if (river.clearance(q.x, q.z, 0.9) < 0) {

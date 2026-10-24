@@ -273,6 +273,7 @@ export class PoolAudio {
     if (this.roofEffect(type, e, t)) return;
     if (this.shipEffect(type, e, t)) return;
     if (this.onsenEffect(type, e, t)) return;
+    if (this.diveEffect(type, e, t)) return;
     if (type === "doors-open") {
       // The menu's doors (scene/menu-stage.mjs): the latch, the morning air rushing in, a warm chord swelling up.
       this.noise(t, 0.05, 0.12, 2600);
@@ -684,6 +685,64 @@ export class PoolAudio {
     } else return false;
     return true;
   }
+  // The Jumping Pool's sounds (dive.mjs). True when `type` was one of them.
+  diveEffect(type, e, t) {
+    if (type === "dive-bounce") {
+      // The springboard: a twangy boing, deeper on the second bounce.
+      this.tone(e.k ? 150 : 210, t, 0.32, 0.12, "triangle", e.k ? 340 : 420);
+      this.noise(t, 0.05, 0.04, 1200);
+    } else if (type === "dive-launch") {
+      // Off the board: a whoosh, longer from higher up.
+      this.noise(t, 0.25 + (e.h || 0) * 0.15, 0.05, 2400);
+    } else if (type === "dive-splash") {
+      if (e.ball) {
+        // A cannonball: a deep boom and a wall of water.
+        this.tone(70, t, 0.6, 0.3, "sine", 32);
+        this.noise(t, 1.1, 0.24, 380);
+        this.noise(t + 0.1, 0.8, 0.12, 1600);
+      } else if (e.flat) {
+        // A flop: SMACK! (a sharp crack and a slap of water), and the crowd's "ooooh".
+        this.noise(t, 0.08, 0.35, 5200);
+        this.tone(130, t, 0.18, 0.22, "square", 60);
+        this.noise(t + 0.04, 0.6, 0.15, 650);
+        [392, 370, 349].forEach((f, i) => this.tone(f, t + 0.25 + i * 0.12, 0.3, 0.035, "sine", f * 0.94));
+      } else if (e.outcome === "clean") {
+        // A rip entry: a neat little plop.
+        this.tone(900, t, 0.08, 0.08, "sine", 380);
+        this.noise(t, 0.25, 0.06, 1800);
+      } else {
+        // Splashy.
+        this.noise(t, 0.45, 0.12, 900);
+        this.tone(220, t, 0.15, 0.08, "sine", 120);
+      }
+    } else if (type === "dive-result") {
+      // The crowd at the poolside: a cheer for a clean dive, laughter for a flop, a groan for a bored one.
+      if (e.outcome === "clean" && e.diff >= 0) {
+        this.noise(t + 0.1, 0.9, 0.06, 1500);
+        [523, 659, 784].forEach((f, i) => this.tone(f, t + 0.1 + i * 0.06, 0.25, 0.05, "triangle"));
+      } else if (e.outcome === "flop")
+        for (let i = 0; i < 5; i++)
+          this.tone(480 + (i % 2) * 90, t + 0.3 + i * 0.09, 0.07, 0.04, "triangle", 420);
+      else if (e.diff < 0) this.tone(240, t + 0.1, 0.5, 0.05, "sawtooth", 160);
+    } else if (type === "dive-scared") {
+      // A nervous gulp.
+      this.tone(320, t, 0.12, 0.06, "sine", 180);
+      this.tone(260, t + 0.18, 0.1, 0.05, "sine", 150);
+    } else if (type === "dive-chicken") {
+      // Bawk-bawk-bawk.
+      for (let i = 0; i < 3; i++) this.tone(720 + i * 30, t + i * 0.13, 0.08, 0.08, "square", 520);
+    } else if (type === "dive-check") {
+      // The coach checks a show-off: a ding, or a "wah-wah" when they were bluffing.
+      if (e.real) this.tone(1320, t, 0.3, 0.07, "sine");
+      else
+        [392, 370, 349, 330].forEach((f, i) => this.tone(f, t + i * 0.16, 0.18, 0.07, "triangle", f * 0.97));
+    } else if (type === "board-open") {
+      // A whistle: the next board is open.
+      this.tone(2100, t, 0.12, 0.07, "sine", 2300);
+      this.tone(2100, t + 0.18, 0.3, 0.07, "sine", 2500);
+    } else return false;
+    return true;
+  }
   // Incident sting: a brass-style stab under a short motif of its own, so each problem is recognisable by ear.
   // The first sighting gets a longer tail while the lesson is on screen.
   sting(kind, first = false) {
@@ -699,6 +758,7 @@ export class PoolAudio {
         "knockout",
         "overboard",
         "monkey-in",
+        "dive-fail",
       ].includes(kind);
     // The hit: a low thump, a burst of air, and a two-note stab (a tritone when someone is in danger).
     this.tone(95, t, 0.35, 0.3, "sine", 45);
@@ -791,6 +851,15 @@ export class PoolAudio {
             this.tone(f, at + 0.2 + i * 0.1, 0.09, 0.08, "sawtooth", f * 1.3),
           );
         },
+        // A failed jump: a slide-whistle fall and a belly-smack.
+        "dive-fail": () => {
+          this.tone(1400, at, 0.6, 0.09, "sine", 220);
+          this.noise(at + 0.6, 0.12, 0.2, 4800);
+        },
+        // A line-cutter: an indignant "hey-hey!".
+        "line-cut": () => [0, 0.18].forEach((d) => this.tone(620, at + d, 0.12, 0.1, "sawtooth", 480)),
+        "big-showcase": () =>
+          [523, 659, 784, 1047].forEach((f, i) => this.tone(f, at + i * 0.08, 0.2, 0.08, "triangle")),
         class: () =>
           [0, 1, 2, 3, 4].forEach((i) =>
             this.tone(500 + i * 90, at + i * 0.06, 0.1, 0.07, "sine", 900 + i * 60),

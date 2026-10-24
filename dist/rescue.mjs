@@ -3,6 +3,7 @@ import { RESCUE as R, ENTRY } from "./spatial.mjs";
 import { benchOnBeach, tickBeachRecovery } from "./wave-pool.mjs";
 import { onsenDive, onsenOutPath } from "./onsen.mjs";
 import { SPRINGS, springLocal, nearestSpring, clampInSpring } from "./onsen-plan.mjs";
+import { diverRescued } from "./dive.mjs";
 // Cramps are spaced out (19 October 2026, the Phase 0 balance pass): a cramp freezes every swimmer in the water while the queue
 // waits, and back-to-back cramps (up to six a shift at Senior Aqua Fit) emptied the queue. No new cramp starts within CRAMP_GAP
 // seconds of the start of the last one, and a shift has at most one per CRAMP_EVERY seconds of its length (one at least). A swimmer whose
@@ -476,6 +477,8 @@ export class RescueController extends SanitationController {
     this.benchRecovery(p);
   }
   benchRecovery(p) {
+    // (A diver out of a failed jump at the Jumping Pool: to a massage bed, or home: dive.mjs.)
+    if (this.venue.dive) return diverRescued(this, p);
     p.status = "recovering";
     p.recoveryStage = "to-bench";
     p.stunned = 1;

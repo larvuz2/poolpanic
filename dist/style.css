@@ -7027,3 +7027,26 @@ body.menu .hud-rail > :not(.toast) {
 .bubble.massage-edgy .stomach-meter.jump-meter i {
   background: #e8553f;
 }
+
+/* The Jumping Pool's buttons (dive.mjs): each height in its colour (green LOW, yellow MID, red HIGH), a dot of it by the name and
+   a band along the top; TOO LOW? in a cool blue (a Pro would be bored). */
+.dive-btn {
+  border-top: 4px solid var(--dive, #8fc4cf);
+}
+.dive-btn .dive-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--dive, #8fc4cf);
+  box-shadow: 0 0 0 2px #ffffff40;
+  vertical-align: -1px;
+}
+.dive-btn.dive-low .lane-mode {
+  background: #3d6f9a;
+  color: #eaf5ff;
+}
+.tub-btn {
+  --dive: #e8875a;
+}

@@ -215,6 +215,21 @@ export const STINGS = {
     how: "A monkey got into Spring {spring} and everyone in it is panicking. Go to the rim beside it and press E (or wade in up to it) to shoo it out before the guests storm off.",
     tone: "danger",
   },
+  // The Jumping Pool (dive.mjs).
+  "dive-fail": {
+    icon: "💥",
+    title: "WIPEOUT!",
+    verb: "Life ring to {name} · then the massage corner",
+    how: "{name} went off the {height} board and it went very wrong. Grab a life ring and dive in to them, as for a cramp. Beginners belong on LOW, intermediates on MID, Pros on HIGH: the higher you send someone past their skill, the likelier this is.",
+    tone: "danger",
+  },
+  "line-cut": {
+    icon: "😤",
+    title: "LINE CUTTER!",
+    verb: "Send {name} to the back · E beside them",
+    how: "{name} pushed in at the front of the {height} line and is arguing with everyone behind. Walk over and press E beside them to send them to the back, before they win and the line is fuming.",
+    tone: "warning",
+  },
   crash: {
     icon: "💥",
     title: "CRASH!",
@@ -253,6 +268,7 @@ export const SAVES = {
   margarita: { stamp: "CHEERS!", tier: 1 },
   "monkey-shooed": { stamp: "SHOO!", tier: 1 },
   "monkey-out": { stamp: "OUT YOU GO!", tier: 2 },
+  "line-cut": { stamp: "BACK OF THE LINE!", tier: 1 },
 };
 
 export const MOMENT_TIMING = {

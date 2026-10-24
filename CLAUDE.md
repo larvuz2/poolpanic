@@ -51,10 +51,20 @@ the same twice: see `docs/incidents.md`).
    guests waiting in the snow grow cold and hug themselves (ColdHug) until sent to one, where they sit to the shoulders; snow
    monkeys come out of the forest for the warm water, shooed by running into them, and one that gets in makes the spring panic
    until shooed out from the rim; the coach skates and slides on the ice (IceSkate, IceSlide, `venue.ice`) and wades in the springs;
-   `dist/onsen.mjs`, `dist/onsen-plan.mjs`, `dist/scene/onsen.mjs`, `snow-monkey.glb`; koto and shakuhachi) and the Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
+   `dist/onsen.mjs`, `dist/onsen-plan.mjs`, `dist/scene/onsen.mjs`, `snow-monkey.glb`; koto and shakuhachi), the **Jumping Pool**
+   (24 October 2026, last on the ladder: a country club's deep pool with no lanes and a diving station at each end, LOW 1 a green
+   springboard, MID 2 a yellow 3 m platform, HIGH 3 a red 6 m platform, each with its stairs and a line; the boards open one by one
+   in a shift; the right height for the guest's skill is clean points, too high wipes out (a beginner on HIGH 70% of the time: a
+   wipeout is the cramp's ring rescue, then a massage bed or home) or chickens out, too low a bored pencil jump, few points and a
+   cross guest; every jump drawn under gravity with its own launch, spin and entry; 😎 show-offs who say Pro (E checks them), 😤
+   line-cutters (E sends them back), divers waiting for a clear landing; no chlorine, poo or vomit in the diving pool, but a hot
+   tub, TUB 4, for guests who only come for it, with the springs' poo and wee; two massage beds side by side; Carl and the leopard
+   man come as divers (cannonballs, not incidents: no Carl, fish kid or dog incident there); its big moment THE DIVE SHOW;
+   `dist/dive.mjs`, `dist/dive-plan.mjs`, `dist/scene/dive.mjs`, `dist/scene/dive-view.mjs`; a swing with a slide whistle) and
+   the Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
    running (the creator wants that). In every pool **one swimmer in five climbing out drips a wet spot** that never dries until the coach
    mops it (Q, `dist/incidents/wet.mjs`; the coach slips in one too, down for 1.3 s, unless he jumps over it), and a tummy ache can be a poo or **a wee** (yellow water, chlorine only). **Marco swims in
-   more than half of all shifts, in every pool but the Kids Pool and the Rooftop Pool** (`STAR_CHANCE`, 0.66; at Senior Aqua Fit, the Lazy River, the Wave Pool, the Cruise Ship and the Mountain Hot Springs too), and **VIPs come in every
+   more than half of all shifts, in every pool but the Kids Pool and the Rooftop Pool** (`STAR_CHANCE`, 0.66; at Senior Aqua Fit, the Lazy River, the Wave Pool, the Cruise Ship, the Mountain Hot Springs and the Jumping Pool, where he dives, too), and **VIPs come in every
    shift**, more as the run goes on (the creator wants to see them often); incidents drawn by a director
    (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder: one new incident a shift from the first Tuesday, all five
    met in week 1, then a fair mix where one that just came is less likely, `RECENT`). A shift not passed pays nothing but the week goes on. Marina's
@@ -108,7 +118,8 @@ the same twice: see `docs/incidents.md`).
    (`dist/teamwork.mjs`, 23 October 2026): every coach holding E on a hold-E job fills its wheel faster (Karen: 8 s alone, 5 for two, 3 for three), and the
    wheel shows the faces of the coaches on it, a second ring once two are (no numbers); Karen first, then the massage, the same for any hold-E job to come. **The massage** (23 October 2026,
 `dist/incidents/massage.mjs`, README "The massage"): a massage table in some pools only (the Sunset Lagoon, the Aquatic Centre,
-Senior Aqua Fit, the Grand Gala Arena: `fixtures.massage`; the director draws it only there, `VENUE_INCIDENTS`, not one of the
+Senior Aqua Fit, the Grand Gala Arena: `fixtures.massage`; and two beds side by side at the Jumping Pool, `fixtures.massageMore`, a
+session per bed; the director draws it only there, `VENUE_INCIDENTS`, not one of the
 five in `INCIDENT_ORDER`); the next swimmer out lies on it face down and their patience runs out (−100) unless a coach holds E at
 the table (8/5/3 s, many hands, each coach at a place of their own); every coach has a **Massage** clip (hands pressing in turn,
 like chopping a salad), each made for the table's height (`--massage-lift`), Coach Brooks on a little step. A crew of two or three gets more guests, tips and incidents and higher

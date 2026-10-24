@@ -118,6 +118,8 @@ import { ROOF_BEDS } from "./roof-plan.mjs";
 import { slide } from "./ship.mjs";
 import { SOAK, springGuests, monkeyIn } from "./onsen.mjs";
 import { SPRINGS } from "./onsen-plan.mjs";
+import { HEIGHTS, TUB, TUB_LANE, LINE_ROOM, LINE_MAX } from "./dive-plan.mjs";
+import { tubGuests, boardOpen, lineLength, SKILL, shownType } from "./dive.mjs";
 import { Achievements } from "./achievements.mjs";
 import { isDesktop, quitGame, richPresence, unlockAchievement } from "./platform.mjs";
 import * as hunts from "./bisect.mjs";
@@ -278,7 +280,8 @@ audio.clock = () =>
     sim?.venue?.waves ||
     sim?.venue?.roof ||
     sim?.venue?.cruise ||
-    sim?.venue?.onsen) &&
+    sim?.venue?.onsen ||
+    sim?.venue?.dive) &&
   (mode === "playing" || mode === "countdown")
     ? {
         time: sim.time,
@@ -298,7 +301,9 @@ audio.clock = () =>
                     ? "cruise"
                     : sim.venue.onsen
                       ? "onsen"
-                      : "disco",
+                      : sim.venue.dive
+                        ? "dive"
+                        : "disco",
         // (The Rooftop Pool's DJ builds to the drops the simulation has planned, on its bar lines: rooftop.mjs.)
         drops: sim.roof?.drops || null,
       }
@@ -1683,6 +1688,18 @@ function renderLaneControls(venue) {
     $("lane-controls").classList.remove("five-lanes");
     return;
   }
+  // The Jumping Pool: a button for each height, LOW, MID and HIGH (1 to 3, in their green, yellow and red), and the hot tub (4):
+  // each shows its two lines (one at each end) and whether it is open yet (dive.mjs).
+  if (venue.dive) {
+    $("lane-controls").innerHTML =
+      HEIGHTS.map(
+        (h, i) =>
+          `<button class="lane-btn pool-btn dive-btn" data-lane="${i}" style="--dive:${h.color}" aria-label="Send the selected guest to the ${h.name} board"><div class="lane-top"><span class="lane-no"><i class="dive-dot"></i>${h.name}<kbd>${i + 1}</kbd></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">${h.label}</span><span class="lane-caps"></span></div></button>`,
+      ).join("") +
+      `<button class="lane-btn pool-btn dive-btn tub-btn" data-lane="3" aria-label="Send the selected guest to the hot tub"><div class="lane-top"><span class="lane-no">♨️ TUB<kbd>4</kbd></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Hot tub guests</span><span class="lane-caps"></span></div></button>`;
+    $("lane-controls").classList.add("five-lanes");
+    return;
+  }
   // The Kids Pool has no lanes: one button sends the kid the coach has caught into the pool (its emptiest zone, sim.poolLane).
   if (venue.kids) {
     $("lane-controls").innerHTML =
@@ -1707,6 +1724,69 @@ function renderLaneControls(venue) {
       : "");
   $("lane-controls").classList.toggle("five-lanes", venue.lanes.length > 3);
 }
+// The Jumping Pool's buttons, each frame: a height's two lines (LEFT · RIGHT), CLOSED until it opens (with its countdown), BUSY
+// when both lines are long; the hot tub's seats; a warning when the guest picked is sent too high (or too low) for what they say.
+function updateDiveButton(b, i, p) {
+  const mode = sim.status,
+    D = sim.dive;
+  if (!D) return;
+  b.disabled = mode !== "playing";
+  if (i === TUB_LANE) {
+    const guests = tubGuests(sim),
+      cap = TUB.cap,
+      dirty = !!sim.cleanup;
+    b.classList.toggle("danger", dirty);
+    b.classList.toggle(
+      "assignable",
+      mode === "playing" && !!p?.tubOnly && p.status === "queue" && guests.length < cap && !dirty,
+    );
+    b.querySelector(".lane-mode").textContent = dirty
+      ? "CLOSED"
+      : guests.length >= cap
+        ? "FULL"
+        : guests.length
+          ? "ROOM"
+          : "OPEN";
+    b.querySelector(".lane-count").textContent = dirty
+      ? "Clean it up!"
+      : guests.length + " of " + cap + " seats";
+    b.querySelector(".lane-caps").innerHTML = guests
+      .map((q) => '<i style="background:' + roofLook(q).color + '"></i>')
+      .join("");
+    return;
+  }
+  const open = boardOpen(sim, i),
+    left = lineLength(sim, i),
+    right = lineLength(sim, 3 + i),
+    full = D.boards[i].line.length >= LINE_MAX && D.boards[3 + i].line.length >= LINE_MAX,
+    canSend =
+      !!p &&
+      !p.tubOnly &&
+      (p.status === "queue" || (p.status === "dive" && ["walk", "line"].includes(p.dive)));
+  const diff = canSend ? i - SKILL[shownType(p)] : 0;
+  b.classList.toggle("assignable", mode === "playing" && open && canSend && !full);
+  b.classList.toggle("lane-closed", !open);
+  b.classList.toggle("danger", open && (left > LINE_ROOM || right > LINE_ROOM || (canSend && diff > 0)));
+  b.classList.toggle("dive-low", open && canSend && diff < 0);
+  b.querySelector(".lane-mode").textContent = !open
+    ? "OPENS IN " + Math.max(1, Math.ceil(D.opens[i] - sim.arrivalTime)) + "s"
+    : full
+      ? "FULL"
+      : canSend && diff > 0
+        ? "TOO HIGH?"
+        : canSend && diff < 0
+          ? "TOO LOW?"
+          : left + right === 0
+            ? "OPEN"
+            : "LINES";
+  b.querySelector(".lane-count").textContent = !open ? HEIGHTS[i].label : "◀ " + left + " · " + right + " ▶";
+  b.querySelector(".lane-caps").innerHTML = [...D.boards[i].line, ...D.boards[3 + i].line]
+    .slice(0, 8)
+    .map((id) => sim.get(id))
+    .filter(Boolean)
+    .map((q) => '<i style="background:' + roofLook(q).color + '"></i>')
+    .join("");
+}
 // ?cannonball=carl or ?cannonball=leopard puts that man in every Cannonball incident, whatever the level (to look at him).
 const forcedMan = ["carl", "leopard"].includes(params.get("cannonball")) ? params.get("cannonball") : null;
 // A shift with a Cannonball incident has its cannonball man (Carl or the leopard man, by the level) as a model: it is fetched
@@ -1719,6 +1799,9 @@ function loadCannonballMan(s) {
 function loadFishKid(s) {
   // (The Kids Pool's children all wear his model: fetched as the shift begins there, whatever the incidents.)
   if (activeSwimmerChoice() === "models" && s.venue.kids) loadFigure("kid");
+  // (And the Jumping Pool's two big divers, Carl and the leopard man, who come to dive there: dive.mjs.)
+  if (activeSwimmerChoice() === "models" && s.venue.dive)
+    for (const id of ["carl", "leopard"]) loadFigure(id);
   // (And Senior Aqua Fit's four seniors, about 4.5 MB together, fetched as a shift there begins.)
   if (activeSwimmerChoice() === "models" && s.venue.seniors) for (const id of SENIOR_LOOKS) loadFigure(id);
   if (activeSwimmerChoice() !== "models" || !s.config.chaos?.some((e) => e.kinds.includes("fish"))) return;
@@ -2304,6 +2387,10 @@ function renderResultDetails(r, drill) {
       ["SAVES ✋", st.prevented],
       ["CANNONBALLS 💣", st.cannonballs],
       ["BLACKOUTS ⚡", st.blackouts],
+      ["CLEAN DIVES ✨", st.cleanDives],
+      ["BELLY FLOPS 🫃", st.flops],
+      ["WIPEOUTS 💥", st.diveFails],
+      ["CHICKENED OUT 🐔", st.chickens],
     ].filter(([, v]) => v > 0);
   $("result-stats").innerHTML = [
     ["SERVED", r.served],
@@ -2651,6 +2738,19 @@ function problemIcon(p) {
   // (The hot springs: a monkey in their spring, or freezing in the snow.)
   if (p.monkeyScare && p.status === "swim") return "😱";
   if (sim.venue.onsen && p.status === "queue" && (p.cold || 0) > SOAK.coldFrom) return "🥶";
+  // (The Jumping Pool: a line-cutter, a scared diver at the edge, one waiting for the water to clear, in the air, a bored Pro.)
+  if (p.status === "dive") {
+    if (p.cutter && sim.dive?.cut?.id === p.id) return "😤";
+    if (p.dive === "edge" && p.jump?.scared && p.hesitate > 0) return "😰";
+    if (p.dive === "edge" && p.edgeWait > 1) return "⏳";
+    if (p.dive === "air") return p.jump?.flail ? "😱" : p.jump?.ball ? "💣" : "🤸";
+    if (
+      ["walk", "line", "climb", "out", "edge"].includes(p.dive) &&
+      p.board != null &&
+      skillOfShown(p) > p.board % 3
+    )
+      return "😒";
+  }
   return p.problem === "fins"
     ? sim.venue.river || sim.venue.waves
       ? "🛟"
@@ -2675,7 +2775,41 @@ function problemIcon(p) {
                       ? roofLook(p).icon
                       : "🙂";
 }
+// What a guest says they are, as a height (a show-off says Pro until checked).
+const skillOfShown = (p) => SKILL[shownType(p)] ?? 1;
 function cardStatus(p) {
+  // The Jumping Pool: what they say they are and where to send them, the board they are on, a show-off to check, the hot tub.
+  if (sim.venue.dive && !p.stomachWarning) {
+    const H = (h) => HEIGHTS[h].name;
+    if (p.status === "queue")
+      return p.tubOnly
+        ? "Hot tub ♨️ · send them to the tub (4)"
+        : p.bluff && !p.revealed
+          ? "Says they're a Pro 😎 · check them (E beside them)?"
+          : roofLook(p).label + " · best on " + H(SKILL[p.type]) + " (" + (SKILL[p.type] + 1) + ")";
+    if (p.status === "dive") {
+      const b = p.board % 3,
+        word = {
+          walk: "Off to",
+          line: "In line for",
+          climb: "Climbing",
+          out: "Out on",
+          edge: "On the edge of",
+          bounce: "Bouncing on",
+          air: "Off",
+          under: "In",
+          swimOut: "Swimming out",
+          ladder: "Climbing out",
+          down: "Climbing down",
+        }[p.dive];
+      return p.dive === "swimOut" || p.dive === "ladder" || p.dive === "under"
+        ? word + (p.diveResult === "clean" ? " · clean dive ✨" : "")
+        : word + " the " + H(b) + " board" + (p.jump?.scared && p.dive === "edge" ? " · 😰 terrified" : "");
+    }
+    if (p.status === "enter" && p.lane === TUB_LANE) return "Off to the hot tub ♨️";
+    if (p.status === "swim" && p.lane === TUB_LANE) return "Soaking in the hot tub ♨️";
+    if (p.status === "swim" && p.diveFail) return "Winded after a failed jump · ring!";
+  }
   // The hot springs: how cold they are getting in the snow, where they are off to, a monkey in their spring.
   if (sim.venue.onsen && !p.stomachWarning && !p.problem) {
     const cold = p.cold || 0;
@@ -3156,6 +3290,11 @@ function updateUI() {
       average = people.length ? people.reduce((sum, p) => sum + p.h, 0) / people.length : 100;
     const b = document.querySelector('[data-lane="' + i + '"]');
     if (!b) continue;
+    // (The Jumping Pool's heights and its hot tub: dive.mjs.)
+    if (sim.venue.dive) {
+      updateDiveButton(b, i, p);
+      continue;
+    }
     // (the big moment's race lane, Phase 3: locked like the splash lane until the race is over)
     const race =
         sim.big?.kind === "race" && ["announce", "live"].includes(sim.big.stage) && i === sim.big.lane,
@@ -4058,6 +4197,17 @@ function events() {
         world.incidentView.ripple(e.x, e.z);
         world.kick(0.95);
         queueKey = "";
+      } else if (e.type === "dive-splash") {
+        // (The Jumping Pool: a clean entry a neat plume, a flop or a cannonball a huge one, and the camera feels the big ones.)
+        if (e.flat || e.ball || e.size > 0.9) world.bigSplash(e.x, e.z, e.size);
+        else world.splash(e.x, -0.2, e.z, Math.round(10 + e.size * 14));
+        world.incidentView.ripple(e.x, e.z);
+        if (e.flat || e.ball) world.kick(e.h >= 2 ? 0.75 : e.h >= 1 ? 0.45 : 0.22);
+      } else if (e.type === "dive-fail") {
+        world.kick(0.9);
+        queueKey = "";
+      } else if (e.type === "dive-check") {
+        world.sparkle(e.x, e.z);
       } else if (e.type === "trampoline-splash") {
         world.bigSplash(e.x, e.z, 0.85);
         world.incidentView.ripple(e.x, e.z);

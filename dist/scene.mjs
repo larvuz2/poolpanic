@@ -24,6 +24,8 @@ import { wavePose } from "./scene/wave-view.mjs";
 import { buildRooftop } from "./scene/rooftop.mjs";
 import { buildCruise, cruisePose } from "./scene/cruise.mjs";
 import { buildOnsen } from "./scene/onsen.mjs";
+import { buildDive } from "./scene/dive.mjs";
+import { divePose } from "./scene/dive-view.mjs";
 import { onsenPose } from "./scene/onsen-view.mjs";
 import { SOAK } from "./onsen.mjs";
 import { propModel } from "./scene/prop-models.mjs";
@@ -372,6 +374,33 @@ LIGHTING.onsen = {
   ],
 };
 
+// The Jumping Pool: a country club at midday in high summer. A high, clean sun; the deep pool a rich blue over its mosaic, clear
+// enough to see the targets on its floor; the lawns and hedges green, the travertine warm (scene/dive.mjs).
+LIGHTING.dive = {
+  background: 0x97cfee,
+  exposure: 1.02,
+  hemi: [0xe6f5ff, 0x9fae78, 1.05],
+  sun: [0xfff2d8, 2.7, [-16, 32, -9]],
+  fill: [0xa9dbef, 0.55, [14, 16, 12]],
+  env: 0.7,
+  envColors: ["#c6e8fa", "#f2eee0", "#b7c98e"],
+  fog: [0xb4dcee, 70, 200],
+  water: {
+    shallow: [0.08, 0.46, 0.8],
+    deep: [0.02, 0.2, 0.52],
+    sky: [0.7, 0.88, 1],
+    glint: [1, 0.97, 0.9],
+    glow: 0,
+    clarity: 0.3,
+  },
+  glow: 0,
+  sky: [
+    [0, "#4a9fe0"],
+    [0.55, "#a5d8f2"],
+    [1, "#f6f0d8"],
+  ],
+};
+
 const BUILDERS = {
   club: buildClub,
   resort: buildResort,
@@ -386,6 +415,7 @@ const BUILDERS = {
   roof: buildRooftop,
   cruise: buildCruise,
   onsen: buildOnsen,
+  dive: buildDive,
 };
 const defaultLighting = (venue) => venue.lighting || (venue.indoor ? "indoor" : "day");
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
@@ -499,6 +529,7 @@ export class PoolWorld extends SceneKit {
     // (The Rooftop Pool's builder sees a city 2 km out; everywhere else the room is all there is.)
     this.camera.far = 180;
     this.camera.updateProjectionMatrix();
+    this.floatY = -0.15; // (where a floater bobs: the pool's surface; the Jumping Pool's raised hot tub sets its own)
     (BUILDERS[venue.id] || buildClub)(this, venue, lighting);
     buildMopStation(this, venue); // (every pool has the mop: incidents/wet.mjs)
     buildMassageTable(this, venue); // (only where the venue has one: incidents/massage.mjs)
@@ -955,9 +986,12 @@ export class PoolWorld extends SceneKit {
     const light = this.incidentView.lightLevel(sim, time);
     const uniforms = this.water.material.uniforms;
     uniforms.uTime.value = time;
-    uniforms.uDirty.value = sim.contamination / 100;
-    uniforms.uBrown.value = sim.waterBrown || 0;
-    uniforms.uYellow.value = sim.waterYellow || 0;
+    // (At the Jumping Pool the water care is the hot tub's: its own water shows the dirt, scene/dive-view.mjs; the diving pool stays
+    // clear.)
+    const tubOnly = !!sim.venue?.dive;
+    uniforms.uDirty.value = tubOnly ? 0 : sim.contamination / 100;
+    uniforms.uBrown.value = tubOnly ? 0 : sim.waterBrown || 0;
+    uniforms.uYellow.value = tubOnly ? 0 : sim.waterYellow || 0;
     uniforms.uLight.value = light.water;
     this.poolUniforms.uTime.value = time;
     this.poolUniforms.uCaustic.value = light.caustic;
@@ -1135,6 +1169,8 @@ export class PoolWorld extends SceneKit {
     if (sim.ship && cruisePose(this, sim, p, g, time, dt)) return;
     // The hot springs: anyone in a spring, sitting to the shoulders, wading or panicking (scene/onsen-view.mjs).
     if (sim.venue?.onsen && onsenPose(this, sim, p, g, time, dt)) return;
+    // The Jumping Pool: a diver on the stairs, the board, in the air or swimming out; a guest in the hot tub (scene/dive-view.mjs).
+    if (sim.venue?.dive && divePose(this, sim, p, g, time, dt)) return;
     // The crowd panics while a cannonball man is in the pool: a swimmer in the water is held where it is, upright, and hops with
     // its hands up like those who wait on the deck.
     const crowd = !!this.crowd,
@@ -1727,7 +1763,7 @@ export class PoolWorld extends SceneKit {
     this.skimmerRack.visible = c.carry !== "skimmer";
     if (q?.stage === "floating") {
       this.showIncident(q.x, q.z);
-      this.incident.position.y = -0.15 + Math.sin(time * 3) * 0.065;
+      this.incident.position.y = (this.floatY ?? -0.15) + Math.sin(time * 3) * 0.065;
       this.incident.rotation.y = q.elapsed * 0.55;
     } else if (this.incident) this.incident.visible = false;
     // A wee in the pool: a yellow cloud spreading from where it happened, fading as the chlorine clears the water.
@@ -1739,7 +1775,7 @@ export class PoolWorld extends SceneKit {
       }
       const r = Math.min(7, 1.2 + q.elapsed * 0.9);
       this.peeCloud.visible = true;
-      this.peeCloud.position.set(q.x, 0.03, q.z);
+      this.peeCloud.position.set(q.x, (this.floatY ?? -0.15) + 0.18, q.z);
       this.peeCloud.scale.set(r * 2, r * 2, 1);
       this.peeCloud.material.opacity = Math.min(0.8, (sim.waterYellow || 0) * 1.1);
     } else if (this.peeCloud) this.peeCloud.visible = false;
@@ -1747,7 +1783,11 @@ export class PoolWorld extends SceneKit {
     if (this.scoopCast.visible) {
       const from = new THREE.Vector3(c.x, 1.05, c.z),
         progress = 1 - c.scoopTimer / 0.42,
-        to = new THREE.Vector3(c.scoopTarget.x, -0.08 + Math.sin(progress * Math.PI) * 0.35, c.scoopTarget.z),
+        to = new THREE.Vector3(
+          c.scoopTarget.x,
+          (this.floatY ?? -0.15) + 0.07 + Math.sin(progress * Math.PI) * 0.35,
+          c.scoopTarget.z,
+        ),
         delta = to.clone().sub(from);
       this.scoopShaft.position.copy(from).add(to).multiplyScalar(0.5);
       this.scoopShaft.scale.y = delta.length();

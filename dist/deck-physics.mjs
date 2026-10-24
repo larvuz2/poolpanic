@@ -7,7 +7,9 @@ export function onDeck(p, venue = CLUB) {
     (["queue", "arriving", "enter", "exit", "evacuating", "panic", "recovering", "injured"].includes(
       p.status,
     ) ||
-      (p.status === "fleeing" && p.fleePhase === "run")) &&
+      (p.status === "fleeing" && p.fleePhase === "run") ||
+      // (the Jumping Pool's divers on their way to a board's line, and standing in it: dive.mjs)
+      (p.status === "dive" && (p.dive === "walk" || p.dive === "line"))) &&
     p.recoveryStage !== "resting" &&
     !p.evacWater &&
     !["water", "climb"].includes(p.exitPhase) &&

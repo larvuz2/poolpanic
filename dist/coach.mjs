@@ -6,6 +6,8 @@ import { wetSpotAt, WET_TUNING } from "./incidents/wet.mjs";
 import { coachDrift } from "./ship.mjs";
 import { springAt, ONSEN_WATER } from "./onsen-plan.mjs";
 import { onsenServicePoint, onsenWaterPoint } from "./onsen.mjs";
+import { tubRim, tubWaterPoint } from "./dive.mjs";
+import { TUB_LANE } from "./dive-plan.mjs";
 const names = {
   fins: "fins",
   chlorine: "chlorine",
@@ -387,6 +389,8 @@ export class CoachController {
     if (p.status === "swim" && this.venue.waves) return batherServicePoint(this, p);
     if (p.chill) return roofServicePoint(this, p);
     if (p.status === "swim" && this.venue.onsen) return onsenServicePoint(this, p);
+    // (The Jumping Pool's hot tub: from its rim beside them.)
+    if (p.status === "swim" && this.venue.dive && p.lane === TUB_LANE) return tubRim(p);
     if (p.status !== "swim" || p.lane == null) return { x: p.x, z: p.z };
     const P = this.venue.pool,
       last = this.lanes.length - 1;
@@ -413,6 +417,8 @@ export class CoachController {
     if (p.chill) return distance(this.coach, p) <= ROOF_REACH;
     // At the hot springs: from the rim beside them, or wading.
     if (this.venue.onsen) return distance(this.coach, p) <= ROOF_REACH;
+    // At the Jumping Pool's hot tub: from its rim beside them (nobody is served in the diving pool).
+    if (this.venue.dive) return p.lane === TUB_LANE && distance(this.coach, p) <= ROOF_REACH;
     const c = this.coach,
       P = this.venue.pool;
     return (
@@ -424,6 +430,9 @@ export class CoachController {
   waterPoint() {
     if (this.venue.river) return riverWaterPoint(this);
     if (this.venue.onsen) return onsenWaterPoint(this);
+    // (The Jumping Pool: the hot tub's water for its care, the skimmer and the chlorine; the diving pool for everything else.)
+    if (this.venue.dive && ["chlorine", "skimmer"].includes(this.coach.carry))
+      return tubWaterPoint(this.coach);
     const c = this.coach,
       P = this.venue.pool;
     return { x: Math.max(-P.edgeX, Math.min(P.edgeX, c.x)), z: Math.max(-P.edgeZ, Math.min(P.edgeZ, c.z)) };
