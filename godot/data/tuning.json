@@ -1,0 +1,141 @@
+{
+ "_about": "Exported from dist/ by godot/tools/export-data.mjs (the file each block comes from is named).",
+ "coach": {
+  "from": "dist/spatial.mjs COACH_TUNING",
+  "speed": 7.6,
+  "acceleration": 58,
+  "braking": 76,
+  "radius": 0.32,
+  "jumpSpeed": 7.4,
+  "gravity": 23,
+  "reach": 1.8,
+  "handoffReach": 3.6,
+  "dashSpeed": 19,
+  "dashDuration": 0.16,
+  "dashCooldown": 0.82
+ },
+ "rescue": {
+  "from": "dist/spatial.mjs RESCUE",
+  "wall": {
+   "x": -4,
+   "z": -15.7
+  },
+  "bench": {
+   "x": -10.2,
+   "z": -0.25
+  },
+  "approach": {
+   "x": -8.9,
+   "z": -0.25
+  },
+  "restSeconds": 4,
+  "swimSpeed": 4.2
+ },
+ "entry": {
+  "from": "dist/spatial.mjs ENTRY",
+  "walkZ": -9.9,
+  "edgeZ": -8.7,
+  "serviceZ": -9.55,
+  "waterZ": -7.2,
+  "dropZ": -9.6
+ },
+ "wet": {
+  "from": "dist/incidents/wet.mjs WET_TUNING",
+  "chance": 0.2,
+  "radius": 0.62,
+  "reach": 1.35,
+  "mop": 0.8,
+  "penalty": 25,
+  "mood": 12,
+  "bonus": 10,
+  "spacing": 1.1,
+  "max": 10,
+  "coachSlip": 1.3
+ },
+ "types": {
+  "from": "dist/sim.mjs TYPES",
+  "beginner": {
+   "label": "Beginner",
+   "color": "#71ba54",
+   "speed": 0.55,
+   "icon": "🐢"
+  },
+  "intermediate": {
+   "label": "Intermediate",
+   "color": "#4c97e9",
+   "speed": 1,
+   "icon": "🏊"
+  },
+  "advanced": {
+   "label": "Pro",
+   "color": "#f26857",
+   "speed": 1.5,
+   "icon": "⚡"
+  },
+  "aqua": {
+   "label": "Aqua aerobics",
+   "color": "#b782db",
+   "speed": 0,
+   "icon": "💦"
+  },
+  "daredevil": {
+   "label": "Daredevil",
+   "color": "#f39a2b",
+   "speed": 0,
+   "icon": "🤸"
+  },
+  "child": {
+   "label": "Kid",
+   "color": "#ff7eb3",
+   "speed": 0.42,
+   "icon": "🧒"
+  },
+  "senior": {
+   "label": "Senior",
+   "color": "#e0a458",
+   "speed": 0.5,
+   "icon": "👵"
+  },
+  "rider": {
+   "label": "Tuber",
+   "color": "#ff9f43",
+   "speed": 0.48,
+   "icon": "🛟"
+  }
+ },
+ "streak": {
+  "from": "dist/sim.mjs STREAK_TIERS, STREAK_RISK",
+  "tiers": [
+   {
+    "at": 0,
+    "mult": 1,
+    "name": ""
+   },
+   {
+    "at": 3,
+    "mult": 1.2,
+    "name": "WARMING UP"
+   },
+   {
+    "at": 5,
+    "mult": 1.5,
+    "name": "ON A ROLL"
+   },
+   {
+    "at": 8,
+    "mult": 2,
+    "name": "ON FIRE"
+   },
+   {
+    "at": 12,
+    "mult": 2.5,
+    "name": "UNSTOPPABLE"
+   }
+  ],
+  "risk": 40
+ },
+ "holdLimit": {
+  "from": "dist/chaos.mjs HOLD_LIMIT",
+  "seconds": 30
+ }
+}

@@ -1792,6 +1792,15 @@ These decisions reflect iterative feedback and should survive future work:
 
 Earlier notes sometimes describe superseded behavior: three levels instead of the current twenty, a single life ring instead of three, narrower handoff reach, automatic cleanup, starting-end-only exits, or an at-wall cramp assist. The current systems above take precedence. Historical intent is useful context, not a reason to restore old implementations.
 
+## The Godot test (27 October 2026)
+
+`godot/` is a separate experiment, not the game: a Godot 4.7 project that rebuilds **one venue** (the Community Pool) with **Coach
+Waters** and **one shift, no menu**, so the creator can judge how Pool Panic feels and looks in Godot against this three.js game. It
+reads its layout, tuning and guest list from JSON exported from `dist/` by `godot/tools/export-data.mjs` (so both games use the same
+numbers), copies its models from `dist/assets/`, and is checked and exported for Windows, macOS and Linux by
+`.github/workflows/godot-test-build.yml` onto its own rolling release, `godot-latest`. Nothing in `dist/`, `desktop/` or the checks
+depends on it. `godot/README.md` is its brief and plan; `godot/docs/` hold the coach, the gameplay and the venue as this game has them.
+
 ## Scope and future work
 
 The implemented prototype is single-player, with twenty finite shifts across four venues (drawn on a two-act campaign map), five swimmer types plus VIP guests, three or five lanes, local progression, equipment errands, chemistry, deck/lane collisions, cramps, lost goggles, stomach emergencies, four chaos incidents, five mid-shift twists (one of them a storm) and the resort trampoline.
