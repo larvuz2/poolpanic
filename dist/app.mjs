@@ -1,3 +1,5 @@
+// First: on the web site, the choice between the game and the Godot test (engine-pick.mjs); it waits for it.
+import "./engine-pick.mjs";
 import { loadProp } from "./scene/prop-models.mjs";
 import { screenMovement } from "./spatial.mjs";
 import {

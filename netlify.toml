@@ -5,7 +5,9 @@
   # The game is static and ships as-is from dist/ (no bundling). The build step stamps the commit into
   # dist/version.mjs (so crash reports name it) and runs the regression checks, so a change that breaks them fails
   # its deploy instead of going live.
-  command = "node stamp-version.mjs && npm test"
+  # Last, after the checks: the Godot test's web build from the `godot-latest` release into dist/godot/, which the game's first
+  # screen then offers next to the game (tools/fetch-godot-web.mjs, dist/engine-pick.mjs). It never fails the build.
+  command = "node stamp-version.mjs && npm test && node tools/fetch-godot-web.mjs"
   publish = "dist"
 
 [build.environment]
@@ -22,6 +24,13 @@
   for = "/*.mjs"
   [headers.values]
     Content-Type = "text/javascript; charset=utf-8"
+
+# The Godot test's web build (dist/godot/, put there by the build): its engine compiles as it downloads only when the .wasm is
+# served as WebAssembly.
+[[headers]]
+  for = "/godot/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
 
 [[headers]]
   for = "/*"

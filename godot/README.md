@@ -16,6 +16,7 @@ The real game is still the three.js one in `dist/`. This test lives **only in `g
 | Where | How |
 | --- | --- |
 | Download | Every push that changes `godot/` checks the test and exports it (`.github/workflows/godot-test-build.yml`) onto one page that is replaced each time: **https://github.com/larvuz2/poolpanic/releases/tag/godot-latest**. Windows, one Mac app for Apple chips and Intel, Linux; unsigned (the Mac app ad hoc), so each system asks once. |
+| A browser | The Netlify site (https://poolpanic.netlify.app, or a pull request's preview) opens on a choice: **Harbourside Community Pool** is this test, built for the web (below). A desktop browser with a keyboard; the first load is a big download. |
 | In Godot | Install Godot 4.7.2, open `godot/project.godot`, press **F5**. |
 
 **Keys:**
@@ -112,6 +113,27 @@ through the windows across the deck.
 
 **The guests:** they wait in the queue on their clips, and three swim lengths in the lanes.
 
+## The web build
+
+The same workflow exports it (`tools/web-export.sh`) next to the desktop builds, and the Netlify build puts it on the site at
+`/godot/` (`tools/fetch-godot-web.mjs` in the repository's root, README "The Godot test"). A browser runs Godot's **Compatibility
+renderer** (WebGL 2), which has no SDFGI, SSAO, SSIL, SSR or volumetric fog, so the web build is a lighter look of the same venue:
+
+- **The light** (`club_scene.gd`, `_web_light`): more light in the ambient for what the tiles would bounce, a softer sun so its
+  patches keep their tiles, a warm haze lit toward the sun, and the shafts through the windows drawn as soft beams
+  (`assets/shaders/sunbeam.gdshader`, one per pane column, swept from the glass along the sunlight). F2 does nothing there.
+- **The water** (`water.gdshader`, its `RENDERER_COMPATIBILITY` branch): WebGL has no copy of the screen or its depth to look
+  through, so it is tinted glass, coloured by the floor's known depth and the slant of the view, with the same ripples, lace foam
+  and clouding.
+- **Lighter textures:** `web-export.sh` exports from a copy whose textures are one desktop format (S3TC, which a browser without it
+  gets decompressed) and whose big tiling sets are 512 px (`tools/web-textures.py`); the Blender-only images stay out. About 80 MB
+  on disk, about 38 MB to download (the engine compresses well). The desktop builds are untouched.
+- **No MSAA** (its resolve fails on WebGL): FXAA instead (`msaa_3d.web=0` in `project.godot`).
+- A corner link goes back to the site's choice (`html/head_include` in `export_presets.cfg`).
+
+`tools/render.sh --web` draws with the same renderer here (OpenGL in software), which is how the web look was tuned; a real browser
+on a graphics card has not been seen from here (the browser here only proved that it starts: WebGL 2, the venue loading, no errors).
+
 ## Rebuild or change it
 
 - **Blender 4.5 LTS:** `godot/tools/blender/build_all.sh` rebuilds every asset; each script also runs alone with
@@ -133,6 +155,8 @@ godot/tools/check.sh                    # import + a 3 s run where the coach wal
 apt-get install -y mesa-vulkan-drivers  # once, for the pictures
 godot/tools/render.sh out.png --quality=2 --size=960x540                     # the game's view
 godot/tools/render.sh x.png --shots=list.txt --wait=10                       # several views in one run
+godot/tools/render.sh w.png --web                                            # with the web build's renderer
+godot/tools/web-export.sh                                                    # the web build, at godot/build/web
 ```
 
 **Rendering here:**
