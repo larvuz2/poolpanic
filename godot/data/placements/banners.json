@@ -1,0 +1,86 @@
+[
+ {
+  "asset": "props/banner_1.glb",
+  "pos": [
+   -11.9,
+   0,
+   -16.7
+  ],
+  "rot": 0,
+  "note": "-Z wall above the MEN changing room: the crest"
+ },
+ {
+  "asset": "props/banner_3.glb",
+  "pos": [
+   -9.5,
+   0,
+   -16.7
+  ],
+  "rot": 0,
+  "note": "-Z wall above the MEN changing room"
+ },
+ {
+  "asset": "props/banner_2.glb",
+  "pos": [
+   9.5,
+   0,
+   -16.7
+  ],
+  "rot": 0,
+  "note": "-Z wall above the WOMEN changing room: gala champions"
+ },
+ {
+  "asset": "props/banner_1.glb",
+  "pos": [
+   11.9,
+   0,
+   -16.7
+  ],
+  "rot": 0,
+  "note": "-Z wall above the WOMEN changing room: the crest"
+ },
+ {
+  "asset": "props/banner_4.glb",
+  "pos": [
+   -6.0,
+   1.59,
+   13.5
+  ],
+  "rot": 180,
+  "scale": 0.85,
+  "note": "+Z wall above the gallery (85%: from 6.35 to 8.9 m, clear of the window's sign and the cornice)"
+ },
+ {
+  "asset": "props/banner_1.glb",
+  "pos": [
+   -2.0,
+   1.59,
+   13.5
+  ],
+  "rot": 180,
+  "scale": 0.85,
+  "note": "+Z wall above the gallery (85%: from 6.35 to 8.9 m, clear of the window's sign and the cornice)"
+ },
+ {
+  "asset": "props/banner_3.glb",
+  "pos": [
+   2.0,
+   1.59,
+   13.5
+  ],
+  "rot": 180,
+  "scale": 0.85,
+  "note": "+Z wall above the gallery (85%: from 6.35 to 8.9 m, clear of the window's sign and the cornice)"
+ },
+ {
+  "asset": "props/banner_2.glb",
+  "pos": [
+   6.0,
+   1.59,
+   13.5
+  ],
+  "rot": 180,
+  "scale": 0.85,
+  "note": "+Z wall above the gallery (85%: from 6.35 to 8.9 m, clear of the window's sign and the cornice)"
+ }
+]

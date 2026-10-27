@@ -1,0 +1,21 @@
+[
+  {"asset": "props/bench.glb", "pos": [-10.2, 0, -0.9], "rot": 90, "scale": 1, "note": "bench, faces +X; left bare: the rescued swimmer rests on it at z -0.25"},
+  {"asset": "props/bench_dressed.glb", "pos": [10.3, 0, -0.5], "rot": -90, "scale": 1, "note": "bench with a swimmer's things, faces -X"},
+  {"asset": "props/bench_dressed.glb", "pos": [-9.8, 0, 3.3], "rot": 90, "scale": 1, "note": "bench with a swimmer's things, faces +X"},
+  {"asset": "props/fins_rack.glb", "pos": [-10.3, 0, 7.8], "rot": 90, "scale": 1, "note": "fins rack, 3 pairs (Fins_1..3), faces +X"},
+  {"asset": "props/chlorine_station.glb", "pos": [10.8, 0, 7.8], "rot": -90, "scale": 1, "note": "chlorine store, faces -X"},
+  {"asset": "props/first_aid_station.glb", "pos": [10.8, 0, 3.9], "rot": 180, "scale": 1, "note": "eye-relief (first-aid) station, long along X, faces -Z"},
+  {"asset": "props/plant_big.glb", "pos": [-13.0, 0, 10.6], "rot": 0, "scale": 1, "note": "monstera in a glazed pot"},
+  {"asset": "props/drinking_fountain.glb", "pos": [-12.9, 0, 5.5], "rot": 90, "scale": 1, "note": "drinking fountain and bottle filler, faces +X"},
+  {"asset": "props/lifeguard_chair.glb", "pos": [12.2, 0, -7.3], "rot": -90, "scale": 1, "note": "lifeguard chair, faces -X; its Flashlight node hangs at the front, about (11.7, 0.9, -7.5)"},
+  {"asset": "props/office_counter.glb", "pos": [13.0, 0, 9.5], "rot": -90, "scale": 1, "note": "pool office counter, faces -X; Light_DeskLamp on the desk"},
+  {"asset": "props/treat_table.glb", "pos": [-13.4, 0, 8.4], "rot": 90, "scale": 1, "note": "dog-treat table, faces +X"},
+  {"asset": "props/waste_bin.glb", "pos": [-12.5, 0, 1.5], "rot": 90, "scale": 1, "note": "recycling station, faces +X"},
+  {"asset": "props/mop_bucket.glb", "pos": [12.6, 0, -11.6], "rot": -90, "scale": 1, "note": "mop bucket and folded wet-floor sign, faces -X"},
+  {"asset": "props/life_ring_stand.glb", "pos": [-4.0, 0, -15.7], "rot": 0, "scale": 1, "note": "life ring on its board, faces +Z; LifeRing node"},
+  {"asset": "props/life_ring_wall.glb", "pos": [-14.66, 0, -5.0], "rot": 90, "scale": 1, "note": "life ring board on the -X wall face, faces +X; LifeRing node"},
+  {"asset": "props/life_ring_wall.glb", "pos": [14.62, 0, 5.0], "rot": -90, "scale": 1, "note": "life ring board on the +X wall, in front of the dado rail (x 14.63), above the radiator (top y 1.01); LifeRing node"},
+  {"asset": "props/skimmer_rack.glb", "pos": [-14.66, 0, -1.9], "rot": 90, "scale": 1, "note": "skimmer, brush and vacuum hose on the -X wall"},
+  {"asset": "props/fish_net.glb", "pos": [14.62, 0, -2.6], "rot": -90, "scale": 1, "note": "fish net on two hooks on the +X wall, above the radiators"},
+  {"asset": "props/fuse_box.glb", "pos": [14.62, 0, 12.05], "rot": -90, "scale": 1, "note": "fuse box on the +X wall, conduits up to the pier at z 13"}
+]

@@ -20,3 +20,12 @@ window/stretch/aspect="expand"
 
 anti_aliasing/quality/msaa_3d=2
 textures/vram_compression/import_etc2_astc=true
+
+[importer_defaults]
+
+texture={
+"compress/high_quality": true,
+"compress/mode": 2,
+"detect_3d/compress_to": 0,
+"mipmaps/generate": true
+}

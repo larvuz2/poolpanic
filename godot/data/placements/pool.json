@@ -1,0 +1,200 @@
+[
+ {
+  "asset": "props/starting_block_1.glb",
+  "pos": [
+   -3.2,
+   0,
+   -9.15
+  ],
+  "rot": 0,
+  "note": "lane 1, its front to the water"
+ },
+ {
+  "asset": "props/starting_block_2.glb",
+  "pos": [
+   0.0,
+   0,
+   -9.15
+  ],
+  "rot": 0,
+  "note": "lane 2"
+ },
+ {
+  "asset": "props/starting_block_3.glb",
+  "pos": [
+   3.2,
+   0,
+   -9.15
+  ],
+  "rot": 0,
+  "note": "lane 3"
+ },
+ {
+  "asset": "props/ladder.glb",
+  "pos": [
+   -5.0,
+   0,
+   5.0
+  ],
+  "rot": 90,
+  "note": "on the -x wall, into the pool"
+ },
+ {
+  "asset": "props/ladder.glb",
+  "pos": [
+   5.0,
+   0,
+   -4.1
+  ],
+  "rot": -90,
+  "note": "on the +x wall"
+ },
+ {
+  "asset": "props/flag_post.glb",
+  "pos": [
+   -6.0,
+   0,
+   -5.7
+  ],
+  "rot": 0
+ },
+ {
+  "asset": "props/flag_post.glb",
+  "pos": [
+   6.0,
+   0,
+   -5.7
+  ],
+  "rot": 0
+ },
+ {
+  "asset": "props/flag_post.glb",
+  "pos": [
+   -6.0,
+   0,
+   5.7
+  ],
+  "rot": 0
+ },
+ {
+  "asset": "props/flag_post.glb",
+  "pos": [
+   6.0,
+   0,
+   5.7
+  ],
+  "rot": 0
+ },
+ {
+  "asset": "props/rope_anchor.glb",
+  "pos": [
+   -4.8,
+   -0.12,
+   -8.3
+  ],
+  "rot": 0
+ },
+ {
+  "asset": "props/rope_anchor.glb",
+  "pos": [
+   -1.6,
+   -0.12,
+   -8.3
+  ],
+  "rot": 0
+ },
+ {
+  "asset": "props/rope_anchor.glb",
+  "pos": [
+   1.6,
+   -0.12,
+   -8.3
+  ],
+  "rot": 0
+ },
+ {
+  "asset": "props/rope_anchor.glb",
+  "pos": [
+   4.8,
+   -0.12,
+   -8.3
+  ],
+  "rot": 0
+ },
+ {
+  "asset": "props/rope_anchor.glb",
+  "pos": [
+   -4.8,
+   -0.12,
+   8.3
+  ],
+  "rot": 180
+ },
+ {
+  "asset": "props/rope_anchor.glb",
+  "pos": [
+   -1.6,
+   -0.12,
+   8.3
+  ],
+  "rot": 180
+ },
+ {
+  "asset": "props/rope_anchor.glb",
+  "pos": [
+   1.6,
+   -0.12,
+   8.3
+  ],
+  "rot": 180
+ },
+ {
+  "asset": "props/rope_anchor.glb",
+  "pos": [
+   4.8,
+   -0.12,
+   8.3
+  ],
+  "rot": 180
+ },
+ {
+  "asset": "props/picture_light.glb",
+  "pos": [
+   -5.7,
+   0,
+   -16.7
+  ],
+  "rot": 0,
+  "note": "a picture light over the mural"
+ },
+ {
+  "asset": "props/picture_light.glb",
+  "pos": [
+   -1.9,
+   0,
+   -16.7
+  ],
+  "rot": 0,
+  "note": "a picture light over the mural"
+ },
+ {
+  "asset": "props/picture_light.glb",
+  "pos": [
+   1.9,
+   0,
+   -16.7
+  ],
+  "rot": 0,
+  "note": "a picture light over the mural"
+ },
+ {
+  "asset": "props/picture_light.glb",
+  "pos": [
+   5.7,
+   0,
+   -16.7
+  ],
+  "rot": 0,
+  "note": "a picture light over the mural"
+ }
+]
