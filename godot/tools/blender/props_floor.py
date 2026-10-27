@@ -51,11 +51,12 @@ def floor_text(name, body, x, z, size, m, rot_deg=0.0, face="BarlowCondensed-Bla
 # ---- footprints at the queue slots: a sole and five toes, left and right ---------------------------------------------------
 def foot(name, cx, cz, side):
     out = []
+    S = 1.5  # (painted a little larger than life, to read from the camera)
     sole = [(0.0, -0.11), (0.042, -0.08), (0.05, 0.0), (0.044, 0.07), (0.02, 0.1), (-0.02, 0.1), (-0.042, 0.06), (-0.036, -0.02), (-0.03, -0.09)]
-    pts = [(cx + side * px, cz + pz) for px, pz in sole]
+    pts = [(cx + side * px * S, cz + pz * S) for px, pz in sole]
     out.append(flat_poly(name + "Sole", pts, Y, paint_coral))
     for k, (tx, tz, tr) in enumerate([(-0.028, 0.128, 0.016), (-0.006, 0.138, 0.015), (0.015, 0.135, 0.013), (0.032, 0.124, 0.011), (0.045, 0.108, 0.01)]):
-        out.append(disc(f"{name}Toe{k}", cx + side * tx, cz + tz, tr, Y, paint_coral, 12))
+        out.append(disc(f"{name}Toe{k}", cx + side * tx * S, cz + tz * S, tr * S, Y, paint_coral, 12))
     return out
 
 
@@ -63,8 +64,8 @@ q = VENUE_JSON["queueSlots"]
 for side in ("-1", "1"):
     for k, p in enumerate(q[side][:12]):
         x, z = p["x"], p["z"]
-        parts += foot(f"FootL{side}_{k}", x - 0.09, z, -1)
-        parts += foot(f"FootR{side}_{k}", x + 0.09, z, 1)
+        parts += foot(f"FootL{side}_{k}", x - 0.12, z, -1)
+        parts += foot(f"FootR{side}_{k}", x + 0.12, z, 1)
 
 # ---- the mosaic compass rose at the far end ----------------------------------------------------------------------------------
 cx, cz = 0.0, 11.05

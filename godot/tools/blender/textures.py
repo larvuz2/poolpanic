@@ -120,7 +120,7 @@ def pool_mosaic(size=1024):
 # ---- the deck: 30 cm non-slip tiles, warm sand, 1.2 m across ---------------------------------------------------------------
 def deck_tile(size=1024):
     n = 4
-    ix, iy, lu, lv, h = tile_grid(size, n, n, grout=0.035, bevel=0.03)
+    ix, iy, lu, lv, h = tile_grid(size, n, n, grout=0.022, bevel=0.03)
     r1, r2 = per_tile_random(ix, iy, 21, 2)
     base = hexrgb("#dcb98f")
     col = base * (0.93 + 0.1 * r1[..., None]) + (r2[..., None] - 0.5) * np.array([0.03, 0.015, 0.0], np.float32)
@@ -128,7 +128,7 @@ def deck_tile(size=1024):
     col = col * (0.97 + 0.06 * (speck[..., None] > 0.62)) - 0.05 * (speck[..., None] < 0.3)
     mott = periodic_noise(size, 6, 8, 4)
     col = col * (0.95 + 0.08 * mott[..., None])
-    grout = hexrgb("#9a7a5a")
+    grout = hexrgb("#bb9a74")
     albedo = col * h[..., None] + grout * (1 - h[..., None])
     grit = periodic_noise(size, 256, 9, 1)
     height = h * 0.85 + 0.15 * grit * h
