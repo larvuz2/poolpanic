@@ -69,8 +69,7 @@ func _setup_input() -> void:
 			InputMap.action_add_event(action, ev)
 
 
-## The "indoor" lighting preset (scene.mjs:64-75): godot/docs/venue.md. Three.js's intensities do not map one to one onto Godot's,
-## so these are a first guess to tune by eye against godot/reference/.
+## A plain first light so the block-out can be seen. The look is the test's to invent (godot/README.md, "The look"): replace all of it.
 func _setup_world() -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR

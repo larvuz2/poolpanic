@@ -1,8 +1,8 @@
 class_name VenueBuilder
 ## A plain block-out of the Community Pool from the exported layout (godot/data/club-venue.json): the deck, the basin and its water,
 ## the lane ropes, the starting blocks, the back wall, the low side walls, and a coloured box for every piece of furniture and every
-## station. It is the starting point, in the real positions and colours (godot/docs/venue.md), not the look: making it look like
-## Pool Panic is the test's job.
+## station. Only the positions and sizes count (they are gameplay); the boxes and colours are placeholders, to be replaced by the
+## real venue (godot/README.md, "Assets for the Community Pool" and "The look").
 
 const DECK_Y := -0.018
 const WATER_Y := -0.25
