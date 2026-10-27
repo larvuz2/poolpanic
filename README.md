@@ -1800,6 +1800,8 @@ reads its layout, tuning and guest list from JSON exported from `dist/` by `godo
 numbers), copies its models from `dist/assets/`, and is checked and exported for Windows, macOS and Linux by
 `.github/workflows/godot-test-build.yml` onto its own rolling release, `godot-latest`. Nothing in `dist/`, `desktop/` or the checks
 depends on it. `godot/README.md` is its brief and plan; `godot/docs/` hold the coach, the gameplay and the venue as this game has them.
+Its venue is dressed as the Harbourside Community Swim Club, every asset made in Blender by `godot/tools/blender/` and lit in Godot
+(`godot/docs/look.md`).
 
 ## Scope and future work
 

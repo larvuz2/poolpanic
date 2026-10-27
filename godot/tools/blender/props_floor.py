@@ -113,6 +113,33 @@ for k, lx in enumerate((-3.2, 0.0, 3.2)):
 parts.append(floor_text("NoRunning", "NO RUNNING", 0.0, 12.35, 0.42, paint_coral))
 parts.append(flat_poly("NoRunningLine", [(-1.8, 12.08), (1.8, 12.08), (1.8, 12.12), (-1.8, 12.12)], Y, paint_coral))
 
+# ---- an anchor in the mosaic on the near side, the club's emblem -------------------------------------------------------------
+ax, az = -7.5, -1.6
+parts.append(disc("AnchorRim", ax, az, 0.95, Y - 0.0005, mos["navy"], 64))
+parts.append(disc("AnchorField", ax, az, 0.82, Y, mos["sea"], 64))
+parts.append(disc("AnchorRing", ax, az, 0.74, Y + 0.0003, mos["cream"], 64))
+parts.append(disc("AnchorInner", ax, az, 0.66, Y + 0.0005, mos["sea"], 64))
+# the anchor itself, in cream, pointing up the screen (+x): a shank, a stock, the crown's arms and a ring
+def ap(points):  # (along +x, along +z) -> (x, z)
+    return [(ax + u, az + v) for u, v in points]
+parts.append(flat_poly("AnchorShank", ap([(-0.42, -0.035), (0.38, -0.035), (0.38, 0.035), (-0.42, 0.035)]), Y + 0.0009, mos["cream"]))
+parts.append(flat_poly("AnchorStock", ap([(0.24, -0.22), (0.3, -0.22), (0.3, 0.22), (0.24, 0.22)]), Y + 0.0011, mos["cream"]))
+parts.append(disc("AnchorEye", ax + 0.45, az, 0.075, Y + 0.0012, mos["cream"], 24))
+parts.append(disc("AnchorEyeHole", ax + 0.45, az, 0.035, Y + 0.0014, mos["sea"], 16))
+arm = []
+for k in range(17):
+    a = math.pi * (0.15 + 0.7 * k / 16)
+    arm.append((-0.42 + 0.3 * (1 - math.sin(a)), 0.36 * math.cos(a)))
+inner = [(-0.42 + 0.06 + 0.24 * (1 - math.sin(math.pi * (0.15 + 0.7 * k / 16))), 0.29 * math.cos(math.pi * (0.15 + 0.7 * k / 16))) for k in reversed(range(17))]
+parts.append(flat_poly("AnchorArms", ap(arm + inner), Y + 0.001, mos["cream"]))
+for s_ in (-1, 1):
+    parts.append(flat_poly(f"AnchorFluke{s_}", ap([(-0.31, s_ * 0.26), (-0.12, s_ * 0.40), (-0.3, s_ * 0.40)]), Y + 0.0013, mos["coral"]))
+
+# ---- DEEP END and SHALLOW END painted along both long sides ---------------------------------------------------------------------
+for x in (-6.75, 6.75):
+    parts.append(floor_text(f"DeepEnd{x}", "DEEP END", x, -6.2, 0.34, paint_navy))
+    parts.append(floor_text(f"ShallowEnd{x}", "SHALLOW END", x, 6.2, 0.34, paint_navy))
+
 # ---- rubber mats: at the top of each ladder and at the locker doors -----------------------------------------------------------
 def mat_pad(name, cx, cz, w, d):
     o = gbox_flat(name, cx, cz, w, d)

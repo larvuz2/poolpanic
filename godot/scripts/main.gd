@@ -27,6 +27,22 @@ var shot_wait := 90
 var fixed_cam := PackedFloat32Array()
 var club: ClubScene
 var _swimmers: Array[Node3D] = []
+var _quality_arg := -1
+var _shots: Array = []  # `--shots=<file>`: lines "<out.png> game" or "<out.png> x,y,z,tx,ty,tz", rendered in turn in one run
+
+
+func _load_shots(path: String) -> void:
+	for line in FileAccess.get_file_as_string(path).split("\n"):
+		var parts := line.strip_edges().split(" ", false)
+		if parts.size() >= 2:
+			_shots.append(parts)
+	if _shots.size() > 0:
+		shot_path = _shots[0][0]
+		_apply_shot_cam(_shots[0][1])
+
+
+func _apply_shot_cam(spec: String) -> void:
+	fixed_cam = PackedFloat32Array() if spec == "game" else PackedFloat32Array(Array(spec.split(",")).map(func(v): return float(v)))
 
 
 func _ready() -> void:
@@ -36,11 +52,17 @@ func _ready() -> void:
 			shot_path = arg.substr(7)
 		elif arg.begins_with("--wait="):
 			shot_wait = int(arg.substr(7))
+		elif arg.begins_with("--shots="):
+			_load_shots(arg.substr(8))
+		elif arg.begins_with("--quality="):
+			_quality_arg = int(arg.substr(10))
 		elif arg.begins_with("--cam="):
 			fixed_cam = PackedFloat32Array(Array(arg.substr(6).split(",")).map(func(v): return float(v)))
 	_setup_input()
 	club = ClubScene.new()
 	club.name = "Club"
+	if _quality_arg >= 0:
+		club.quality = _quality_arg
 	add_child(club)
 	coach = Coach.new()
 	coach.name = "Coach"

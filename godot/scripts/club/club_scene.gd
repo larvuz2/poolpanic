@@ -73,8 +73,8 @@ func _environment() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 0.8
-	env.ambient_light_color = Color("#f2e3cc")
-	env.ambient_light_sky_contribution = 0.45
+	env.ambient_light_color = Color("#d3e3ea")
+	env.ambient_light_sky_contribution = 0.55
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_exposure = 0.92
@@ -97,7 +97,7 @@ func _environment() -> void:
 	env.glow_bloom = 0.04
 	env.glow_hdr_threshold = 1.1
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
-	env.volumetric_fog_density = 0.006
+	env.volumetric_fog_density = 0.0045
 	env.volumetric_fog_albedo = Color("#fff2df")
 	env.volumetric_fog_emission = Color("#2a2f30")
 	env.volumetric_fog_emission_energy = 0.15
@@ -108,8 +108,8 @@ func _environment() -> void:
 	env.volumetric_fog_ambient_inject = 0.25
 	env.volumetric_fog_sky_affect = 0.0
 	env.adjustment_enabled = true
-	env.adjustment_contrast = 1.06
-	env.adjustment_saturation = 1.18
+	env.adjustment_contrast = 1.12
+	env.adjustment_saturation = 1.14
 	var we := WorldEnvironment.new()
 	we.environment = env
 	var cam_attr := CameraAttributesPractical.new()
@@ -135,8 +135,8 @@ func _sun() -> void:
 	sun.basis = Basis.looking_at(SUN_DIR.normalized(), Vector3.UP)
 	var sky_fill := DirectionalLight3D.new()
 	sky_fill.name = "SkyFill"
-	sky_fill.light_color = Color("#e6eef0")
-	sky_fill.light_energy = 0.45
+	sky_fill.light_color = Color("#d4e6f0")
+	sky_fill.light_energy = 0.5
 	sky_fill.light_volumetric_fog_energy = 0.0
 	sky_fill.light_specular = 0.2
 	add_child(sky_fill)
@@ -213,12 +213,15 @@ func _placements() -> void:
 			node.scale = Vector3.ONE * float(p.get("scale", 1.0))
 			root.add_child(node)
 			_dress(node)
-	# the moving parts: the pace clock's hands
+	# the moving parts: the clocks' hands, the changing rooms' doors
 	for hand in root.find_children("Hand*", "Node3D", true, false):
 		_hands.append(hand)
+	for door in root.find_children("Door", "Node3D", true, false):
+		_doors.append(door)
 
 
 var _hands: Array[Node3D] = []
+var _doors: Array[Node3D] = []
 
 
 ## The mural: a painted harbour on the plaster between the pilasters (tools/blender/mural.py).
@@ -479,7 +482,7 @@ func _air() -> void:
 	haze.size = Vector3(9.0, 9.4, 31.0)
 	haze.position = Vector3(10.6, 4.7, -1.6)
 	var hm := FogMaterial.new()
-	hm.density = 0.022
+	hm.density = 0.018
 	hm.albedo = Color("#fff4e2")
 	hm.edge_fade = 0.6
 	hm.height_falloff = 0.08
@@ -506,6 +509,13 @@ func _process(_dt: float) -> void:
 	for hand in _hands:
 		var minute := String(hand.name).contains("Minute")
 		hand.rotation.z = -TAU * (fmod(t, 3600.0) / 3600.0 if minute else fmod(t, 60.0) / 60.0)
+	# now and then someone comes out of a changing room: the door swings open into the hall and eases shut
+	for i in _doors.size():
+		var door := _doors[i]
+		var cycle := fmod(t + i * 7.3, 14.0)
+		var open := smoothstep(0.0, 0.5, cycle) * (1.0 - smoothstep(2.4, 3.6, cycle))
+		var sgn := -1.0 if door.global_position.x > 0.0 else 1.0
+		door.rotation.y = sgn * open * deg_to_rad(80.0)
 	# the steam drifts: its noise slides slowly across the pool
 	var steam := get_node_or_null("Steam") as FogVolume
 	if steam:

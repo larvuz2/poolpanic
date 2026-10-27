@@ -27,7 +27,20 @@ simplified, chunky, bevelled shapes. No hard 90° edges (bevel everything), no n
   - `build_shell.py`: the building.
   - `props_*.py`: the props.
   - `assemble.py`: renders the room with every placed prop, to check placement and scale fast.
-- **Exports:** to `godot/assets/venue/` (the shell) and `godot/assets/venue/props/<name>.glb` (one prop per file).
+  - The props:
+    - `props_pool.py`: blocks, ladders, floats, flags.
+    - `props_floor.py`: paint and mosaic on the deck.
+    - `props_stations.py`: the gameplay furniture.
+    - `props_lockers.py`: the changing rooms.
+    - `props_dressing.py`: the edges.
+    - `props_kit.py`: small shared items.
+  - `exterior.py`: the garden.
+  - `mural.py`.
+  - `build_all.sh` runs them all.
+  - `props_dressing_textures.py` draws the dressing's signs and posters with Pillow under the system Python 3 (Blender's Python
+    has no Pillow). The prop scripts run it when a texture is missing.
+- **Exports:** to `godot/assets/venue/` (the shell) and `godot/assets/venue/props/<name>.glb` (one prop per file). `export()`
+  merges each prop into one mesh per material (except the parts named below), so a prop costs a few draw calls.
 - **Placement:** in `godot/data/placements/<group>.json`, a list of
   `{"asset": "props/<name>.glb", "pos": [x, y, z], "rot": <degrees about y>, "scale": 1, "note": "..."}`.
   - The front of a prop (Godot +Z) turns to face (sin rot, 0, cos rot).

@@ -133,8 +133,11 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
    Co-op is untested over Steam until the creator plays it on two machines (desktop/README.md, "Try co-op over Steam").
    **The Godot test (27 October 2026, `godot/README.md`)**: the creator wants to see how the game feels and looks in Godot instead
    of three.js, so `godot/` holds a Godot 4.7 project of one venue (the Community Pool), Coach Waters and one shift, no menu, built
-   from numbers exported from `dist/` (`godot/tools/export-data.mjs`), with its own downloads (`godot-latest`). It is a test in
-   another session: it never changes `dist/`, and nothing in the real game depends on it.
+   from numbers exported from `dist/` (`godot/tools/export-data.mjs`), with its own downloads (`godot-latest`). It never changes
+   `dist/`, and nothing in the real game depends on it. Its venue was then dressed as a real step up in look (the creator: "AAA
+   indie details… no empty spaces… use Blender for all the asset making"): the **Harbourside Community Swim Club**, every asset
+   made by scripts in `godot/tools/blender/` (Blender 4.5), placed by `godot/data/placements/*.json`, lit in Godot (SDFGI,
+   volumetric fog, a refractive water shader); its art direction is `godot/docs/look.md`.
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
    and Steam Deck support, key rebinding (the Settings screen has the rest: volumes, brightness, graphics quality, full screen,
    motion), more achievements, localisation, and the last pass before release (`desktop/steam/checklist.md`, section E: specs measured on
