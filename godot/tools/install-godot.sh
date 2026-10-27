@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Downloads the Godot editor this test is pinned to (Linux, x86-64), checks it against the official SHA-512 list, and puts it at
 # $GODOT_HOME/godot (default ~/.cache/poolpanic-godot/godot). With --templates it also installs the export templates (about 1 GB),
-# (the desktop ones only), which only exporting a build needs. Safe to run twice: it skips what is already there.
+# (the desktop ones and the web one), which only exporting a build needs. Safe to run twice: it skips what is already there.
 #   godot/tools/install-godot.sh              # the editor only
 #   godot/tools/install-godot.sh --templates  # and the export templates
 set -euo pipefail
@@ -35,11 +35,11 @@ if [ "${1:-}" = "--templates" ]; then
   TPZ="Godot_v${TAG}_export_templates.tpz"
   fetch "$TPZ"
   DEST="$HOME/.local/share/godot/export_templates/$VERSION.stable"
-  if [ ! -f "$DEST/version.txt" ]; then
+  if [ ! -f "$DEST/web_nothreads_release.zip" ]; then
     mkdir -p "$DEST"
-    # (only the desktop templates this test exports: Windows, macOS and Linux, 64-bit; not the web, Android or iOS ones)
+    # (only the templates this test exports: Windows, macOS and Linux, 64-bit, and the web one without threads; not Android or iOS)
     unzip -oq "$TPZ" -d "$HOME_DIR/tpl" "templates/version.txt" "templates/linux_*.x86_64" \
-      "templates/windows_*_x86_64.exe" "templates/macos.zip"
+      "templates/windows_*_x86_64.exe" "templates/macos.zip" "templates/web_nothreads_release.zip"
     mv "$HOME_DIR"/tpl/templates/* "$DEST"/
     rm -rf "$HOME_DIR/tpl"
   fi

@@ -1549,6 +1549,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `tools/crash-triage.mjs`, `docs/crash-watch.md` | The crash watch: the reader that lists what the creator's devices have sent and sorts it (a crash, an error, a stuck incident, a flag, a hunt test), and the brief of the scheduled watch that was tried and stopped (kept for what it learned) |
 | `tools/webkit-run.py` | Runs the game in a real WebKit (WebKitGTK, installed with apt) under a virtual display and prints the web process's memory and the game's state each second, and why the process ended if it did ("Running the game in a real WebKit", below). It has the same JavaScript engine as Safari, not the iPad's graphics or memory limits. |
 | `dist/version.mjs`, `stamp-version.mjs` | The build's identity (`dev` locally, the commit on Netlify) and the script that stamps it |
+| `dist/engine-pick.mjs`, `dist/godot-web.mjs`, `tools/fetch-godot-web.mjs` | The web site's first screen, the game or the Godot test ("The Godot test", below), the note of which Godot web build the site has (`null` in a checkout), and the Netlify build step that fetches it into `dist/godot/` |
 | `dist/assets/` | Bundled Three.js, rounded-box helper, the glTF loader with its two helpers, license, `fonts/` (the five font files and their licence), `models/karen.glb` and `audio/`; `coach-panic.glb` for Coach Waters, the five `swimmer-*.glb`, the cannonball men's `carl.glb` and `leopard-man.glb`, the fish kid's `fish-kid.glb` and the fish, `fish.glb` |
 | `*-check.mjs`, `check-bot.mjs`, `check-helpers.mjs` | Deterministic regression and CPU scene checks; the coach bot and helpers they share |
 | `artifacts/game-progress.md` | Historical sprint notes; some pending statements are historical, not current status |
@@ -1802,6 +1803,16 @@ numbers), copies its models from `dist/assets/`, and is checked and exported for
 depends on it. `godot/README.md` is its brief and plan; `godot/docs/` hold the coach, the gameplay and the venue as this game has them.
 Its venue is dressed as the Harbourside Community Swim Club, every asset made in Blender by `godot/tools/blender/` and lit in Godot
 (`godot/docs/look.md`).
+
+**On the web site, a choice first (27 October 2026).** The creator asked to test the Godot venue on Netlify without taking the game
+down: "a previous screen, choosing which one do we want to load". The same workflow also exports a **web build** (WebGL 2, Godot's
+Compatibility renderer, lighter textures: `godot/README.md`, "The web build") onto `godot-latest`. The Netlify build, after the checks,
+fetches it into `dist/godot/` (`tools/fetch-godot-web.mjs`: it waits a few minutes for the build of this commit's `godot/` tree, then
+takes what is there, and never fails the deploy) and writes `dist/godot-web.mjs`. When that says a build is there, the game's page
+first shows two cards (`dist/engine-pick.mjs`, imported first by `app.mjs`, which waits for it): **Pool Panic** (the game, which then
+starts in place) and **Harbourside Community Pool** (opens `/godot/`, whose corner link comes back). It is never shown in the desktop
+app (a checkout's `godot-web.mjs` is `null`), with anything after the `?` in the address (`?playtest`, `?dev=1`, `?bisect`… go straight
+into the game) or on a reload after choosing the game; the boot watchdog waits while it is open (`engine-pick-check.mjs`).
 
 ## Scope and future work
 

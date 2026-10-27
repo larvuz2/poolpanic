@@ -6,10 +6,15 @@ extends Node3D
 ## Late afternoon: a low golden sun from beyond the long wall of windows (+X), its light falling through the windows and the
 ## skylight across the hall and the pool, made visible by the warm, humid air (volumetric fog and the steam over the water), with
 ## global illumination (SDFGI) bouncing it off the tiles. F2 cycles the quality (High, Medium, Low) for weaker machines.
+##
+## The web build draws with the Compatibility renderer (WebGL 2), which has none of the GI, volumetric fog or screen-space effects:
+## there (`web`) the light is made another way (_web_light: more bounce in the ambient, a warm haze, the shafts as soft beams) and the
+## water is tinted glass (water.gdshader's web branch).
 
 const SHELL := "res://assets/venue/club_shell.glb"
 const TILES := preload("res://assets/shaders/tiles.gdshader")
 const WATER := preload("res://assets/shaders/water.gdshader")
+const SUNBEAM := preload("res://assets/shaders/sunbeam.gdshader")
 const WATER_Y := -0.25
 const SUN_DIR := Vector3(-0.72, -0.62, -0.34)  # the way the sunlight travels
 const NEAR_WALL_LAYER := 1 << 1  # the near (-x) wall: seen by close-up views, never by the game's camera
@@ -18,6 +23,7 @@ var env: Environment
 var sun: DirectionalLight3D
 var water_material: ShaderMaterial
 var quality := 2  # 2 high, 1 medium, 0 low
+var web := RenderingServer.get_current_rendering_method() == "gl_compatibility"  # the web build's renderer
 var _materials := {}
 
 
@@ -30,14 +36,17 @@ func _ready() -> void:
 	_lane_ropes()
 	_pennant_lines()
 	_water()
-	_air()
+	if web:
+		_web_light()
+	else:
+		_air()
 	_motes()
 	_reflections()
 	set_quality(quality)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F2:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F2 and not web:
 		set_quality((quality + 2) % 3)
 		print("Quality: ", ["Low", "Medium", "High"][quality])
 
@@ -45,6 +54,11 @@ func _unhandled_input(event: InputEvent) -> void:
 ## High: everything. Medium: no SDFGI or SSIL, lighter fog. Low: also no SSR, no volumetric fog, smaller shadows.
 func set_quality(q: int) -> void:
 	quality = q
+	if web:  # (none of these exist in the Compatibility renderer: one setting; MSAA's resolve fails on WebGL, so FXAA)
+		get_viewport().msaa_3d = Viewport.MSAA_DISABLED
+		get_viewport().screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
+		RenderingServer.directional_shadow_atlas_set_size(4096, true)
+		return
 	env.sdfgi_enabled = q >= 2
 	env.ssil_enabled = q >= 2
 	env.ssr_enabled = q >= 1
@@ -517,6 +531,64 @@ func _air() -> void:
 	add_child(haze)
 
 
+## The web build's light (the Compatibility renderer, WebGL 2): what SDFGI and the volumetric fog give on desktop, made by hand.
+## More light in the ambient for what the tiles would bounce, a little less sun so its patches do not burn out, a warm haze
+## lit toward the sun, and the shafts through the windows as soft beams (_sunbeams).
+func _web_light() -> void:
+	env.ambient_light_energy = 0.55
+	env.ambient_light_color = Color("#e6dccb")
+	sun.light_energy = 1.3
+	sun.light_color = Color("#ffc27a")
+	(get_node("SkyFill") as DirectionalLight3D).light_energy = 0.3
+	env.fog_enabled = true
+	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
+	env.fog_light_color = Color("#efdcc2")
+	env.fog_light_energy = 1.0
+	env.fog_density = 0.0055
+	env.fog_sun_scatter = 0.15
+	env.fog_sky_affect = 0.0
+	env.glow_intensity = 0.4
+	_sunbeams()
+
+
+## A beam for every pane column of the six windows (mullions every metre), swept from the glass along the sunlight to the floor.
+func _sunbeams() -> void:
+	var mat := ShaderMaterial.new()
+	mat.shader = SUNBEAM
+	mat.set_shader_parameter("dust_tex", _noise(2.5, 3))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var d := SUN_DIR.normalized()
+	const X := 14.7
+	const SILL := 2.15
+	const HEAD := 8.35
+	for zc in [-13.81, -8.93, -4.04, 0.84, 5.73, 10.62]:
+		for col in 4:
+			var za: float = zc - 2.0 + col * 1.0 + 0.05
+			var zb := za + 0.9
+			var top_a := Vector3(X, HEAD, za)
+			var top_b := Vector3(X, HEAD, zb)
+			var low_a := Vector3(X, SILL, za)
+			var low_b := Vector3(X, SILL, zb)
+			# the four long faces of the prism: each corner of the pane and where its ray meets the floor
+			for face in [[top_a, top_b], [low_a, low_b], [top_a, low_a], [top_b, low_b]]:
+				var p0: Vector3 = face[0]
+				var p1: Vector3 = face[1]
+				var f0 := p0 + d * (p0.y / -d.y)
+				var f1 := p1 + d * (p1.y / -d.y)
+				var n := (p1 - p0).cross(f0 - p0).normalized()
+				for v in [[p0, 0.0], [p1, 0.0], [f1, 1.0], [p0, 0.0], [f1, 1.0], [f0, 1.0]]:
+					st.set_normal(n)
+					st.set_uv(Vector2(0.0, v[1]))
+					st.add_vertex(v[0])
+	var beams := MeshInstance3D.new()
+	beams.name = "SunBeams"
+	beams.mesh = st.commit()
+	beams.material_override = mat
+	beams.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(beams)
+
+
 ## Specks of dust and droplets drifting in the air on the window side: lit like everything else, so they only sparkle where the sun's
 ## shafts cross them.
 func _motes() -> void:
@@ -583,6 +655,6 @@ func _process(_dt: float) -> void:
 		var sgn := -1.0 if door.global_position.x > 0.0 else 1.0
 		door.rotation.y = sgn * open * deg_to_rad(80.0)
 	# the steam drifts: its noise slides slowly across the pool
-	var steam := get_node_or_null("Steam") as FogVolume
+	var steam := get_node_or_null("Steam") as FogVolume  # (none in the web build)
 	if steam:
 		steam.position.x = sin(Time.get_ticks_msec() * 0.00005) * 0.4

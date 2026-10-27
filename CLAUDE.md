@@ -137,7 +137,10 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
    `dist/`, and nothing in the real game depends on it. Its venue was then dressed as a real step up in look (the creator: "AAA
    indie details… no empty spaces… use Blender for all the asset making"): the **Harbourside Community Swim Club**, every asset
    made by scripts in `godot/tools/blender/` (Blender 4.5), placed by `godot/data/placements/*.json`, lit in Godot (SDFGI,
-   volumetric fog, a refractive water shader); its art direction is `godot/docs/look.md`.
+   volumetric fog, a refractive water shader); its art direction is `godot/docs/look.md`. **On the web site** (27 October 2026, the
+   creator: "can we not take down the current level and just switch"), the game's page first offers the game or the Godot venue,
+   whose web build (WebGL 2, the Compatibility renderer, its own light and water) the Netlify build fetches into `dist/godot/`
+   after the checks (`dist/engine-pick.mjs`, `tools/fetch-godot-web.mjs`; never in the desktop app, never with a `?` query).
 2. **Steam readiness.** The desktop app and Steam calls exist (`desktop/`, `dist/platform.mjs`, `dist/achievements.mjs`). Still to do: controller
    and Steam Deck support, key rebinding (the Settings screen has the rest: volumes, brightness, graphics quality, full screen,
    motion), more achievements, localisation, and the last pass before release (`desktop/steam/checklist.md`, section E: specs measured on

@@ -7050,3 +7050,147 @@ body.menu .hud-rail > :not(.toast) {
 .tub-btn {
   --dive: #e8875a;
 }
+
+/* The engine choice (engine-pick.mjs): on the web site, the game or the Godot test, before the game starts. */
+.engine-pick {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start; /* (centred by the margins below, and scrolled from the top when it does not fit) */
+  gap: clamp(10px, 2.2vh, 22px);
+  padding: 24px 16px;
+  overflow-y: auto;
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(169, 230, 219, 0.16), transparent 60%),
+    radial-gradient(90% 60% at 50% 110%, rgba(255, 220, 82, 0.1), transparent 60%),
+    linear-gradient(180deg, #0f4552 0%, var(--deep) 100%);
+  color: var(--cream);
+  animation: ep-in 0.35s ease-out both;
+}
+.engine-pick.leaving {
+  opacity: 0.4;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+@keyframes ep-in {
+  from {
+    opacity: 0;
+  }
+}
+.ep-logo {
+  margin-top: auto;
+  flex: none;
+  width: clamp(170px, 22vw, 280px);
+  height: auto;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.35));
+}
+.ep-eyebrow {
+  margin: 0;
+  font: 800 clamp(15px, 1.6vw, 19px) var(--display);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--mint);
+}
+.ep-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 400px));
+  gap: clamp(14px, 2.4vw, 32px);
+  width: 100%;
+  justify-content: center;
+}
+.ep-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  border: 2px solid rgba(169, 230, 219, 0.22);
+  border-radius: 18px;
+  background: rgba(6, 30, 39, 0.72);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.32);
+  transition:
+    transform 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.ep-card:hover,
+.ep-card:focus-visible {
+  transform: translateY(-4px);
+  border-color: var(--yellow);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.42);
+  outline: none;
+}
+.ep-art {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  background: #0b3340 center / cover no-repeat;
+}
+.ep-art kbd {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  min-width: 26px;
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: rgba(6, 30, 39, 0.78);
+  font: 800 15px var(--display);
+  color: var(--yellow);
+  text-align: center;
+}
+.ep-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 18px 18px;
+}
+.ep-tag {
+  font: 800 13px var(--display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mint);
+}
+.ep-name {
+  font: 900 clamp(24px, 2.6vw, 32px) / 1 var(--display);
+  color: var(--yellow);
+  text-wrap: balance;
+}
+.ep-what {
+  font:
+    500 14px/1.45 "DM Sans",
+    system-ui,
+    sans-serif;
+  color: var(--cream);
+  opacity: 0.88;
+}
+.ep-go {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: var(--yellow);
+  color: var(--deep);
+  font: 900 17px var(--display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ep-builds {
+  margin-bottom: auto;
+  font:
+    500 12px "DM Sans",
+    system-ui,
+    sans-serif;
+  color: var(--muted);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 720px) {
+  .ep-cards {
+    grid-template-columns: minmax(0, 420px);
+  }
+}

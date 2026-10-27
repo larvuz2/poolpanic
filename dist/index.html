@@ -845,15 +845,18 @@
           stack: (e.error && e.error.stack) || e.filename + ":" + e.lineno,
         });
       });
-      setTimeout(function () {
-        var box = document.getElementById("loading");
-        if (window.__boot.ready || !box || box.hidden) return;
-        var first = window.__boot.errors[0];
-        box.innerHTML =
-          "<p>The game did not start.</p><p style='font-size:14px;font-weight:500;max-width:340px;text-align:center'>" +
-          (first ? String(first.message).replace(/</g, "&lt;") : "It is taking longer than it should.") +
-          "</p><button class='primary' style='width:200px' onclick='location.reload()'>Try again ↻</button>";
-      }, 20000);
+      (function watch() {
+        setTimeout(function () {
+          if (window.__boot.picking) return watch(); // (the engine choice is waiting for a click: engine-pick.mjs)
+          var box = document.getElementById("loading");
+          if (window.__boot.ready || !box || box.hidden) return;
+          var first = window.__boot.errors[0];
+          box.innerHTML =
+            "<p>The game did not start.</p><p style='font-size:14px;font-weight:500;max-width:340px;text-align:center'>" +
+            (first ? String(first.message).replace(/</g, "&lt;") : "It is taking longer than it should.") +
+            "</p><button class='primary' style='width:200px' onclick='location.reload()'>Try again ↻</button>";
+        }, 20000);
+      })();
     </script>
     <script type="module" src="./app.mjs"></script>
   </body>

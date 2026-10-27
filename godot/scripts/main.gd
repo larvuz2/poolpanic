@@ -190,7 +190,8 @@ func _process(dt: float) -> void:
 				shot_frames = 0
 			else:
 				get_tree().quit()
-	hud.text = "POOL PANIC · Godot test · Community Pool\nWASD move · Space jump · Shift dash · K slip (test) · F2 quality\n%d fps" % Engine.get_frames_per_second()
+	var keys := "WASD move · Space jump · Shift dash · K slip (test)" + ("" if OS.has_feature("web") else " · F2 quality")
+	hud.text = "POOL PANIC · Godot test · Community Pool\n%s\n%d fps" % [keys, Engine.get_frames_per_second()]
 
 
 ## followCoach (scene.mjs:2089): the target leans a little toward the coach.

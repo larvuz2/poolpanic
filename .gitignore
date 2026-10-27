@@ -7,3 +7,6 @@ desktop/node_modules/
 desktop/game/
 desktop/out/
 desktop/steam/output/
+# The Godot test's web build, which only the Netlify build puts in dist/ (tools/fetch-godot-web.mjs)
+dist/godot/
+godot-web.tar.gz

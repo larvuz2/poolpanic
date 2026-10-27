@@ -4,12 +4,19 @@
 // - two drifting layers of ripples, a slow swell, sharp highlights of the sun and the windows (reflection probe and sky);
 // - foam where anything breaks the surface (swimmers, the walls), from the depth buffer, and a lacy foam line along the walls;
 // - `clouding` (0..1): the water turning milky as the chlorine runs low, for the game's water care.
+// The web build (the Compatibility renderer, WebGL 2) has no copy of the screen or of its depth to look through: there the water is
+// tinted glass instead, coloured by how deep the floor is under it (known: it slopes from 1.85 m to 1.1 m) and how slant the view
+// is, with the same ripples, highlights, lace foam and clouding.
 shader_type spatial;
 render_mode blend_mix, depth_draw_always, cull_back, diffuse_burley, specular_schlick_ggx;
 
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+#define WEB_WATER
+#else
 uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
 uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
+#endif
 uniform sampler2D foam_tex : hint_default_white, filter_linear_mipmap, repeat_enable;
 
 uniform vec3 shallow_color : source_color = vec3(0.42, 0.86, 0.86);
@@ -31,11 +38,13 @@ void vertex() {
 	VERTEX.y += swell;
 }
 
+#ifndef WEB_WATER
 float linear_depth(vec2 uv, mat4 inv_proj) {
 	float d = texture(depth_tex, uv).r;
 	vec4 v = inv_proj * vec4(uv * 2.0 - 1.0, d, 1.0);
 	return -v.z / v.w;
 }
+#endif
 
 void fragment() {
 	vec2 uv1 = wpos.xz * ripple_scale + vec2(TIME * 0.031, TIME * 0.017);
@@ -49,6 +58,27 @@ void fragment() {
 	vec3 wn = normalize(vec3(tn.x, tn.z, -tn.y));
 	NORMAL = normalize((VIEW_MATRIX * vec4(wn, 0.0)).xyz);
 
+	vec2 d2 = abs(wpos.xz) - pool_half;
+	float edge = -max(d2.x, d2.y);
+	float lace = texture(foam_tex, wpos.xz * 0.6 + vec2(TIME * 0.02, -TIME * 0.015)).r;
+	float fres = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 4.0);
+
+#ifdef WEB_WATER
+	// the water the eye crosses: the floor's depth here, longer the more slant the view
+	float floor_depth = mix(1.85, 1.1, clamp(wpos.z / (pool_half.y * 2.0) + 0.5, 0.0, 1.0));
+	vec3 up = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+	float thick = floor_depth / clamp(dot(up, normalize(VIEW)), 0.2, 1.0);
+	float t = 1.0 - exp(-thick * absorption);
+	vec3 water = mix(shallow_color, deep_color, t);
+	water = mix(water, cloud_color * 0.8, clouding * 0.85);
+	float foam = (1.0 - smoothstep(0.0, 0.22, edge)) * smoothstep(0.55, 0.85, lace) * 0.6;
+	ALBEDO = mix(water * 0.55, vec3(0.95), foam);
+	EMISSION = water * 0.22 * (1.0 - foam);
+	ALPHA = clamp(mix(0.3, 0.78, t) + fres * 0.35 + clouding * 0.45 + foam, 0.0, 1.0);
+	ROUGHNESS = mix(0.04, 0.6, max(foam, clouding * 0.5));
+	SPECULAR = 0.7;
+	METALLIC = 0.0;
+#else
 	float surf = -VERTEX.z;
 	vec2 offs = tn.xy * refraction;
 	vec2 suv = SCREEN_UV + offs;
@@ -67,17 +97,14 @@ void fragment() {
 	seen = mix(seen, cloud_color * 0.75, clouding * 0.85);
 
 	// foam: where the water is very thin in front of something (a swimmer, the wall), and a lacy line along the walls
-	vec2 d2 = abs(wpos.xz) - pool_half;
-	float edge = -max(d2.x, d2.y);
-	float lace = texture(foam_tex, wpos.xz * 0.6 + vec2(TIME * 0.02, -TIME * 0.015)).r;
 	float foam = (1.0 - smoothstep(0.0, 0.12, straight)) * 0.9 + (1.0 - smoothstep(0.0, 0.22, edge)) * smoothstep(0.55, 0.85, lace) * 0.6;
 	foam = clamp(foam, 0.0, 1.0);
 
-	float fres = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 4.0);
 	ALBEDO = mix(water * 0.25, vec3(0.95), foam);
 	EMISSION = seen * (1.0 - fres * 0.6) * (1.0 - foam);
 	ROUGHNESS = mix(0.035, 0.6, max(foam, clouding * 0.5));
 	SPECULAR = 0.6;
 	METALLIC = 0.0;
 	ALPHA = 1.0;
+#endif
 }

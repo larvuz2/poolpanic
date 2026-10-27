@@ -1,6 +1,8 @@
-# The Godot test (godot/, godot/README.md): checked and exported for Windows, macOS and Linux on every push that changes it, and
-# offered as downloads on one release that is replaced each time (`godot-latest`), as the Electron test builds are on `desktop-latest`.
-# It never touches the game in dist/ or its builds. Not signed (the Mac app is signed ad hoc), so each system asks once before it opens.
+# The Godot test (godot/, godot/README.md): checked and exported for Windows, macOS, Linux and the web on every push that changes
+# it, and offered as downloads on one release that is replaced each time (`godot-latest`), as the Electron test builds are on
+# `desktop-latest`. The web build (a .tar.gz, and godot-web.json naming the git tree of godot/ it was made from) is what the
+# Netlify build puts at /godot/ on the site (tools/fetch-godot-web.mjs). It never touches the game in dist/ or its desktop builds.
+# Not signed (the Mac app is signed ad hoc), so each system asks once before it opens.
 name: Godot test builds
 
 on:
@@ -31,7 +33,7 @@ jobs:
         with:
           path: .godot-cache
           key: godot-4.7.2-${{ hashFiles('godot/tools/install-godot.sh') }}
-      - name: Install Godot and the desktop export templates
+      - name: Install Godot and the export templates (desktop and web)
         run: godot/tools/install-godot.sh --templates
       - name: Check (import, then the coach walks by himself for 3 s)
         run: godot/tools/check.sh
@@ -44,17 +46,26 @@ jobs:
             if grep -q "ERROR" "export-$preset.log"; then echo "Export of $preset failed"; exit 1; fi
           done
           ls -la build/*
+      - name: Export the web build (lighter textures, the Compatibility renderer)
+        run: godot/tools/web-export.sh
       - name: Zip
         working-directory: godot/build
         run: |
           (cd windows && zip -q ../../../PoolPanicGodot-windows.zip PoolPanicGodot.exe)
           cp macos/PoolPanicGodot.zip ../../PoolPanicGodot-mac.zip
           (cd linux && chmod +x PoolPanicGodot.x86_64 && zip -q ../../../PoolPanicGodot-linux.zip PoolPanicGodot.x86_64)
-          ls -la ../../PoolPanicGodot-*.zip
+          tar -czf ../../PoolPanicGodot-web.tar.gz -C web .
+          printf '{"file":"PoolPanicGodot-web.tar.gz","tree":"%s","commit":"%s","built":"%s"}\n' \
+            "$(git rev-parse HEAD:godot)" "${GITHUB_SHA::7}" "$(date -u +'%Y-%m-%d %H:%M')" > ../../godot-web.json
+          cat ../../godot-web.json
+          ls -la ../../PoolPanicGodot-* ../../godot-web.json
       - uses: actions/upload-artifact@v4
         with:
           name: godot-zips
-          path: PoolPanicGodot-*.zip
+          path: |
+            PoolPanicGodot-*.zip
+            PoolPanicGodot-web.tar.gz
+            godot-web.json
           compression-level: 0
           if-no-files-found: error
 
@@ -87,6 +98,7 @@ jobs:
           | Windows | \`PoolPanicGodot-windows.zip\` | Unzip it, open \`PoolPanicGodot.exe\`. Windows asks once ("Windows protected your PC"): **More info**, then **Run anyway**. |
           | A Mac (Apple chip or Intel) | \`PoolPanicGodot-mac.zip\` | Unzip, move the app to Applications, open it. macOS says it cannot check it: **System Settings, Privacy & Security, Open Anyway** (or in Terminal: \`xattr -dr com.apple.quarantine "/Applications/Pool Panic (Godot test).app"\`). |
           | Linux | \`PoolPanicGodot-linux.zip\` | Unzip, run \`./PoolPanicGodot.x86_64\`. |
+          | A browser | the site | Open the Netlify site (or a pull request's preview) and choose **Godot test**: it plays \`PoolPanicGodot-web.tar.gz\`, put there by the site's build. |
           NOTES
           gh release delete godot-latest --cleanup-tag --yes || true
-          gh release create godot-latest zips/*.zip --prerelease --target "$GITHUB_SHA" --title "Godot test $short" --notes-file notes.md
+          gh release create godot-latest zips/*.zip zips/PoolPanicGodot-web.tar.gz zips/godot-web.json --prerelease --target "$GITHUB_SHA" --title "Godot test $short" --notes-file notes.md
