@@ -1,0 +1,226 @@
+{
+ "_about": "Free Play, club, normal, seed 7 (dist/week.mjs freePlayShift; dist/sim.mjs PoolSimulation). 'schedule' is every guest in arrival order: 'at' is seconds after the start.",
+ "level": 8,
+ "seed": 7,
+ "levelSettings": {
+  "name": "The relay",
+  "duration": 135,
+  "total": 24,
+  "thresholds": [
+   2200,
+   3500,
+   4700
+  ],
+  "finChance": 0.52,
+  "chaos": [
+   {
+    "kinds": [
+     "dog",
+     "fish"
+    ],
+    "window": [
+     28,
+     50
+    ]
+   },
+   {
+    "kinds": [
+     "carl",
+     "outage"
+    ],
+    "window": [
+     72,
+     96
+    ]
+   }
+  ],
+  "twist": [
+   {
+    "kind": "closure",
+    "at": 0.5
+   }
+  ]
+ },
+ "config": {
+  "name": "Community Pool",
+  "duration": 135,
+  "total": 24,
+  "thresholds": [
+   2250,
+   3550,
+   4800
+  ],
+  "finChance": 0.52,
+  "venue": "club",
+  "star": {
+   "id": "marco",
+   "name": "Marco",
+   "title": "Marco “the Missile”",
+   "at": 0.48
+  },
+  "pool": "club",
+  "place": "Community Pool",
+  "label": "The relay",
+  "chaos": [
+   {
+    "kinds": [
+     "dog"
+    ],
+    "window": [
+     34,
+     95
+    ]
+   }
+  ],
+  "twist": [
+   {
+    "kind": "team",
+    "at": 0.32
+   }
+  ],
+  "vipAt": [
+   0.24,
+   0.45,
+   0.57,
+   0.81
+  ],
+  "big": {
+   "at": 0.69
+  },
+  "intro": "dog",
+  "free": {
+   "pool": "club",
+   "level": "normal",
+   "name": "Normal"
+  }
+ },
+ "schedule": [
+  {
+   "at": 3.4,
+   "type": "beginner",
+   "sick": false
+  },
+  {
+   "at": 7.182,
+   "type": "intermediate",
+   "sick": false
+  },
+  {
+   "at": 13.771,
+   "type": "advanced",
+   "sick": false
+  },
+  {
+   "at": 18.377,
+   "type": null,
+   "sick": true
+  },
+  {
+   "at": 22.728,
+   "type": null,
+   "sick": false
+  },
+  {
+   "at": 24.885,
+   "type": null,
+   "sick": true
+  },
+  {
+   "at": 32.243,
+   "type": "intermediate",
+   "sick": false,
+   "vip": true
+  },
+  {
+   "at": 35.45,
+   "type": null,
+   "sick": false
+  },
+  {
+   "at": 40.065,
+   "type": null,
+   "sick": false
+  },
+  {
+   "at": 45.319,
+   "type": null,
+   "sick": false
+  },
+  {
+   "at": 48.806,
+   "type": "intermediate",
+   "sick": false,
+   "vip": true
+  },
+  {
+   "at": 54.674,
+   "type": "advanced",
+   "sick": false,
+   "vip": true,
+   "star": "marco",
+   "name": "Marco"
+  },
+  {
+   "at": 58.127,
+   "type": null,
+   "sick": true
+  },
+  {
+   "at": 63.495,
+   "type": "advanced",
+   "sick": false,
+   "vip": true
+  },
+  {
+   "at": 66.887,
+   "type": null,
+   "sick": true
+  },
+  {
+   "at": 73.324,
+   "type": null,
+   "sick": true
+  },
+  {
+   "at": 76.308,
+   "type": null,
+   "sick": false
+  },
+  {
+   "at": 79.833,
+   "type": null,
+   "sick": true
+  },
+  {
+   "at": 85.939,
+   "type": null,
+   "sick": false
+  },
+  {
+   "at": 88.893,
+   "type": "advanced",
+   "sick": false,
+   "vip": true
+  },
+  {
+   "at": 95.983,
+   "type": null,
+   "sick": false
+  },
+  {
+   "at": 99.541,
+   "type": null,
+   "sick": false
+  },
+  {
+   "at": 103.273,
+   "type": null,
+   "sick": false
+  },
+  {
+   "at": 108.437,
+   "type": null,
+   "sick": false
+  }
+ ]
+}

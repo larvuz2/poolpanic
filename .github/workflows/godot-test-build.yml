@@ -1,0 +1,92 @@
+# The Godot test (godot/, godot/README.md): checked and exported for Windows, macOS and Linux on every push that changes it, and
+# offered as downloads on one release that is replaced each time (`godot-latest`), as the Electron test builds are on `desktop-latest`.
+# It never touches the game in dist/ or its builds. Not signed (the Mac app is signed ad hoc), so each system asks once before it opens.
+name: Godot test builds
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths:
+      - "godot/**"
+      - ".github/workflows/godot-test-build.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: godot-test-build
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    name: Check and export
+    runs-on: ubuntu-latest
+    env:
+      GODOT_HOME: ${{ github.workspace }}/.godot-cache
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Godot and its export templates (about 1.4 GB)
+        uses: actions/cache@v4
+        with:
+          path: .godot-cache
+          key: godot-4.7.2-${{ hashFiles('godot/tools/install-godot.sh') }}
+      - name: Install Godot and the desktop export templates
+        run: godot/tools/install-godot.sh --templates
+      - name: Check (import, then the coach walks by himself for 3 s)
+        run: godot/tools/check.sh
+      - name: Export Windows, macOS and Linux
+        working-directory: godot
+        run: |
+          mkdir -p build/windows build/macos build/linux
+          for preset in Windows macOS Linux; do
+            "$GODOT_HOME/godot" --headless --path . --export-release "$preset" 2>&1 | tee "export-$preset.log"
+            if grep -q "ERROR" "export-$preset.log"; then echo "Export of $preset failed"; exit 1; fi
+          done
+          ls -la build/*
+      - name: Zip
+        working-directory: godot/build
+        run: |
+          (cd windows && zip -q ../../../PoolPanicGodot-windows.zip PoolPanicGodot.exe)
+          cp macos/PoolPanicGodot.zip ../../PoolPanicGodot-mac.zip
+          (cd linux && chmod +x PoolPanicGodot.x86_64 && zip -q ../../../PoolPanicGodot-linux.zip PoolPanicGodot.x86_64)
+          ls -la ../../PoolPanicGodot-*.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-zips
+          path: PoolPanicGodot-*.zip
+          compression-level: 0
+          if-no-files-found: error
+
+  release:
+    name: Replace the download page
+    needs: export
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # only this job may touch the release
+    concurrency:
+      group: godot-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-zips
+          path: zips
+      - name: Replace the rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }} # through the environment, never pasted into the script
+        run: |
+          short="${GITHUB_SHA::7}"
+          cat > notes.md <<NOTES
+          The newest **Godot test** of Pool Panic (one pool, Coach Waters, no menu: see \`godot/README.md\`): **commit \`$short\`**, branch \`$REF_NAME\`, built $(date -u +'%Y-%m-%d %H:%M') UTC. It is replaced by the next push that changes \`godot/\`. The real game's test build is on \`desktop-latest\`.
+
+          | You have | Download | Then |
+          | --- | --- | --- |
+          | Windows | \`PoolPanicGodot-windows.zip\` | Unzip it, open \`PoolPanicGodot.exe\`. Windows asks once ("Windows protected your PC"): **More info**, then **Run anyway**. |
+          | A Mac (Apple chip or Intel) | \`PoolPanicGodot-mac.zip\` | Unzip, move the app to Applications, open it. macOS says it cannot check it: **System Settings, Privacy & Security, Open Anyway** (or in Terminal: \`xattr -dr com.apple.quarantine "/Applications/Pool Panic (Godot test).app"\`). |
+          | Linux | \`PoolPanicGodot-linux.zip\` | Unzip, run \`./PoolPanicGodot.x86_64\`. |
+          NOTES
+          gh release delete godot-latest --cleanup-tag --yes || true
+          gh release create godot-latest zips/*.zip --prerelease --target "$GITHUB_SHA" --title "Godot test $short" --notes-file notes.md

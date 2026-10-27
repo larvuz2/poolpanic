@@ -1,0 +1,4 @@
+# Godot's import cache and editor state (rebuilt on open), and what exporting writes
+.godot/
+*.translation
+build/
