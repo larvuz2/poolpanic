@@ -79,8 +79,8 @@ func _environment() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 0.8
-	env.ambient_light_color = Color("#d3e3ea")
-	env.ambient_light_sky_contribution = 0.55
+	env.ambient_light_color = Color("#e6e3dc")
+	env.ambient_light_sky_contribution = 0.25
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_exposure = 0.92
@@ -141,8 +141,8 @@ func _sun() -> void:
 	sun.basis = Basis.looking_at(SUN_DIR.normalized(), Vector3.UP)
 	var sky_fill := DirectionalLight3D.new()
 	sky_fill.name = "SkyFill"
-	sky_fill.light_color = Color("#d4e6f0")
-	sky_fill.light_energy = 0.5
+	sky_fill.light_color = Color("#dfe8ee")
+	sky_fill.light_energy = 0.42
 	sky_fill.light_volumetric_fog_energy = 0.0
 	sky_fill.light_specular = 0.2
 	add_child(sky_fill)
@@ -177,7 +177,18 @@ func _dress(root: Node) -> void:
 			var m := mi.mesh.surface_get_material(i)
 			if m and m.resource_name.begins_with("GD_"):
 				mi.set_surface_override_material(i, material(m.resource_name.substr(3)))
-		if name.begins_with("Light_"):
+		if name.begins_with("Light_Strip"):
+			# a picture light: a warm spot washing down the mural
+			var spot := SpotLight3D.new()
+			spot.light_color = Color("#ffd9a8")
+			spot.light_energy = 6.0
+			spot.spot_range = 7.0
+			spot.spot_angle = 38.0
+			spot.spot_attenuation = 0.6
+			spot.light_volumetric_fog_energy = 0.3
+			mi.add_child(spot)
+			spot.global_basis = Basis.looking_at(Vector3(0, -1.0, 0) - _wall_normal(mi) * 0.42, Vector3.FORWARD)
+		elif name.begins_with("Light_"):
 			var glow := OmniLight3D.new()
 			glow.light_color = Color("#ffe2b0")
 			glow.light_energy = 0.8
@@ -372,6 +383,14 @@ func _first_mesh(path: String) -> Mesh:
 	var mesh: Mesh = (found[0] as MeshInstance3D).mesh if found.size() > 0 else null
 	scene.free()
 	return mesh
+
+
+## The direction a wall-mounted prop faces (its front, +Z), in world space.
+func _wall_normal(node: Node3D) -> Vector3:
+	var n := node
+	while n.get_parent() is Node3D and not (n.get_parent() is ClubScene):
+		n = n.get_parent()
+	return n.global_basis.z.normalized()
 
 
 func material(key: String) -> Material:

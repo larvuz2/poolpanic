@@ -91,10 +91,10 @@ The −X wall is never seen (it only casts its shadow), nor is the roof (its sky
 
 | Wall | Treatment |
 | --- | --- |
-| −Z, behind the blocks | Glazed sea-green tiles to 1.6 m, a navy band, a cream row, a timber dado rail at 1.97 m, warm plaster above. Pilasters at x ±7.85; a mural between them, y 2.35–7.15. The locker bays fill the corners. |
+| −Z, behind the blocks | Glazed sea-green tiles to 1.6 m, a navy band, a cream row, a timber dado rail at 1.97 m, warm plaster above. Pilasters at x ±7.85; a mural between them, y 2.35–7.15, washed by four brass picture lights. The locker bays fill the corners, with club banners above them. |
 | +X, the window wall | Tiles to 1.6 m, a timber sill at 2.1 m. Six windows 4 m wide from 2.1 to 8.4 m, centred at z −13.81, −8.93, −4.04, 0.84, 5.73, 10.62. A cream radiator under each window, at x ≈ 14.57, z = centre ± 1.1. Plaster piers between the windows. |
-| +Z, the far end | Tiles and plaster, a cornice |
-| −X, the near wall | Never seen |
+| +Z, the far end | Tiles and plaster, a cornice. The viewing gallery's long window (x −9…9, y 3.4–5.6) onto a lamp-lit café, with banners above it and the pace clock beside it. |
+| −X, the near wall | Never drawn by the game's camera (Godot puts it on a layer that camera skips), but seen by close-up views and in shadows |
 
 **The walkable deck** is gameplay: the coach and the guests walk everywhere except inside the furniture's footprints. So:
 

@@ -129,6 +129,20 @@ def pennant():
     export(os.path.join(PROPS, "pennant.glb"), [o])
 
 
+def picture_light():
+    """A brass picture light for the mural: a wall plate, a swan-neck arm and a long hood with a warm strip inside (Light_ for
+    Godot, which adds a spotlight aimed down the wall). Pivot on the wall at floor level; it hangs at 7.6 m."""
+    reset()
+    brass = mat("brass")
+    y0 = 7.6
+    parts = [box("Plate", (0.16, 0.03, 0.22), (0, -0.015, y0), brass, 0.008)]
+    parts.append(poly_tube("Arm", [(0, -0.03, y0), (0, -0.25, y0 + 0.08), (0, -0.42, y0 + 0.02)], 0.014, brass, corner=0.08))
+    parts.append(cyl("Hood", 0.07, 0.9, (-0.45, -0.46, y0 - 0.02), brass, 20, rot=(0, math.pi / 2, 0), r2=0.07))
+    parts.append(cyl("Light_Strip", 0.035, 0.8, (-0.4, -0.45, y0 - 0.06), mat("strip_glow", "#fff1d6", 0.3, emit="#ffe2b0", emit_strength=10.0), 12, rot=(0, math.pi / 2, 0)))
+    root = parent_all(parts, "PictureLight")
+    export(os.path.join(PROPS, "picture_light.glb"), [root])
+
+
 if __name__ == "__main__":
     for n in (1, 2, 3):
         starting_block(n)
@@ -137,3 +151,4 @@ if __name__ == "__main__":
     rope_anchor()
     flag_post()
     pennant()
+    picture_light()

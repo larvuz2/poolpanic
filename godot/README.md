@@ -41,6 +41,10 @@ The real game is still the three.js one in `dist/`. This test lives **only in `g
 - **Window wall:** six tall steel-framed windows, cream cast-iron radiators under them.
 - **Roof:** a skylight and glulam beams, drawn only in shadow (the camera looks down into the hall, while the sun still falls
   through them).
+- **Viewing gallery:** a long window in the far wall onto the café upstairs: lamp-lit tables, a counter, people watching the
+  pool.
+- **Near wall:** close-up views see a near wall that the game's camera never draws (a coach at the near edge must not hide
+  behind it).
 
 **The light** (`scripts/club/club_scene.gd`):
 
@@ -48,6 +52,7 @@ The real game is still the three.js one in `dist/`. This test lives **only in `g
 - SDFGI bouncing it off the tiles, SSAO and SSIL.
 - Volumetric fog, denser along the window wall so the shafts show, and a low steam layer over the warm water.
 - A box-projected reflection probe, SSR, glow, ACES tone mapping.
+- Dust and droplets drifting in the air, lit only where the sun's shafts cross them.
 
 **The water** (`assets/shaders/water.gdshader`):
 
@@ -98,6 +103,9 @@ the blocks.
 - clocks, including a working pace clock;
 - plants on the floor and the window sills, towels drying on the radiators;
 - the café doors and menu, spectator chairs.
+
+**The banners** (`banners.py`): four club banners (the crest, the gala champions, "swim · splash · smile", the county league)
+on brass rods above the changing rooms and the gallery.
 
 **The garden** (`exterior.py`): palms and shrubs outside the windows, hardly seen, whose swaying fronds throw moving shadows
 through the windows across the deck.
