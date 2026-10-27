@@ -1,7 +1,8 @@
 extends Node3D
-## The Godot test's one scene: the Community Pool blocked out from the exported layout, Coach Waters on WASD with the real game's
-## movement, the guests' models waiting in the queue, and the real game's camera. No menu: it opens straight into the pool.
+## The Godot test's one scene: the Community Pool (scripts/club/club_scene.gd), Coach Waters on WASD with the real game's movement,
+## the guests' models waiting in the queue, and the real game's camera. No menu: it opens straight into the pool.
 ## Run with `-- --smoke` (godot/tools/check.sh) to walk the coach about by itself for a few seconds and quit: the headless check.
+## `-- --shot=<png>` saves a picture after `--wait=<frames>` (90) and quits; `--cam=x,y,z,tx,ty,tz` looks from another place.
 
 const CAST := [
 	"res://assets/characters/swimmer-boy.glb",
@@ -22,6 +23,10 @@ var smoke_start := Vector3.ZERO
 var smoke_clips := {}  # the clips seen while the smoke run walks him about
 var shot_path := ""  # `-- --shot=<file.png>`: save one picture after a moment and quit (needs a display, not --headless)
 var shot_frames := 0
+var shot_wait := 90
+var fixed_cam := PackedFloat32Array()
+var club: ClubScene
+var _swimmers: Array[Node3D] = []
 
 
 func _ready() -> void:
@@ -29,9 +34,14 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--shot="):
 			shot_path = arg.substr(7)
+		elif arg.begins_with("--wait="):
+			shot_wait = int(arg.substr(7))
+		elif arg.begins_with("--cam="):
+			fixed_cam = PackedFloat32Array(Array(arg.substr(6).split(",")).map(func(v): return float(v)))
 	_setup_input()
-	_setup_world()
-	VenueBuilder.build(self)
+	club = ClubScene.new()
+	club.name = "Club"
+	add_child(club)
 	coach = Coach.new()
 	coach.name = "Coach"
 	var start: Dictionary = GameData.venue().coachStart
@@ -69,37 +79,6 @@ func _setup_input() -> void:
 			InputMap.action_add_event(action, ev)
 
 
-## A plain first light so the block-out can be seen. The look is the test's to invent (godot/README.md, "The look"): replace all of it.
-func _setup_world() -> void:
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color("#537e7b")
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("#cfe3e0").lerp(Color("#80654d"), 0.35)
-	env.ambient_light_energy = 0.5
-	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.tonemap_exposure = 0.95
-	env.fog_enabled = true
-	env.fog_mode = Environment.FOG_MODE_DEPTH
-	env.fog_light_color = Color("#537e7b")
-	env.fog_depth_begin = 50.0
-	env.fog_depth_end = 125.0
-	var we := WorldEnvironment.new()
-	we.environment = env
-	add_child(we)
-	var sun := DirectionalLight3D.new()
-	sun.light_color = Color("#ffd6a0")
-	sun.light_energy = 1.1
-	sun.shadow_enabled = true
-	add_child(sun)
-	sun.look_at_from_position(Vector3(-12, 27, 10), Vector3.ZERO)
-	var fill := DirectionalLight3D.new()
-	fill.light_color = Color("#8fc3cb")
-	fill.light_energy = 0.3
-	add_child(fill)
-	fill.look_at_from_position(Vector3(15, 15, -18), Vector3.ZERO)
-
-
 ## The guests' models standing in the queue's slots on their waiting clip, to show they import and play.
 func _place_cast() -> void:
 	var slots: Array = GameData.venue().queueSlots["-1"] + GameData.venue().queueSlots["1"]
@@ -113,6 +92,23 @@ func _place_cast() -> void:
 		anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 		anim.play(clip)
 		anim.seek(randf() * 2.0)
+	# three swimmers doing lengths, to show the water (the game lays the upright Swim clip prone, as the three.js game does)
+	var lanes := [[-3.2, -2.0, 0.0], [0.0, 3.5, PI], [3.2, -5.5, 0.0]]
+	for k in lanes.size():
+		var swimmer: Node3D = (load(CAST[(k + 2) % CAST.size()]) as PackedScene).instantiate()
+		var holder := Node3D.new()
+		holder.name = "Swimmer%d" % k
+		holder.position = Vector3(lanes[k][0], -0.28, lanes[k][1])
+		holder.rotation.y = lanes[k][2]
+		add_child(holder)
+		holder.add_child(swimmer)
+		swimmer.rotation.x = PI / 2
+		swimmer.position = Vector3(0, 0.0, -0.75)
+		var sanim: AnimationPlayer = swimmer.find_child("AnimationPlayer", true, false)
+		sanim.get_animation("Swim").loop_mode = Animation.LOOP_LINEAR
+		sanim.play("Swim")
+		sanim.seek(k * 0.3)
+		_swimmers.append(holder)
 
 
 func _setup_hud() -> void:
@@ -126,6 +122,7 @@ func _setup_hud() -> void:
 	hud.add_theme_color_override("font_outline_color", Color("#123c40"))
 	hud.add_theme_constant_override("outline_size", 6)
 	layer.add_child(hud)
+	hud.visible = shot_path == ""  # (clean pictures)
 
 
 func _physics_process(dt: float) -> void:
@@ -150,6 +147,13 @@ func _physics_process(dt: float) -> void:
 
 
 func _process(dt: float) -> void:
+	# the swimmers do their lengths, turning at each end
+	for sw in _swimmers:
+		var dir := 1.0 if is_zero_approx(sw.rotation.y) else -1.0
+		sw.position.z += dir * 1.6 * dt
+		if absf(sw.position.z) > 7.2:
+			sw.position.z = signf(sw.position.z) * 7.2
+			sw.rotation.y = PI if dir > 0 else 0.0
 	target = target.lerp(_follow_target(), 1.0 - exp(-2.5 * dt))
 	_place_camera()
 	if shot_path != "":
@@ -158,7 +162,7 @@ func _process(dt: float) -> void:
 			get_viewport().get_texture().get_image().save_png(shot_path)
 			print("SHOT saved ", shot_path)
 			get_tree().quit()
-	hud.text = "POOL PANIC · Godot test · Community Pool\nWASD move · Space jump · Shift dash · K slip (test)\n%d fps" % Engine.get_frames_per_second()
+	hud.text = "POOL PANIC · Godot test · Community Pool\nWASD move · Space jump · Shift dash · K slip (test) · F2 quality\n%d fps" % Engine.get_frames_per_second()
 
 
 ## followCoach (scene.mjs:2089): the target leans a little toward the coach.
@@ -170,6 +174,10 @@ func _follow_target() -> Vector3:
 
 ## The camera stands back along (−0.65, 0.76, 0) from its target, about 22 m at 16:9 (scene.mjs:1977-2006).
 func _place_camera() -> void:
+	if fixed_cam.size() == 6:
+		camera.position = Vector3(fixed_cam[0], fixed_cam[1], fixed_cam[2])
+		camera.look_at(Vector3(fixed_cam[3], fixed_cam[4], fixed_cam[5]), Vector3.UP)
+		return
 	var size := get_viewport().get_visible_rect().size
 	var aspect := size.x / maxf(1.0, size.y)
 	var dist := maxf(20.5, minf(64.0, 30.0 / (2.0 * tan(deg_to_rad(21.0)) * aspect)))
