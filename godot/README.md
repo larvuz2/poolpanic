@@ -127,7 +127,7 @@ renderer** (WebGL 2), which has no SDFGI, SSAO, SSIL, SSR or volumetric fog, so 
   and clouding.
 - **Lighter textures:** `web-export.sh` exports from a copy whose textures are one desktop format (S3TC, which a browser without it
   gets decompressed) and whose big tiling sets are 512 px (`tools/web-textures.py`); the Blender-only images stay out. About 76 MB
-  on disk, about 35 MB to download when the server compresses it. The desktop builds are untouched.
+  on disk, about 45 MB to download (Netlify compresses the engine to 9 MB, not the 36 MB of venue data). The desktop builds are untouched.
 - **No MSAA** (its resolve fails on WebGL): FXAA instead (`msaa_3d.web=0` in `project.godot`).
 - A link in the top right corner goes back to the site's choice (`html/head_include` in `export_presets.cfg`), and the loading
   screen is the Pool Panic logo (`assets/splash.png`, also the desktop builds' splash).
