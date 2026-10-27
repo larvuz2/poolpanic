@@ -1,56 +1,596 @@
 [
-  {"asset": "props/vending_machine.glb", "pos": [6.75, 0, -16.26], "rot": 0, "scale": 1, "note": "-Z wall by the WOMEN door: the drinks machine, glowing"},
-  {"asset": "props/trophy_cabinet.glb", "pos": [5.35, 0, -16.395], "rot": 0, "scale": 1, "note": "-Z wall: the club's trophies"},
-  {"asset": "props/noticeboard.glb", "pos": [3.9, 0, -16.655], "rot": 0, "scale": 1, "note": "-Z wall: the cork noticeboard over the lost property"},
-  {"asset": "props/lost_property.glb", "pos": [3.85, 0, -16.41], "rot": 0, "scale": 1, "note": "-Z wall: lost property crate"},
-  {"asset": "props/towel_cubbies.glb", "pos": [2.6, 0, -16.42], "rot": 0, "scale": 1, "note": "-Z wall: clean towels"},
-  {"asset": "props/poster_gala.glb", "pos": [2.6, 0, -16.655], "rot": 0, "scale": 1, "note": "-Z wall: the 1974 gala poster above the towels"},
-  {"asset": "props/laundry_hamper.glb", "pos": [1.68, 0, -16.41], "rot": 0, "scale": 1, "note": "-Z wall: used towels"},
-  {"asset": "props/kickboard_rack.glb", "pos": [0.7, 0, -16.37], "rot": 0, "scale": 1, "note": "-Z wall: kickboards"},
-  {"asset": "props/whiteboard.glb", "pos": [0.7, 0, -16.655], "rot": 0, "scale": 1, "note": "-Z wall: lap times and lessons above the kickboards"},
-  {"asset": "props/noodle_bin.glb", "pos": [-0.6, 0, -16.35], "rot": 0, "scale": 1, "note": "-Z wall: pool noodles"},
-  {"asset": "props/buoy_basket.glb", "pos": [-1.35, 0, -16.42], "rot": 0, "scale": 1, "note": "-Z wall: pull buoys"},
-  {"asset": "props/poster_learn.glb", "pos": [-1.35, 0, -16.655], "rot": 0, "scale": 1, "note": "-Z wall: LEARN TO SWIM poster"},
-  {"asset": "props/rope_reel.glb", "pos": [-2.45, 0, -16.19], "rot": 0, "scale": 1, "note": "-Z wall: the spare lane rope's reel (clear of the life-ring stand at x -4)"},
-  {"asset": "props/hose_reel.glb", "pos": [-5.2, 0, -16.655], "rot": 0, "scale": 1, "note": "-Z wall: fire hose reel"},
-  {"asset": "props/honours_board.glb", "pos": [-6.05, 0, -16.655], "rot": 0, "scale": 1, "note": "-Z wall: CLUB CHAMPIONS honours board"},
-  {"asset": "props/rules_board.glb", "pos": [-6.95, 0, -16.655], "rot": 0, "scale": 1, "note": "-Z wall: POOL RULES"},
-  {"asset": "props/plant_snake.glb", "pos": [-6.95, 0, -16.42], "rot": 0, "scale": 1, "note": "-Z wall: under the rules"},
-  {"asset": "props/wall_clock.glb", "pos": [7.85, 0, -16.42], "rot": 0, "scale": 1, "note": "right pilaster: the clock (hands turn)"},
-  {"asset": "props/emergency_phone.glb", "pos": [7.85, 0, -16.42], "rot": 0, "scale": 1, "note": "right pilaster: emergency phone"},
-  {"asset": "props/no_running.glb", "pos": [-7.85, 0, -16.42], "rot": 0, "scale": 1, "note": "left pilaster: NO RUNNING"},
-  {"asset": "props/plant_snake.glb", "pos": [14.3, 0, -16.1], "rot": -90, "scale": 1, "note": "corner beside the WOMEN bay"},
-  {"asset": "props/plant_snake.glb", "pos": [14.4, 0, -12.3], "rot": -90, "scale": 1, "note": "+X wall, between radiators 0 and 1"},
-  {"asset": "props/extinguisher_cabinet.glb", "pos": [14.655, 0, -11.0], "rot": -90, "scale": 1, "note": "+X wall: fire point"},
-  {"asset": "props/plant_palm.glb", "pos": [14.38, 0, -6.9], "rot": -90, "scale": 1, "note": "+X wall, behind the lifeguard chair"},
-  {"asset": "props/no_running.glb", "pos": [14.655, 0, -5.75], "rot": -90, "scale": 1, "note": "+X wall"},
-  {"asset": "props/radiator_towel.glb", "pos": [14.655, 0, -4.45], "rot": -90, "scale": 1, "note": "+X wall: a towel drying on radiator 2"},
-  {"asset": "props/plant_fern.glb", "pos": [14.4, 0, -1.0], "rot": -90, "scale": 1, "note": "+X wall, between radiators 2 and 3 (clear of the fish net at z -2.6)"},
-  {"asset": "props/plant_palm.glb", "pos": [14.38, 0, 2.5], "rot": -90, "scale": 1, "note": "+X wall, between radiators 3 and 4"},
-  {"asset": "props/noodle_bin.glb", "pos": [14.4, 0, 3.75], "rot": -90, "scale": 1, "note": "+X wall: more noodles by the first-aid station"},
-  {"asset": "props/radiator_towel.glb", "pos": [14.655, 0, 6.3], "rot": -90, "scale": 1, "note": "+X wall: a towel drying on radiator 4"},
-  {"asset": "props/plant_fern.glb", "pos": [14.4, 0, 7.3], "rot": -90, "scale": 1, "note": "+X wall, by the chlorine station"},
-  {"asset": "props/filing_cabinet.glb", "pos": [14.355, 0, 8.75], "rot": -90, "scale": 1, "note": "+X wall: the office's filing cabinet behind the counter"},
-  {"asset": "props/plant_snake.glb", "pos": [14.35, 0, 13.1], "rot": -90, "scale": 1, "note": "the +X/+Z corner (compact: the fuse box is on the wall at z 12.05)"},
-  {"asset": "props/sill_succulents.glb", "pos": [14.57, 2.16, -13.2], "rot": -90, "scale": 1.3, "note": "sill, window 0"},
-  {"asset": "props/sill_pothos.glb", "pos": [14.57, 2.16, -9.6], "rot": -90, "scale": 1.3, "note": "sill, window 1"},
-  {"asset": "props/sill_bits.glb", "pos": [14.57, 2.16, -4.5], "rot": -90, "scale": 1, "note": "sill, window 2: things left behind"},
-  {"asset": "props/sill_succulents.glb", "pos": [14.57, 2.16, 1.5], "rot": -90, "scale": 1.3, "note": "sill, window 3"},
-  {"asset": "props/sill_pothos.glb", "pos": [14.57, 2.16, 6.4], "rot": -90, "scale": 1.3, "note": "sill, window 4"},
-  {"asset": "props/sill_succulents.glb", "pos": [14.57, 2.16, 11.2], "rot": -90, "scale": 1.3, "note": "sill, window 5"},
-  {"asset": "props/pace_clock.glb", "pos": [0.0, 0, 13.455], "rot": 180, "scale": 1, "note": "+Z wall: the pace clock over the pool's end (hands turn)"},
-  {"asset": "props/cafe_doors.glb", "pos": [4.6, 0, 13.455], "rot": 180, "scale": 1, "note": "+Z wall: the café and viewing gallery"},
-  {"asset": "props/menu_board.glb", "pos": [6.3, 0, 13.455], "rot": 180, "scale": 1, "note": "+Z wall: the café's menu"},
-  {"asset": "props/plant_palm.glb", "pos": [7.6, 0, 13.13], "rot": 180, "scale": 1, "note": "+Z wall, by the café"},
-  {"asset": "props/spectator_chairs.glb", "pos": [-2.2, 0, 13.155], "rot": 180, "scale": 1, "note": "+Z wall: chairs for watching parents"},
-  {"asset": "props/spectator_chairs.glb", "pos": [-4.6, 0, 13.155], "rot": 180, "scale": 1, "note": "+Z wall: chairs for watching parents"},
-  {"asset": "props/poster_gala.glb", "pos": [-3.4, 0, 13.455], "rot": 180, "scale": 1, "note": "+Z wall: another copy of the gala poster above the chairs"},
-  {"asset": "props/rules_board.glb", "pos": [0.0, 0, 13.455], "rot": 180, "scale": 1, "note": "+Z wall: the rules again, under the pace clock"},
-  {"asset": "props/poster_learn.glb", "pos": [2.1, 0, 13.455], "rot": 180, "scale": 1, "note": "+Z wall: LEARN TO SWIM again, by the café"},
-  {"asset": "props/plant_fern.glb", "pos": [-6.6, 0, 13.18], "rot": 180, "scale": 1, "note": "+Z wall"},
-  {"asset": "props/extinguisher_cabinet.glb", "pos": [-8.0, 0, 13.455], "rot": 180, "scale": 1, "note": "+Z wall: a second fire point"},
-  {"asset": "props/kickboard_rack.glb", "pos": [-9.9, 0, 13.18], "rot": 180, "scale": 1, "note": "+Z wall: the learners' kickboards"},
-  {"asset": "props/noticeboard.glb", "pos": [-9.9, 0, 13.455], "rot": 180, "scale": 1, "note": "+Z wall: notices above the kickboards"},
-  {"asset": "props/noodle_bin.glb", "pos": [-11.3, 0, 13.16], "rot": 180, "scale": 1, "note": "+Z wall: noodles for the lessons"},
-  {"asset": "props/plant_palm.glb", "pos": [-14.15, 0, 12.95], "rot": 180, "scale": 1, "note": "the -X/+Z corner"}
+ {
+  "asset": "props/vending_machine.glb",
+  "pos": [
+   6.75,
+   0,
+   -16.26
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall by the WOMEN door: the drinks machine, glowing"
+ },
+ {
+  "asset": "props/trophy_cabinet.glb",
+  "pos": [
+   5.35,
+   0,
+   -16.395
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: the club's trophies"
+ },
+ {
+  "asset": "props/noticeboard.glb",
+  "pos": [
+   3.9,
+   0,
+   -16.655
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: the cork noticeboard over the lost property"
+ },
+ {
+  "asset": "props/lost_property.glb",
+  "pos": [
+   3.85,
+   0,
+   -16.41
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: lost property crate"
+ },
+ {
+  "asset": "props/towel_cubbies.glb",
+  "pos": [
+   2.6,
+   0,
+   -16.42
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: clean towels"
+ },
+ {
+  "asset": "props/poster_gala.glb",
+  "pos": [
+   2.6,
+   0,
+   -16.655
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: the 1974 gala poster above the towels"
+ },
+ {
+  "asset": "props/laundry_hamper.glb",
+  "pos": [
+   1.68,
+   0,
+   -16.41
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: used towels"
+ },
+ {
+  "asset": "props/kickboard_rack.glb",
+  "pos": [
+   0.7,
+   0,
+   -16.37
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: kickboards"
+ },
+ {
+  "asset": "props/whiteboard.glb",
+  "pos": [
+   0.7,
+   0,
+   -16.655
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: lap times and lessons above the kickboards"
+ },
+ {
+  "asset": "props/noodle_bin.glb",
+  "pos": [
+   -0.6,
+   0,
+   -16.35
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: pool noodles"
+ },
+ {
+  "asset": "props/buoy_basket.glb",
+  "pos": [
+   -1.35,
+   0,
+   -16.42
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: pull buoys"
+ },
+ {
+  "asset": "props/poster_learn.glb",
+  "pos": [
+   -1.35,
+   0,
+   -16.655
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: LEARN TO SWIM poster"
+ },
+ {
+  "asset": "props/rope_reel.glb",
+  "pos": [
+   -2.45,
+   0,
+   -16.19
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: the spare lane rope's reel (clear of the life-ring stand at x -4)"
+ },
+ {
+  "asset": "props/hose_reel.glb",
+  "pos": [
+   -5.2,
+   0,
+   -16.655
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: fire hose reel"
+ },
+ {
+  "asset": "props/honours_board.glb",
+  "pos": [
+   -6.05,
+   0,
+   -16.655
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: CLUB CHAMPIONS honours board"
+ },
+ {
+  "asset": "props/rules_board.glb",
+  "pos": [
+   -6.95,
+   0,
+   -16.655
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: POOL RULES"
+ },
+ {
+  "asset": "props/plant_snake.glb",
+  "pos": [
+   -6.95,
+   0,
+   -16.42
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "-Z wall: under the rules"
+ },
+ {
+  "asset": "props/wall_clock.glb",
+  "pos": [
+   7.85,
+   0,
+   -16.42
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "right pilaster: the clock (hands turn)"
+ },
+ {
+  "asset": "props/emergency_phone.glb",
+  "pos": [
+   7.85,
+   0,
+   -16.42
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "right pilaster: emergency phone"
+ },
+ {
+  "asset": "props/no_running.glb",
+  "pos": [
+   -7.85,
+   0,
+   -16.42
+  ],
+  "rot": 0,
+  "scale": 1,
+  "note": "left pilaster: NO RUNNING"
+ },
+ {
+  "asset": "props/plant_snake.glb",
+  "pos": [
+   14.3,
+   0,
+   -16.1
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "corner beside the WOMEN bay"
+ },
+ {
+  "asset": "props/plant_snake.glb",
+  "pos": [
+   14.4,
+   0,
+   -12.3
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "+X wall, between radiators 0 and 1"
+ },
+ {
+  "asset": "props/extinguisher_cabinet.glb",
+  "pos": [
+   14.655,
+   0,
+   -11.0
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "+X wall: fire point"
+ },
+ {
+  "asset": "props/plant_palm.glb",
+  "pos": [
+   14.38,
+   0,
+   -6.9
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "+X wall, behind the lifeguard chair"
+ },
+ {
+  "asset": "props/no_running.glb",
+  "pos": [
+   14.655,
+   0,
+   -5.75
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "+X wall"
+ },
+ {
+  "asset": "props/radiator_towel.glb",
+  "pos": [
+   14.655,
+   0,
+   -4.45
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "+X wall: a towel drying on radiator 2"
+ },
+ {
+  "asset": "props/plant_fern.glb",
+  "pos": [
+   14.4,
+   0,
+   -1.0
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "+X wall, between radiators 2 and 3 (clear of the fish net at z -2.6)"
+ },
+ {
+  "asset": "props/plant_palm.glb",
+  "pos": [
+   14.38,
+   0,
+   2.5
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "+X wall, between radiators 3 and 4"
+ },
+ {
+  "asset": "props/noodle_bin.glb",
+  "pos": [
+   14.4,
+   0,
+   3.75
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "+X wall: more noodles by the first-aid station"
+ },
+ {
+  "asset": "props/radiator_towel.glb",
+  "pos": [
+   14.655,
+   0,
+   6.3
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "+X wall: a towel drying on radiator 4"
+ },
+ {
+  "asset": "props/plant_fern.glb",
+  "pos": [
+   14.4,
+   0,
+   7.3
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "+X wall, by the chlorine station"
+ },
+ {
+  "asset": "props/filing_cabinet.glb",
+  "pos": [
+   14.355,
+   0,
+   8.75
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "+X wall: the office's filing cabinet behind the counter"
+ },
+ {
+  "asset": "props/plant_snake.glb",
+  "pos": [
+   14.35,
+   0,
+   13.1
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "the +X/+Z corner (compact: the fuse box is on the wall at z 12.05)"
+ },
+ {
+  "asset": "props/sill_succulents.glb",
+  "pos": [
+   14.57,
+   2.16,
+   -13.2
+  ],
+  "rot": -90,
+  "scale": 1.3,
+  "note": "sill, window 0"
+ },
+ {
+  "asset": "props/sill_pothos.glb",
+  "pos": [
+   14.57,
+   2.16,
+   -9.6
+  ],
+  "rot": -90,
+  "scale": 1.3,
+  "note": "sill, window 1"
+ },
+ {
+  "asset": "props/sill_bits.glb",
+  "pos": [
+   14.57,
+   2.16,
+   -4.5
+  ],
+  "rot": -90,
+  "scale": 1,
+  "note": "sill, window 2: things left behind"
+ },
+ {
+  "asset": "props/sill_succulents.glb",
+  "pos": [
+   14.57,
+   2.16,
+   1.5
+  ],
+  "rot": -90,
+  "scale": 1.3,
+  "note": "sill, window 3"
+ },
+ {
+  "asset": "props/sill_pothos.glb",
+  "pos": [
+   14.57,
+   2.16,
+   6.4
+  ],
+  "rot": -90,
+  "scale": 1.3,
+  "note": "sill, window 4"
+ },
+ {
+  "asset": "props/sill_succulents.glb",
+  "pos": [
+   14.57,
+   2.16,
+   11.2
+  ],
+  "rot": -90,
+  "scale": 1.3,
+  "note": "sill, window 5"
+ },
+ {
+  "asset": "props/pace_clock.glb",
+  "pos": [
+   -11.8,
+   0,
+   13.455
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall, beside the viewing gallery's window (hands turn)"
+ },
+ {
+  "asset": "props/cafe_doors.glb",
+  "pos": [
+   4.6,
+   0,
+   13.455
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall: the caf\u00e9 and viewing gallery"
+ },
+ {
+  "asset": "props/menu_board.glb",
+  "pos": [
+   6.3,
+   0,
+   13.455
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall: the caf\u00e9's menu"
+ },
+ {
+  "asset": "props/plant_palm.glb",
+  "pos": [
+   7.6,
+   0,
+   13.13
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall, by the caf\u00e9"
+ },
+ {
+  "asset": "props/spectator_chairs.glb",
+  "pos": [
+   -2.2,
+   0,
+   13.155
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall: chairs for watching parents"
+ },
+ {
+  "asset": "props/spectator_chairs.glb",
+  "pos": [
+   -4.6,
+   0,
+   13.155
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall: chairs for watching parents"
+ },
+ {
+  "asset": "props/poster_gala.glb",
+  "pos": [
+   -3.4,
+   0,
+   13.455
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall: another copy of the gala poster above the chairs"
+ },
+ {
+  "asset": "props/rules_board.glb",
+  "pos": [
+   0.0,
+   0,
+   13.455
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall: the rules again, under the pace clock"
+ },
+ {
+  "asset": "props/poster_learn.glb",
+  "pos": [
+   2.1,
+   0,
+   13.455
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall: LEARN TO SWIM again, by the caf\u00e9"
+ },
+ {
+  "asset": "props/plant_fern.glb",
+  "pos": [
+   -6.6,
+   0,
+   13.18
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall"
+ },
+ {
+  "asset": "props/extinguisher_cabinet.glb",
+  "pos": [
+   -8.0,
+   0,
+   13.455
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall: a second fire point"
+ },
+ {
+  "asset": "props/kickboard_rack.glb",
+  "pos": [
+   -9.9,
+   0,
+   13.18
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall: the learners' kickboards"
+ },
+ {
+  "asset": "props/noticeboard.glb",
+  "pos": [
+   -9.9,
+   0,
+   13.455
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall: notices above the kickboards"
+ },
+ {
+  "asset": "props/noodle_bin.glb",
+  "pos": [
+   -11.3,
+   0,
+   13.16
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "+Z wall: noodles for the lessons"
+ },
+ {
+  "asset": "props/plant_palm.glb",
+  "pos": [
+   -14.15,
+   0,
+   12.95
+  ],
+  "rot": 180,
+  "scale": 1,
+  "note": "the -X/+Z corner"
+ }
 ]

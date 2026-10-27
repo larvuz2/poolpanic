@@ -180,10 +180,16 @@ func _process(dt: float) -> void:
 	_place_camera()
 	if shot_path != "":
 		shot_frames += 1
-		if shot_frames == 90:
+		if shot_frames == shot_wait:
 			get_viewport().get_texture().get_image().save_png(shot_path)
 			print("SHOT saved ", shot_path)
-			get_tree().quit()
+			if _shots.size() > 1:
+				_shots.pop_front()
+				shot_path = _shots[0][0]
+				_apply_shot_cam(_shots[0][1])
+				shot_frames = 0
+			else:
+				get_tree().quit()
 	hud.text = "POOL PANIC · Godot test · Community Pool\nWASD move · Space jump · Shift dash · K slip (test) · F2 quality\n%d fps" % Engine.get_frames_per_second()
 
 
@@ -196,6 +202,8 @@ func _follow_target() -> Vector3:
 
 ## The camera stands back along (−0.65, 0.76, 0) from its target, about 22 m at 16:9 (scene.mjs:1977-2006).
 func _place_camera() -> void:
+	# the game's camera never draws the near wall it stands behind; a fixed (close-up) view does
+	camera.cull_mask = 0xFFFFF if fixed_cam.size() == 6 else 0xFFFFF & ~ClubScene.NEAR_WALL_LAYER
 	if fixed_cam.size() == 6:
 		camera.position = Vector3(fixed_cam[0], fixed_cam[1], fixed_cam[2])
 		camera.look_at(Vector3(fixed_cam[3], fixed_cam[4], fixed_cam[5]), Vector3.UP)

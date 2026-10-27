@@ -12,6 +12,7 @@ const TILES := preload("res://assets/shaders/tiles.gdshader")
 const WATER := preload("res://assets/shaders/water.gdshader")
 const WATER_Y := -0.25
 const SUN_DIR := Vector3(-0.72, -0.62, -0.34)  # the way the sunlight travels
+const NEAR_WALL_LAYER := 1 << 1  # the near (-x) wall: seen by close-up views, never by the game's camera
 
 var env: Environment
 var sun: DirectionalLight3D
@@ -30,6 +31,7 @@ func _ready() -> void:
 	_pennant_lines()
 	_water()
 	_air()
+	_motes()
 	_reflections()
 	set_quality(quality)
 
@@ -48,6 +50,10 @@ func set_quality(q: int) -> void:
 	env.ssr_enabled = q >= 1
 	env.volumetric_fog_enabled = q >= 1
 	env.ssao_enabled = q >= 1
+	var motes := get_node_or_null("Motes") as GPUParticles3D
+	if motes:
+		motes.emitting = q >= 1
+		motes.visible = q >= 1
 	sun.shadow_blur = 1.5 if q >= 1 else 1.0
 	RenderingServer.directional_shadow_atlas_set_size(4096 if q >= 1 else 2048, true)
 	RenderingServer.directional_soft_shadow_filter_set_quality(
@@ -63,8 +69,8 @@ func _environment() -> void:
 	var sky_mat := ProceduralSkyMaterial.new()
 	sky_mat.sky_top_color = Color("#5d97c9")
 	sky_mat.sky_horizon_color = Color("#f6d7a8")
-	sky_mat.ground_horizon_color = Color("#d9b48c")
-	sky_mat.ground_bottom_color = Color("#6f5a46")
+	sky_mat.ground_horizon_color = Color("#cfe2e0")
+	sky_mat.ground_bottom_color = Color("#3f8f9a")
 	sky_mat.sun_angle_max = 12.0
 	sky_mat.energy_multiplier = 1.0
 	var sky := Sky.new()
@@ -160,6 +166,8 @@ func _dress(root: Node) -> void:
 	for node in root.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		var name := String(mi.name)
+		if name.begins_with("Keep_NearWall"):
+			mi.layers = NEAR_WALL_LAYER  # (the game camera skips this layer: main.gd)
 		if name.begins_with("ShadowOnly_"):
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 			continue
@@ -488,6 +496,45 @@ func _air() -> void:
 	hm.height_falloff = 0.08
 	haze.material = hm
 	add_child(haze)
+
+
+## Specks of dust and droplets drifting in the air on the window side: lit like everything else, so they only sparkle where the sun's
+## shafts cross them.
+func _motes() -> void:
+	var p := GPUParticles3D.new()
+	p.name = "Motes"
+	p.amount = 420
+	p.lifetime = 14.0
+	p.preprocess = 14.0
+	p.visibility_aabb = AABB(Vector3(-5, -1, -17), Vector3(12, 9, 32))
+	p.position = Vector3(9.0, 0, -1.6)
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = Vector3(5.5, 3.2, 14.5)
+	pm.direction = Vector3(-0.3, 0.2, 0.1)
+	pm.spread = 180.0
+	pm.initial_velocity_min = 0.02
+	pm.initial_velocity_max = 0.08
+	pm.gravity = Vector3(0, 0.004, 0)
+	pm.turbulence_enabled = true
+	pm.turbulence_noise_strength = 0.4
+	pm.turbulence_noise_scale = 3.0
+	pm.scale_min = 0.6
+	pm.scale_max = 1.4
+	p.process_material = pm
+	p.position.y = 3.6
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.018, 0.018)
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color("#fff6e4")
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	m.emission_enabled = false
+	m.roughness = 0.3
+	quad.material = m
+	p.draw_pass_1 = quad
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(p)
 
 
 func _reflections() -> void:

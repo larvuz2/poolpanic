@@ -240,13 +240,74 @@ for k in range(n_win):
     parts.append(tube(f"RadPipe{k}", [g(x1 - 0.13, 0.18, rz0 - 0.15), g(x1 - 0.13, 0.12, rz0 - 0.3), g(x1 - 0.06, 0.12, rz0 - 0.5)], 0.022, M["steel"]))
 
 # +z: the far end wall: tiles, plaster, and (in front of it) the café doors and the office (props)
-parts.append(gbox("WallFar", (0, H / 2, z1 + T / 2), (W + 2 * T, H, T), M["plaster"]))
+# the wall is built round the viewing gallery's long window (x -9..9, y 3.4..5.6), the café beyond it (gallery() below)
+GX0, GX1, GY0, GY1 = -9.0, 9.0, 3.4, 5.6
+parts.append(gbox("WallFarLow", (0, GY0 / 2, z1 + T / 2), (W + 2 * T, GY0, T), M["plaster"]))
+parts.append(gbox("WallFarHigh", (0, (GY1 + H) / 2, z1 + T / 2), (W + 2 * T, H - GY1, T), M["plaster"]))
+for side, (a, b) in (("L", (x0 - T, GX0)), ("R", (GX1, x1 + T))):
+    parts.append(gbox(f"WallFarSide{side}", ((a + b) / 2, (GY0 + GY1) / 2, z1 + T / 2), (b - a, GY1 - GY0, T), M["plaster"]))
 parts += wainscot("WallFar", True, z1, x0, x1, -1)
 parts.append(gbox("CorniceFar", (0, H - 0.4, z1 - 0.12), (W, 0.36, 0.24), M["timber"], 0.02))
 parts.append(gbox("CorniceWindows", (x1 - 0.12, H - 0.4, (z0 + z1) / 2), (0.24, 0.36, L), M["timber"], 0.02))
 
-# -x: the near wall (behind the camera): it only casts its shadow and holds the light in
-parts.append(gbox("ShadowOnly_WallNear", (x0 - T / 2, H / 2, (z0 + z1) / 2), (T, H, L + 2 * T), M["shadow"]))
+# ---- the viewing gallery: a long window in the far wall onto the café upstairs, lamp-lit, people watching the pool ----------
+def gallery():
+    out = []
+    zf = z1 + T  # the café's floor starts behind the wall
+    D = 3.2  # its depth
+    warm = mat("cafe_wall", "#f2c79a", 0.8, emit="#f6c48f", emit_strength=0.35)
+    floorm = mat("cafe_floor", "#a8714a", 0.55)
+    out.append(gbox("CafeFloor", (0, GY0 - 0.42, zf + D / 2), (GX1 - GX0 + 0.6, 0.12, D), floorm))
+    out.append(gbox("CafeBack", (0, GY0 + 1.6, zf + D), (GX1 - GX0 + 0.6, 4.4, 0.12), warm))
+    out.append(gbox("CafeCeiling", (0, GY1 + 0.9, zf + D / 2), (GX1 - GX0 + 0.6, 0.12, D), mat("cafe_ceiling", "#f6e6cf", 0.8)))
+    for sx in (-1, 1):
+        out.append(gbox(f"CafeEnd{sx}", (sx * (GX1 + 0.25), GY0 + 1.6, zf + D / 2), (0.12, 4.4, D), warm))
+    # framed pictures and a striped awning-like valance on the back wall
+    for k, px in enumerate([-7.0, -3.5, 3.5, 7.0]):
+        out.append(gbox(f"CafePicFrame{k}", (px, GY0 + 1.65, zf + D - 0.08), (0.9, 0.7, 0.04), mat("timber_dark"), 0.01))
+        out.append(gbox(f"CafePic{k}", (px, GY0 + 1.65, zf + D - 0.105), (0.76, 0.56, 0.01), mat(["sea", "coral", "sky", "mustard"][k]), 0))
+    for k in range(18):
+        out.append(gbox(f"CafeValance{k}", (GX0 + 0.5 + k, GY1 + 0.6, zf + D - 0.1), (1.0, 0.35, 0.05), mat("coral" if k % 2 else "cream"), 0.01))
+    # the counter at one end, tables and chairs, pendant lamps, two spectators at the glass
+    out.append(gbox("CafeCounter", (6.4, GY0 + 0.1, zf + D - 0.7), (3.4, 1.0, 0.7), mat("navy"), 0.03))
+    out.append(gbox("CafeCounterTop", (6.4, GY0 + 0.62, zf + D - 0.7), (3.6, 0.06, 0.8), mat("timber"), 0.02))
+    for k, (tx, tz) in enumerate([(-6.5, 1.0), (-3.6, 1.6), (-0.8, 1.0), (2.2, 1.7)]):
+        out.append(cyl(f"CafeTableTop{k}", 0.42, 0.04, g(tx, GY0 + 0.38, zf + tz), mat("white_gloss"), 28, bev=0.01))
+        out.append(cyl(f"CafeTableLeg{k}", 0.04, 0.74, g(tx, GY0 - 0.36, zf + tz), mat("charcoal"), 12))
+        for cx in (-0.62, 0.62):
+            out.append(gbox(f"CafeChair{k}{cx}", (tx + cx, GY0 - 0.1, zf + tz), (0.42, 0.06, 0.42), mat(["sea", "coral", "mustard", "sky"][k]), 0.02))
+            out.append(gbox(f"CafeChairBack{k}{cx}", (tx + cx * 1.45, GY0 + 0.15, zf + tz), (0.05, 0.5, 0.42), mat(["sea", "coral", "mustard", "sky"][k]), 0.02))
+        out.append(cyl(f"CafeCup{k}", 0.04, 0.09, g(tx + 0.1, GY0 + 0.4, zf + tz - 0.1), mat("white"), 14))
+    for k, lx in enumerate([-6.5, -3.6, -0.8, 2.2, 6.4]):
+        out.append(cyl(f"CafeLampCord{k}", 0.008, 0.6, g(lx, GY1 + 0.25, zf + 1.4), mat("black"), 6))
+        out.append(cyl(f"CafeShade{k}", 0.24, 0.22, g(lx, GY1 + 0.05, zf + 1.4), mat("mustard_gloss"), 24, r2=0.08))
+        out.append(sphere(f"Light_CafeBulb{k}", 0.07, g(lx, GY1 + 0.02, zf + 1.4), mat("cafe_bulb", "#fff0cf", 0.3, emit="#ffe2a8", emit_strength=8.0), 12, 8))
+    skin = mat("spectator_skin", "#f2b48f", 0.6)
+    for k, (sx, top) in enumerate([(-2.6, "coral"), (-1.9, "sea"), (4.0, "mustard")]):
+        out.append(cyl(f"SpecBody{k}", 0.2, 0.75, g(sx, GY0 - 0.36, zf + 0.45), mat(top), 16, bev=0.05))
+        out.append(sphere(f"SpecHead{k}", 0.16, g(sx, GY0 + 0.6, zf + 0.45), skin, 16, 10))
+        out.append(gbox(f"SpecArm{k}", (sx, GY0 + 0.18, zf + 0.25), (0.42, 0.1, 0.12), mat(top), 0.04))
+    # the window itself: a deep timber sill, white steel frames every 1.5 m, glass
+    out.append(gbox("GallerySill", (0, GY0 - 0.04, z1 - 0.1), (GX1 - GX0 + 0.3, 0.08, 0.36), M["timber"], 0.02))
+    out.append(gbox("GalleryHead", (0, GY1 + 0.05, z1 - 0.04), (GX1 - GX0 + 0.3, 0.12, 0.16), M["frame"], 0.01))
+    for k in range(13):
+        xk = GX0 + k * 1.5
+        out.append(gbox(f"GalleryMullion{k}", (xk, (GY0 + GY1) / 2, z1 - 0.02), (0.08, GY1 - GY0, 0.1), M["frame"], 0.01))
+    out.append(gbox("GalleryTransom", (0, GY0 + 0.95, z1 - 0.02), (GX1 - GX0, 0.06, 0.08), M["frame"], 0.008))
+    out.append(gbox("Glass_Gallery", (0, (GY0 + GY1) / 2, z1 + 0.02), (GX1 - GX0, GY1 - GY0, 0.01), M["glass"]))
+    out.append(text("GallerySign", "VIEWING GALLERY  ·  CAFÉ", 0.3, 0.02, g(0, GY1 + 0.42, z1 - 0.01), (math.pi / 2, 0, math.pi), M["stencil_navy"]))
+    return out
+
+
+parts += gallery()
+
+# -x: the near wall, behind the game's camera: the game camera never draws it (Godot puts the Keep_NearWall parts on a layer it
+# skips, so a coach at the near edge never hides behind it), but close-up views and the shadows see it
+near = [gbox("Keep_NearWallPlaster", (x0 - T / 2, H / 2, (z0 + z1) / 2), (T, H, L + 2 * T), M["plaster"])]
+near += wainscot("Keep_NearWall", False, x0, z0, z1, +1)
+near.append(gbox("Keep_NearWallCornice", (x0 + 0.12, H - 0.4, (z0 + z1) / 2), (0.24, 0.36, L), M["timber"], 0.02))
+near_wall = join(near, "Keep_NearWall")
+parts.append(near_wall)
 
 # ---- the roof: drawn only in shadows, with a long skylight over each side of the pool and glulam beams -----------------
 roof_y = H + 0.15

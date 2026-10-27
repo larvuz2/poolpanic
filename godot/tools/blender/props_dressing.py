@@ -940,7 +940,7 @@ PLACEMENTS = [
     P_("sill_pothos", 14.57, SILL, 6.4, -90, "sill, window 4", 1.3),
     P_("sill_succulents", 14.57, SILL, 11.2, -90, "sill, window 5", 1.3),
     # the +Z end wall
-    P_("pace_clock", 0.0, 0, ZE, 180, "+Z wall: the pace clock over the pool's end (hands turn)"),
+    P_("pace_clock", -11.8, 0, ZE, 180, "+Z wall, beside the viewing gallery's window (hands turn)"),
     P_("cafe_doors", 4.6, 0, ZE, 180, "+Z wall: the café and viewing gallery"),
     P_("menu_board", 6.3, 0, ZE, 180, "+Z wall: the café's menu"),
     P_("plant_palm", 7.6, 0, ZEF - 0.3, 180, "+Z wall, by the café"),
