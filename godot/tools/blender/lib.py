@@ -420,9 +420,66 @@ def parent_all(objs, name):
     return e
 
 
-def export(path, objs=None):
-    """Export the given objects (or everything) as a GLB, Y-up, with materials and images embedded."""
+# Parts that stay their own node in Godot (it moves, hides or lights them, or they need their own flags); everything else in an
+# export is merged into one mesh per object tree, one surface per material, so a prop costs a few draw calls, not dozens.
+KEEP = ("Door", "Light_", "Glass_", "Fins_", "Hand", "Flashlight", "LifeRing", "ShadowOnly_", "UnderwaterLight_", "Keep_")
+
+
+def merge_tree(root):
+    """Join every mesh under `root` (and root itself if a mesh) whose name does not start with a KEEP prefix into one mesh."""
+    meshes = [o for o in [root, *root.children_recursive] if o.type == "MESH" and not o.name.startswith(KEEP)]
+    # parts that only differ by their flags merge among themselves: all the shadow-only pieces, all the glass
+    for prefix in ("ShadowOnly_", "Glass_"):
+        group = [o for o in root.children_recursive if o.type == "MESH" and o.name.startswith(prefix)]
+        if len(group) > 1:
+            gw = {o: o.matrix_world.copy() for o in group}
+            for o in bpy.context.selected_objects:
+                o.select_set(False)
+            for o in group:
+                o.select_set(True)
+            bpy.context.view_layer.objects.active = group[0]
+            bpy.ops.object.join()
+            bpy.context.active_object.name = prefix + "Merged"
+    # keep the kept parts' transforms: unparent them (keeping world transforms) before the join, re-parent after
+    kept = [o for o in root.children_recursive if o.name.startswith(KEEP)]
+    saved = {o: o.matrix_world.copy() for o in kept}
+    for o in kept:
+        o.parent = None
+        o.matrix_world = saved[o]
+    if len(meshes) < 2:
+        for o in kept:
+            o.parent = root
+            o.matrix_world = saved[o]
+        return root
+    target = meshes[0]
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    for o in meshes:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = target
+    bpy.ops.object.join()
+    merged = bpy.context.active_object
+    merged.name = (root.name + "Mesh") if root.type != "MESH" else root.name
+    if root.type != "MESH" and merged.parent is not root:
+        mw = merged.matrix_world.copy()
+        merged.parent = root
+        merged.matrix_world = mw
+    for o in kept:
+        o.parent = root if root.type != "MESH" else merged
+        o.matrix_world = saved[o]
+    return root
+
+
+def export(path, objs=None, merge=True):
+    """Export the given objects (or everything) as a GLB, Y-up, with materials and images embedded. `merge`: join each tree's
+    meshes into one (see KEEP)."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    if merge:
+        roots = objs or [o for o in bpy.context.scene.objects if o.parent is None]
+        for r in roots:
+            if r.type in ("MESH", "EMPTY"):
+                merge_tree(r)
+        objs = [o for o in (objs or []) if o.name in bpy.context.scene.objects] or None
     for o in bpy.context.scene.objects:
         o.select_set(False)
     sel = objs or list(bpy.context.scene.objects)

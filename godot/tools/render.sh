@@ -15,5 +15,6 @@ for a in "$@"; do
     *) ARGS+=("$a") ;;
   esac
 done
+"$GODOT" --headless --path "$HERE" --import >/dev/null 2>&1 || true  # (new or changed assets first)
 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json xvfb-run -a -s "-screen 0 ${SIZE}x24" \
   "$GODOT" --path "$HERE" --resolution "$SIZE" -- --shot="$OUT" "${ARGS[@]}" 2>&1 | grep -vE "^ALSA|audio|^\s+at:|^$|Condition \"status < 0\"" || true

@@ -204,11 +204,11 @@ def lk_sign_shower():
     img = Image.new("RGB", (w, h), CREAM)
     d = ImageDraw.Draw(img)
     d.rounded_rectangle((8, 8, w - 8, h - 8), 26, outline=NAVY, width=10)
-    pic = pictogram("shower", 200, CREAM)
-    img.paste(pic, (24, 28), pic)
-    ctext(d, (368, 88), "PLEASE SHOWER", F(48, "ExtraBold"), NAVY)
-    ctext(d, (368, 144), "BEFORE SWIMMING", F(40, "Bold"), SEA)
-    ctext(d, (368, 198), "thank you", P(28), CORAL)
+    pic = pictogram("shower", 176, CREAM)
+    img.paste(pic, (30, 40), pic)
+    ctext(d, (350, 88), "PLEASE SHOWER", F(42, "ExtraBold"), NAVY)
+    ctext(d, (350, 140), "BEFORE SWIMMING", F(36, "Bold"), SEA)
+    ctext(d, (350, 194), "thank you", P(28), CORAL)
     save(grain(fade(img, 0.15), 5), "lk_sign_shower")
 
 
@@ -347,10 +347,10 @@ def dr_whiteboard():
         for k, s in enumerate(row):
             hand(img, (cols[k] + 10, rows[i + 1] + 6), s, f, MARKER_BLUE if k else INK, 3, 100 + i * 7 + k)
     d.ellipse((182, rows[1] - 2, 306, rows[2] + 2), outline=MARKER_RED, width=4)
-    hand(img, (cols[4] + 14, rows[1] + 2), "<- PB!!", F(36, "ExtraBold"), MARKER_RED, 6, 140)
+    hand(img, (cols[4] + 14, rows[1] + 2), "<- PB!", F(32, "ExtraBold"), MARKER_RED, 6, 140)
     # the lessons timetable
-    hand(img, (600, 18), "SWIM LESSONS", F(50, "ExtraBold"), MARKER_RED, 2, 150)
-    wobble_line(d, (600, 72), (900, 70), MARKER_RED, 4, 151)
+    hand(img, (640, 18), "SWIM LESSONS", F(50, "ExtraBold"), MARKER_RED, 2, 150)
+    wobble_line(d, (640, 72), (940, 70), MARKER_RED, 4, 151)
     lessons = [
         ("MON", "4.00", "Ducklings", "#2b8a4a"),
         ("TUE", "5.30", "Improvers", MARKER_BLUE),
@@ -361,9 +361,9 @@ def dr_whiteboard():
     ]
     for i, (day, t, what, col) in enumerate(lessons):
         y = 88 + i * 46
-        hand(img, (600, y), day, F(34, "ExtraBold"), INK, 2, 160 + i)
-        hand(img, (672, y), t, F(34, "SemiBold"), col, 3, 170 + i)
-        hand(img, (772, y), what, F(34, "SemiBold"), col, 3, 180 + i)
+        hand(img, (640, y), day, F(34, "ExtraBold"), INK, 2, 160 + i)
+        hand(img, (708, y), t, F(34, "SemiBold"), col, 3, 170 + i)
+        hand(img, (800, y), what, F(34, "SemiBold"), col, 3, 180 + i)
     # a fish doodle and a reminder
     fx, fy = 860, 440
     d.ellipse((fx, fy, fx + 80, fy + 44), outline=MARKER_BLUE, width=4)
@@ -371,7 +371,7 @@ def dr_whiteboard():
     d.ellipse((fx + 54, fy + 12, fx + 64, fy + 22), fill=MARKER_BLUE)
     for k in range(3):
         d.ellipse((fx + 88 + k * 10, fy - 8 - k * 18, fx + 100 + k * 12, fy + 4 - k * 16), outline=MARKER_BLUE, width=2)
-    hand(img, (600, 372), "GALA SATURDAY!!", F(46, "ExtraBold"), MARKER_RED, 4, 190)
+    hand(img, (640, 372), "GALA SATURDAY!!", F(46, "ExtraBold"), MARKER_RED, 4, 190)
     hand(img, (40, 456), "no phones on deck - Coach W.", F(30, "SemiBold"), INK, 3, 191)
     save(grain(img, 3), "dr_whiteboard")
 
@@ -738,9 +738,56 @@ def dr_labels():
     dr_sign("dr_sign_hose", "#d6423a", "#ffffff", [("FIRE HOSE", 44)], (256, 96))
 
 
+def dr_cafe_view():
+    """What the café's glass doors show: a warm corridor, stairs up to the viewing gallery, the café's counter at the end."""
+    w, h = 512, 640
+    img = Image.new("RGB", (w, h), "#e9c99a")
+    d = ImageDraw.Draw(img)
+    vx, vy = 250, 300  # the vanishing point
+    d.polygon([(0, h), (w, h), (vx + 70, vy + 70), (vx - 70, vy + 70)], fill="#b98a5a")  # the floor
+    for k in range(9):  # floor boards
+        x = -200 + k * 110
+        d.line((x, h, vx - 70 + k * 17.5, vy + 70), fill="#a77a4c", width=2)
+    d.polygon([(0, 0), (vx - 70, vy - 110), (vx - 70, vy + 70), (0, h)], fill="#f0d9b0")  # left wall
+    d.polygon([(w, 0), (vx + 70, vy - 110), (vx + 70, vy + 70), (w, h)], fill="#e3c79c")  # right wall
+    d.polygon([(0, 0), (w, 0), (vx + 70, vy - 110), (vx - 70, vy - 110)], fill="#f6e6c6")  # ceiling
+    d.rectangle((vx - 70, vy - 110, vx + 70, vy + 70), fill="#f8ead0")  # the end wall
+    # the café counter at the end, its sign and a pendant lamp
+    d.rectangle((vx - 60, vy + 10, vx + 60, vy + 66), fill=SEA)
+    d.rectangle((vx - 64, vy + 4, vx + 64, vy + 12), fill="#c88b4f")
+    d.rectangle((vx - 44, vy - 80, vx + 44, vy - 50), fill=NAVY)
+    ctext(d, (vx, vy - 65), "CAFÉ", F(26, "Black"), CREAM)
+    for k in (-30, 30):
+        d.line((vx + k, vy - 110, vx + k, vy - 30), fill="#3a3b40", width=2)
+        d.pieslice((vx + k - 12, vy - 40, vx + k + 12, vy - 18), 180, 360, fill=MUSTARD)
+        d.ellipse((vx + k - 5, vy - 26, vx + k + 5, vy - 18), fill="#fff4d0")
+    # stairs rising up the right wall to the gallery
+    for k in range(10):
+        x0 = w - 20 - k * 22
+        y0 = h - 40 - k * 34
+        d.polygon([(x0, y0), (x0 - 40, y0 - 10), (x0 - 40, y0 + 14), (x0, y0 + 30)], fill="#d6b07a" if k % 2 else "#c99f6a")
+    d.line((w - 10, h - 120, w - 230, h - 460), fill="#1d3557", width=8)
+    for k in range(6):
+        x = w - 20 - k * 40
+        y = h - 130 - k * 62
+        d.line((x, y, x, y + 70), fill="#1d3557", width=4)
+    # a framed photograph and a plant on the left
+    d.rectangle((40, 170, 130, 250), fill="#c88b4f")
+    d.rectangle((48, 178, 122, 242), fill="#7cc6e3")
+    d.rectangle((48, 215, 122, 242), fill=SEA)
+    d.ellipse((30, 470, 110, 560), fill="#3f8a4a")
+    d.rectangle((50, 540, 92, 600), fill="#c9714a")
+    img = img.filter(ImageFilter.GaussianBlur(1.6))  # seen through the glass, a little soft
+    glow = Image.new("RGB", (w, h), "#ffd9a0")
+    m = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(m).ellipse((vx - 200, vy - 200, vx + 200, vy + 200), fill=90)
+    img = Image.composite(glow, img, m.filter(ImageFilter.GaussianBlur(60)))
+    save(grain(img, 4), "dr_cafe_view")
+
+
 ALL = {
     f.__name__: f
-    for f in [lk_note_ooo, lk_note_kick, lk_sign_shower, lk_sign_valuables, lk_scale_dial, dr_poster_gala, dr_poster_learn, dr_whiteboard, dr_rules, dr_honours, dr_team_photo, dr_corkboard, dr_vending_panel, dr_vending_side, dr_menu, dr_pace_face, dr_clock_face, dr_no_running, dr_labels]
+    for f in [lk_note_ooo, lk_note_kick, lk_sign_shower, lk_sign_valuables, lk_scale_dial, dr_poster_gala, dr_poster_learn, dr_whiteboard, dr_rules, dr_honours, dr_team_photo, dr_corkboard, dr_vending_panel, dr_vending_side, dr_menu, dr_pace_face, dr_clock_face, dr_no_running, dr_labels, dr_cafe_view]
 }
 
 if __name__ == "__main__":

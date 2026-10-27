@@ -98,7 +98,7 @@ func _place_cast() -> void:
 		var swimmer: Node3D = (load(CAST[(k + 2) % CAST.size()]) as PackedScene).instantiate()
 		var holder := Node3D.new()
 		holder.name = "Swimmer%d" % k
-		holder.position = Vector3(lanes[k][0], -0.28, lanes[k][1])
+		holder.position = Vector3(lanes[k][0], -0.42, lanes[k][1])
 		holder.rotation.y = lanes[k][2]
 		add_child(holder)
 		holder.add_child(swimmer)

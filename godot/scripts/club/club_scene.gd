@@ -124,7 +124,7 @@ func _sun() -> void:
 	sun.light_color = Color("#ffd29a")
 	sun.light_energy = 3.2
 	sun.light_angular_distance = 0.6
-	sun.light_volumetric_fog_energy = 2.2
+	sun.light_volumetric_fog_energy = 3.0
 	sun.shadow_enabled = true
 	sun.shadow_bias = 0.03
 	sun.shadow_normal_bias = 1.2
@@ -473,6 +473,18 @@ func _air() -> void:
 	fm.density_texture = n3
 	steam.material = fm
 	add_child(steam)
+	# along the window wall the sun's shafts cross warm, humid air: a denser layer there, fading toward the pool
+	var haze := FogVolume.new()
+	haze.name = "WindowHaze"
+	haze.size = Vector3(9.0, 9.4, 31.0)
+	haze.position = Vector3(10.6, 4.7, -1.6)
+	var hm := FogMaterial.new()
+	hm.density = 0.022
+	hm.albedo = Color("#fff4e2")
+	hm.edge_fade = 0.6
+	hm.height_falloff = 0.08
+	haze.material = hm
+	add_child(haze)
 
 
 func _reflections() -> void:

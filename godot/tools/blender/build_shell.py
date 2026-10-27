@@ -263,5 +263,5 @@ for (a, b) in sky:
 for k, zz in enumerate([z0 + 1.8 + 3.6 * i for i in range(int(L / 3.6))]):
     parts.append(gbox(f"ShadowOnly_Beam{k}", (0, H - 0.45, zz), (W, 0.9, 0.24), M["shadow"]))
 
-shell = [o for o in parts if o]
-export(os.path.join(VENUE, "club_shell.glb"), shell)
+root = parent_all([o for o in parts if o], "ClubShell")
+export(os.path.join(VENUE, "club_shell.glb"), [root])
