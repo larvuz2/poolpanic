@@ -535,16 +535,17 @@ func _air() -> void:
 ## More light in the ambient for what the tiles would bounce, a little less sun so its patches do not burn out, a warm haze
 ## lit toward the sun, and the shafts through the windows as soft beams (_sunbeams).
 func _web_light() -> void:
-	env.ambient_light_energy = 0.95
-	env.ambient_light_color = Color("#e9dfcf")
-	sun.light_energy = 1.55
-	sun.light_color = Color("#ffc57e")
+	env.ambient_light_energy = 0.55
+	env.ambient_light_color = Color("#e6dccb")
+	sun.light_energy = 1.3
+	sun.light_color = Color("#ffc27a")
+	(get_node("SkyFill") as DirectionalLight3D).light_energy = 0.3
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
 	env.fog_light_color = Color("#efdcc2")
 	env.fog_light_energy = 1.0
 	env.fog_density = 0.0055
-	env.fog_sun_scatter = 0.2
+	env.fog_sun_scatter = 0.15
 	env.fog_sky_affect = 0.0
 	env.glow_intensity = 0.4
 	_sunbeams()

@@ -126,13 +126,15 @@ renderer** (WebGL 2), which has no SDFGI, SSAO, SSIL, SSR or volumetric fog, so 
   through, so it is tinted glass, coloured by the floor's known depth and the slant of the view, with the same ripples, lace foam
   and clouding.
 - **Lighter textures:** `web-export.sh` exports from a copy whose textures are one desktop format (S3TC, which a browser without it
-  gets decompressed) and whose big tiling sets are 512 px (`tools/web-textures.py`); the Blender-only images stay out. About 80 MB
-  on disk, about 38 MB to download (the engine compresses well). The desktop builds are untouched.
+  gets decompressed) and whose big tiling sets are 512 px (`tools/web-textures.py`); the Blender-only images stay out. About 76 MB
+  on disk, about 35 MB to download when the server compresses it. The desktop builds are untouched.
 - **No MSAA** (its resolve fails on WebGL): FXAA instead (`msaa_3d.web=0` in `project.godot`).
-- A corner link goes back to the site's choice (`html/head_include` in `export_presets.cfg`).
+- A link in the top right corner goes back to the site's choice (`html/head_include` in `export_presets.cfg`), and the loading
+  screen is the Pool Panic logo (`assets/splash.png`, also the desktop builds' splash).
 
-`tools/render.sh --web` draws with the same renderer here (OpenGL in software), which is how the web look was tuned; a real browser
-on a graphics card has not been seen from here (the browser here only proved that it starts: WebGL 2, the venue loading, no errors).
+`tools/render.sh --web` draws with the same renderer here (OpenGL in software), which is how the web look was tuned. The web build
+itself was also played in Chromium here (WebGL 2 in software): it loads from the site's choice, draws the venue, the swimmers and the
+light, with no script errors. A real browser on a graphics card, its frame rate and Safari have not been seen from here.
 
 ## Rebuild or change it
 

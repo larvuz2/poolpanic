@@ -6,7 +6,7 @@ shader_type spatial;
 render_mode blend_add, unshaded, cull_disabled, depth_draw_never, shadows_disabled, fog_disabled;
 
 uniform vec3 color : source_color = vec3(1.0, 0.84, 0.6);
-uniform float strength = 0.1;
+uniform float strength = 0.07;
 uniform sampler2D dust_tex : hint_default_white, filter_linear_mipmap, repeat_enable;
 
 varying vec3 wpos;
