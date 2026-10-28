@@ -1,5 +1,6 @@
 // Classic indoor community club: warm sand tiles, muted teal walls, lockers in the left wall, office in the
-// upper-right corner. Layout matches the original prototype; materials and light are richer.
+// upper-right corner. Layout matches the original prototype; materials and light are richer. Since 28 October 2026 it is the
+// stand-in for the Harbourside (scene/harbourside.mjs) while that loads, and the pool with ?nomodels.
 import { THREE, COLORS } from "./kit.mjs";
 import { buildPool, buildDeck } from "./pool.mjs";
 import { Hall } from "./hall.mjs";
@@ -19,8 +20,11 @@ import {
   flashlightHolder,
   fuseBox,
 } from "./props.mjs";
+import { buildHarbourside, harbourReady } from "./harbourside.mjs";
 
-export function buildClub(w, venue) {
+export function buildClub(w, venue, lighting = w.lightingName) {
+  // The Harbourside Community Swim Club when its model is in and the look is its own (scene/harbourside.mjs); this one till then.
+  if (lighting === "harbour" && harbourReady()) return buildHarbourside(w, venue);
   buildDeck(w, venue, { base: "#c99a70", grout: "#a27a5a" });
   buildPool(w, venue);
   rearWall(w);

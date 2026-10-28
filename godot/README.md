@@ -136,6 +136,19 @@ renderer** (WebGL 2), which has no SDFGI, SSAO, SSIL, SSR or volumetric fog, so 
 itself was also played in Chromium here (WebGL 2 in software): it loads from the site's choice, draws the venue, the swimmers and the
 light, with no script errors. A real browser on a graphics card, its frame rate and Safari have not been seen from here.
 
+## In the three.js game too
+
+The same building and props dress the real game's Community Pool (28 October 2026: README "The Community Pool as the
+Harbourside"). `tools/blender/three_club.py` merges and simplifies them, bakes the deck's paint and the ambient occlusion, and
+packs the signs into atlases; `tools/three-club-pack.sh` writes `dist/assets/club/` (gltfpack, WebP). Run both after changing an
+asset or a placement here:
+
+```sh
+THREE_CLUB_WORK=/tmp/three-club blender -b -P godot/tools/blender/three_club.py
+THREE_CLUB_WORK=/tmp/three-club godot/tools/three-club-pack.sh
+node harbourside-check.mjs
+```
+
 ## Rebuild or change it
 
 - **Blender 4.5 LTS:** `godot/tools/blender/build_all.sh` rebuilds every asset; each script also runs alone with

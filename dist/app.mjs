@@ -57,6 +57,7 @@ import {
   swimmerTemplate,
 } from "./scene/swimmer-models.mjs";
 import { loadFishModel } from "./scene/fish-model.mjs";
+import { loadHarbourside } from "./scene/harbourside.mjs";
 import { cannonballMan } from "./incidents/carl.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
@@ -4880,6 +4881,22 @@ try {
   const waitForSwimmers = testing || playHunt || !!huntStep;
   const swimmersLoading = activeSwimmerChoice() === "models" ? loadSwimmerModels() : null;
   if (swimmersLoading && waitForSwimmers) fetching.push(swimmersLoading);
+  // The Community Pool as the Harbourside (scene/harbourside.mjs): a few MB, behind the menu like the swimmers; the classic pool
+  // stands in until it is in (and for ?nomodels, the crash hunt's switch for every model). START waits for it with the swimmers.
+  const harbourLoading = tuning.has("nomodels") ? null : loadHarbourside();
+  let harbourSettled = !harbourLoading;
+  harbourLoading?.then((model) => {
+    harbourSettled = true;
+    crashlog.crumb(
+      "venue",
+      (model ? "the Harbourside loaded in " : "the Harbourside failed after ") +
+        Math.round(performance.now() - began) +
+        " ms" +
+        (model ? "" : ": the classic Community Pool stays"),
+    );
+    // (built at once when the world is behind the menu; a shift already running keeps its pool, the next one has the new)
+    if (model && world && sim && mode === "menu") syncVenue(sim);
+  });
   if (fetching.length) {
     await Promise.race([Promise.all(fetching), new Promise((resolve) => setTimeout(resolve, 6000))]);
     const took = Math.round(performance.now() - began) + " ms";
@@ -4940,8 +4957,9 @@ try {
   // A new player's first line under the menu says what the game is; a tip from then on.
   if (!weekUi?.save?.week && !weekUi?.save?.stars && !weekUi?.save?.known?.length)
     $("ts-tip").textContent = document.querySelector(".wk-pitch").textContent.trim().replace(/\s+/g, " ");
-  // START says LOADING % while the swimmers come in (at most 12 s: after that the classic ones stand in until they do).
-  if (swimmersLoading && !waitForSwimmers) {
+  // START says LOADING % while the swimmers and the Harbourside come in (at most 12 s: after that the classic ones stand in until
+  // they do).
+  if ((swimmersLoading && !waitForSwimmers) || !harbourSettled) {
     let gaveUp = false;
     setTimeout(() => {
       gaveUp = true;
@@ -4949,7 +4967,10 @@ try {
     }, 12000);
     const poll = () => {
       if (gaveUp) return;
-      const share = swimmerLoadShare();
+      const share = Math.min(
+        swimmersLoading && !waitForSwimmers ? swimmerLoadShare() : 1,
+        harbourSettled ? 1 : 0.97,
+      );
       title.setLoading(share);
       if (share < 1) setTimeout(poll, 150);
     };

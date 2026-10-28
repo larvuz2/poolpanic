@@ -10,6 +10,7 @@ import {
 import { THREE, SceneKit, COLORS, disposeScene } from "./scene/kit.mjs";
 import { glowTexture, gradientTexture } from "./scene/textures.mjs";
 import { buildClub } from "./scene/club.mjs";
+import { harbourReady } from "./scene/harbourside.mjs";
 import { buildResort } from "./scene/resort.mjs";
 import { buildLagoon } from "./scene/lagoon.mjs";
 import { buildArena } from "./scene/arena.mjs";
@@ -142,6 +143,34 @@ export const LIGHTING = {
       [1, "#48507a"],
     ],
   },
+};
+
+// The Community Pool as the Harbourside Community Swim Club (scene/harbourside.mjs), late afternoon: a low golden sun through the
+// long window wall and the skylight (+x, the top of the view), whose patches fall across the deck and the pool, the rest of the
+// hall in a warm bounce (the hemisphere's ground the sand of the deck); the water clear over its mosaic, glinting toward the sun.
+LIGHTING.harbour = {
+  background: 0xd7e4e2,
+  exposure: 0.96,
+  hemi: [0xffeedb, 0x7d5f44, 0.74],
+  sun: [0xffbf7a, 3.7, [25.2, 21.7, 11.9]],
+  fill: [0xbcd6e4, 0.24, [-16, 14, -8]],
+  env: 0.52,
+  envColors: ["#f3e4cc", "#e2cfb2", "#8f6c4c"],
+  fog: [0xe4d4ba, 80, 200],
+  water: {
+    shallow: [0.28, 0.76, 0.78],
+    deep: [0.04, 0.42, 0.54],
+    sky: [0.92, 0.86, 0.76],
+    glint: [0.7, 0.58, 0.4],
+    glow: 0,
+    clarity: 0.5,
+  },
+  glow: 0,
+  sky: [
+    [0, "#86b8d8"],
+    [0.55, "#f2dab4"],
+    [1, "#ffd18e"],
+  ],
 };
 
 // Open-air moods that ride the shared time-of-day scale (scene/daylight.mjs). A shift may also slide along that scale
@@ -417,7 +446,9 @@ const BUILDERS = {
   onsen: buildOnsen,
   dive: buildDive,
 };
-const defaultLighting = (venue) => venue.lighting || (venue.indoor ? "indoor" : "day");
+// (the Community Pool takes the Harbourside's look once its model is in: scene/harbourside.mjs; the classic pool till then)
+const defaultLighting = (venue) =>
+  venue.lighting || (venue.id === "club" && harbourReady() ? "harbour" : venue.indoor ? "indoor" : "day");
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
 // dome's horizon takes the preset's own fog colour so the far ground melts into the sky without a seam.
 function withDome(name, venue) {
@@ -522,6 +553,7 @@ export class PoolWorld extends SceneKit {
     this.bobs = [];
     this.finPairs = [];
     this.ringModels = [];
+    this.ringAt = null;
     this.target = new THREE.Vector3(-1.5, 0.45, -3.2);
     this.glowMap = glowTexture();
     this.textures.push(this.glowMap);
@@ -1671,7 +1703,9 @@ export class PoolWorld extends SceneKit {
       const pulse = this.reducedMotion.matches ? 1 : 0.5 + 0.5 * Math.sin(time * 5);
       const needed = !!sim.rescue && sim.rescue.stage === "stranded";
       if (r.state === "wall") {
-        g.position.set(r.mount.x, 1.65, r.mount.z);
+        // (where the venue's board holds it, when its builder says: scene/harbourside.mjs; else on the classic mount)
+        const at = this.ringAt?.[r.id];
+        g.position.set(at?.x ?? r.mount.x, at?.y ?? 1.65, at?.z ?? r.mount.z);
         g.rotation.y = r.mount.angle;
         if (needed) g.scale.setScalar(1.04 + pulse * 0.08);
       } else if (r.state === "deck") {
