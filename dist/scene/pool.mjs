@@ -10,7 +10,7 @@ import {
   checkerTextures,
 } from "./textures.mjs";
 
-const CAUSTIC_GLSL = `
+export const CAUSTIC_GLSL = `
 float causticLayer(vec2 p, float t) {
   float a = sin(p.x * 2.1 + sin(p.y * 1.3 + t * 0.8) * 1.4 + t * 0.6);
   float b = sin(p.y * 2.3 + sin(p.x * 1.7 - t * 0.7) * 1.3 - t * 0.5);
@@ -140,6 +140,12 @@ export function buildPool(
     // How deep the basin's floor lies (a diving pool's is deep: the Jumping Pool), and where its ladders stand ([x, z] pairs).
     depth = 1.42,
     ladderAt = null,
+    // The Community Pool dressed as the Harbourside (scene/harbourside.mjs) brings its own basin, coping, blocks and flag posts:
+    // `basin: false` leaves out the floor, walls, waterline, lines and coping, `blocks: false` the starting blocks, `posts: false`
+    // the pennants' posts (the lines and pennants still hang where the posts' rings are).
+    basin = true,
+    blocks = venue.blocks !== false,
+    posts = true,
   } = {},
 ) {
   const lanes = venue.lanes,
@@ -148,72 +154,80 @@ export function buildPool(
     halfZ = P.halfZ,
     width = halfX * 2;
   w.poolUniforms = { uTime: { value: 0 }, uCaustic: { value: 1 } };
-  // Basin floor and walls in a caustic-lit mosaic.
-  const floorTex = floorMap || mosaicTexture({ seed: 3, base: floorTiles[0], grout: floorTiles[1] });
-  if (!floorMap) floorTex.repeat.set(width / 2, (halfZ * 2) / 2);
-  w.textures.push(floorTex);
-  const floorMat = withCaustics(
-    new THREE.MeshStandardMaterial({ map: floorTex, color: 0xffffff, roughness: 0.55, envMapIntensity: 0.4 }),
-    w.poolUniforms,
-    1.7,
-  );
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(width + 0.05, 0.15, halfZ * 2 + 0.4), floorMat);
-  floor.position.set(0, -depth, 0);
-  floor.receiveShadow = true;
-  w.scene.add(floor);
-  const wallTex = wallMap || mosaicTexture({ seed: 17, base: wallTiles[0], grout: wallTiles[1] });
-  if (!wallMap) wallTex.repeat.set(4, 0.6);
-  w.textures.push(wallTex);
-  const wallMat = withCaustics(
-    new THREE.MeshStandardMaterial({ map: wallTex, color: 0xffffff, roughness: 0.5, envMapIntensity: 0.4 }),
-    w.poolUniforms,
-    0.8,
-  );
-  const wallH = depth - 0.22,
-    wallY = -0.25 - wallH / 2;
-  for (const x of [-halfX, halfX]) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, wallH, halfZ * 2 + 0.4), wallMat);
-    m.position.set(x, wallY, 0);
-    m.receiveShadow = true;
-    w.scene.add(m);
-  }
-  for (const z of [-halfZ, halfZ]) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(width + 0.1, wallH, 0.16), wallMat);
-    m.position.set(0, wallY, z);
-    m.receiveShadow = true;
-    w.scene.add(m);
-  }
-  // Classic dark waterline band just under the coping.
-  const band = w.mat(bandColor, { roughness: 0.35 });
-  for (const x of [-halfX + 0.11, halfX - 0.11]) w.box(0.03, 0.16, halfZ * 2, band, x, -0.36, 0, 0);
-  for (const z of [-halfZ + 0.09, halfZ - 0.09]) w.box(width - 0.2, 0.16, 0.03, band, 0, -0.36, z, 0);
-  if (line !== null) {
-    // Regulation lane lines, T ends and wall targets.
-    for (const x of lanes) {
-      w.box(0.15, 0.016, 13.8, line, x, -1.33, 0, 0);
-      for (const z of [-6.9, 6.9]) w.box(1.65, 0.019, 0.18, line, x, -1.325, z, 0);
-      for (const z of [-halfZ + 0.12, halfZ - 0.12]) {
-        w.box(0.16, 0.72, 0.03, line, x, -0.91, z, 0);
-        w.box(1.15, 0.16, 0.032, line, x, -0.74, z, 0);
+  if (basin) buildBasin();
+  function buildBasin() {
+    // Basin floor and walls in a caustic-lit mosaic.
+    const floorTex = floorMap || mosaicTexture({ seed: 3, base: floorTiles[0], grout: floorTiles[1] });
+    if (!floorMap) floorTex.repeat.set(width / 2, (halfZ * 2) / 2);
+    w.textures.push(floorTex);
+    const floorMat = withCaustics(
+      new THREE.MeshStandardMaterial({
+        map: floorTex,
+        color: 0xffffff,
+        roughness: 0.55,
+        envMapIntensity: 0.4,
+      }),
+      w.poolUniforms,
+      1.7,
+    );
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(width + 0.05, 0.15, halfZ * 2 + 0.4), floorMat);
+    floor.position.set(0, -depth, 0);
+    floor.receiveShadow = true;
+    w.scene.add(floor);
+    const wallTex = wallMap || mosaicTexture({ seed: 17, base: wallTiles[0], grout: wallTiles[1] });
+    if (!wallMap) wallTex.repeat.set(4, 0.6);
+    w.textures.push(wallTex);
+    const wallMat = withCaustics(
+      new THREE.MeshStandardMaterial({ map: wallTex, color: 0xffffff, roughness: 0.5, envMapIntensity: 0.4 }),
+      w.poolUniforms,
+      0.8,
+    );
+    const wallH = depth - 0.22,
+      wallY = -0.25 - wallH / 2;
+    for (const x of [-halfX, halfX]) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, wallH, halfZ * 2 + 0.4), wallMat);
+      m.position.set(x, wallY, 0);
+      m.receiveShadow = true;
+      w.scene.add(m);
+    }
+    for (const z of [-halfZ, halfZ]) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(width + 0.1, wallH, 0.16), wallMat);
+      m.position.set(0, wallY, z);
+      m.receiveShadow = true;
+      w.scene.add(m);
+    }
+    // Classic dark waterline band just under the coping.
+    const band = w.mat(bandColor, { roughness: 0.35 });
+    for (const x of [-halfX + 0.11, halfX - 0.11]) w.box(0.03, 0.16, halfZ * 2, band, x, -0.36, 0, 0);
+    for (const z of [-halfZ + 0.09, halfZ - 0.09]) w.box(width - 0.2, 0.16, 0.03, band, 0, -0.36, z, 0);
+    if (line !== null) {
+      // Regulation lane lines, T ends and wall targets.
+      for (const x of lanes) {
+        w.box(0.15, 0.016, 13.8, line, x, -1.33, 0, 0);
+        for (const z of [-6.9, 6.9]) w.box(1.65, 0.019, 0.18, line, x, -1.325, z, 0);
+        for (const z of [-halfZ + 0.12, halfZ - 0.12]) {
+          w.box(0.16, 0.72, 0.03, line, x, -0.91, z, 0);
+          w.box(1.15, 0.16, 0.032, line, x, -0.74, z, 0);
+        }
       }
     }
+    // Rounded stone coping and drainage channels.
+    const stone = copingLook?.map || plasterTexture({ seed: 31, strength: 0.12 });
+    if (!copingLook?.map) stone.repeat.set(3, 3);
+    w.textures.push(stone);
+    const coping = w.mat(copingLook?.color ?? 0xdcc394, {
+      map: stone,
+      roughness: copingLook?.roughness ?? 0.62,
+    });
+    for (const x of [-halfX - 0.2, halfX + 0.2]) {
+      w.box(0.35, 0.18, halfZ * 2 + 0.9, coping, x, 0.02, 0, 0.05);
+      const gutter = x + (x > 0 ? 0.38 : -0.38);
+      w.box(0.2, 0.025, halfZ * 2 + 0.7, 0x5f7f7f, gutter, -0.001, 0, 0.01);
+      for (let z = -halfZ - 0.1; z < halfZ + 0.2; z += 0.24)
+        w.box(0.2, 0.035, 0.06, 0xd3ded1, gutter, 0.008, z, 0.008);
+    }
+    for (const z of [-halfZ - 0.3, halfZ + 0.3]) w.box(width + 0.7, 0.18, 0.38, coping, 0, 0.02, z, 0.05);
   }
-  // Rounded stone coping and drainage channels.
-  const stone = copingLook?.map || plasterTexture({ seed: 31, strength: 0.12 });
-  if (!copingLook?.map) stone.repeat.set(3, 3);
-  w.textures.push(stone);
-  const coping = w.mat(copingLook?.color ?? 0xdcc394, {
-    map: stone,
-    roughness: copingLook?.roughness ?? 0.62,
-  });
-  for (const x of [-halfX - 0.2, halfX + 0.2]) {
-    w.box(0.35, 0.18, halfZ * 2 + 0.9, coping, x, 0.02, 0, 0.05);
-    const gutter = x + (x > 0 ? 0.38 : -0.38);
-    w.box(0.2, 0.025, halfZ * 2 + 0.7, 0x5f7f7f, gutter, -0.001, 0, 0.01);
-    for (let z = -halfZ - 0.1; z < halfZ + 0.2; z += 0.24)
-      w.box(0.2, 0.035, 0.06, 0xd3ded1, gutter, 0.008, z, 0.008);
-  }
-  for (const z of [-halfZ - 0.3, halfZ + 0.3]) w.box(width + 0.7, 0.18, 0.38, coping, 0, 0.02, z, 0.05);
   // Water surface.
   const waterGeo = new THREE.PlaneGeometry(width - 0.1, halfZ * 2 - 0.1, Math.round(width * 3.6), 58);
   waterGeo.rotateX(-Math.PI / 2);
@@ -300,7 +314,7 @@ export function buildPool(
       });
     }
   }
-  if (venue.blocks !== false) {
+  if (blocks) {
     // Starting blocks with tilted tops, grips and visible lane numbers.
     lanes.forEach((x, i) => {
       w.box(0.65, 0.85, 0.75, 0xd1ded3, x, 0.48, -9.15, 0.07);
@@ -341,7 +355,7 @@ export function buildPool(
     // Backstroke pennants strung across the lanes near both ends.
     const postX = halfX + 1;
     for (const z of [-5.7, 5.7]) {
-      for (const x of [-postX, postX]) {
+      for (const x of posts ? [-postX, postX] : []) {
         w.cyl(0.09, 0.13, 3.35, 0xf2f1dd, x, 1.68, z);
         w.cyl(0.25, 0.3, 0.1, COLORS.navy, x, 0.07, z);
         w.ball(0.14, COLORS.yellow, x, 3.4, z);

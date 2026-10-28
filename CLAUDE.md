@@ -21,7 +21,10 @@ the same twice: see `docs/incidents.md`).
    good; six different ones a week once six are open, a pool never played always in; a new venue joins by being added to `POOLS` and
    `LADDER`) at a level from the week's band (`WEEK_BANDS`, `tierFor`: difficulty by week), with star targets made fair per pool
    (`scoreScale`) and smoothed across the levels (`TIER_SCALE`) by the coach bot. Week 4's Saturday is the season finale at the Grand
-   Gala Arena, and its date the story's ending (credits, then endless). The pools: the Community Pool, Splash
+   Gala Arena, and its date the story's ending (credits, then endless). The pools: the Community Pool (since 28 October 2026
+   dressed as the **Harbourside Community Swim Club**, the Godot test's building and props made cheap for this game, its own
+   golden light: `dist/scene/harbourside.mjs`, README "The Community Pool as the Harbourside"; the classic pool stands in while it
+   loads and with ?nomodels), Splash
    Park, the Sunset Lagoon, the **Aquatic Centre** (indoor and competitive, where Marco "the Missile" always swims), the **Aqua
    Disco** (a party pool with no lanes: four zones of aqua dancers facing Valentina, the instructor, all on one dance routine and its
    own song, `dist/dance.mjs`, `dist/music.mjs`; every incident still comes), the **Kids Pool** (only kids, who run all over the deck
@@ -133,8 +136,8 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
    Co-op is untested over Steam until the creator plays it on two machines (desktop/README.md, "Try co-op over Steam").
    **The Godot test (27 October 2026, `godot/README.md`)**: the creator wants to see how the game feels and looks in Godot instead
    of three.js, so `godot/` holds a Godot 4.7 project of one venue (the Community Pool), Coach Waters and one shift, no menu, built
-   from numbers exported from `dist/` (`godot/tools/export-data.mjs`), with its own downloads (`godot-latest`). It never changes
-   `dist/`, and nothing in the real game depends on it. Its venue was then dressed as a real step up in look (the creator: "AAA
+   from numbers exported from `dist/` (`godot/tools/export-data.mjs`), with its own downloads (`godot-latest`). Nothing in the real game
+   depends on it as it runs (the Community Pool's Harbourside files in `dist/assets/club/` are made from its Blender assets). Its venue was then dressed as a real step up in look (the creator: "AAA
    indie details… no empty spaces… use Blender for all the asset making"): the **Harbourside Community Swim Club**, every asset
    made by scripts in `godot/tools/blender/` (Blender 4.5), placed by `godot/data/placements/*.json`, lit in Godot (SDFGI,
    volumetric fog, a refractive water shader); its art direction is `godot/docs/look.md`. **On the web site** (27 October 2026, the
@@ -146,6 +149,8 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
    motion), more achievements, localisation, and the last pass before release (`desktop/steam/checklist.md`, section E: specs measured on
    a weak machine, a clean install, a long session, a rehearsed hotfix and rollback, dev mode off).
 3. **The look.** Lighting, textures, the art pass. **Last, on purpose.** Do not polish it unless asked: it must not change how the game plays.
+   (Asked so far: Senior Aqua Fit's photographs and models, and the Community Pool as the Harbourside, 28 October 2026, where
+   "performance is key": a venue's look is a few merged meshes, baked light and no new lights, measured against the old one.)
 4. **Launch.** Store page, trailer, wishlists, a demo, review, release.
 
 What only the creator can do (do not pretend to do it, and remind them when it blocks something): the Steamworks account and the $100 app fee,

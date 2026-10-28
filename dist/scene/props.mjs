@@ -105,8 +105,10 @@ export function lifeguardTower(w, x, z) {
   return g;
 }
 
-// Water care / first aid style station. Chlorine is rotated to face the long side.
-export function station(w, item, point, color, title, angle = 0) {
+// Water care / first aid style station. Chlorine is rotated to face the long side. With `body: false` only its hit box and
+// label (the Harbourside's stations are models: scene/harbourside.mjs).
+export function station(w, item, point, color, title, angle = 0, { body = true } = {}) {
+  if (!body) return stationLabel(w, item, point, angle);
   const g = w.group(point.x, 0, point.z, w.scene, angle);
   w.box(1.6, 1.12, 1.0, color, 0, 0.57, 0, 0.12, g);
   w.box(1.8, 0.16, 1.2, 0xffefd0, 0, 1.16, 0, 0.06, g);
@@ -125,6 +127,10 @@ export function station(w, item, point, color, title, angle = 0) {
     w.cyl(0.08, 0.1, 0.14, 0xffffe5, 0.43, 1.65, 0, g);
   }
   w.textPlane(title, 1.8, 0.31, "#fff1ce", "#32656b", 0, 2.09, 0.03, g, 42);
+  stationLabel(w, item, point, angle);
+  return g;
+}
+function stationLabel(w, item, point, angle) {
   stationHit(w, { kind: "station", item }, point, 2, 2.4, angle);
   w.labels.push({
     text: item === "chlorine" ? "E · CHLORINE" : "E · EYE RELIEF",
@@ -132,7 +138,6 @@ export function station(w, item, point, color, title, angle = 0) {
     y: 2.6,
     z: point.z,
   });
-  return g;
 }
 
 export function stationHit(w, data, p, width, height, angle = 0) {
@@ -148,7 +153,13 @@ export function stationHit(w, data, p, width, height, angle = 0) {
   return m;
 }
 
-export function finRack(w, point) {
+// With `rack: false` only the hit box and label: the Harbourside's rack is a model whose fins are the pairs (scene/harbourside.mjs).
+export function finRack(w, point, { rack = true } = {}) {
+  if (!rack) {
+    stationHit(w, { kind: "station", item: "fins" }, point, 2.2, 2.3, -Math.PI / 2);
+    w.labels.push({ text: "E · FIN RACK", x: point.x, y: 2.55, z: point.z });
+    return;
+  }
   const g = w.group(point.x, 0, point.z, w.scene, -Math.PI / 2);
   for (const x of [-0.85, 0.85]) {
     w.box(0.11, 1.72, 0.13, COLORS.navy, x, 0.86, 0, 0.035, g);
@@ -254,17 +265,20 @@ export function lifeRingObject(w) {
 }
 
 // Wall mounts for the three life rings, with rescue-only floor glows and warm local lights.
-export function rescueStations(w, venue) {
+// (`mounts: false`: the boards are the Harbourside's models; the rings, glows and lights are these.)
+export function rescueStations(w, venue, { mounts = true } = {}) {
   w.ringModels = [];
   w.ringHits = [];
   w.ringGlows = [];
   w.ringLights = [];
   const glowMap = w.glowMap;
   for (const [id, p] of venue.ringMounts.entries()) {
-    const mount = w.group(p.x, 0, p.z, w.scene, p.angle);
-    w.box(1.65, 2.5, 0.13, 0x277982, 0, 1.3, -0.18, 0.09, mount);
-    w.rod([0, 2.3, -0.12], [0, 2.3, 0.13], 0.055, COLORS.navy, mount);
-    w.textPlane("LIFE RING", 1.65, 0.32, "#fff1ce", "#245c63", 0, 2.72, 0.04, mount, 45);
+    if (mounts) {
+      const mount = w.group(p.x, 0, p.z, w.scene, p.angle);
+      w.box(1.65, 2.5, 0.13, 0x277982, 0, 1.3, -0.18, 0.09, mount);
+      w.rod([0, 2.3, -0.12], [0, 2.3, 0.13], 0.055, COLORS.navy, mount);
+      w.textPlane("LIFE RING", 1.65, 0.32, "#fff1ce", "#245c63", 0, 2.72, 0.04, mount, 45);
+    }
     const model = lifeRingObject(w);
     model.position.set(p.x, 1.65, p.z);
     model.rotation.y = p.angle;
@@ -341,31 +355,26 @@ export function pooObject(w) {
   return g;
 }
 
-// Skimmer hooks on the near wall and the waste bin (level 3+).
-export function sanitationCorner(w, venue) {
+// Skimmer hooks on the near wall and the waste bin (level 3+). The Harbourside has its own recycling bins and wall: `board: false`
+// leaves out the board and its title, `bin: false` the bin (their hit boxes and labels stay).
+export function sanitationCorner(w, venue, { board = true, bin = true } = {}) {
   const g = new THREE.Group();
   w.sanitationGroup = g;
   w.scene.add(g);
   const r = venue.sanitation.rack,
     b = venue.sanitation.bin,
     wallX = venue.deck.minX - 0.45;
-  w.box(0.16, 1.25, 3.9, 0x174752, wallX, 1.75, r.z, 0.07, g);
+  if (board) w.box(0.16, 1.25, 3.9, 0x174752, wallX, 1.75, r.z, 0.07, g);
   for (const z of [r.z - 1, r.z + 1])
     w.rod([wallX + 0.15, 1.8, z], [wallX + 0.65, 1.8, z], 0.07, 0xe5ba57, g);
   w.skimmerRack = skimmerObject(w);
   w.skimmerRack.position.set(wallX + 0.55, 1.85, r.z - 1.5);
   g.add(w.skimmerRack);
-  const title = w.textPlane("POOL SKIMMER", 2.7, 0.4, "#f6daa1", "#245762", wallX - 0.1, 2.65, r.z, g, 42);
-  title.rotation.y = -Math.PI / 2;
-  w.cyl(0.62, 0.52, 1.25, 0x204d59, b.x, 0.65, b.z, g);
-  w.cyl(0.59, 0.59, 0.045, 0x102833, b.x, 1.29, b.z, g);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.59, 0.07, 8, 22), w.mat(0xf2b44f));
-  rim.rotation.x = Math.PI / 2;
-  rim.position.set(b.x, 1.32, b.z);
-  g.add(rim);
-  for (const z of [-0.3, 0.3]) w.box(0.03, 0.5, 0.14, 0xf0bd4d, b.x - 0.61, 0.74, b.z + z, 0.02, g);
-  const label = w.textPlane("WASTE", 0.84, 0.35, "#204d59", "#ffdda1", b.x - 0.64, 0.83, b.z, g, 42);
-  label.rotation.y = -Math.PI / 2;
+  if (board) {
+    const title = w.textPlane("POOL SKIMMER", 2.7, 0.4, "#f6daa1", "#245762", wallX - 0.1, 2.65, r.z, g, 42);
+    title.rotation.y = -Math.PI / 2;
+  }
+  if (bin) wasteBin(w, b, g);
   for (const [item, point] of [
     ["skimmer", r],
     ["waste-bin", b],
@@ -393,6 +402,18 @@ export function sanitationCorner(w, venue) {
   w.scoopNet.rotation.x = Math.PI / 2;
   w.scoopCast.add(w.scoopNet);
   w.scoopCast.visible = false;
+}
+
+function wasteBin(w, b, g) {
+  w.cyl(0.62, 0.52, 1.25, 0x204d59, b.x, 0.65, b.z, g);
+  w.cyl(0.59, 0.59, 0.045, 0x102833, b.x, 1.29, b.z, g);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.59, 0.07, 8, 22), w.mat(0xf2b44f));
+  rim.rotation.x = Math.PI / 2;
+  rim.position.set(b.x, 1.32, b.z);
+  g.add(rim);
+  for (const z of [-0.3, 0.3]) w.box(0.03, 0.5, 0.14, 0xf0bd4d, b.x - 0.61, 0.74, b.z + z, 0.02, g);
+  const label = w.textPlane("WASTE", 0.84, 0.35, "#204d59", "#ffdda1", b.x - 0.64, 0.83, b.z, g, 42);
+  label.rotation.y = -Math.PI / 2;
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -465,11 +486,12 @@ export function fishObject(w, scale = 1) {
   return g;
 }
 
-export function fishNetHook(w, p) {
+// (`board: false`: two brass hooks on the Harbourside's wall, no board.)
+export function fishNetHook(w, p, { board = true } = {}) {
   const g = w.group(p.x, 0, p.z, w.scene, p.angle);
-  w.box(1.4, 2.8, 0.13, 0x2c6f5c, 0, 1.45, -0.18, 0.09, g);
+  if (board) w.box(1.4, 2.8, 0.13, 0x2c6f5c, 0, 1.45, -0.18, 0.09, g);
   for (const y of [1.25, 2.35]) w.rod([0, y, -0.12], [0, y, 0.16], 0.05, 0xe5ba57, g);
-  w.textPlane("FISH NET", 1.4, 0.32, "#e9f7d6", "#245c4a", 0, 3.05, 0.04, g, 45);
+  if (board) w.textPlane("FISH NET", 1.4, 0.32, "#e9f7d6", "#245c4a", 0, 3.05, 0.04, g, 45);
   w.fishNetRack = fishNetObject(w);
   w.fishNetRack.position.set(p.x + Math.sin(p.angle) * 0.2, 0.55, p.z + Math.cos(p.angle) * 0.2);
   w.fishNetRack.rotation.set(-Math.PI / 2, 0, 0);
@@ -496,7 +518,9 @@ export function bone(w, x, y, z, parent, s = 1) {
   return g;
 }
 
-export function treatsTable(w, p) {
+// (`table: false`: the hit box and label for the Harbourside's model.)
+export function treatsTable(w, p, { table = true } = {}) {
+  if (!table) return treatsLabel(w, p);
   const g = w.group(p.x, 0, p.z);
   w.cyl(0.36, 0.36, 0.08, 0xf4f1e2, 0, 0.78, 0, g, 18);
   w.cyl(0.05, 0.08, 0.76, COLORS.navy, 0, 0.38, 0, g, 8);
@@ -511,6 +535,9 @@ export function treatsTable(w, p) {
   for (let i = 0; i < 4; i++)
     bone(w, Math.cos(i * 1.7) * 0.07, 0.9 + i * 0.07, Math.sin(i * 1.7) * 0.07, g, 0.45).rotation.y = i;
   w.textPlane("DOG TREATS", 0.9, 0.2, "#fff1ce", "#8a5a2e", 0, 1.45, 0, g, 38).rotation.y = -Math.PI / 2;
+  treatsLabel(w, p);
+}
+function treatsLabel(w, p) {
   stationHit(w, { kind: "fixture", item: "treats" }, p, 1.2, 1.6);
   w.labels.push({
     text: "E · DOG TREATS",
@@ -535,12 +562,15 @@ export function flashlightObject(w) {
   return g;
 }
 
-export function flashlightHolder(w, p) {
-  const g = w.group(p.x, 0, p.z);
-  w.cyl(0.06, 0.06, 1.1, COLORS.navy, 0, 0.55, 0, g, 8);
-  w.box(0.4, 0.12, 0.3, COLORS.navy, 0, 1.1, 0, 0.03, g);
+// (`post: false`: the torch hangs on the Harbourside's lifeguard chair, at `at` if given.)
+export function flashlightHolder(w, p, { post = true, at = null } = {}) {
+  if (post) {
+    const g = w.group(p.x, 0, p.z);
+    w.cyl(0.06, 0.06, 1.1, COLORS.navy, 0, 0.55, 0, g, 8);
+    w.box(0.4, 0.12, 0.3, COLORS.navy, 0, 1.1, 0, 0.03, g);
+  }
   w.flashlightRack = flashlightObject(w);
-  w.flashlightRack.position.set(p.x, 1.24, p.z);
+  w.flashlightRack.position.set(at?.x ?? p.x, at?.y ?? 1.24, at?.z ?? p.z);
   w.flashlightRack.rotation.y = -Math.PI / 2;
   w.scene.add(w.flashlightRack);
   stationHit(w, { kind: "fixture", item: "flashlight" }, p, 1, 1.8);

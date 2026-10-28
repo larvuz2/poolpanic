@@ -1,0 +1,236 @@
+{
+ "made": "godot/tools/blender/three_club.py",
+ "triangles": 234988,
+ "lights": [
+  {
+   "kind": "CafeBulb",
+   "at": [
+    -6.5,
+    5.62,
+    15.25
+   ]
+  },
+  {
+   "kind": "CafeBulb",
+   "at": [
+    -3.6,
+    5.62,
+    15.25
+   ]
+  },
+  {
+   "kind": "CafeBulb",
+   "at": [
+    -0.8,
+    5.62,
+    15.25
+   ]
+  },
+  {
+   "kind": "CafeBulb",
+   "at": [
+    2.2,
+    5.62,
+    15.25
+   ]
+  },
+  {
+   "kind": "CafeBulb",
+   "at": [
+    6.4,
+    5.62,
+    15.25
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -4.997,
+    -0.95,
+    -4.5
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -4.997,
+    -0.95,
+    2.5
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    4.997,
+    -0.95,
+    -4.5
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    4.997,
+    -0.95,
+    2.5
+   ]
+  },
+  {
+   "kind": "VendGlow",
+   "at": [
+    6.645,
+    1.09,
+    -16.245
+   ]
+  },
+  {
+   "kind": "Bulkhead",
+   "at": [
+    -11.1,
+    2.35,
+    -16.34
+   ]
+  },
+  {
+   "kind": "Bulkhead",
+   "at": [
+    11.1,
+    2.35,
+    -16.34
+   ]
+  },
+  {
+   "kind": "Strip",
+   "at": [
+    -5.7,
+    7.54,
+    -16.25
+   ]
+  },
+  {
+   "kind": "Strip",
+   "at": [
+    -1.9,
+    7.54,
+    -16.25
+   ]
+  },
+  {
+   "kind": "Strip",
+   "at": [
+    1.9,
+    7.54,
+    -16.25
+   ]
+  },
+  {
+   "kind": "Strip",
+   "at": [
+    5.7,
+    7.54,
+    -16.25
+   ]
+  },
+  {
+   "kind": "DeskLamp",
+   "at": [
+    12.9,
+    1.06,
+    9.995
+   ]
+  }
+ ],
+ "atlases": {
+  "atlas_signs": {
+   "size": 2048,
+   "images": 31,
+   "longest": 512
+  },
+  "atlas_cut": {
+   "size": 1024,
+   "images": 13,
+   "longest": 448
+  }
+ },
+ "ao": 1,
+ "paint": {
+  "size": 2048,
+  "x0": -15.2,
+  "z0": -16.8,
+  "span": 30.4
+ },
+ "anchors": {
+  "LifeRing": [
+   [
+    -4.004,
+    1.455,
+    -15.654
+   ],
+   [
+    -14.529,
+    1.495,
+    -4.996
+   ],
+   [
+    14.489,
+    1.495,
+    4.996
+   ]
+  ],
+  "Flashlight": [
+   [
+    11.704,
+    0.994,
+    -7.52
+   ]
+  ]
+ },
+ "mural": {
+  "width": 15.2,
+  "height": 4.75,
+  "at": [
+   0,
+   4.78,
+   -16.685
+  ],
+  "lamps": [
+   -5.7,
+   -1.9,
+   1.9,
+   5.7
+  ]
+ },
+ "meshes": [
+  "Door_Men",
+  "Door_Women",
+  "Fins_1",
+  "Fins_2",
+  "Fins_3",
+  "HandMinuteWall_1",
+  "HandMinute_1",
+  "HandSecondWall_1",
+  "HandSecond_1",
+  "NearWall",
+  "S_cut",
+  "S_glass",
+  "S_gloss",
+  "S_gloss_n",
+  "S_glow",
+  "S_leaf",
+  "S_matte",
+  "S_matte_n",
+  "S_metal",
+  "S_metal_n",
+  "S_satin",
+  "S_satin_n",
+  "S_signs",
+  "S_tile_deck_tile",
+  "S_tile_plaster",
+  "S_tile_pool_mosaic",
+  "S_tile_terrazzo",
+  "S_tile_timber",
+  "S_tile_wall_cream",
+  "S_tile_wall_navy",
+  "S_tile_wall_sea",
+  "ShadowOnly"
+ ]
+}
