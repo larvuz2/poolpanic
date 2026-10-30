@@ -1,6 +1,6 @@
 {
  "made": "godot/tools/blender/three_club.py",
- "triangles": 234988,
+ "triangles": 227444,
  "lights": [
   {
    "kind": "CafeBulb",
@@ -75,27 +75,27 @@
    ]
   },
   {
+   "kind": "Bulkhead",
+   "at": [
+    -10.7,
+    3.1,
+    -16.64
+   ]
+  },
+  {
+   "kind": "Bulkhead",
+   "at": [
+    10.7,
+    3.1,
+    -16.64
+   ]
+  },
+  {
    "kind": "VendGlow",
    "at": [
     6.645,
     1.09,
     -16.245
-   ]
-  },
-  {
-   "kind": "Bulkhead",
-   "at": [
-    -11.1,
-    2.35,
-    -16.34
-   ]
-  },
-  {
-   "kind": "Bulkhead",
-   "at": [
-    11.1,
-    2.35,
-    -16.34
    ]
   },
   {
@@ -142,7 +142,7 @@
  "atlases": {
   "atlas_signs": {
    "size": 2048,
-   "images": 31,
+   "images": 27,
    "longest": 512
   },
   "atlas_cut": {
@@ -226,7 +226,6 @@
   "S_tile_deck_tile",
   "S_tile_plaster",
   "S_tile_pool_mosaic",
-  "S_tile_terrazzo",
   "S_tile_timber",
   "S_tile_wall_cream",
   "S_tile_wall_navy",

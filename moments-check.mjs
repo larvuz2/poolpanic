@@ -262,7 +262,8 @@ function diveAt(s, z) {
     ),
   );
   const exit = s.loudestAlert();
-  assert.equal(exit.label, "Locker door", "It follows: the nearest locker door");
+  // (the Community Pool's changing rooms are doors in its back wall since 30 October 2026, no locker rooms: "Door")
+  assert.equal(exit.label, "Door", "It follows: the nearest door");
   drain(s);
   go(s, exit.x, exit.z + 0.6);
   for (let f = 0; f < 240 && s.dog?.stage === "following"; f++) tick(s);

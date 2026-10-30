@@ -7,7 +7,7 @@
 // occlusion in their alpha), the tile sets, two sign atlases, the floor's paint, the mural and the floor's occlusion.
 //
 // What the game moves stays its own: the water, the lane ropes and pennants (pool.mjs), the life rings, the fins (the model's
-// Fins_1..3 are the rack's pairs), the changing rooms' doors (the model's Door_Men/Door_Women, swung here), the skimmer, the
+// Fins_1..3 are the rack's pairs), the changing rooms' doors in the back wall (the model's Door_Men/Door_Women, swung by the game's door sync), the skimmer, the
 // fish net, the torch, the fuse box, the mop, and every hit box and label (props.mjs, with their stands left out).
 //
 // It loads behind the menu (`loadHarbourside`, app.mjs); until it has, and with ?nomodels, the Community Pool is the classic one
@@ -28,7 +28,6 @@ import {
   flashlightHolder,
   fuseBox,
 } from "./props.mjs";
-import { doorOpening } from "../spatial.mjs";
 
 const BASE = new URL("../assets/club/", import.meta.url).href;
 export const HARBOUR_TILES = [
@@ -39,7 +38,6 @@ export const HARBOUR_TILES = [
   "wall_cream",
   "plaster",
   "timber",
-  "terrazzo",
 ];
 // (roughness of each tile set: glazed tiles shine, plaster and timber less)
 const TILE_ROUGH = {
@@ -309,27 +307,25 @@ function liveParts(w, venue, root, info) {
   const torch = info.anchors?.Flashlight?.[0];
   flashlightHolder(w, F.flashlight, { post: false, at: torch && { x: torch[0], y: torch[1], z: torch[2] } });
   fuseBox(w, F.fuseBox);
-  // the changing rooms' doors swing open into the hall as a guest comes or goes (sim.doors: -1 the men's, 1 the women's)
-  const Y = new THREE.Vector3(0, 1, 0),
-    Z = new THREE.Vector3(0, 0, 1),
+  // the changing rooms' doors, flush in the back wall (no locker rooms since 30 October 2026), each hinged on its outer edge:
+  // they swing out onto the deck as a guest comes or goes, by the game's own door sync (`lockerDoors`, scene.mjs), as the Aqua
+  // Disco's leaves do
+  for (const [name, side] of [
+    ["Door_Men", -1],
+    ["Door_Women", 1],
+  ]) {
+    const hinge = root.getObjectByName(name);
+    if (hinge) w.lockerDoors.push({ side, hinge });
+  }
+  const Z = new THREE.Vector3(0, 0, 1),
     q = new THREE.Quaternion();
-  const doors = [
-    [root.getObjectByName("Door_Men"), -1],
-    [root.getObjectByName("Door_Women"), 1],
-  ]
-    .filter(([d]) => d)
-    .map(([node, side]) => ({ node, side, base: node.quaternion.clone() }));
   // the pace clock's and the wall clock's hands: the second hand sweeps once a minute, the minute hand once an hour
   const hands = [];
   root.traverse((o) => {
     if (/^Hand(Minute|Second)/.test(o.name) && !hands.some((h) => h.node === o))
       hands.push({ node: o, minute: o.name.includes("Minute"), base: o.quaternion.clone() });
   });
-  w.updaters.push((time, dt, world, sim) => {
-    for (const d of doors)
-      d.node.quaternion
-        .copy(d.base)
-        .multiply(q.setFromAxisAngle(Y, -d.side * 1.4 * doorOpening(sim?.doors?.[d.side] || 0)));
+  w.updaters.push(() => {
     const t = performance.now() / 1000;
     for (const h of hands) {
       const turn = h.minute ? (t % 3600) / 3600 : (t % 60) / 60;

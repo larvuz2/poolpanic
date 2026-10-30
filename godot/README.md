@@ -89,12 +89,13 @@ the blocks.
 - the drinking fountain, a big monstera, the WOOF! treat table, the recycling bins;
 - the skimmer rack, net, fuse box, mop and bucket.
 
-**The changing rooms** (`props_lockers.py`): open alcoves you look down into.
+**The changing rooms' doors** (`props_doors.py`; no locker rooms since 30 October 2026, the creator: "remove the lockers and
+place the doors on the same axis as the wall"): MEN and WOMEN, flush in the −Z wall where the locker rooms stood.
 
-- Terrazzo floors, tiled walls, 33 lockers each, one door ajar.
-- Robes, mirrors, a hair dryer, scales.
-- Socks and flip-flops left behind, an "Out of order!" note.
-- A door that swings open now and then.
+- A painted door in a white frame, a frosted porthole, a brass push plate, a dark doorway behind, a stone threshold.
+- A sign with its figure and a bulkhead lamp over each.
+- A slatted bench with a towel and a swim bag, coat hooks with a robe and a towel; a rinse shower and its PLEASE SHOWER sign.
+- The door swings open as a guest comes or goes.
 
 **The edges** (`props_dressing.py`):
 

@@ -17,31 +17,32 @@ for (const level of [1, 5, 10]) {
   assert.ok(s.time >= 3 && s.time <= 5);
   const p = s.people[0];
   assert.equal(p.status, "arriving");
-  assert.equal(p.x, -ARRIVAL.insideX);
-  assert.equal(p.z, ARRIVAL.doorZ);
+  // (behind the MEN's door in the back wall: the club has no locker rooms since 30 October 2026)
+  assert.deepEqual({ x: p.x, z: p.z }, ARRIVAL.at(-1, "inside"));
   assert.equal(p.wait, 0);
   assert.ok(s.doors[-1] > 0);
   assert.equal(s.events.filter((e) => e.type === "door-open").length, 1);
   s.select(p.id);
   assert.equal(s.selected, null, "Swimmer becomes selectable only after stepping onto deck");
-  const startX = p.x;
+  const start = { x: p.x, z: p.z };
   tick(s, 12);
-  assert.equal(p.x, startX, "Door has time to swing before the walk begins");
+  assert.deepEqual({ x: p.x, z: p.z }, start, "Door has time to swing before the walk begins");
   s.status = "paused";
   const remaining = s.doors[-1];
   tick(s, 120);
   assert.equal(s.doors[-1], remaining);
   s.status = "playing";
-  let previous = p.x;
+  let previous = { x: p.x, z: p.z };
   while (p.status === "arriving") {
     s.tick(1 / 60);
-    assert.ok(Math.abs(p.x - previous) < 0.09, "Entrance walk is continuous");
-    previous = p.x;
+    assert.ok(Math.hypot(p.x - previous.x, p.z - previous.z) < 0.09, "Entrance walk is continuous");
+    previous = { x: p.x, z: p.z };
     assert.equal(p.wait, 0, "No lost patience inside the doorway");
   }
   assert.equal(p.status, "queue");
   assert.equal(p.h, 100);
-  assert.ok(s.time <= 5, "First swimmer reaches the deck within five seconds");
+  // (5.5 s since the doors moved into the back wall, 30 October 2026: a few steps further than from the locker rooms)
+  assert.ok(s.time <= 6, "First swimmer reaches the deck within six seconds");
   assert.equal(p.x, p.queueTarget.x);
   assert.equal(p.z, p.queueTarget.z);
   s.select(p.id);
@@ -68,16 +69,17 @@ for (const side of [-1, 1])
     else s.lose(p);
     let crossed = false;
     for (let frame = 0; frame < 360 && p.status !== "gone"; frame++) {
-      const before = p.x * side;
+      const before = { x: p.x, z: p.z };
       s.tick(1 / 60);
-      if (before < ARRIVAL.doorX && p.x * side >= ARRIVAL.doorX && Math.abs(p.z - ARRIVAL.doorZ) < 0.1) {
+      // (through the doorway in the back wall: across the door's line along z, at the door's x)
+      if (before.z > ARRIVAL.doorZ && p.z <= ARRIVAL.doorZ && Math.abs(p.x - side * ARRIVAL.doorX) < 0.1) {
         crossed = true;
         assert.ok(doorOpening(s.doors[side]) > 0.99, "Return door opens before a swimmer crosses");
       }
     }
     assert.ok(crossed);
     assert.equal(p.status, "gone");
-    assert.equal(p.x, side * ARRIVAL.insideX);
+    assert.deepEqual({ x: p.x, z: p.z }, ARRIVAL.at(side, "inside"));
     assert.equal(
       s.events.filter((e) => e.type === "door-open").length,
       0,
@@ -120,5 +122,5 @@ for (const side of [-1, 1])
   assert.equal(tones.length, 3);
 }
 console.log(
-  "Arrival checks passed: delayed first arrival, audible door cue, anticipation hold, continuous walk, queue activation, paused doors, alternating lockers, retries, closure, and end-of-shift cleanup.",
+  "Arrival checks passed: delayed first arrival, audible door cue, anticipation hold, continuous walk, queue activation, paused doors, alternating doors, retries, closure, and end-of-shift cleanup.",
 );

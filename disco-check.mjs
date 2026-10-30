@@ -70,7 +70,12 @@ const assign = (s, p, lane) => {
   assert.ok(door.insideZ < disco.room.minZ + 0.3, "inside is behind the back wall");
   assert.ok(disco.isDeck(door.outsideX, door.doorZ, 3, 0.3), "the doorway opens onto the deck");
   assert.equal(disco.doorWord, "the door");
-  assert.equal(VENUES.club.doorWord, "a locker door", "the other pools keep their locker rooms");
+  assert.equal(VENUES.resort.doorWord, "a locker door", "the resort pools keep their locker rooms");
+  assert.equal(
+    VENUES.club.doorWord,
+    "a changing-room door",
+    "the Community Pool's doors in its back wall (30 October 2026)",
+  );
   const s = shift();
   const [p] = toQueue(s, 1);
   assert.ok(p.status === "queue");

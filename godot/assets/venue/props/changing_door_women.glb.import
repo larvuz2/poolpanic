@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://lqykutv7xt8r"
-path="res://.godot/imported/locker_bay_women.glb-b5a0e5ae8897b9ae8a120b373f4e6d8e.scn"
+uid="uid://g2q5gn0cvwpl"
+path="res://.godot/imported/changing_door_women.glb-22c1184aac54e95bd07a9bb1ddce4f9b.scn"
 
 [deps]
 
-source_file="res://assets/venue/props/locker_bay_women.glb"
-dest_files=["res://.godot/imported/locker_bay_women.glb-b5a0e5ae8897b9ae8a120b373f4e6d8e.scn"]
+source_file="res://assets/venue/props/changing_door_women.glb"
+dest_files=["res://.godot/imported/changing_door_women.glb-22c1184aac54e95bd07a9bb1ddce4f9b.scn"]
 
 [params]
 

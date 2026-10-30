@@ -1,4 +1,0 @@
-[
-  {"asset": "props/locker_bay_men.glb", "pos": [0, 0, 0], "rot": 0, "scale": 1, "note": "MEN changing room, modelled in place (x -13.35..-8.05, z -16.46..-13.66); its Door opens into the hall with rotation.y = +90"},
-  {"asset": "props/locker_bay_women.glb", "pos": [0, 0, 0], "rot": 0, "scale": 1, "note": "WOMEN changing room, modelled in place (x 8.05..13.35, z -16.46..-13.66); its Door opens into the hall with rotation.y = -90"}
-]

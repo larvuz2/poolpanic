@@ -1,6 +1,7 @@
 """The printed and painted surfaces of the Community Pool's dressing and locker rooms: posters, notices, the whiteboard, the
 honours board, clock faces, labels. Drawn with Pillow (system python3, not Blender's), into godot/assets/textures/props/
-(dr_* for the hall's dressing, lk_* for the locker rooms). props_dressing.py and props_lockers.py run it when a file is missing.
+(dr_* for the hall's dressing, lk_* first made for the locker rooms: the shower sign by the changing rooms' doors). props_dressing.py
+and props_doors.py run it when a file is missing.
 
     python3 godot/tools/blender/props_dressing_textures.py [name ...]   (any python3 with Pillow)
 """

@@ -1,4 +1,4 @@
-"""Shared pieces for props_lockers.py and props_dressing.py: boxes by their extents, decals, sub-assemblies built at the origin
+"""Shared pieces for props_doors.py and props_dressing.py: boxes by their extents, decals, sub-assemblies built at the origin
 and moved into place, and the small things a swimming club collects (towels, socks, flip-flops, goggles, kickboards, bags,
 pot plants). Everything here is built in Blender coordinates; a sub-assembly faces Blender -Y (Godot +Z) until it is moved.
 """

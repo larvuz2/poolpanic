@@ -57,8 +57,7 @@ for (const end of [-1, 1])
         }
         assert.ok(climbed && walked);
         assert.equal(p.status, "gone");
-        assert.equal(p.x, side * ARRIVAL.insideX);
-        assert.equal(p.z, ARRIVAL.doorZ);
+        assert.deepEqual({ x: p.x, z: p.z }, ARRIVAL.at(side, "inside"));
         assert.equal(s.stats.served, 1, "A return does not award the workout twice");
         cases++;
       }

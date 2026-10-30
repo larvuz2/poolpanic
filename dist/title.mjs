@@ -152,6 +152,7 @@ export function installTitle({
       input.style.setProperty("--fill", ((settings[key] - input.min) / (input.max - input.min)) * 100 + "%");
     }
     $("set-invert").checked = settings.invertY;
+    $("set-coachcam").checked = !!settings.coachCam;
     $("set-motion").checked = motionReduced(settings, matchMedia("(prefers-reduced-motion: reduce)").matches);
     $("set-fullscreen").checked = isFullscreen();
     $("set-dev").checked = !!settings.dev;

@@ -14,7 +14,7 @@ look").
 
 - Metres, with y up. The lanes run along **z** and are spread across **x**.
 - The camera stands at −X looking toward +X: **screen right is +Z and screen up is +X** (spatial.mjs:43-46).
-- The locker end, where guests wait and dive in, is −Z (screen left).
+- The blocks' end, where guests come in, wait and dive in, is −Z (screen left).
 
 **The basin** (`poolGeometry`, spatial.mjs:61-115):
 
@@ -29,7 +29,7 @@ look").
 | Ladders | (−5, 5) and (5, −4.1) |
 | Deck | x ±14.1, z −15.2 … 12.65 |
 | Room | x ±14.7, z −16.7 … 13.5 |
-| Doors | the locker doors at x ±8.05, z −14.4; MEN's bay x −10.7, WOMEN's +10.7 |
+| Doors | the changing rooms' doors flush in the −Z wall at x ±10.7 (MEN −, WOMEN +): inside at z −16.55, out on the deck at z −14.85 (no locker rooms since 30 October 2026) |
 | Queue | x = side·(4.6 − (slot%4)·1.1), z = −11.1 − ⌊slot/4⌋·1.15 |
 | Coach start | (−6.6, 0), facing +X |
 | Fins rack | (−10.3, 7.8) |
@@ -58,8 +58,8 @@ The `walkGrid` in the JSON says where the coach may stand (its radius already co
 Not specified, on purpose: see `godot/README.md`, "The look". The only fixed things are what the place *is*:
 
 - an indoor community swimming club;
-- a 3-lane pool with lane ropes and starting blocks at the locker end;
-- the two locker rooms the guests come out of;
+- a 3-lane pool with lane ropes and starting blocks at the −Z end;
+- the two changing rooms' doors in the back wall the guests come out of;
 - the stations the coach uses (fins rack, chlorine, eye relief, mop bucket, life rings, rescue bench);
 - the characters, who are the game's own models.
 

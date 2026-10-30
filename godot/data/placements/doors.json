@@ -1,0 +1,4 @@
+[
+  {"asset": "props/changing_door_men.glb", "pos": [0, 0, 0], "rot": 0, "scale": 1, "note": "MEN changing room's door, flush in the -Z wall at x -10.7 (modelled in place; 30 October 2026: no locker rooms); its Door swings out onto the deck"},
+  {"asset": "props/changing_door_women.glb", "pos": [0, 0, 0], "rot": 0, "scale": 1, "note": "WOMEN changing room's door, flush in the -Z wall at x 10.7 (modelled in place); its Door swings out onto the deck"}
+]

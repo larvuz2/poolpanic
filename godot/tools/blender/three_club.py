@@ -50,8 +50,6 @@ DECIMATE = {
     "plant_snake": 0.5,
     "sill_succulents": 0.25,
     "sill_pothos": 0.3,
-    "locker_bay_men": 0.35,
-    "locker_bay_women": 0.35,
     "bench_dressed": 0.3,
     "bench": 0.35,
     "fins_rack": 0.35,
@@ -168,7 +166,7 @@ for o, asset in items:
         c = sum((world @ Vector(b) for b in o.bound_box), Vector()) / 8
         kind = re.sub(r"[\.\d]+$", "", n.split("_", 1)[1]) if n.startswith("Light_") else "Underwater"
         lights.append({"kind": kind, "at": godot(c)})
-    if asset.startswith("locker_bay_") and n.startswith("Door"):
+    if asset.startswith("changing_door_") and n.startswith("Door"):
         special.append((o, "Door_Men" if "men" == asset.split("_")[-1] else "Door_Women"))
         continue
     if re.match(r"Hand(Minute|Second)", n):
