@@ -2,9 +2,9 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b4yvwchjre8vc"
-path.bptc="res://.godot/imported/locker_bay_men_lk_sign_shower.png-c57dd9bafbfaf7e3c2a137c985fd5f03.bptc.ctex"
-path.astc="res://.godot/imported/locker_bay_men_lk_sign_shower.png-c57dd9bafbfaf7e3c2a137c985fd5f03.astc.ctex"
+uid="uid://caw0c6gbwf4n0"
+path.bptc="res://.godot/imported/changing_door_women_lk_sign_shower.png-b32720d265cb46defe3a490ba018816d.bptc.ctex"
+path.astc="res://.godot/imported/changing_door_women_lk_sign_shower.png-b32720d265cb46defe3a490ba018816d.astc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
@@ -15,8 +15,8 @@ generator_parameters={
 
 [deps]
 
-source_file="res://assets/venue/props/locker_bay_men_lk_sign_shower.png"
-dest_files=["res://.godot/imported/locker_bay_men_lk_sign_shower.png-c57dd9bafbfaf7e3c2a137c985fd5f03.bptc.ctex", "res://.godot/imported/locker_bay_men_lk_sign_shower.png-c57dd9bafbfaf7e3c2a137c985fd5f03.astc.ctex"]
+source_file="res://assets/venue/props/changing_door_women_lk_sign_shower.png"
+dest_files=["res://.godot/imported/changing_door_women_lk_sign_shower.png-b32720d265cb46defe3a490ba018816d.bptc.ctex", "res://.godot/imported/changing_door_women_lk_sign_shower.png-b32720d265cb46defe3a490ba018816d.astc.ctex"]
 
 [params]
 

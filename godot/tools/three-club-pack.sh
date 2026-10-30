@@ -26,7 +26,7 @@ for t in deck_tile pool_mosaic; do
   webp "$TEX/${t}_albedo.png" 1024x1024 84 "$OUT/${t}.webp"
   webp "$TEX/${t}_normal.png" 512x512 90 "$OUT/${t}_n.webp"
 done
-for t in wall_sea wall_navy wall_cream plaster timber terrazzo; do
+for t in wall_sea wall_navy wall_cream plaster timber; do
   webp "$TEX/${t}_albedo.png" 512x512 84 "$OUT/${t}.webp"
   webp "$TEX/${t}_normal.png" 256x256 90 "$OUT/${t}_n.webp"
 done

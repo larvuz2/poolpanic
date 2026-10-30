@@ -24,7 +24,8 @@ the same twice: see `docs/incidents.md`).
    Gala Arena, and its date the story's ending (credits, then endless). The pools: the Community Pool (since 28 October 2026
    dressed as the **Harbourside Community Swim Club**, the Godot test's building and props made cheap for this game, its own
    golden light: `dist/scene/harbourside.mjs`, README "The Community Pool as the Harbourside"; the classic pool stands in while it
-   loads and with ?nomodels), Splash
+   loads and with ?nomodels; since 30 October 2026 no locker rooms: the MEN's and WOMEN's doors flush in its back wall, and
+   **no footprints at any venue's queue spots, ever**, the creator's), Splash
    Park, the Sunset Lagoon, the **Aquatic Centre** (indoor and competitive, where Marco "the Missile" always swims), the **Aqua
    Disco** (a party pool with no lanes: four zones of aqua dancers facing Valentina, the instructor, all on one dance routine and its
    own song, `dist/dance.mjs`, `dist/music.mjs`; every incident still comes), the **Kids Pool** (only kids, who run all over the deck
@@ -83,7 +84,7 @@ the same twice: see `docs/incidents.md`).
    brows, moustache on 18 bones under `Face`, `tools/blender/coach_face.py`, run last on his file) and nine expressions the game
    picks from what happens to him (`dist/scene/coach-face.mjs`: alarm, panic, struggle, dizzy, relief…), with three clips of
    trouble: **Startle**, **FreakOut**, **Haul** (README, "Coach Waters — the coach's model"). The game always plays the new character models (no crash tier and no saved choice brings
-   the classic ones back), the Coach Cam is off at every launch, and the logo is top left.
+   the classic ones back), the Coach Cam is off at every launch (Settings has its on/off switch too, 30 October 2026), and the logo is top left.
    **The diagnostic and the plan (19 October 2026).** An analysis of the loop, the hook and the goals (the "Pool Panic Diagnostic"
    page) found the toy great and the game around it unfinished: nothing teaches it, the first hour asks too little then too much,
    nothing lasts between runs. Its plan, in phases, which the creator approved ("let's go with your recommendations"):

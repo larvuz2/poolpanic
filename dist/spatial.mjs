@@ -466,7 +466,9 @@ function makeVenue(spec) {
   return venue;
 }
 
-// Classic indoor community club: three lanes, lockers in the left wall, office in the upper-right corner.
+// Classic indoor community club: three lanes, office in the upper-right corner. No locker rooms since 30 October 2026 (the
+// creator: "remove the lockers and place the doors on the same axis as the wall"): the MEN's and the WOMEN's doors are flush in
+// the back wall where the locker rooms stood, each crossed along z (inside behind the wall, out on the deck), as the Aqua Disco's.
 export const CLUB = makeVenue({
   id: "club",
   name: "Community Swim Club",
@@ -474,8 +476,9 @@ export const CLUB = makeVenue({
   lanes: [-3.2, 0, 3.2],
   deck: { minX: -14.1, maxX: 14.1, minZ: -15.2, maxZ: 12.65 },
   room: { minX: -14.7, maxX: 14.7, minZ: -16.7, maxZ: 13.5 },
-  doors: { insideX: 8.8, doorX: 8.05, doorZ: -14.4, outsideX: 7.25 },
-  lockers: [-10.7, 10.7],
+  doors: { insideX: 10.7, doorX: 10.7, doorZ: -14.85, outsideX: 10.7, insideZ: -16.55 },
+  doorWord: "a changing-room door",
+  lockers: [],
   queue: { outerX: 4.6, stepX: 1.1, startZ: -11.1, stepZ: 1.15 },
   coachStart: { x: -6.6, z: 0 },
   cameraFollow: { kx: 0.22, maxX: 2.4 },
@@ -511,12 +514,6 @@ export const CLUB = makeVenue({
     { kind: "chair", x: 12.2, z: -7.3, hx: 0.6, hz: 0.7 },
     { kind: "desk", x: 13, z: 9.5, hx: 0.6, hz: 1.4 },
     { kind: "treat-table", x: -13.4, z: 8.4, hx: 0.36, hz: 0.36 },
-    ...[-10.7, 10.7].flatMap((x) => [
-      { kind: "locker-wall", x: x - 2.65, z: -15.06, hx: 0.15, hz: 1.4 },
-      { kind: "locker-wall", x: x + 2.65, z: -15.06, hx: 0.15, hz: 1.4 },
-      { kind: "locker-wall", x, z: -16.2, hx: 2.65, hz: 0.3 },
-      { kind: "locker-bench", x, z: -15.17, hx: 1.55, hz: 0.36 },
-    ]),
   ],
 });
 

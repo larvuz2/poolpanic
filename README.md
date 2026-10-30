@@ -618,8 +618,10 @@ AAA", the calm before the storm; everything the menu had kept but sorted differe
 - **Settings** (from the menu, and from ⚙ in a shift): master, music and effects volumes (music and effects are now two mixes under the
   master; the shifts' songs and the disco's are music, everything else effects; heard as a slider moves), brightness (the exposure of
   every venue and of the menu), film grain (a fine moving grain over everything, 20% to start), graphics quality and on-screen controls
-  (moved here from Help), full screen, reduce motion (Settings' choice or the system's), and the Coach Cam's mouse sensitivity and
-  Invert Y. They are kept with the other preferences (`pool-panic.settings.v1`, which the desktop app already saves).
+  (moved here from Help), full screen, reduce motion (Settings' choice or the system's), and the Coach Cam: its view on or off
+  (since 30 October 2026, the creator: "a settings change to coach view so I can toggle in and out"; the same switch as the shift
+  card's and V, `setCoachCam` in app.mjs: a shift under way changes view at once; still off at every launch), its mouse sensitivity
+  and Invert Y. They are kept with the other preferences (`pool-panic.settings.v1`, which the desktop app already saves).
 - **Credits** roll by themselves (a wheel or a key takes over): a game by Gus Garza, Phatty Acid Generative Studios; made with Claude;
   built on three.js, Blender, Electron and Steamworks, Meshy and Tripo, fal's image models, ElevenLabs, the two typefaces, and the
   test and build tools; and the making of it in numbers, counted on 20 October 2026 from this machine's session logs and the
@@ -968,12 +970,12 @@ optimized so game keeps running smoothly… improve the lighting, so it looks AA
 venue"). The building and the ~70 props made in Blender for the Godot test (`godot/docs/look.md`) dress the three.js Community Pool:
 the 1960s seaside club with its glass-mosaic basin, sea-green tiled walls and navy band, the long wall of steel windows and the
 radiators under them, the harbour mural washed by four picture lights, the café's viewing gallery, the changing rooms with their
-lockers, banners, trophies, posters, plants, the painted footprints, compass rose and anchor on the deck. The layout is the game's
+banners, trophies, posters, plants, the compass rose and anchor on the deck. The layout is the game's
 (the Godot venue was built round `dist/`'s numbers), so nothing in the play moves.
 - **Made cheap** (`godot/tools/blender/three_club.py`, then `godot/tools/three-club-pack.sh`, into `dist/assets/club/`): the
   dense props simplified (510k triangles to 230k), everything static merged into one mesh per material class (matte, satin, gloss,
   metal, leaf, glow, glass, with and without shadows; one per tile set; one for the signs and posters, packed into one picture, and
-  one for the cut-outs), the colours in the vertex colours; the deck's paint (footprints, the compass rose, the anchor, the words)
+  one for the cut-outs), the colours in the vertex colours; the deck's paint (the compass rose, the anchor, the words, the mats)
   baked into one picture the deck's shader lays on its tiles; ambient occlusion baked into the props' vertices and onto the floor
   (soft contact shadows, on the ambient light only). One quantized GLB (about 9 MB, read by three.js without a decoder: the
   desktop app's page allows no WebAssembly) and 0.7 MB of WebP pictures. About half the classic pool's draw calls (103 against
@@ -991,6 +993,14 @@ lockers, banners, trophies, posters, plants, the painted footprints, compass ros
 - **Loading**: behind the menu with the swimmers (START waits for both, 12 s at most); the classic pool stands in until it is in,
   and with `?nomodels`. The world builds it when the club's look is `harbour` (`defaultLighting`), so a shift already running keeps
   its pool and the next has the new one.
+- **No locker rooms, no footprints** (30 October 2026, the creator: "remove the lockers and place the doors on the same axis as the
+  wall… I don't want any footprints. Just keep normal floor"): the MEN's and the WOMEN's doors are flush in the back wall where the
+  locker rooms stood (x ±10.7; `CLUB.doors` crossed along z, as the Aqua Disco's: inside at z −16.55 behind the wall, out at
+  −14.85; the locker walls and benches are gone from the plan, `doorWord` "a changing-room door", the dog's way out "Door"). Each
+  has a frame, a porthole, its sign and lamp, a bench with coat hooks toward the corner and a rinse shower toward the hall
+  (`godot/tools/blender/props_doors.py`), and swings out onto the deck (`lockerDoors`); the classic pool has the same two doors.
+  A guest reaches the line about 0.6 s later than from the locker rooms (5.5 s from the go). No venue paints footprints at its
+  queue spots, now or later.
 
 - **Grand Gala Arena** (`dist/scene/arena.mjs`, `crowd.mjs`): a stage with an LED screen and a chasing-light marquee, a rotating trophy, three grandstands of instanced spectators who cheer on every save, scrolling LED ribbons, a hanging scoreboard cube that shows the live score, time and stars, two sweeping spotlight rigs with floor decals, balloons and confetti cannons.
 - **Aquatic Centre** (`dist/scene/aquatic.mjs`, 16 October 2026): an indoor competition pool. The pool builder takes a dress (`buildPool`'s second options: tiles, lane lines, rope colours, block tops, pennants), here deep-blue tiles with black lines, red, white and blue racing ropes and navy blocks on a white deck; an electronic timing board on the back wall (five named lanes, their times running with the shift's clock, MARCO in orange) between two pace clocks, a row of club flags, blue grandstands with a crowd on two sides (a third for the Coach Cam), scrolling LED ribbons, a victory podium, the officials' table with timing screens, a team bench, and painted lane numbers. Its light is `LIGHTING.aquatic`, cool daylight with the underwater lamps on; its hall (glass walls, a white steel lattice roof, banners, bunting) is for the Coach Cam. `?pool=aquatic` (any pool id) plays every shift of the week there, for a look or a test.
@@ -1149,7 +1159,7 @@ Happiness responds to waiting, blocked speed, crowding, water contamination, unr
 
 - Every start, retry, and next shift begins with 3–2–1 and matching beeps. Gameplay movement, shift time, and arrivals wait for Go.
 - The first door begins opening 3.4 seconds after Go. The swimmer walks through and becomes selectable at the queue within roughly five seconds of Go.
-- Later arrivals alternate locker rooms. Doors open for departing swimmers too, without the arrival chime.
+- Later arrivals alternate doors (the MEN's and the WOMEN's). Doors open for departing swimmers too, without the arrival chime.
 - The first swimmer is **not automatically selected**. A shared yellow pulse links the waiting swimmer and their badge.
 - Selecting a waiting swimmer produces a two-note sound and highlights the lane targets in both the world and HUD.
 - Guidance advances as swimmers are assigned, lost, or sent home. Selected-swimmer assignment takes priority over a carried chlorine bucket.

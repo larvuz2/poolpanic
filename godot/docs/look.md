@@ -31,7 +31,7 @@ simplified, chunky, bevelled shapes. No hard 90° edges (bevel everything), no n
     - `props_pool.py`: blocks, ladders, floats, flags.
     - `props_floor.py`: paint and mosaic on the deck.
     - `props_stations.py`: the gameplay furniture.
-    - `props_lockers.py`: the changing rooms.
+    - `props_doors.py`: the changing rooms' doors in the −Z wall.
     - `props_dressing.py`: the edges.
     - `props_kit.py`: small shared items.
   - `exterior.py`: the garden.
@@ -82,7 +82,7 @@ simplified, chunky, bevelled shapes. No hard 90° edges (bevel everything), no n
 | --- | --- |
 | The middle | The deck and the pool |
 | The top edge | The foot of the +X window wall (its tiles, radiators and anything at its foot) |
-| The upper-left corner | The −Z wall's right half (x 0…14.7) and the +X locker bay |
+| The upper-left corner | The −Z wall's right half (x 0…14.7) and the WOMEN's door |
 | The bottom edge | The near deck to about x −9.6 (the −X side, its benches and the fins rack) |
 
 The −X wall is never seen (it only casts its shadow), nor is the roof (its skylight and beams cast the sun's patterns).
@@ -91,7 +91,7 @@ The −X wall is never seen (it only casts its shadow), nor is the roof (its sky
 
 | Wall | Treatment |
 | --- | --- |
-| −Z, behind the blocks | Glazed sea-green tiles to 1.6 m, a navy band, a cream row, a timber dado rail at 1.97 m, warm plaster above. Pilasters at x ±7.85; a mural between them, y 2.35–7.15, washed by four brass picture lights. The locker bays fill the corners, with club banners above them. |
+| −Z, behind the blocks | Glazed sea-green tiles to 1.6 m, a navy band, a cream row, a timber dado rail at 1.97 m, warm plaster above. Pilasters at x ±7.85; a mural between them, y 2.35–7.15, washed by four brass picture lights. The changing rooms' doors stand in the corners (x ±10.7, flush in the wall, since 30 October 2026: no locker rooms), each with a bench and coat hooks toward the corner and a rinse shower toward the hall, with club banners above them. |
 | +X, the window wall | Tiles to 1.6 m, a timber sill at 2.1 m. Six windows 4 m wide from 2.1 to 8.4 m, centred at z −13.81, −8.93, −4.04, 0.84, 5.73, 10.62. A cream radiator under each window, at x ≈ 14.57, z = centre ± 1.1. Plaster piers between the windows. |
 | +Z, the far end | Tiles and plaster, a cornice. The viewing gallery's long window (x −9…9, y 3.4–5.6) onto a lamp-lit café, with banners above it and the pace clock beside it. |
 | −X, the near wall | Never drawn by the game's camera (Godot puts it on a layer that camera skips), but seen by close-up views and in shadows |
@@ -127,7 +127,7 @@ The −X wall is never seen (it only casts its shadow), nor is the roof (its sky
 | Life rings | (−4, −15.7) facing +Z; (−14.35, −5) facing +X; (14.35, 5) facing −X | | |
 | Fish net | (14.35, −2.6) | | on the +X wall |
 | Fuse box | (14.4, 12.05) | | on the +X wall |
-| Locker bays | x ±8.05…±13.35, z −16.46…−13.66 | | side walls 0.3 thick at x ±8.05 and ±13.35; back wall to z −15.9; a bench at z −15.17 (half 1.55 × 0.36). The bay is an open alcove toward the pool (the coach can walk in), with a door in its inner wall at z −14.4 through which the guests come out. |
+| Changing rooms' doors | x ±10.7, in the −Z wall | | flush in the wall (no locker rooms since 30 October 2026): the guests come out of the dark behind the door (z −16.55) onto the deck (z −14.85), crossing along z (`CLUB.doors`); nothing stands on the deck there. |
 | Starting blocks | (−3.2 / 0 / 3.2, −9.15) | | |
 | Ladders | (−5, 5), (5, −4.1) | | |
 | Backstroke flags | x ±6, z ±5.7 | | |

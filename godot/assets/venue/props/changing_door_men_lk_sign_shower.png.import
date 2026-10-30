@@ -2,21 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://sqj0mh5nbcly"
-path.bptc="res://.godot/imported/locker_bay_men_lk_scale_dial.png-b08aa89366f33a3a79644b866fb0b9cb.bptc.ctex"
-path.astc="res://.godot/imported/locker_bay_men_lk_scale_dial.png-b08aa89366f33a3a79644b866fb0b9cb.astc.ctex"
+uid="uid://cd31p5iw2lw5d"
+path.bptc="res://.godot/imported/changing_door_men_lk_sign_shower.png-3606fb451173e349c358e8ae7d0784c2.bptc.ctex"
+path.astc="res://.godot/imported/changing_door_men_lk_sign_shower.png-3606fb451173e349c358e8ae7d0784c2.astc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "3a49a67401a3e36807e445f63410d680"
+"md5": "2c843bd30f59a311dde3dbe930037e98"
 }
 
 [deps]
 
-source_file="res://assets/venue/props/locker_bay_men_lk_scale_dial.png"
-dest_files=["res://.godot/imported/locker_bay_men_lk_scale_dial.png-b08aa89366f33a3a79644b866fb0b9cb.bptc.ctex", "res://.godot/imported/locker_bay_men_lk_scale_dial.png-b08aa89366f33a3a79644b866fb0b9cb.astc.ctex"]
+source_file="res://assets/venue/props/changing_door_men_lk_sign_shower.png"
+dest_files=["res://.godot/imported/changing_door_men_lk_sign_shower.png-3606fb451173e349c358e8ae7d0784c2.bptc.ctex", "res://.godot/imported/changing_door_men_lk_sign_shower.png-3606fb451173e349c358e8ae7d0784c2.astc.ctex"]
 
 [params]
 

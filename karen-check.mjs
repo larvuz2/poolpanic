@@ -65,7 +65,7 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
     seen.add(v.status);
     nearest = Math.min(nearest, dist(v, s.coach));
     if (v.status !== "entering") assert.ok(Math.abs(v.x) < door.insideX + 0.01);
-    if (["marching", "ranting"].includes(v.status) && Math.abs(v.x) <= door.outsideX + 0.1)
+    if (["marching", "ranting"].includes(v.status) && s.venue.pastDoor(v))
       assert.ok(s.venue.isDeck(v.x, v.z, s.level, 0.1), "Once outside she stays on the deck");
   }
   assert.ok(seen.has("marching") && v.status === "ranting", "She marches, then rants at the coach");
@@ -238,11 +238,18 @@ const events = (s, type) => s.events.filter((e) => e.type === type);
     "Coach Waters reaches her",
   );
   s.clearInput();
-  // The other two stand beside Waters, within her reach.
+  // (she comes on until she stands in front of him and rants)
+  for (let f = 0; f < 60 * 5 && v.status !== "ranting"; f++) tick(s);
+  // The other two stand either side of Waters, across his line to her, clear of him and within her reach.
+  const w0 = s.coaches[0],
+    gap = Math.hypot(v.x - w0.x, v.z - w0.z) || 1,
+    ux = (v.x - w0.x) / gap,
+    uz = (v.z - w0.z) / gap;
   for (const i of [1, 2]) {
-    const c = s.coaches[i];
-    c.x = s.coaches[0].x + (i === 1 ? 0.3 : -0.3);
-    c.z = s.coaches[0].z;
+    const c = s.coaches[i],
+      k = i === 1 ? 0.7 : -0.7;
+    c.x = w0.x - uz * k;
+    c.z = w0.z + ux * k;
     c.vx = c.vz = 0;
     s.inputAs(i, "clearInput");
   }

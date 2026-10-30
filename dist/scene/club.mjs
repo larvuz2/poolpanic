@@ -12,7 +12,6 @@ import {
   lifeguardChair,
   station,
   finRack,
-  lockerBay,
   rescueStations,
   sanitationCorner,
   fishNetHook,
@@ -28,8 +27,7 @@ export function buildClub(w, venue, lighting = w.lightingName) {
   buildDeck(w, venue, { base: "#c99a70", grout: "#a27a5a" });
   buildPool(w, venue);
   rearWall(w);
-  lockerBay(w, venue, -10.7, "MEN", COLORS.teal);
-  lockerBay(w, venue, 10.7, "WOMEN", COLORS.coral);
+  changingDoors(w, venue);
   office(w);
   // Low side walls keep the tabletop silhouette open.
   const plaster = plasterTexture({ seed: 41, strength: 0.09 });
@@ -215,6 +213,46 @@ function rearWall(w) {
   face.rotation.x = Math.PI / 2;
   w.rod([-6, 2.08, z0 + 0.78], [-6, 2.45, z0 + 0.78], 0.03, COLORS.navy);
   w.rod([-6, 2.08, z0 + 0.81], [-5.72, 1.96, z0 + 0.81], 0.035, COLORS.coral);
+}
+
+// The changing rooms' doors, flush in the back wall where the locker rooms stood (30 October 2026): a leaf each, hinged on its
+// outer edge and swinging out onto the deck as a guest comes or goes (`world.lockerDoors`), a dark doorway behind it, a sign.
+function changingDoors(w, venue) {
+  const face = -16.13, // the rear wall's front face (rearWall)
+    half = 0.6,
+    height = 2.4;
+  for (const [side, name, color] of [
+    [-1, "MEN", COLORS.teal],
+    [1, "WOMEN", COLORS.coral],
+  ]) {
+    const x = side * venue.arrival.doorX;
+    w.box(half * 2, height, 0.04, 0x10242a, x, height / 2, face + 0.02, 0);
+    for (const [sx, sy, dx, y] of [
+      [0.12, height + 0.12, -half - 0.06, height / 2],
+      [0.12, height + 0.12, half + 0.06, height / 2],
+      [half * 2 + 0.24, 0.12, 0, height + 0.06],
+    ])
+      w.box(sx, sy, 0.1, 0xfff6d1, x + dx, y, face + 0.05, 0.02);
+    const hinge = new THREE.Group();
+    hinge.position.set(x + side * half, 0, face + 0.08);
+    w.scene.add(hinge);
+    w.box(half * 2 - 0.04, height - 0.05, 0.06, color, -side * half, (height - 0.05) / 2, 0.03, 0.03, hinge);
+    w.box(0.36, 0.12, 0.02, 0xd6bd89, -side * half, 0.12, 0.07, 0.01, hinge);
+    w.ball(0.06, 0xe5be58, -side * (half * 2 - 0.16), 1.1, 0.08, hinge);
+    w.lockerDoors.push({ side, hinge });
+    w.textPlane(
+      name,
+      1.4,
+      0.38,
+      "#" + color.toString(16).padStart(6, "0"),
+      "#fff3d6",
+      x,
+      height + 0.45,
+      face + 0.06,
+      w.scene,
+      64,
+    );
+  }
 }
 
 function office(w) {

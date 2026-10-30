@@ -19,7 +19,7 @@ Free Play "Normal" at the Community Pool is level 8, "The relay" (`SHIFTS[7]`, s
 **Arrivals** (`director`, sim.mjs:808-869):
 
 - The first guest comes at 3.4 s, then about one every 4.6 s until about 108 s.
-- Guests come through the two locker doors in turn, walk at 5 m/s, and wait in rows:
+- Guests come through the two changing-room doors in the back wall in turn, walk at 5 m/s, and wait in rows:
   `x = side·(4.6 − (slot%4)·1.1)`, `z = −11.1 − floor(slot/4)·1.15` (`queueSlots` in `club-venue.json`).
 - The first three are a Beginner, an Intermediate and a Pro, and guest 10 is aqua aerobics. The rest are drawn 29% Beginner,
   31% Intermediate, 23% Pro, 17% Aqua.

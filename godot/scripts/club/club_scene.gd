@@ -652,7 +652,8 @@ func _process(_dt: float) -> void:
 		var door := _doors[i]
 		var cycle := fmod(t + i * 7.3, 14.0)
 		var open := smoothstep(0.0, 0.5, cycle) * (1.0 - smoothstep(2.4, 3.6, cycle))
-		var sgn := -1.0 if door.global_position.x > 0.0 else 1.0
+		# (the changing rooms' doors in the back wall, hinged on their outer edge: each swings out onto the deck)
+		var sgn := 1.0 if door.global_position.x > 0.0 else -1.0
 		door.rotation.y = sgn * open * deg_to_rad(80.0)
 	# the steam drifts: its noise slides slowly across the pool
 	var steam := get_node_or_null("Steam") as FogVolume  # (none in the web build)

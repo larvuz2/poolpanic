@@ -117,6 +117,30 @@ assert.ok(men.quaternion.angleTo(before) > 0.5, "the men's door swings open");
 sim.doors[-1] = 0;
 world.sync(sim, 3);
 assert.ok(men.quaternion.angleTo(before) < 0.01, "and shuts");
+// the changing rooms' doors are in the back wall (30 October 2026) and swing out onto the deck, never into the wall
+for (const [name, side] of [
+  ["Door_Men", -1],
+  ["Door_Women", 1],
+]) {
+  const door = root.getObjectByName(name),
+    centre = () => new THREE.Box3().setFromObject(door).getCenter(new THREE.Vector3());
+  assert.ok(
+    world.lockerDoors.some((d) => d.hinge === door && d.side === side),
+    name + " is swung by the game's door sync",
+  );
+  assert.ok(
+    Math.abs(Math.abs(centre().x) - 10.7) < 0.3 && centre().z < -16.4,
+    name + " stands in the back wall",
+  );
+  sim.doors[side] = 0;
+  world.sync(sim, 4);
+  const shut = centre();
+  sim.doors[side] = 1;
+  world.sync(sim, 4.1);
+  assert.ok(centre().z > shut.z + 0.3, name + " swings out onto the deck");
+  sim.doors[side] = 0;
+  world.sync(sim, 4.2);
+}
 const near = root.getObjectByName("NearWall");
 assert.equal(near.visible, false, "the overview never sees the near wall");
 world.hall.setCoach(true);

@@ -375,6 +375,17 @@ function applyViewMode() {
     recorder?.look(null);
   }
 }
+// The Coach Cam on or off, from any of its switches (the shift card's, Settings', V): all three show the same, and a shift
+// under way (or paused) changes view at once, the Coach Cam picking up where the coach faces.
+function setCoachCam(on) {
+  settings.coachCam = !!on;
+  saveSettings();
+  $("coach-cam").checked = settings.coachCam;
+  $("set-coachcam").checked = settings.coachCam;
+  if (!world || !sim || !["playing", "countdown", "paused"].includes(mode)) return;
+  applyViewMode();
+  if (settings.coachCam && world.coachCam) world.coachCam.yaw = sim.coach.angle ?? world.coachCam.yaw;
+}
 function releaseMouse() {
   if (document.pointerLockElement) document.exitPointerLock?.();
 }
@@ -4536,10 +4547,9 @@ function bind() {
   });
   $("scoop-target").onclick = () => sim.scoop();
   $("coach-cam").checked = settings.coachCam;
-  $("coach-cam").onchange = () => {
-    settings.coachCam = $("coach-cam").checked;
-    saveSettings();
-  };
+  $("coach-cam").onchange = () => setCoachCam($("coach-cam").checked);
+  // Settings has the switch too (30 October 2026, the creator: "a settings change to coach view so I can toggle in and out").
+  $("set-coachcam").onchange = () => setCoachCam($("set-coachcam").checked);
   world.canLook = () => ["playing", "countdown"].includes(mode);
   $("start").onclick = requestStart;
   $("booking-cards").onclick = (e) => {
@@ -4768,11 +4778,7 @@ function bind() {
       if (mode !== "playing") return;
       if (key === "v") {
         // Switch cameras mid-shift; the Coach Cam picks up where the coach was facing.
-        settings.coachCam = !settings.coachCam;
-        saveSettings();
-        $("coach-cam").checked = settings.coachCam;
-        applyViewMode();
-        if (settings.coachCam) world.coachCam.yaw = sim.coach.angle ?? world.coachCam.yaw;
+        setCoachCam(!settings.coachCam);
         toast(settings.coachCam ? "Coach Cam on · click the pool to look around" : "Overview camera");
         return;
       }
@@ -5112,8 +5118,7 @@ try {
         updateUI();
       },
       coachCam(on = true) {
-        settings.coachCam = on;
-        $("coach-cam").checked = on;
+        setCoachCam(on);
         applyViewMode();
       },
       unlockAll() {

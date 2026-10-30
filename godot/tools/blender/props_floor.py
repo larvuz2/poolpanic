@@ -1,9 +1,11 @@
 """What is painted on or inlaid in the deck, modelled in place (Godot coordinates, placed at the origin): nothing here stands up,
 so the coach and the guests walk over all of it.
-- painted footprints at every queue slot, a pair per waiting guest, facing the pool ("wait here");
+- no footprints at the queue slots (the creator, 30 October 2026: "I don't want any footprints. Just keep normal floor", for
+  every venue to come too);
 - a mosaic compass rose inlaid at the far end (x 0, z 11.1), in tinted mosaic tiles (GD_mosaic_*);
 - the depth on the coping (1.85 m at the blocks, 1.1 m at the far end, between on the sides), NO DIVING at the shallow end;
-- the lane numbers at the far end, NO RUNNING by the far wall, rubber mats at the ladders and the locker doors.
+- the lane numbers at the far end, NO RUNNING by the far wall, rubber mats at the ladders and in front of the changing rooms'
+  doors in the back wall.
 Writes godot/assets/venue/props/floor_markings.glb.
 
     blender -b -P godot/tools/blender/props_floor.py
@@ -47,25 +49,6 @@ def floor_text(name, body, x, z, size, m, rot_deg=0.0, face="BarlowCondensed-Bla
     o = text(name, body, size, 0.002, g(x, Y + 0.001, z), (0, 0, math.radians(-90 + rot_deg)), m, face=face)
     return o
 
-
-# ---- footprints at the queue slots: a sole and five toes, left and right ---------------------------------------------------
-def foot(name, cx, cz, side):
-    out = []
-    S = 1.5  # (painted a little larger than life, to read from the camera)
-    sole = [(0.0, -0.11), (0.042, -0.08), (0.05, 0.0), (0.044, 0.07), (0.02, 0.1), (-0.02, 0.1), (-0.042, 0.06), (-0.036, -0.02), (-0.03, -0.09)]
-    pts = [(cx + side * px * S, cz + pz * S) for px, pz in sole]
-    out.append(flat_poly(name + "Sole", pts, Y, paint_coral))
-    for k, (tx, tz, tr) in enumerate([(-0.028, 0.128, 0.016), (-0.006, 0.138, 0.015), (0.015, 0.135, 0.013), (0.032, 0.124, 0.011), (0.045, 0.108, 0.01)]):
-        out.append(disc(f"{name}Toe{k}", cx + side * tx * S, cz + tz * S, tr * S, Y, paint_coral, 12))
-    return out
-
-
-q = VENUE_JSON["queueSlots"]
-for side in ("-1", "1"):
-    for k, p in enumerate(q[side][:12]):
-        x, z = p["x"], p["z"]
-        parts += foot(f"FootL{side}_{k}", x - 0.12, z, -1)
-        parts += foot(f"FootR{side}_{k}", x + 0.12, z, 1)
 
 # ---- the mosaic compass rose at the far end ----------------------------------------------------------------------------------
 cx, cz = 0.0, 11.05
@@ -140,7 +123,7 @@ for x in (-6.75, 6.75):
     parts.append(floor_text(f"DeepEnd{x}", "DEEP END", x, -6.2, 0.34, paint_navy))
     parts.append(floor_text(f"ShallowEnd{x}", "SHALLOW END", x, 6.2, 0.34, paint_navy))
 
-# ---- rubber mats: at the top of each ladder and at the locker doors -----------------------------------------------------------
+# ---- rubber mats: at the top of each ladder and in front of the changing rooms' doors -----------------------------------------------------------
 def mat_pad(name, cx, cz, w, d):
     o = gbox_flat(name, cx, cz, w, d)
     return o
@@ -151,7 +134,7 @@ def gbox_flat(name, cx, cz, sx, sz, h=0.012):
     return o
 
 
-for name, x, z, w, d in [("MatLadderA", -6.0, 5.0, 0.8, 1.1), ("MatLadderB", 6.0, -4.1, 0.8, 1.1), ("MatDoorMen", -7.45, -14.4, 0.9, 1.1), ("MatDoorWomen", 7.45, -14.4, 0.9, 1.1)]:
+for name, x, z, w, d in [("MatLadderA", -6.0, 5.0, 0.8, 1.1), ("MatLadderB", 6.0, -4.1, 0.8, 1.1), ("MatDoorMen", -10.7, -16.2, 1.3, 0.8), ("MatDoorWomen", 10.7, -16.2, 1.3, 0.8)]:
     parts.append(gbox_flat(name, x, z, w, d))
     # drainage ribs on the mat
     for r in range(5):
