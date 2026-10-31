@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Packs the Harbourside for the three.js game (dist/assets/club/), after godot/tools/blender/three_club.py:
-# - the mesh: quantized by gltfpack (-kv: the UVs and colours stay, though no texture in the file uses them; KHR_mesh_quantization, which three.js's GLTFLoader reads by itself; no meshopt compression,
+# - the mesh: quantized by gltfpack (-kv: the UVs and colours stay, though no texture in the file uses them; -vtf: the UVs
+#   as floats, the tiles' world scale kept (quantized, they would need a texture transform the game never reads); KHR_mesh_quantization, which three.js's GLTFLoader reads by itself; no meshopt compression,
 #   whose decoder needs WebAssembly, which the desktop app's page does not allow);
 # - the pictures as WebP: the tile sets (albedo, normal), the sign atlases, the floor's paint, the mural and the baked shadows.
 #   godot/tools/three-club-pack.sh [out_dir]
@@ -13,7 +14,7 @@ OUT="${1:-$REPO/dist/assets/club}"
 TEX="$HERE/assets/textures"
 mkdir -p "$OUT"
 
-npx --yes gltfpack@1.3.0 -i "$WORK/harbourside.raw.glb" -o "$OUT/harbourside.glb" -kn -km -kv
+npx --yes gltfpack@1.3.0 -i "$WORK/harbourside.raw.glb" -o "$OUT/harbourside.glb" -kn -km -kv -vtf
 cp "$WORK/harbourside.json" "$OUT/harbourside.json"
 
 webp() { # webp <in> <max size> <quality> <out> [extra convert options]

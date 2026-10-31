@@ -162,7 +162,7 @@ function venueShader(material, w, { deck = false } = {}) {
     shader.fragmentShader = fragment.replace(
       "#include <emissivemap_fragment>",
       `#include <emissivemap_fragment>
-      float under = smoothstep(${(WATER_Y + 0.06).toFixed(2)}, ${(WATER_Y - 0.12).toFixed(2)}, vHarbour.y);
+      float under = 1.0 - smoothstep(${(WATER_Y - 0.12).toFixed(2)}, ${(WATER_Y + 0.06).toFixed(2)}, vHarbour.y);
       totalEmissiveRadiance += vec3(0.55, 0.95, 0.95) * caustic(vHarbour.xz, uTime) * uCaustic * under * 0.8;`,
     );
   };

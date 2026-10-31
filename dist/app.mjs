@@ -58,6 +58,7 @@ import {
 } from "./scene/swimmer-models.mjs";
 import { loadFishModel } from "./scene/fish-model.mjs";
 import { loadHarbourside } from "./scene/harbourside.mjs";
+import { loadSplashPark } from "./scene/splashpark.mjs";
 import { cannonballMan } from "./incidents/carl.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
@@ -4902,6 +4903,18 @@ try {
     );
     // (built at once when the world is behind the menu; a shift already running keeps its pool, the next one has the new)
     if (model && world && sim && mode === "menu") syncVenue(sim);
+    // Splash Park dressed for real (scene/splashpark.mjs) loads after it, behind the menu; until it is in (and with ?nomodels)
+    // the classic Splash Park plays, and a shift already running there keeps it.
+    const splashBegan = performance.now();
+    loadSplashPark().then((splash) =>
+      crashlog.crumb(
+        "venue",
+        (splash ? "Splash Park loaded in " : "Splash Park failed after ") +
+          Math.round(performance.now() - splashBegan) +
+          " ms" +
+          (splash ? "" : ": the classic Splash Park stays"),
+      ),
+    );
   });
   if (fetching.length) {
     await Promise.race([Promise.all(fetching), new Promise((resolve) => setTimeout(resolve, 6000))]);

@@ -24,8 +24,11 @@ import {
   treatsObject,
   stationHit,
 } from "./props.mjs";
+import { buildSplashPark, splashReady } from "./splashpark.mjs";
 
 export function buildResort(w, venue, lighting = "day") {
+  // Splash Park dressed for real when its model is in (scene/splashpark.mjs); this one till then, and with ?nomodels.
+  if (venue.id === "resort" && splashReady()) return buildSplashPark(w, venue, lighting);
   buildDeck(w, venue, {
     base: "#d9b287",
     grout: "#a98661",
@@ -213,7 +216,8 @@ export function kioskTreats(w, p) {
   });
 }
 
-function lawn(w, venue) {
+// The ground round the tabletop out to the horizon, and distant palms (`palms: false`: Splash Park's model has its own).
+export function lawn(w, venue, { palms = true } = {}) {
   const grass = grassTexture();
   // The ground runs out to the horizon; on a coast it stops at the beach, where the Sky's sand and sea begin.
   const shore = SCENERY[venue.scenery]?.sea ? SCENERY[venue.scenery].shoreX + 3.4 : -300,
@@ -229,6 +233,7 @@ function lawn(w, venue) {
   floor.receiveShadow = true;
   w.scene.add(floor);
   // Distant palms frame the tabletop.
+  if (!palms) return;
   const room = venue.room;
   for (const [x, z, s] of [
     [room.minX - 3, -8, 1.1],
