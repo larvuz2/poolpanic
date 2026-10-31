@@ -59,6 +59,7 @@ import {
 import { loadFishModel } from "./scene/fish-model.mjs";
 import { loadHarbourside } from "./scene/harbourside.mjs";
 import { loadSplashPark } from "./scene/splashpark.mjs";
+import { loadKidsPool } from "./scene/kidspool.mjs";
 import { cannonballMan } from "./incidents/carl.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
@@ -4906,15 +4907,21 @@ try {
     // Splash Park dressed for real (scene/splashpark.mjs) loads after it, behind the menu; until it is in (and with ?nomodels)
     // the classic Splash Park plays, and a shift already running there keeps it.
     const splashBegan = performance.now();
-    loadSplashPark().then((splash) =>
+    // Then the venues after it on the ladder, one at a time (the Kids Pool: scene/kidspool.mjs).
+    const loaded = (name, began) => (model) =>
       crashlog.crumb(
         "venue",
-        (splash ? "Splash Park loaded in " : "Splash Park failed after ") +
-          Math.round(performance.now() - splashBegan) +
+        (model ? name + " loaded in " : name + " failed after ") +
+          Math.round(performance.now() - began) +
           " ms" +
-          (splash ? "" : ": the classic Splash Park stays"),
-      ),
-    );
+          (model ? "" : ": the classic " + name + " stays"),
+      );
+    loadSplashPark()
+      .then(loaded("Splash Park", splashBegan))
+      .then(() => {
+        const began = performance.now();
+        return loadKidsPool().then(loaded("Kids Pool", began));
+      });
   });
   if (fetching.length) {
     await Promise.race([Promise.all(fetching), new Promise((resolve) => setTimeout(resolve, 6000))]);

@@ -1,14 +1,14 @@
-"""Splash Park for the three.js game: every part (WORK/parts/*.glb) and every placed prop (placements.json) turned into a few
-merged meshes the game draws cheaply, as the Harbourside's exporter does (godot/tools/blender/three_club.py), with what an
-open-air venue lit at any hour needs.
+"""A dressed venue for the three.js game: every part (WORK/parts/*.glb) and every placed prop (the venue's placements.json) turned
+into a few merged meshes the game draws cheaply, as the Harbourside's exporter does (godot/tools/blender/three_club.py), with what
+an open-air venue lit at any hour needs. Made for Splash Park (30 October 2026), shared by every venue after it.
 
-    blender -b -P tools/venues/splash/export_three.py
-    then: tools/venues/splash/pack.sh          (compresses the GLB and the pictures into dist/assets/splash/)
+    blender -b -P tools/venues/common/export_three.py -- tools/venues/<venue>
+    then: tools/venues/common/pack.sh <venue>     (compresses the GLB and the pictures into dist/assets/<venue>/)
 
 - Merges everything into one mesh per material class, its colour in the vertex colours: matte, satin, gloss, metal, leaf
   (two-sided), glass, each also without shadows ("_n": flat things); `lamp` (lantern glass and bulbs: pale glass by day, lit
   after dusk by the game), `nightglow` (lit windows and halos: drawn only after dusk, added onto the picture). A T_<set> material
-  becomes `tile_<set>` with world-box UVs at the set's scale (kit.TILES); the signs share one atlas, the cut-outs (palm fronds,
+  becomes `tile_<set>` with world-box UVs at the set's scale (kit.TILES), tinted by its `@rrggbb` if it has one; the signs share one atlas, the cut-outs (palm fronds,
   flowers: alpha-tested, two-sided, casting dappled shadows) another.
 - Keeps as their own nodes what the game moves: the cabanas' doors (Door_A, Door_B), the fins on the rack (Fins_1..3).
 - Leaves out what the game draws itself and records where it was: the life rings (anchors.LifeRing), the torch (anchors.Flashlight).
@@ -16,23 +16,27 @@ open-air venue lit at any hour needs.
   ambient occlusion: into the alpha of the props' vertex colours, and from above onto the deck (`floor_ao.png`; contact shadows
   only, which the game applies to its ambient light: the sun's shadows are the game's own, at every hour).
 
-Writes splash.raw.glb, splash.json and the pictures to WORK/out.
+Writes <name>.raw.glb, <name>.json and the pictures to WORK/out.
 """
 
 import os, sys, json, glob, math, re, hashlib
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_venue = [a for a in (sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []) if not a.startswith("-")]
+assert _venue, "which venue? blender -b -P tools/venues/common/export_three.py -- tools/venues/<venue>"
+sys.path.insert(0, os.path.abspath(_venue[0]))
+import kit  # noqa: E402  (the venue's: its name, paths, tile sets)
 from kit import *  # noqa: F401,F403
 
 OUTW = os.path.join(WORK, "out")
 os.makedirs(OUTW, exist_ok=True)
-AO = int(os.environ.get("SPLASH_AO", "1"))
-AO_SAMPLES = int(os.environ.get("SPLASH_AO_SAMPLES", "48"))
-DECIMATE = json.loads(os.environ.get("SPLASH_DECIMATE", "{}"))  # (asset -> ratio, for a dense prop)
+AO = int(os.environ.get("VENUE_AO", os.environ.get("SPLASH_AO", "1")))
+AO_SAMPLES = int(os.environ.get("VENUE_AO_SAMPLES", os.environ.get("SPLASH_AO_SAMPLES", "48")))
+# (asset -> what is left of its triangles, for a dense prop: the venue's, or the environment's)
+DECIMATE = json.loads(os.environ.get("VENUE_DECIMATE", "null") or "null") or getattr(kit, "DECIMATE", {})
 DROP = re.compile(r"^(LifeRing|Flashlight)(\.\d+)?$")
 # the longest side a sign or cut-out keeps in its atlas (others: as large as the atlas allows, up to 512)
-ATLAS_SIZE = {"splash_park": 1024, "palm_frond": 1000, "snacks_menu": 512, "pool_rules": 384}
+ATLAS_SIZE = getattr(kit, "ATLAS_SIZE", {})
 
 reset()
 
@@ -120,7 +124,7 @@ for o, asset in static:
 
 
 # ---- the deck's paint: a top-down picture of floor.glb ------------------------------------------------------------------------------
-PAINT = {"size": 2048, "x0": -16.6, "z0": -17.2, "span": 34.4}
+PAINT = kit.PAINT  # (the square the deck's paint and its occlusion cover: x0, z0, span; size in pixels)
 
 
 def principled(m):
@@ -239,7 +243,8 @@ for o, asset in static:
             continue
         base = re.sub(r"\.\d+$", "", m.name)
         if base.startswith("T_"):
-            mat_plan[i] = ("tile", base[2:])
+            set_, _, tint = base[2:].partition("@")  # (T_<set>@rrggbb: the picture tinted)
+            mat_plan[i] = ("tile", set_, tint)
             continue
         img = image_of(m)
         if img is not None and base.startswith(("CUT_", "SG_")):
@@ -347,7 +352,7 @@ for o, asset in static:
     mw = o.matrix_world
     for p, step in zip(me.polygons, plan):
         if step[0] == "tile":
-            cname, c = "tile_" + step[1], [1.0, 1.0, 1.0]
+            cname, c = "tile_" + step[1], (list(srgb("#" + step[2])) if step[2] else [1.0, 1.0, 1.0])
         elif step[0] == "atlas":
             cname, c = atlas_uv[step[1]][0].replace("atlas_", ""), [1.0, 1.0, 1.0]
         else:
@@ -538,7 +543,7 @@ for ob in bpy.context.scene.objects:
 keep = statics + [o for o, _ in special]
 for o in keep:
     o.select_set(True)
-raw = os.path.join(OUTW, "splash.raw.glb")
+raw = os.path.join(OUTW, NAME + ".raw.glb")
 bpy.ops.export_scene.gltf(
     filepath=raw,
     export_format="GLB",
@@ -558,7 +563,7 @@ bpy.ops.export_scene.gltf(
 total = sum(tris(o) for o in keep)
 json.dump(
     {
-        "made": "tools/venues/splash/export_three.py",
+        "made": "tools/venues/common/export_three.py -- tools/venues/" + os.path.basename(os.path.abspath(_venue[0])),
         "triangles": total,
         "lights": lights,
         "atlases": atlases,
@@ -566,9 +571,10 @@ json.dump(
         "paint": PAINT,
         "anchors": anchors,
         "tiles": {k: v for k, v in TILES.items() if any(o.name == "S_tile_" + k for o in statics)},
+        "sharp": [t for t in getattr(kit, "SHARP_TILES", []) if any(o.name == "S_tile_" + t for o in statics)],
         "meshes": sorted(o.name for o in keep),
     },
-    open(os.path.join(OUTW, "splash.json"), "w"),
+    open(os.path.join(OUTW, NAME + ".json"), "w"),
     indent=1,
 )
 print("EXPORTED", raw, total, "triangles", os.path.getsize(raw) // 1024, "KB")
