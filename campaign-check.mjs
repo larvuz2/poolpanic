@@ -591,9 +591,13 @@ const emitted = (s, type, kind) => s.events.filter((e) => e.type === type && e.k
     "senior",
     "wave",
   ]);
-  assert.equal(plan(VENUES.lagoon), plan(VENUES.resort));
-  assert.equal(plan(VENUES.arena), plan(VENUES.resort));
-  assert.equal(plan(VENUES.aquatic), plan(VENUES.resort));
+  assert.equal(plan(VENUES.arena), plan(VENUES.lagoon));
+  assert.equal(plan(VENUES.aquatic), plan(VENUES.lagoon));
+  // Splash Park shares the plan but for its doors, flush in its hotel's facade since 31 October 2026 (no locker rooms)
+  const noDoors = (v) => JSON.stringify([v.pool, v.deck, v.lanes]);
+  assert.equal(noDoors(VENUES.resort), noDoors(VENUES.lagoon));
+  assert.equal(VENUES.resort.arrival.crossesZ, true, "Splash Park's doors are crossed along z");
+  assert.ok(!VENUES.resort.obstacles.some((o) => /locker/.test(o.kind)), "no locker walls at Splash Park");
   assert.equal(VENUES.lagoon.name, "Sunset Lagoon");
   assert.equal(VENUES.arena.name, "Grand Gala Arena");
   assert.equal(VENUES.aquatic.name, "Aquatic Centre");

@@ -630,12 +630,15 @@ export function medkitObject(w) {
   return g;
 }
 
-export function medkitCabinet(w, p) {
-  const g = w.group(p.x - 0.5, 0, p.z, w.scene, Math.PI / 2);
-  w.box(1.5, 2.1, 0.5, 0xfff6ea, 0, 1.05, 0, 0.08, g);
-  w.box(0.52, 0.16, 0.04, 0xe0513f, 0, 1.75, 0.27, 0.01, g);
-  w.box(0.16, 0.52, 0.04, 0xe0513f, 0, 1.75, 0.271, 0.01, g);
-  w.textPlane("MEDIC", 1.2, 0.26, "#fff6ea", "#c2412f", 0, 1.3, 0.26, g, 44);
+// With `cabinet: false` the kit, its hit box and label only (Splash Park's cabinet is the model's: scene/splashpark.mjs).
+export function medkitCabinet(w, p, { cabinet = true } = {}) {
+  if (cabinet) {
+    const g = w.group(p.x - 0.5, 0, p.z, w.scene, Math.PI / 2);
+    w.box(1.5, 2.1, 0.5, 0xfff6ea, 0, 1.05, 0, 0.08, g);
+    w.box(0.52, 0.16, 0.04, 0xe0513f, 0, 1.75, 0.27, 0.01, g);
+    w.box(0.16, 0.52, 0.04, 0xe0513f, 0, 1.75, 0.271, 0.01, g);
+    w.textPlane("MEDIC", 1.2, 0.26, "#fff6ea", "#c2412f", 0, 1.3, 0.26, g, 44);
+  }
   w.medkitRack = medkitObject(w);
   w.medkitRack.position.set(p.x - 0.1, 0.95, p.z);
   w.medkitRack.rotation.y = Math.PI / 2;
@@ -720,12 +723,17 @@ export function kiosk(w, x, z) {
   return g;
 }
 
-// Trampoline tower: platform with rails, stairs down the back, and a launch bed overhanging the far deck.
+// Trampoline tower: platform with rails, stairs down the back, and a launch bed overhanging the far deck. With `structure: false`
+// only the bed (whose mat the jumps press down), its hit box and label: Splash Park's tower is the model's (scene/splashpark.mjs).
 export function trampolineTower(w, t, theme = {}) {
   const g = w.group(t.x, 0, t.z);
   const H = t.bedY - 0.22;
   const white = theme.white ?? 0xf4f1e2,
     blue = theme.blue ?? 0x2f86b8;
+  if (theme.structure === false) {
+    trampolineBed(w, t, g, H, blue);
+    return trampolineHooks(w, t, g, H, false);
+  }
   for (const xx of [-0.85, 0.85])
     for (const zz of [-0.95, 0.95]) w.cyl(0.09, 0.11, H, white, xx, H / 2, zz, g, 8);
   w.box(1.9, 0.18, 2.1, blue, 0, H, 0, 0.06, g);
@@ -749,6 +757,11 @@ export function trampolineTower(w, t, theme = {}) {
   // Launch arm and trampoline bed.
   const armX = t.bedX - t.x;
   w.box(Math.abs(armX) + 0.2, 0.14, 0.5, blue, armX / 2 - 0.1, H + 0.06, 0, 0.04, g);
+  trampolineBed(w, t, g, H, blue);
+  return trampolineHooks(w, t, g, H);
+}
+function trampolineBed(w, t, g, H, blue) {
+  const armX = t.bedX - t.x;
   const bed = w.group(armX, t.bedY - 0.1, 0, g);
   w.torus(0.82, 0.07, blue, bed, Math.PI * 2, 8, 28).rotation.x = Math.PI / 2;
   const mat = new THREE.Mesh(new THREE.CircleGeometry(0.72, 28), w.mat(0x243a44, { roughness: 0.9 }));
@@ -766,19 +779,22 @@ export function trampolineTower(w, t, theme = {}) {
       bed,
     );
   }
-  const sign = w.textPlane(
-    "SPLASH ZONE · LANE " + (t.lane + 1),
-    2.1,
-    0.34,
-    "#e0513f",
-    "#fff4dc",
-    0.2,
-    H + 1.35,
-    0,
-    g,
-    40,
-  );
-  sign.rotation.y = -Math.PI / 2;
+}
+// (the sign is the tower's; the hit box and the label are the game's, with or without it)
+function trampolineHooks(w, t, g, H, sign = true) {
+  if (sign)
+    w.textPlane(
+      "SPLASH ZONE · LANE " + (t.lane + 1),
+      2.1,
+      0.34,
+      "#e0513f",
+      "#fff4dc",
+      0.2,
+      H + 1.35,
+      0,
+      g,
+      40,
+    ).rotation.y = -Math.PI / 2;
   const hit = new THREE.Mesh(
     new THREE.BoxGeometry(3.2, 3.6, 2.4),
     new THREE.MeshBasicMaterial({ visible: false }),
