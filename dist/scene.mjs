@@ -15,6 +15,7 @@ import { splashReady, SPLASH_LOOKS } from "./scene/splashpark.mjs";
 import { kidsReady, KIDS_LOOKS } from "./scene/kidspool.mjs";
 import { lagoonClubReady } from "./scene/lagoonclub.mjs";
 import { discoClubReady, DISCO_LOOKS } from "./scene/discoclub.mjs";
+import { aquaticClubReady, AQUATIC_LOOKS } from "./scene/aquaticclub.mjs";
 import { buildResort } from "./scene/resort.mjs";
 import { buildLagoon } from "./scene/lagoon.mjs";
 import { buildArena } from "./scene/arena.mjs";
@@ -462,6 +463,7 @@ const DRESSED = {
   // follows the hour itself: scene/lagoonclub.mjs)
   lagoon: [lagoonClubReady, {}],
   disco: [discoClubReady, DISCO_LOOKS],
+  aquatic: [aquaticClubReady, AQUATIC_LOOKS],
 };
 const dressedFor = (venue) => !!DRESSED[venue.id]?.[0]();
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the

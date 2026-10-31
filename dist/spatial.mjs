@@ -604,8 +604,8 @@ function massageObstacle(t) {
 }
 // No cabanas and no lockers (31 October 2026, the creator: "Remove the lockers and just put doors within the wall"): the
 // changing rooms' doors stand flush in the building's front along the back (its face at z -16.12), crossed along z as the
-// Community Pool's are. Splash Park (its hotel) and the Sunset Lagoon (its beach house); the Arena and the Aquatic Centre keep
-// the plan's locker rooms.
+// Community Pool's are. Splash Park (its hotel), the Sunset Lagoon (its beach house) and the Aquatic Centre (its timing wall); the
+// Arena keeps the plan's locker rooms.
 const WALL_DOORS = {
   doors: { insideX: 10.7, doorX: 10.7, doorZ: -14.27, outsideX: 10.7, insideZ: -15.97 },
   doorWord: "a changing-room door",
@@ -653,8 +653,10 @@ export const AQUATIC = makeVenue({
   lighting: "aquatic",
   trampoline: null,
   fixtures: { ...RESORT_SPEC.fixtures, massage: MASSAGE_TABLE },
+  // (no locker rooms since 31 October 2026: the changing rooms' doors are in the timing wall, WALL_DOORS)
+  ...WALL_DOORS,
   furniture: [
-    ...RESORT_SPEC.furniture.filter((f) => !NOT_AQUATIC.has(f.kind)),
+    ...WALL_DOORS.furniture.filter((f) => !NOT_AQUATIC.has(f.kind)),
     { kind: "podium", x: 12.4, z: 4.8, hx: 1.35, hz: 0.62 },
     { kind: "team-bench", x: -12.9, z: 10.6, angle: 0, hx: 1.5, hz: 0.42 },
     { kind: "plant", x: 15.4, z: -11.2, hx: 0.5, hz: 0.5, scale: 0.9 },

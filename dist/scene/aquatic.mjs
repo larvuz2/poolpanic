@@ -10,8 +10,11 @@ import { checkerTextures } from "./textures.mjs";
 import { poolSurround, commonStations } from "./resort.mjs";
 import { Hall } from "./hall.mjs";
 import { Crowd } from "./crowd.mjs";
+import { ModelCrowd, crowdModelsReady } from "./crowd-models.mjs";
 import { placed, rngOf } from "./geom.mjs";
-import { bench, lifeguardTower, lockerBay, plant } from "./props.mjs";
+import { bench, lifeguardTower, plant } from "./props.mjs";
+import { changingDoors } from "./club.mjs";
+import { buildAquaticClub, aquaticClubReady } from "./aquaticclub.mjs";
 
 const FLOOR = -1.95;
 const NAVY = 0x10284a;
@@ -96,6 +99,8 @@ const AQUATIC_HALL = {
 };
 
 export function buildAquatic(w, venue) {
+  // The Aquatic Centre dressed for real when its model is in (scene/aquaticclub.mjs); this one till then, and with ?nomodels.
+  if (aquaticClubReady()) return buildAquaticClub(w, venue);
   buildDeck(w, venue, {
     checker: { a: "#eef3f6", b: "#e1e9ee", grout: "#b8c7d0", tiles: 4 },
     slab: NAVY,
@@ -115,8 +120,8 @@ export function buildAquatic(w, venue) {
   const ctx = { w, venue, hall, rand: rngOf(53), crowds: [], ribbons: [] };
   hallFloor(ctx);
   timingWall(ctx);
-  lockerBay(w, venue, -12, "HOME", BLUE, "arena");
-  lockerBay(w, venue, 12, "AWAY", RED, "arena");
+  // (no locker rooms since 31 October 2026: the changing rooms' doors are in the timing wall)
+  changingDoors(w, venue, -16.13);
   for (const f of venue.furniture) {
     if (f.kind === "bench") bench(w, f.x, f.z, f.angle);
     if (f.kind === "plant") plant(w, f.x, f.z, f.scale || 1);
@@ -128,6 +133,12 @@ export function buildAquatic(w, venue) {
   commonStations(w, venue);
   deckMarks(ctx);
   stands(ctx);
+  crowdLife(ctx);
+}
+
+// The crowds cheer with the game (`w.cheer`), the near stand's only while the Coach Cam sees it; the ribbons scroll.
+export function crowdLife(ctx) {
+  const { w, hall } = ctx;
   let frame = 0;
   w.updaters.push((time) => {
     const cheer = w.cheer || 0;
@@ -176,15 +187,19 @@ function hallFloor(ctx) {
 
 // ---- the wall behind the lockers: the timing board, the pace clock, club flags ---------------------------------
 const LANE_NAMES = ["ROSSI", "OKAFOR", "MARCO", "LINDQVIST", "TANAKA"];
-function timingWall(ctx) {
+// (`wall: false`: the dressed Aquatic Centre's model has the wall, the board's frame and the clocks' housings; the board, the clocks'
+// faces and hands, the flags and the banner stay the game's)
+export function timingWall(ctx, { wall = true } = {}) {
   const { w } = ctx,
     z0 = -16.35,
     cx = 0.4;
   // A solid backing wall in white and blue, with a red stripe and a navy plinth, so the board reads in the overview.
-  w.box(34.4, 7.2, 0.4, WHITE, cx, 1.7, z0 - 0.02, 0);
-  w.box(34.4, 0.7, 0.45, NAVY, cx, -0.3, z0 + 0.02, 0.02);
-  w.box(34.2, 0.22, 0.45, RED, cx, 4.95, z0 + 0.04, 0.02);
-  w.box(34.2, 0.32, 0.45, BLUE, cx, 5.35, z0 + 0.04, 0.02);
+  if (wall) {
+    w.box(34.4, 7.2, 0.4, WHITE, cx, 1.7, z0 - 0.02, 0);
+    w.box(34.4, 0.7, 0.45, NAVY, cx, -0.3, z0 + 0.02, 0.02);
+    w.box(34.2, 0.22, 0.45, RED, cx, 4.95, z0 + 0.04, 0.02);
+    w.box(34.2, 0.32, 0.45, BLUE, cx, 5.35, z0 + 0.04, 0.02);
+  }
   // The timing board: lane, name, time, place, with the lane times ticking while the shift runs.
   const W = 1024,
     H = 448,
@@ -237,7 +252,7 @@ function timingWall(ctx) {
   board.position.set(cx, 2.55, z0 + 0.25);
   w.scene.add(board);
   (w.liveProps ||= []).push(board);
-  w.box(10.1, 4.65, 0.24, NAVY, cx, 2.55, z0 + 0.1, 0.06);
+  if (wall) w.box(10.1, 4.65, 0.24, NAVY, cx, 2.55, z0 + 0.1, 0.06);
   w.dimmers.push((k) => face.color.setScalar(Math.min(1, Math.max(0.25, k))));
   w.updaters.push((time, dt, world, sim) => {
     const t = sim?.time ?? time,
@@ -247,7 +262,7 @@ function timingWall(ctx) {
     draw(t, sim?.score || 0);
   });
   // The pace clock: a big face with a red sweep hand, one turn a minute.
-  for (const x of [cx - 8.4, cx + 8.4]) {
+  for (const x of [cx - 7.0, cx + 7.0]) {
     const g = w.group(x, 2.55, z0 + 0.3);
     const rim = w.cyl(1.32, 1.32, 0.16, NAVY, 0, 0, 0, g, 40);
     rim.rotation.x = Math.PI / 2;
@@ -358,8 +373,10 @@ function deckMarks(ctx) {
 }
 
 // ---- grandstands -----------------------------------------------------------------------------------------------
+// (`tiers: false`: the dressed model has the concrete tiers and the seats, the game's crowd sits on them and its ribbons scroll in
+// front; `models`: the crowd is the Meshy spectators, scene/crowd-models.mjs, once they are in)
 const STAND = { tiers: 7, depth: 1.15, rise: 0.55 };
-function stands(ctx) {
+export function stands(ctx, { tiers = true, models = false } = {}) {
   const { w, hall } = ctx,
     sections = [BLUE, WHITE, BLUE, RED];
   const list = [
@@ -393,10 +410,11 @@ function stands(ctx) {
     for (let k = 0; k < STAND.tiers; k++) {
       const h = STAND.rise * (k + 1),
         along = s.front + s.dir * (k + 0.5) * STAND.depth;
-      if (s.axis === "x")
+      if (tiers && s.axis === "x")
         w.box(STAND.depth, h, length, k % 2 ? 0x1a3557 : 0x21426b, along, FLOOR + h / 2, mid, 0, s.parent);
-      else w.box(length, h, STAND.depth, k % 2 ? 0x1a3557 : 0x21426b, mid, FLOOR + h / 2, along, 0, s.parent);
-      for (let a = s.from; a < s.to - 0.01; a += 9) {
+      else if (tiers)
+        w.box(length, h, STAND.depth, k % 2 ? 0x1a3557 : 0x21426b, mid, FLOOR + h / 2, along, 0, s.parent);
+      for (let a = s.from; tiers && a < s.to - 0.01; a += 9) {
         const seg = Math.min(9, s.to - a),
           color = sections[(Math.floor((a - s.from) / 9) + k) % sections.length],
           seatAlong = along - s.dir * 0.28;
@@ -431,13 +449,14 @@ function stands(ctx) {
     ctx.ribbons.push(mat.map);
     s.parent.add(new THREE.Mesh(board, mat));
     w.dimmers.push((k) => mat.color.setScalar(Math.min(1, k)));
-    const crowd = new Crowd(w, s.coachOnly ? hall.live : w.scene, seats, {
+    const People = models && crowdModelsReady() ? ModelCrowd : Crowd;
+    const crowd = new People(w, s.coachOnly ? hall.live : w.scene, seats, {
       seed: 11 + si,
       waveAxis: s.axis === "x" ? "z" : "x",
       scale: 0.95,
       colors: [BLUE, WHITE, RED, NAVY, GOLD, 0x2fb6e8, 0x2fae7a],
     });
-    if (!s.coachOnly) w.liveProps.push(crowd.bodies, crowd.heads, crowd.arms);
+    if (!s.coachOnly) w.liveProps.push(...(crowd.meshes || [crowd.bodies, crowd.heads, crowd.arms]));
     ctx.crowds.push({ crowd, coachOnly: s.coachOnly });
   });
 }

@@ -849,6 +849,93 @@ def massage_clip(lift=None):
     return {"frames": frames, "breath_frames": 24, "breath": 0.6, **keys}
 
 
+# The Aquatic Centre's officials (31 October 2026, the creator: "two officials, very grumpy and tough … sit down and make simple
+# animations of them looking around … their eyebrows always almost in a mad position", the brows the Meshy texture's own). They sit
+# at the officials' table, the forearms on it and the hands flat (`"level"`), the hips SEAT back and down, and glare round the hall.
+DESK = {"space": "chest", "tgt": (0.30, -0.76, -0.26), "pole": (0.8, 0.5, -0.5), "twist": 0, "level": 1.0}  # a hand flat on the desk
+DESK_IN = {"space": "chest", "tgt": (0.06, -0.74, -0.38), "pole": (0.8, 0.5, -0.5), "twist": 0, "level": 1.0}  # in toward the middle
+TAP = {"space": "chest", "tgt": (0.30, -0.76, -0.16), "pole": (0.8, 0.5, -0.5), "twist": 0, "level": 1.0}  # lifted to drum the desk
+
+
+def seated(frames, feet=(SEAT["feet"], 0.04, 0.0)):
+    return {
+        "frames": frames,
+        "breath_frames": 72,
+        "hips": [(0, SEAT["hips"]), (frames, SEAT["hips"])],
+        "footL": [(0, feet), (frames, feet)],
+        "footR": [(0, feet), (frames, feet)],
+    }
+
+
+def judge_watch_clip():
+    """JudgeWatch (the Chief Judge, 12 s): sitting bolt upright at the table, both hands flat on it, glaring. The head turns
+    slowly to her left and holds (nothing escapes her), comes back past the middle to her right and holds; she leans in over the
+    desk with a squint at something in the pool (the head down and forward), straightens, and shakes her head slowly three
+    times: disgraceful. The right hand drums the desk twice while she waits."""
+    n = 288
+    c = seated(n)
+    c["hips_turn"] = [(0, (0, -4, 0)), (n, (0, -4, 0))]
+    c["spine"] = [(0, (0, -2, 0)), (110, (0, -2, 0)), (130, (0, 16, 0)), (168, (0, 16, 0)), (186, (0, -2, 0)), (n, (0, -2, 0))]
+    c["head"] = [
+        (0, (0, 2, 0)), (24, (0, 2, 0)), (50, (38, 0, 3)), (82, (38, 0, 3)), (104, (-34, 2, -3)),
+        (128, (-34, 6, -3)), (140, (0, 14, 0)), (168, (0, 14, 0)), (190, (0, 4, 0)),
+        (204, (14, 4, 0)), (216, (-14, 4, 0)), (228, (14, 4, 0)), (240, (-14, 4, 0)), (252, (12, 4, 0)), (264, (0, 2, 0)), (n, (0, 2, 0)),
+    ]
+    c["shrug"] = [(0, 0.15), (n, 0.15)]
+    c["armL"] = [(0, DESK), (n, DESK)]
+    c["armR"] = [(0, DESK), (30, DESK), (34, TAP), (38, DESK), (42, TAP), (46, DESK), (50, TAP), (54, DESK), (190, DESK),
+                 (194, TAP), (198, DESK), (202, TAP), (206, DESK), (n, DESK)]
+    return c
+
+
+def starter_glare_clip():
+    """StarterGlare (the Starter, 10 s): slumped forward on his forearms like a bulldog, the hands in toward each other on the
+    desk. He glares to his right and holds it, snaps his head round to the left as if he heard someone run on the deck, the
+    shoulders up in outrage, holds, lets them down with a huff (the chest rising and falling), then a slow scan back to the front
+    and a lean back with the hands flat."""
+    n = 240
+    c = seated(n)
+    c["breath"] = 1.6
+    c["hips_turn"] = [(0, (0, 6, 0)), (n, (0, 6, 0))]
+    c["spine"] = [(0, (0, 10, 0)), (60, (-6, 10, 0)), (76, (8, 6, 0)), (120, (8, 6, 0)), (150, (0, 10, 0)),
+                  (190, (0, 2, 0)), (214, (0, 2, 0)), (n, (0, 10, 0))]
+    c["head"] = [(0, (0, -6, 0)), (20, (0, -6, 0)), (40, (-42, -4, -4)), (64, (-42, -4, -4)), (70, (40, -8, 5)),
+                 (118, (40, -8, 5)), (150, (10, -6, 0)), (176, (-12, -6, 0)), (200, (0, -2, 0)), (n, (0, -6, 0))]
+    c["shrug"] = [(0, 0.2), (66, 0.2), (72, 0.9), (116, 0.9), (124, 1.0), (134, 0.2), (n, 0.2)]
+    c["armL"] = [(0, DESK_IN), (180, DESK_IN), (196, DESK), (216, DESK), (232, DESK_IN), (n, DESK_IN)]
+    c["armR"] = [(0, DESK_IN), (180, DESK_IN), (196, DESK), (216, DESK), (232, DESK_IN), (n, DESK_IN)]
+    return c
+
+
+# The Aquatic Centre's crowd (31 October 2026): five Meshy spectators, never animated by a skeleton in the game. Two poses each,
+# baked into still, very low meshes (crowd_bake.py): sitting with the hands on the thighs, and up off the seat's edge with both
+# arms thrown up in a V. The game swaps one for the other when the wave or a cheer comes through.
+CHEER_UP = {"space": "chest", "tgt": (0.40, -0.12, 0.90), "pole": (1.0, 0.2, 0.0), "twist": 0}
+
+
+def crowd_sit_clip():
+    c = seated(2)
+    c["breath"] = 0.0
+    c["spine"] = [(0, (0, 6, 0)), (2, (0, 6, 0))]
+    c["head"] = [(0, (0, 4, 0)), (2, (0, 4, 0))]
+    c["armL"] = [(0, SIT_HANDS), (2, SIT_HANDS)]
+    c["armR"] = [(0, SIT_HANDS), (2, SIT_HANDS)]
+    return c
+
+
+def crowd_cheer_clip():
+    c = seated(2)
+    c["breath"] = 0.0
+    lift = (SEAT["hips"][0], SEAT["hips"][1] - 0.04, SEAT["hips"][2] + 0.06)
+    c["hips"] = [(0, lift), (2, lift)]
+    c["spine"] = [(0, (0, -8, 0)), (2, (0, -8, 0))]
+    c["head"] = [(0, (0, -12, 0)), (2, (0, -12, 0))]
+    c["shrug"] = [(0, 0.6), (2, 0.6)]
+    c["armL"] = [(0, CHEER_UP), (2, CHEER_UP)]
+    c["armR"] = [(0, CHEER_UP), (2, CHEER_UP)]
+    return c
+
+
 def keyed_value(table, f):
     """A value eased between (frame, value) keys (numbers or tuples), for the clips above that build their keys a frame at
     a time."""
@@ -899,6 +986,18 @@ CLIPS = {
     # The Rooftop Pool's bartender (17 October 2026): made on his own body, behind his bar.
     "bartender": {
         "Shake": shake_clip(),
+    },
+    # The Aquatic Centre's officials at their table (31 October 2026), each made on his or her own body.
+    "judge": {
+        "JudgeWatch": judge_watch_clip(),
+    },
+    "starter": {
+        "StarterGlare": starter_glare_clip(),
+    },
+    # The Aquatic Centre's crowd (31 October 2026): two still poses, baked into meshes by crowd_bake.py.
+    "crowd": {
+        "CrowdSit": crowd_sit_clip(),
+        "CrowdCheer": crowd_cheer_clip(),
     },
     # What only Coach Waters does.
     "coach": {

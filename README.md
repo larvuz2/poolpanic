@@ -1025,8 +1025,8 @@ cards that cast dappled shadows.
   out at −14.27; no locker walls or benches in Splash Park's plan, `doorWord` "a changing-room door"), each a round-headed stone
   doorway with a fanlight that glows after dusk, a teal (MEN) or coral (WOMEN) door that swings out onto the deck, its plaque and
   lantern. Splash Park and, since the same day, the Sunset Lagoon (`WALL_DOORS`, `dist/spatial.mjs`: the doors in its beach
-  house); the Arena and the Aquatic Centre keep the plan's locker rooms. The classic Splash Park and the classic Sunset Lagoon have
-  the same two doors in their back walls (`changingDoors`, `scene/club.mjs`).
+  house) and the Aquatic Centre (in its timing wall); the Arena keeps the plan's locker rooms. The classic Splash Park, Sunset Lagoon
+  and Aquatic Centre have the same two doors in their back walls (`changingDoors`, `scene/club.mjs`).
 - **Made cheap** (`tools/venues/common/export_three.py` and `pack.sh`, shared since the Kids Pool, into `dist/assets/splash/`): as the Harbourside's, one mesh per material class (the
   colours in the vertex colours, the ambient occlusion baked into their alpha and onto the deck from above), the tile sets as
   WebP with normal maps, one atlas for the signs and one for the cut-outs, the deck's paint (lane numbers, the splash zone's board,
@@ -1131,6 +1131,66 @@ same way, three.js only, its assets made by `tools/venues/disco/` with the share
   the lanterns of the earlier venues warm rather than white.
 - **Cost**: about 125k triangles in a small GLB; `discoclub-check.mjs` holds it to the classic disco's hit boxes and labels; the
   classic disco stands in until it loads (after the Sunset Lagoon, `loadDiscoClub`) and with `?nomodels`.
+
+**The Aquatic Centre dressed for real** (31 October 2026, `dist/scene/aquaticclub.mjs`; the creator: "Now same treatment for the
+next venue!!! Remember AAA indie quality stuff and details … the textures, the details, the props, the decoration in the corners, on
+the walls, benches, and towels, the uniqueness of the level … this game is goofy and a little bit weird"). The next venue on the
+ladder, the same way, three.js only, its assets made by `tools/venues/aquatic/` with the shared kit. A municipal competition hall on
+club championship day:
+- **The plan changed for it**: no locker rooms (the creator's rule since 30 October 2026): the changing rooms' doors are in the
+  timing wall at x ±10.7 (`WALL_DOORS`, `AQUATIC` in `dist/spatial.mjs`, Splash Park's and the Sunset Lagoon's doors), and the
+  classic Aquatic Centre has them too (`changingDoors`), its pace clocks moved out to ±7 m of the board.
+- **The deck and the pool**: white anti-slip tiles with a pale blue row every 1.2 m and the odd chipped one, a navy fascia down to the
+  hall floor, the basin in blue glass mosaic with its navy band, touch pads, the starting blocks and the backstroke flags' posts;
+  lane numbers and AQUATIC CENTRE painted on the deck.
+- **The timing wall** (the back wall): glazed white tiles with a blue one here and there up to a red and a blue band, the board's
+  navy frame and the pace clocks' housings round the game's own board and clocks, QUIET PLEASE · STARTER'S ORDERS · NO BOMBING, a
+  mural over it (a swimmer doing butterfly: SWIM FAST. DON'T PANIC. (OKAY, PANIC A LITTLE)), high windows either side, navy
+  pilasters, a mosaic frieze under the eaves; the changing rooms' steel doors with lit CHANGING boxes, mats and shoe-cover
+  dispensers; the first-aid cabinet.
+- **The hall**: blue-grey sports flooring; walls of pale aqua acoustic panels over a glazed tile dado, navy steel pilasters between
+  tall windows in deep navy frames (two columns of panes: the town outside in the lowest, sky and clouds above; one view in five
+  has the town's water tower, which is a giant rubber duck), white sills, cream roller blinds pulled down to wherever the last
+  person left them (one in five hangs crooked), extract vents, a mosaic frieze and a red line under the eaves; the three clubs'
+  banners (the Otters, the Seals, the Soggy Biscuits); concrete grandstands with moulded seats in blue, white and red where the
+  crowd sits, yellow nosings, a glass front; the press box with POOL PANIC TV and ON AIR.
+- **The meet**: the victory podium (a giant cup, bouquets, medals), the officials' table at sitting height (monitors, a starter's
+  horn, a megaphone, stopwatches, a bell, the rule book, the 6.0 / 5.9 / 3.2 scorecards in a pot), the team bench (towels, kit bags,
+  swim caps, a cooler and a rubber chicken nobody claims), a palm, **Splashy** the giant rubber duck in his swim cap and goggles on a
+  plinth (his NO RUNNING poster on an easel), the **Hall of Fame (ish)** (a golden flipper, a golden duck, golden goggles, a
+  fish-skeleton cup), the pool records board (Carl holds the slowest lap), the ISO-SPLASH machine, a drinking fountain, DAYS
+  WITHOUT A CANNONBALL: 0 (BEST: 0, SIGH.), the lane-rope reel, the leaning tower of kickboards, a bin of pull buoys, the POOL PANIC
+  TV camera, cardboard Marco flexing, WET FLOOR boards; the stations are Splash Park's in navy, white and red.
+- **The officials** (the creator, the same day: "two officials, very grumpy and tough … sit down and make simple animations of them
+  looking around … their eyebrows always almost in a mad position … sitting on the table"): the **Chief Judge** (tall, a grey bun,
+  half-moon glasses, a stopwatch) and the **Starter** (short and square, a grey walrus moustache, a cap; he sits on two cushions and
+  his feet do not reach the floor), behind the officials' table (`dist/scene/officials.mjs`). GPT Image 2.5 designs from front
+  renders of Coach Waters and Coach Marsh, Meshy 7 meshes (about 12k triangles, 1 MB each), rigged on Waters' skeleton
+  (`rig_from_template.py`), each with one clip of their own (`character_clips.py --character judge|starter`): **JudgeWatch** (12 s:
+  bolt upright, the hands flat on the table, a long glare to each side, a lean in with a squint, a slow disapproving head shake, the
+  fingers drumming) and **StarterGlare** (10 s: slumped on his forearms like a bulldog, glaring, his head snapping round at a
+  runner, the shoulders up in outrage, a huff). The scowls are painted in their textures, so they never soften. Scenery only: no
+  simulation, no hit box.
+- **The crowd** (the creator: "the people on the benches need to be proxies for models … very, very low triangles … all made from
+  Meshy … five generic ones and then change some accessories and the color of the shirt … always optimized for performance"):
+  `dist/scene/crowd-models.mjs`, `ModelCrowd`, in place of the classic sphere-people (`stands(ctx, { models: true })`). Five Meshy
+  spectators in plain white t-shirts (a dad in a bucket hat, a mum with sunglasses on her head, a grandpa in a flat cap and braces,
+  a teenager in a backwards cap, a super-fan in face paint and a bobble hat), rigged, posed sitting and cheering and baked into still
+  meshes of 450 triangles a pose (`tools/blender/crowd_bake.py`, `dist/assets/crowd/`, 390 KB in all): one atlas for the five and a
+  mask of the shirts beside it, so every person's shirt takes its own colour (club colours mostly); three in ten wave a little flag
+  and one in ten a foam finger. Drawn instanced, about a dozen draw calls a stand, no shadows; the wave and the cheers swap a person
+  from the sitting mesh to the cheering one, with a bounce. The classic crowd stands in until it loads (and in the classic hall).
+- **What moves stays the game's** (`dist/scene/aquatic.mjs`, its `timingWall` and `stands` taking the dressed hall's options): the
+  timing board with its lane times, the pace clocks' hands, the club flags, the crowds and their cheering, the scrolling ribbons.
+  Its light is `LIGHTING.aquatic` with every model lamp lit (`AQUATIC_LOOKS`: the spots over the board, the CHANGING boxes; cool
+  white light); the hall lamps are the roof's and do not glow.
+- **The Coach Cam's roof** (`COACH_PARTS`: hidden from the overview, casting no shadow): the arched vault on lattice trusses, hanging
+  lamps, skylights, the clubs' hanging banners, and the near stand with its own crowd.
+- **Cost**: about 175k triangles in a 7 MB GLB (its pictures 0.5 MB), the crowd's 4.5k triangles drawn some 400 times (about 180k
+  with the near stand hidden), the officials 25k; 330 draw calls headless against the classic hall's 430. `aquaticclub-check.mjs`
+  holds it to the classic hall's hit boxes and labels and to its budgets; the classic Aquatic Centre stands in until it loads (after
+  the Aqua Disco, `loadAquaticClub`, then the crowd and the officials) and with `?nomodels`. Measured here with software drawing
+  only: the frame rate on a real graphics card is not yet measured.
 
 - **Grand Gala Arena** (`dist/scene/arena.mjs`, `crowd.mjs`): a stage with an LED screen and a chasing-light marquee, a rotating trophy, three grandstands of instanced spectators who cheer on every save, scrolling LED ribbons, a hanging scoreboard cube that shows the live score, time and stars, two sweeping spotlight rigs with floor decals, balloons and confetti cannons.
 - **Aquatic Centre** (`dist/scene/aquatic.mjs`, 16 October 2026): an indoor competition pool. The pool builder takes a dress (`buildPool`'s second options: tiles, lane lines, rope colours, block tops, pennants), here deep-blue tiles with black lines, red, white and blue racing ropes and navy blocks on a white deck; an electronic timing board on the back wall (five named lanes, their times running with the shift's clock, MARCO in orange) between two pace clocks, a row of club flags, blue grandstands with a crowd on two sides (a third for the Coach Cam), scrolling LED ribbons, a victory podium, the officials' table with timing screens, a team bench, and painted lane numbers. Its light is `LIGHTING.aquatic`, cool daylight with the underwater lamps on; its hall (glass walls, a white steel lattice roof, banners, bunting) is for the Coach Cam. `?pool=aquatic` (any pool id) plays every shift of the week there, for a look or a test.
@@ -1704,6 +1764,9 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/scene/harbourside.mjs`, `dist/assets/club/` | The Community Pool as the Harbourside Community Swim Club ("The Community Pool as the Harbourside", above): the model's loading, its materials (the venue's shader: caustics under the water, the deck's paint and contact shadows), the game's own parts round it, the shafts of sun, the dust and the lamps' glows; the classic pool (`scene/club.mjs`) stands in until it loads |
 | `dist/scene/splashpark.mjs`, `dist/assets/splash/`, `tools/venues/splash/` | Splash Park dressed for real ("Splash Park dressed for real", above): the model's loading, its materials (caustics, the deck's paint and contact shadows, the lamps' light after dusk, the clouds' shade by day), its own light at each hour (`SPLASH_LOOKS`), the horizon, the game's own parts round it; the scripts that make it; the classic park (`scene/resort.mjs`) stands in until it loads |
 | `dist/scene/dressed.mjs`, `tools/venues/common/` | What every dressed venue shares: the model's loading, the venue's shader (caustics, the deck's paint and contact shadows, the lamps' light after dusk, the clouds' shade), the classes' materials, the glows, the painted horizon; the Blender kit, textures, trees, exporter, pack and horizon keying |
+| `dist/scene/aquaticclub.mjs`, `dist/assets/aquatic/`, `tools/venues/aquatic/` | The Aquatic Centre dressed for real ("The Aquatic Centre dressed for real", above): the hall round the game's board, clocks, flags and crowd; the scripts that make it; the classic hall stands in until it loads |
+| `dist/scene/crowd-models.mjs`, `dist/assets/crowd/`, `tools/blender/crowd_bake.py` | The crowd of Meshy spectators (`ModelCrowd`): five bodies baked sitting and cheering, 450 triangles a pose, instanced, each shirt its own colour; the dressed Aquatic Centre's stands |
+| `dist/scene/officials.mjs`, `dist/assets/models/official-*.glb` | The Aquatic Centre's Chief Judge and Starter, seated at the officials' table on their clips (JudgeWatch, StarterGlare) |
 | `dist/scene/discoclub.mjs`, `dist/assets/disco/`, `tools/venues/disco/` | The Aqua Disco dressed for real ("The Aqua Disco dressed for real", above): the room round what moves to the beat (scene/disco.mjs), the DJ and bartender models, the Coach Cam's ceiling; the scripts that make it; the classic disco stands in until it loads |
 | `dist/scene/lagoonclub.mjs`, `dist/assets/lagoon/`, `tools/venues/lagoon/` | The Sunset Lagoon dressed for real ("The Sunset Lagoon dressed for real", above): the game's live parts round the model, which follows the game's sliding hour; the scripts that make it; the classic lagoon (`scene/lagoon.mjs`) stands in until it loads |
 | `dist/scene/kidspool.mjs`, `dist/assets/kids/`, `tools/venues/kids/` | The Kids Pool dressed for real ("The Kids Pool dressed for real", above): its morning light (`KIDS_LOOKS`) and the game's live parts round the model; the scripts that make it; the classic pool (`scene/kids.mjs`) stands in until it loads |
@@ -1883,6 +1946,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node music-check.mjs` | The disco song: on the dance's beat (a bar per clip), its parts in order (intro, groove, hook, breakdown, build) for a two-minute shift, four on the floor (none in the breakdown), claps on two and four, the build's roll speeding up, the bass on the bar's root, the hook in its bars, every note in A minor, the alarm when the pool is in trouble; the Kids Pool's song (132 BPM, C major, a boom on one and three and a chick on two and four, the oom-pah bass on the root and fifth, the tune and the runs, every voice heard, the player switching songs from the top); the player silent in the countdown, the first kick on the go and every kick on a beat, nothing twice after a pause and back on the clock, quiet in a power cut and back with the lights, and the usual music before and after |
 | `node harbourside-check.mjs` | The Harbourside: its files there and within budget (the model under 10 MB and 260k triangles, the pictures under 2 MB, every picture used, the textured meshes keeping their UVs), the classic pool until it is in, then the same hit boxes and labels as the classic pool, the fins going as they are rented, the doors swinging, the near wall for the Coach Cam only, fewer draw calls than the classic pool |
 | `node splash-check.mjs` | Splash Park dressed for real: its files within budget (the model under 10 MB and 230k triangles, the pictures under 2 MB, every picture used, the textured meshes' UVs kept as floats), the classic park until it is in, then the same hit boxes and labels as the classic park at day, sunset and night, the fins, rings, trampoline bed and medkit at work, the doors in the hotel's front swinging out onto the deck, no lockers, the Sunset Lagoon not taking Splash Park's model, fewer draw calls than the classic park |
+| `node aquaticclub-check.mjs` | The Aquatic Centre dressed for real: its files within budget (under 10 MB and 200k triangles, every picture used, float UVs), the classic hall until it is in, then the same hit boxes and labels, the fins, rings, fish net, torch, fuse and pool lamps, the club flags and the timing board on the wall's face, the roof and near stand hidden from the overview and shown to the Coach Cam without shadows, the changing rooms' doors in the timing wall swinging out onto the deck, the crowd's files (five spectators, UVs kept, at most 500 triangles a pose, under 600 KB) and its instanced meshes cheering, the officials' clips and skins and their seats behind the table, fewer draw calls than the classic hall |
 | `node discoclub-check.mjs` | The Aqua Disco dressed for real: its files within budget (under 10 MB and 200k triangles, the pictures under 2 MB, every picture used, float UVs), the classic disco until it is in, then the same hit boxes and labels, the fins, rings, fish net, torch, fuse and pool lamps, the spots sweeping to the beat, the ceiling and near wall hidden from the overview and shown to the Coach Cam without shadows, the entrance's leaves swinging out onto the deck, fewer draw calls than the classic disco |
 | `node lagoon-check.mjs` | The Sunset Lagoon dressed for real: its files within budget (the model under 10 MB and 200k triangles, the pictures under 2 MB, every picture used, float UVs), its torches, lanterns and bonfire, the classic lagoon until it is in, then the same hit boxes and labels as the classic lagoon, the fins, rings, torch and sky, the horizon kept off the sea side, the lamps out at golden hour and lit at dusk, out in a power cut, the horizon dimming at dusk and in a storm, the doors in the beach house's wall swinging out onto the deck, fewer draw calls than the classic lagoon |
 | `node kids-check.mjs` | The Kids Pool dressed for real: its files within budget (the model under 10 MB and 200k triangles, the pictures under 2 MB, every picture used, float UVs), the classic pool until it is in, then the same hit boxes and labels as the classic pool, the fins, rings, torch, the toys and balloons, the gate's leaves swinging out onto the deck, fewer draw calls than the classic pool |

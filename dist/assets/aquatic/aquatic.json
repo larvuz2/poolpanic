@@ -1,0 +1,404 @@
+{
+ "made": "tools/venues/common/export_three.py -- tools/venues/aquatic",
+ "triangles": 174610,
+ "lights": [
+  {
+   "kind": "HallLamp",
+   "at": [
+    -12.0,
+    10.09,
+    -13.15
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    -4.0,
+    10.09,
+    -13.15
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    4.0,
+    10.09,
+    -13.15
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    12.0,
+    10.09,
+    -13.15
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    -12.0,
+    10.09,
+    -6.65
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    -4.0,
+    10.09,
+    -6.65
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    4.0,
+    10.09,
+    -6.65
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    12.0,
+    10.09,
+    -6.65
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    -12.0,
+    10.09,
+    -0.15
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    -4.0,
+    10.09,
+    -0.15
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    4.0,
+    10.09,
+    -0.15
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    12.0,
+    10.09,
+    -0.15
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    -12.0,
+    10.09,
+    6.35
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    -4.0,
+    10.09,
+    6.35
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    4.0,
+    10.09,
+    6.35
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    12.0,
+    10.09,
+    6.35
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    -12.0,
+    10.09,
+    12.85
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    -4.0,
+    10.09,
+    12.85
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    4.0,
+    10.09,
+    12.85
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    12.0,
+    10.09,
+    12.85
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    -12.0,
+    10.09,
+    19.35
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    -4.0,
+    10.09,
+    19.35
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    4.0,
+    10.09,
+    19.35
+   ]
+  },
+  {
+   "kind": "HallLamp",
+   "at": [
+    12.0,
+    10.09,
+    19.35
+   ]
+  },
+  {
+   "kind": "Sign",
+   "at": [
+    -10.7,
+    3.29,
+    -16.007
+   ]
+  },
+  {
+   "kind": "Sign",
+   "at": [
+    10.7,
+    3.29,
+    -16.007
+   ]
+  },
+  {
+   "kind": "Spot",
+   "at": [
+    -3.6,
+    5.745,
+    -15.53
+   ]
+  },
+  {
+   "kind": "Spot",
+   "at": [
+    0.4,
+    5.745,
+    -15.53
+   ]
+  },
+  {
+   "kind": "Spot",
+   "at": [
+    4.4,
+    5.745,
+    -15.53
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -8.191,
+    -0.78,
+    -6.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -8.191,
+    -0.78,
+    -2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -8.191,
+    -0.78,
+    2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -8.191,
+    -0.78,
+    6.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    8.201,
+    -0.78,
+    -6.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    8.201,
+    -0.78,
+    -2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    8.201,
+    -0.78,
+    2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    8.201,
+    -0.78,
+    6.0
+   ]
+  }
+ ],
+ "atlases": {
+  "atlas_signs": {
+   "size": 2048,
+   "images": 21,
+   "scale": 1.0
+  },
+  "atlas_cut": {
+   "size": 1024,
+   "images": 1,
+   "scale": 1.0
+  }
+ },
+ "ao": 1,
+ "paint": {
+  "size": 2048,
+  "x0": -16.6,
+  "z0": -17.2,
+  "span": 34.4
+ },
+ "anchors": {
+  "LifeRing": [
+   [
+    -4.0,
+    1.9,
+    -15.6
+   ],
+   [
+    -15.9,
+    1.9,
+    -5.4
+   ],
+   [
+    16.75,
+    1.9,
+    -6.6
+   ]
+  ],
+  "Flashlight": [
+   [
+    -12.6,
+    1.17,
+    -6.7
+   ]
+  ]
+ },
+ "tiles": {
+  "deck": 1.2,
+  "glass_mosaic": 0.8,
+  "mosaic_band": 0.8,
+  "rubberfloor": 2.0,
+  "panel": 2.4,
+  "seats": 0.5,
+  "concrete": 2.0,
+  "teak": 1.0,
+  "walltile": 1.0
+ },
+ "sharp": [
+  "deck",
+  "glass_mosaic"
+ ],
+ "meshes": [
+  "C_glass",
+  "C_lamp",
+  "C_matte_n",
+  "C_metal",
+  "C_satin",
+  "C_satin_n",
+  "C_signs",
+  "C_tile_concrete",
+  "C_tile_mosaic_band",
+  "C_tile_panel",
+  "C_tile_seats",
+  "C_tile_walltile",
+  "Door_A",
+  "Door_B",
+  "Fins_1",
+  "Fins_2",
+  "Fins_3",
+  "S_cut",
+  "S_glass",
+  "S_gloss",
+  "S_gloss_n",
+  "S_lamp",
+  "S_leaf",
+  "S_matte",
+  "S_matte_n",
+  "S_metal",
+  "S_metal_n",
+  "S_nightglow",
+  "S_satin",
+  "S_satin_n",
+  "S_signs",
+  "S_tile_concrete",
+  "S_tile_deck",
+  "S_tile_glass_mosaic",
+  "S_tile_mosaic_band",
+  "S_tile_panel",
+  "S_tile_rubberfloor",
+  "S_tile_seats",
+  "S_tile_teak",
+  "S_tile_walltile"
+ ]
+}
