@@ -286,11 +286,19 @@ export function buildRoofCast(w, venue, ctx) {
   towels(w, ctx);
   buildCast(w, ctx);
 }
-// The DJ (at ctx.djSpot) and the bartender (at ctx.barSpot, facing ctx.barAngle): the cruise ship's Lido Bar has its own.
+// The DJ (at ctx.djSpot, facing ctx.djAngle, on a riser ctx.djY high) and the bartender (at ctx.barSpot, facing ctx.barAngle): the
+// cruise ship's Lido Bar has its own, and the dressed Aqua Disco has both (scene/discoclub.mjs).
 export function buildCast(w, ctx) {
   ctx.cast = [];
   for (const who of [
-    { id: "dj", name: "DJ", at: ctx.djSpot, y: 0.25, angle: Math.PI, type: "advanced" },
+    {
+      id: "dj",
+      name: "DJ",
+      at: ctx.djSpot,
+      y: ctx.djY ?? 0.25,
+      angle: ctx.djAngle ?? Math.PI,
+      type: "advanced",
+    },
     {
       id: "bartender",
       name: "Bartender",

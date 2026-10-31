@@ -61,6 +61,7 @@ import { loadHarbourside } from "./scene/harbourside.mjs";
 import { loadSplashPark } from "./scene/splashpark.mjs";
 import { loadKidsPool } from "./scene/kidspool.mjs";
 import { loadLagoonClub } from "./scene/lagoonclub.mjs";
+import { loadDiscoClub } from "./scene/discoclub.mjs";
 import { cannonballMan } from "./incidents/carl.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
@@ -4909,7 +4910,7 @@ try {
     // the classic Splash Park plays, and a shift already running there keeps it.
     const splashBegan = performance.now();
     // Then the venues after it on the ladder, one at a time (the Kids Pool: scene/kidspool.mjs; the Sunset Lagoon:
-    // scene/lagoonclub.mjs).
+    // scene/lagoonclub.mjs; the Aqua Disco: scene/discoclub.mjs).
     const loaded = (name, began) => (model) =>
       crashlog.crumb(
         "venue",
@@ -4927,6 +4928,10 @@ try {
       .then(() => {
         const began = performance.now();
         return loadLagoonClub().then(loaded("Sunset Lagoon", began));
+      })
+      .then(() => {
+        const began = performance.now();
+        return loadDiscoClub().then(loaded("Aqua Disco", began));
       });
   });
   if (fetching.length) {

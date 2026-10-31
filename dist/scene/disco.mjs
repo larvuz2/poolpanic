@@ -26,6 +26,7 @@ import {
 import { character } from "./actors.mjs";
 import { attachSwimmerModel, loadFigure } from "./swimmer-models.mjs";
 import { danceAt, pulse } from "../dance.mjs";
+import { buildDiscoClub, discoClubReady } from "./discoclub.mjs";
 
 const FLOOR = -1.95;
 const INK = 0x0d0818;
@@ -107,6 +108,8 @@ const DISCO_HALL = {
 };
 
 export function buildDisco(w, venue) {
+  // The Aqua Disco dressed for real when its model is in (scene/discoclub.mjs); this one till then, and with ?nomodels.
+  if (discoClubReady()) return buildDiscoClub(w, venue);
   buildDeck(w, venue, {
     checker: { a: "#221640", b: "#170f2c", grout: "#0b0716", tiles: 4 },
     slab: INK,
@@ -149,8 +152,13 @@ export function buildDisco(w, venue) {
   sparkles(ctx);
   lasers(ctx);
   mirrorBall(ctx);
-  // The beat: every part that moves to it reads the routine's clock, the shift's own time (it stops with a pause), or the page's
-  // in the menu. Reduced motion holds it all still at one moment, at a steady glow: no sweeping, no flashing.
+  onTheBeat(ctx);
+}
+
+// The beat: every part that moves to it reads the routine's clock, the shift's own time (it stops with a pause), or the page's
+// in the menu. Reduced motion holds it all still at one moment, at a steady glow: no sweeping, no flashing.
+export function onTheBeat(ctx) {
+  const { w } = ctx;
   w.updaters.push((time, dt, world, sim) => {
     const calm = world.reducedMotion?.matches,
       t = calm ? 4.2 : sim && sim.status !== "ready" ? sim.time || 0 : time;
@@ -171,7 +179,7 @@ const canvasTexture = (w, width, height, draw) => {
   w.textures.push(t);
   return { canvas: c, texture: t };
 };
-const glowMaterial = (color, opacity = 1) =>
+export const glowMaterial = (color, opacity = 1) =>
   new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, fog: false });
 const hsl = new THREE.Color();
 
@@ -217,10 +225,11 @@ function lowWalls(ctx) {
   });
 }
 // The back wall (screen left): the neon sign and the equaliser screen above the entrance.
-function backWall(ctx) {
+// (`wall`: the wall and the screen's backing; the dressed disco's model has its own frames round the sign and the screen)
+export function backWall(ctx, { wall = true } = {}) {
   const { w } = ctx,
     z0 = -16.35;
-  w.box(29.6, 8, 0.4, INK, 0, 3.1, z0 - 0.02, 0);
+  if (wall) w.box(29.6, 8, 0.4, INK, 0, 3.1, z0 - 0.02, 0);
   // The neon sign: two tubes of light, pink and cyan, that flash on the first beat of every bar.
   const sign = canvasTexture(w, 1024, 256, (c, W, H) => {
     c.clearRect(0, 0, W, H);
@@ -248,7 +257,7 @@ function backWall(ctx) {
   screen.position.set(0, 3.6, z0 + 0.26);
   w.scene.add(screen);
   w.liveProps.push(screen);
-  w.box(6.8, 1.6, 0.2, 0x0a0614, 0, 3.6, z0 + 0.12, 0.05);
+  if (wall) w.box(6.8, 1.6, 0.2, 0x0a0614, 0, 3.6, z0 + 0.12, 0.05);
   let lastKey = "";
   ctx.beats.push((t, d, p, lit) => {
     signMat.color.setScalar((0.55 + 0.45 * (d.beat % 4 === 0 ? p : 0.4)) * lit);
@@ -325,10 +334,11 @@ function entrance(ctx) {
 // A round platform past the far end of the pool with an LED edge, an arch of bulbs behind, and Valentina on it facing
 // the class, dancing the routine. She is a model (models/valentina.glb, fetched here); until it is in, a classic figure in pink
 // dances the same moves with its arms.
-function stage(ctx, x, z) {
+// (`body`: the platform itself; the dressed disco's model has its own)
+export function stage(ctx, x, z, { body = true } = {}) {
   const { w, venue } = ctx,
     top = venue.stage.y;
-  w.cyl(2.7, 2.9, top, 0x1a1030, x, top / 2, z, w.scene, 40);
+  if (body) w.cyl(2.7, 2.9, top, 0x1a1030, x, top / 2, z, w.scene, 40);
   const rim = glowMaterial(CYAN);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(2.72, 0.07, 8, 64), rim);
   ring.rotation.x = Math.PI / 2;
@@ -408,9 +418,10 @@ function stage(ctx, x, z) {
 
 // ---- deck furniture ------------------------------------------------------------------------------------------
 // A speaker stack: two cones that pump on the beat, and a moving head on top.
-function speaker(ctx, x, z) {
+// (`body`: the cabinet and its LED strip; the dressed disco's model has its own cabinets, turned to face the pool's middle)
+export function speaker(ctx, x, z, { body = true } = {}) {
   const { w } = ctx;
-  w.box(1.1, 1.9, 1.0, 0x120a20, x, 0.95, z, 0.08);
+  if (body) w.box(1.1, 1.9, 1.0, 0x120a20, x, 0.95, z, 0.08);
   const facing = Math.atan2(-x, -z); // toward the middle of the pool
   const cones = [];
   for (const [y, r] of [
@@ -432,10 +443,12 @@ function speaker(ctx, x, z) {
     cones.push(cone);
   }
   const led = glowMaterial(CYAN);
-  const strip = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.06, 1.02), led);
-  strip.position.set(x, 1.92, z);
-  w.scene.add(strip);
-  w.liveProps.push(strip);
+  if (body) {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.06, 1.02), led);
+    strip.position.set(x, 1.92, z);
+    w.scene.add(strip);
+    w.liveProps.push(strip);
+  }
   ctx.beats.push((t, d, p, lit) => {
     for (const c of cones) c.scale.set(1 + 0.12 * p, 1, 1 + 0.12 * p);
     led.color.setHSL((0.5 + 0.3 * Math.sin(t * 0.7 + x)) % 1, 1, 0.5).multiplyScalar(lit * (0.5 + 0.5 * p));
@@ -514,7 +527,7 @@ function bar(ctx, x, z) {
 
 // ---- lights that move to the music ------------------------------------------------------------------------------
 // An LED strip all round the coping: a rainbow that chases round the pool, brighter on the beat.
-function ledRim(ctx) {
+export function ledRim(ctx) {
   const { w, venue } = ctx,
     P = venue.pool,
     hx = P.halfX + 0.48,
@@ -546,7 +559,7 @@ function ledRim(ctx) {
   });
 }
 // Moving heads: pools of coloured light that sweep left and right across the water and the deck, to the beat, all the shift.
-function spotlights(ctx) {
+export function spotlights(ctx) {
   const { w } = ctx,
     glow = glowTexture(96);
   w.textures.push(glow);
@@ -569,7 +582,7 @@ function spotlights(ctx) {
   });
 }
 // The mirror ball's sparkles: little points of light circling slowly over the water and the deck.
-function sparkles(ctx) {
+export function sparkles(ctx) {
   const { w, rand } = ctx,
     n = 140,
     glow = glowTexture(32, 2);
@@ -605,7 +618,7 @@ function sparkles(ctx) {
   });
 }
 // Lasers from the back wall, fanning out over the pool and back on the beat.
-function lasers(ctx) {
+export function lasers(ctx) {
   const { w } = ctx,
     beams = [];
   for (const [x, color] of [
