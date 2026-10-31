@@ -1,0 +1,90 @@
+{
+ "made": "tools/venues/common/export_three.py -- tools/venues/kids",
+ "triangles": 168012,
+ "lights": [],
+ "atlases": {
+  "atlas_signs": {
+   "size": 2048,
+   "images": 12,
+   "scale": 1.0
+  },
+  "atlas_cut": {
+   "size": 1024,
+   "images": 3,
+   "scale": 1.0
+  }
+ },
+ "ao": 1,
+ "paint": {
+  "size": 2048,
+  "x0": -15.0,
+  "z0": -17.0,
+  "span": 30.6
+ },
+ "anchors": {
+  "LifeRing": [
+   [
+    -4.0,
+    1.82,
+    -15.54
+   ],
+   [
+    -14.19,
+    1.82,
+    -5.0
+   ],
+   [
+    14.19,
+    1.82,
+    5.0
+   ]
+  ],
+  "Flashlight": [
+   [
+    11.2,
+    1.19,
+    -7.3
+   ]
+  ]
+ },
+ "tiles": {
+  "rubber": 1.2,
+  "glass_mosaic": 0.8,
+  "mosaic_band": 0.8,
+  "boards": 1.0,
+  "hedge": 1.6,
+  "groundcover": 3.0,
+  "canopy": 2.0,
+  "conifer": 1.2
+ },
+ "sharp": [
+  "rubber",
+  "glass_mosaic"
+ ],
+ "meshes": [
+  "Door_A",
+  "Door_B",
+  "Fins_1",
+  "Fins_2",
+  "Fins_3",
+  "S_cut",
+  "S_gloss",
+  "S_leaf",
+  "S_leaf_n",
+  "S_matte",
+  "S_matte_n",
+  "S_metal",
+  "S_metal_n",
+  "S_satin",
+  "S_satin_n",
+  "S_signs",
+  "S_tile_boards",
+  "S_tile_canopy",
+  "S_tile_conifer",
+  "S_tile_glass_mosaic",
+  "S_tile_groundcover",
+  "S_tile_hedge",
+  "S_tile_mosaic_band",
+  "S_tile_rubber"
+ ]
+}

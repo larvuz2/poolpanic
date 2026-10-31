@@ -9,7 +9,7 @@ Conventions (as the Harbourside's):
 - Metres, game axes for the plan: x across the lanes (+x the top of the game's view), y up, z along the lanes (-z the back
   facade). `g(x, y, z)` turns a game position into Blender's (x, -z, y).
 - Pieces are modelled in place in game coordinates, or at the origin and placed by placements.json (asset, pos, rot, scale).
-- Material names tell the exporter (export_three.py) what a surface becomes:
+- Material names tell the exporter (common/export_three.py) what a surface becomes:
     T_<set>      a tile set (TILES below): world-box UVs at the set's scale, its picture and normal map in the game
     Light_<kind> an object whose centre is a lamp (glows, the night's pools of light on the deck: splash.json `lights`)
     NightGlow_*  (object names) drawn additively, lit only after dusk (lit windows, lantern glass, bulbs' halos)
@@ -20,46 +20,9 @@ Conventions (as the Harbourside's):
 import os, sys, math, json
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
-sys.path.insert(0, os.path.join(REPO, "godot", "tools", "blender"))
+sys.path.insert(0, os.path.join(HERE, "..", "common"))
 sys.path.insert(0, HERE)
-import bpy, bmesh
-from mathutils import Vector, Matrix
-from lib import *  # noqa: F401,F403  (g, srgb, mat, box, cyl, sphere, torus, tube, text, plane, extrude_shape, join, ...)
-from props_kit import (  # noqa: F401
-    PI,
-    FACE,
-    bx,
-    gbx,
-    xf,
-    grp,
-    at_origin,
-    set_origin,
-    decal,
-    flat_text,
-    framed,
-    towel_folded,
-    towel_rolled,
-    towel_hanging,
-    flip_flop,
-    goggles,
-    bottle,
-    duffel,
-    tote,
-    frond,
-    pictogram_3d,
-    tris,
-)
-
-WORK = os.environ.get("SPLASH_WORK", "/tmp/splash-work")
-PARTS = os.path.join(WORK, "parts")  # one GLB per script (shell.glb, doors.glb, ...)
-TEX = os.path.join(WORK, "textures")  # tile sets and cut-out pictures (PNG)
-SIGNS = os.path.join(WORK, "signs")  # printed and painted surfaces (PNG, drawn by signs.py with Pillow)
-PREVIEWS = os.environ.get("PP_PREVIEWS", os.path.join(WORK, "previews"))
-OUT = os.path.join(REPO, "dist", "assets", "splash")
-PLACEMENTS = os.path.join(HERE, "placements.json")
-for d in (PARTS, TEX, SIGNS, PREVIEWS):
-    os.makedirs(d, exist_ok=True)
+from kitbase import *  # noqa: F401,F403
 
 # ---- the plan (dist/spatial.mjs RESORT_SPEC; poolGeometry: a five-lane pool is 8.2 m by 8.3 m half) ------------------------
 ROOM = dict(x0=-16.2, x1=17.0, z0=-16.7, z1=13.5)
@@ -144,15 +107,6 @@ SPLASH = {
 }
 
 
-def sm(name, hex_=None, rough=None, metal=None, **kw):
-    """A material from the park's palette (or the Harbourside's, or a new colour)."""
-    if hex_ is None and name in SPLASH:
-        hex_, r0, m0 = SPLASH[name]
-        rough = r0 if rough is None else rough
-        metal = m0 if metal is None else metal
-    return mat(name, hex_, rough, metal, **kw)
-
-
 # The tile sets: the picture each uses and its world scale (metres per repeat). export_three.py gives a T_<set> surface world-box
 # UVs at this scale; the game draws it with <set>.webp and <set>_n.webp (dist/assets/splash/).
 TILES = {
@@ -169,104 +123,11 @@ TILES = {
 }
 
 
-def tmat_tile(set_, preview_hex="#cccccc", rough=0.6):
-    """A surface that becomes the tile set `set_` in the game (its colour here is only for Blender previews)."""
-    assert set_ in TILES, set_
-    return mat("T_" + set_, preview_hex, rough, 0.0)
-
-
-def cutmat(name, rough=0.7):
-    """A cut-out picture from TEX (palm fronds, flowers): its alpha is the shape; packed into the game's cut-out atlas."""
-    return mat("CUT_" + name, "#ffffff", rough, 0.0, image=os.path.join(TEX, name + "_alpha.png"))
-
-
-def signmat(name, rough=0.6):
-    """A printed or painted surface from SIGNS: packed into the game's sign atlas."""
-    return mat("SG_" + name, "#ffffff", rough, 0.0, image=os.path.join(SIGNS, name + ".png"))
-
-
-def lamp_mat(name="lamp_glass", hex_="#fff1d6", strength=4.0):
-    """Glass that glows (a bulb, a lantern's pane): by day a pale glass, by night its glow (the game: `glow` class)."""
-    return mat(name, hex_, 0.2, 0.0, emit=hex_, emit_strength=strength)
-
-
-def gbox(name, center, size, m, bev=0.0, seg=2):
-    """A box in game coordinates: `center` (x, y, z), `size` (along x, y, z)."""
-    return box(name, (size[0], size[2], size[1]), g(*center), m, bev, seg)
-
-
-def save_part(name, objs):
-    """Write the objects (trees) to PARTS/<name>.glb, unmerged (the exporter merges everything by material class anyway)."""
-    path = os.path.join(PARTS, name + ".glb")
-    for o in bpy.context.scene.objects:
-        o.select_set(False)
-    for o in objs:
-        o.select_set(True)
-        for c in o.children_recursive:
-            c.select_set(True)
-    bpy.ops.export_scene.gltf(
-        filepath=path,
-        export_format="GLB",
-        use_selection=True,
-        export_apply=True,
-        export_yup=True,
-        export_texcoords=True,
-        export_normals=True,
-        export_materials="EXPORT",
-        export_extras=False,
-        export_cameras=False,
-        export_lights=False,
-    )
-    n = 0
-    for o in objs:
-        for c in [o, *o.children_recursive]:
-            if c.type == "MESH":
-                n += sum(len(p.vertices) - 2 for p in c.data.polygons)
-    print(f"PART {name}: {n} triangles, {os.path.getsize(path) / 1024:.0f} KB")
-    return n
-
-
-def look(name, target, dist=8.0, elev=30, azim=-35, size=(960, 640), samples=20, lens=35, sun=(50, 0, 35)):
-    """A quick daylight Cycles render (sun and sky) of the scene, to see a piece before it goes to the game."""
-    s = bpy.context.scene
-    s.render.engine = "CYCLES"
-    s.cycles.device = "CPU"
-    s.cycles.samples = samples
-    s.cycles.use_denoising = True
-    s.render.resolution_x, s.render.resolution_y = size
-    s.render.film_transparent = False
-    s.view_settings.view_transform = "AgX" if "AgX" in [v.identifier for v in s.view_settings.bl_rna.properties["view_transform"].enum_items] else "Filmic"
-    if s.world is None:
-        s.world = bpy.data.worlds.new("World")
-    s.world.use_nodes = True
-    bg = s.world.node_tree.nodes["Background"]
-    bg.inputs["Color"].default_value = (*srgb("#bfe3f2"), 1)
-    bg.inputs["Strength"].default_value = 0.8
-    cam_data = bpy.data.cameras.new("LookCam")
-    cam_data.lens = lens
-    cam_data.clip_end = 400
-    cam = bpy.data.objects.new("LookCam", cam_data)
-    s.collection.objects.link(cam)
-    t = Vector(target)
-    e, a = math.radians(elev), math.radians(azim)
-    cam.location = t + Vector((math.sin(a) * math.cos(e), -math.cos(a) * math.cos(e), math.sin(e))) * dist
-    cam.rotation_euler = (t - cam.location).to_track_quat("-Z", "Y").to_euler()
-    s.camera = cam
-    sd = bpy.data.lights.new("LookSun", "SUN")
-    sd.energy = 4.0
-    sd.angle = math.radians(3)
-    sd.color = srgb("#fff0d8")
-    so = bpy.data.objects.new("LookSun", sd)
-    s.collection.objects.link(so)
-    so.rotation_euler = tuple(math.radians(v) for v in sun)
-    path = os.path.join(PREVIEWS, name + ".png")
-    s.render.filepath = path
-    bpy.ops.render.render(write_still=True)
-    bpy.data.objects.remove(cam)
-    bpy.data.objects.remove(so)
-    print("LOOK", path)
-    return path
-
-
-def args():
-    return sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
+NAME = "splash"  # dist/assets/splash/splash.glb
+OUT = os.path.join(REPO, "dist", "assets", "splash")
+PLACEMENTS = os.path.join(HERE, "placements.json")
+WORK, PARTS, TEX, SIGNS, PREVIEWS = configure(NAME, SPLASH, TILES, os.environ.get("SPLASH_WORK", "/tmp/splash-work"))
+SHARP_TILES = ["travertine", "glass_mosaic"]  # (packed at 1024, the rest at 512: they fill the screen)
+PAINT = {"size": 2048, "x0": -16.6, "z0": -17.2, "span": 34.4}  # (the deck's paint and occlusion: the square they cover)
+ATLAS_SIZE = {"splash_park": 1024, "palm_frond": 1000, "snacks_menu": 512, "pool_rules": 384}
+DECIMATE = {"lounge": 0.55, "stations": 0.55}

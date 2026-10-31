@@ -16,8 +16,8 @@ for real"). Three.js only: nothing here touches the Godot test; the Harbourside'
 | The stations | `props_stations.py` | the trampoline and lifeguard towers, water care, eye care, the fin rack (`Fins_1..3`), the skimmer board and bin, the fish-net board, the ring boards (`LifeRing`), the torch's post (`Flashlight`), the benches |
 | The lounge | `props_lounge.py` | loungers, the umbrella, the daybed, the towel cart, inflatables, the snack shack |
 | Horizon | `horizon.sh` | the painted panorama round the park, keyed from a picture generated once on fal (its prompt is in the script) |
-| Export | `export_three.py` | one mesh per material class, the atlases, the deck's paint and occlusion, `splash.json` |
-| Pack | `pack.sh` | `dist/assets/splash/`: the quantized GLB (UVs as floats: `-vtf`) and WebP pictures |
+| Export | `../common/export_three.py -- tools/venues/splash` | one mesh per material class, the atlases, the deck's paint and occlusion, `splash.json` |
+| Pack | `../common/pack.sh splash` | `dist/assets/splash/`: the quantized GLB (UVs as floats: `-vtf`) and WebP pictures |
 
 Everything is modelled in game coordinates (`kit.py`: the plan, the palette, the tile sets, the naming the exporter reads).
 Each modelling script takes `-- --look` for quick Cycles previews in `$SPLASH_WORK/previews` (default `/tmp/splash-work`).

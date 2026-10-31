@@ -22,6 +22,7 @@ import {
   umbrella,
 } from "./props.mjs";
 import { propModel } from "./prop-models.mjs";
+import { buildKidsPool, kidsReady } from "./kidspool.mjs";
 
 const FLOOR = -1.95;
 const PINK = 0xff7eb3,
@@ -33,6 +34,8 @@ const PINK = 0xff7eb3,
 const BRIGHT = [PINK, SUN, SKY, LEAF, CORAL, LILAC];
 
 export function buildKids(w, venue) {
+  // The Kids Pool dressed for real when its model is in (scene/kidspool.mjs); this one till then, and with ?nomodels.
+  if (kidsReady()) return buildKidsPool(w, venue);
   buildDeck(w, venue, {
     checker: { a: "#ffe38a", b: "#a6e1ff", grout: "#ffffff", tiles: 3 },
     slab: 0x58b9e6,
@@ -178,7 +181,7 @@ function fence(ctx) {
   }
 }
 
-function balloons(w, x, z, side) {
+export function balloons(w, x, z, side) {
   const g = w.group(x, 2.7, z);
   for (let i = 0; i < 4; i++) {
     const a = side * 0.35 + (i - 1.5) * 0.35,
@@ -281,7 +284,7 @@ function bunting(ctx) {
 
 // Toys floating in the pool: they drift slowly round on paths of their own, bob on the water and turn. Ducks and swim rings are
 // Tripo models (stand-ins until they load); the beach balls are built here.
-function toys(ctx) {
+export function toys(ctx) {
   const { w, venue } = ctx,
     P = venue.pool;
   const list = [

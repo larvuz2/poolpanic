@@ -12,6 +12,7 @@ import { glowTexture, gradientTexture } from "./scene/textures.mjs";
 import { buildClub } from "./scene/club.mjs";
 import { harbourReady } from "./scene/harbourside.mjs";
 import { splashReady, SPLASH_LOOKS } from "./scene/splashpark.mjs";
+import { kidsReady, KIDS_LOOKS } from "./scene/kidspool.mjs";
 import { buildResort } from "./scene/resort.mjs";
 import { buildLagoon } from "./scene/lagoon.mjs";
 import { buildArena } from "./scene/arena.mjs";
@@ -450,13 +451,18 @@ const BUILDERS = {
 // (the Community Pool takes the Harbourside's look once its model is in: scene/harbourside.mjs; the classic pool till then)
 const defaultLighting = (venue) =>
   venue.lighting || (venue.id === "club" && harbourReady() ? "harbour" : venue.indoor ? "indoor" : "day");
-// Whether a venue is built from its model (its look is not its lighting's name): Splash Park, once its model is in.
-const dressedFor = (venue) => venue.id === "resort" && splashReady();
+// The venues dressed for real from their own models (scene/dressed.mjs): whether the model is in, and the venue's own light at each
+// hour (merged over the shared moods by `withDome`). A venue built from its model has no lighting name of its own.
+const DRESSED = {
+  resort: [splashReady, SPLASH_LOOKS],
+  kids: [kidsReady, KIDS_LOOKS],
+};
+const dressedFor = (venue) => !!DRESSED[venue.id]?.[0]();
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
 // dome's horizon takes the preset's own fog colour so the far ground melts into the sky without a seam.
 function withDome(name, venue) {
-  // (Splash Park dressed for real has its own light at each hour: scene/splashpark.mjs SPLASH_LOOKS)
-  const own = venue.id === "resort" && splashReady() ? SPLASH_LOOKS[name] : null;
+  // (a venue dressed for real has its own light at each hour: SPLASH_LOOKS, KIDS_LOOKS)
+  const own = dressedFor(venue) ? DRESSED[venue.id][1][name] : null;
   const base = own ? { ...LIGHTING[name], ...own } : LIGHTING[name];
   if (base.dome) return base;
   const time = DAY_TIMES[name];

@@ -1,32 +1,36 @@
 #!/usr/bin/env bash
-# Packs Splash Park for the three.js game (dist/assets/splash/), after export_three.py:
+# Packs a dressed venue for the three.js game (dist/assets/<venue>/), after common/export_three.py:
 # - the mesh: quantized by gltfpack (-kv: the UVs and colours stay, -vtf: the UVs as floats, since the game draws its own
 #   materials and a quantized UV needs the file's texture transform to be read; KHR_mesh_quantization, which three.js's GLTFLoader reads by
 #   itself; no meshopt compression, whose decoder needs WebAssembly, which the desktop app's page does not allow);
 # - the pictures as WebP: the tile sets (albedo, normal), the two atlases, the deck's paint and its baked shadows.
-#   tools/venues/splash/pack.sh [out_dir]
+#   tools/venues/common/pack.sh <venue> [out_dir]      (venue: splash, kids, ...; its work in $VENUE_WORK or /tmp/<venue>-work)
 # Needs: npx (Node), ImageMagick with WebP (convert).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
-WORK="${SPLASH_WORK:-/tmp/splash-work}"
-OUT="${1:-$REPO/dist/assets/splash}"
+NAME="${1:?which venue? pack.sh <venue> [out_dir]}"
+WORK="${VENUE_WORK:-/tmp/$NAME-work}"
+OUT="${2:-$REPO/dist/assets/$NAME}"
 TEX="$WORK/textures"
 mkdir -p "$OUT"
-rm -f "$OUT"/*.webp
+# (every picture but the horizon, which is made once by the venue's horizon.sh)
+find "$OUT" -name "*.webp" ! -name "horizon.webp" -delete
 
-npx --yes gltfpack@1.3.0 -i "$WORK/out/splash.raw.glb" -o "$OUT/splash.glb" -kn -km -kv -vtf
-cp "$WORK/out/splash.json" "$OUT/splash.json"
+npx --yes gltfpack@1.3.0 -i "$WORK/out/$NAME.raw.glb" -o "$OUT/$NAME.glb" -kn -km -kv -vtf
+cp "$WORK/out/$NAME.json" "$OUT/$NAME.json"
 
 webp() { # webp <in> <max size> <quality> <out> [extra convert options]
   local in="$1" size="$2" q="$3" out="$4"
   shift 4
   convert "$in" -resize "${size}>" "$@" -quality "$q" -define webp:method=6 "$out"
 }
-# the tile sets the model uses (splash.json `tiles`): the deck and the basin sharper (they fill the screen), the rest lighter
-for t in $(node -e "console.log(Object.keys(require('$WORK/out/splash.json').tiles).join(' '))"); do
-  case "$t" in
-    travertine | glass_mosaic) a=1024 n=512 ;;
+# the tile sets the model uses (<venue>.json `tiles`): the ones it calls sharp (the deck, the basin: they fill the screen) at
+# 1024, the rest lighter
+SHARP=" $(node -e "console.log((require('$WORK/out/$NAME.json').sharp || []).join(' '))") "
+for t in $(node -e "console.log(Object.keys(require('$WORK/out/$NAME.json').tiles).join(' '))"); do
+  case "$SHARP" in
+    *" $t "*) a=1024 n=512 ;;
     *) a=512 n=256 ;;
   esac
   webp "$TEX/${t}_albedo.png" ${a}x${a} 84 "$OUT/${t}.webp"

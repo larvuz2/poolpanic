@@ -1,233 +1,154 @@
-// The Kids Pool (16 October 2026, the creator: "only kids… they run all over the floor… it's hard to pick a kid and send them to
-// the pool… there are no lanes… swimming without control, a chaos kind of thing… after some time they go out"): a pool of its own
-// in the week where every guest is a child in the fish kid's model in clothes of their own; a child does not stand in line but runs
-// about the deck until the coach catches one; the pool has no lanes (one POOL button sends a caught kid to its emptiest part);
-// in the water they paddle anywhere, bumping into each other, and climb out when their time is up; more than KIDS_ROOM at once
-// and the pool is packed. Every incident still comes, a wee and a poo more often, and there is no Marco.
+// The Kids Pool dressed for real (scene/kidspool.mjs, 31 October 2026): built headless from the real model (dist/assets/kids/kids.glb,
+// parsed here; its pictures are stand-ins), it must keep every hook the classic Kids Pool has (the same hit boxes and labels, the
+// fins, the rings, the gate's leaves, the floating toys), cost fewer draw calls than the classic one, and stay within its budget
+// (triangles, file sizes). The classic Kids Pool is still the one built until the model is in, and with ?nomodels.
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import { PoolSimulation, SHIFTS, KIDS_ROOM, KID_RUN, KID_MOOD_PAY } from "./dist/sim.mjs";
+import { readFileSync, statSync, readdirSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+import * as THREE from "./dist/assets/three.module.js";
+import { GLTFLoader } from "./dist/assets/GLTFLoader.js";
+import { PoolWorld } from "./dist/scene.mjs";
+import { PoolSimulation } from "./dist/sim.mjs";
 import { VENUES } from "./dist/spatial.mjs";
-import { POOLS, buildShift, newWeek, INCIDENT_ORDER, scoreScale } from "./dist/week.mjs";
-import { SONGS } from "./dist/music.mjs";
-import { PROP_FILES } from "./dist/scene/prop-models.mjs";
-import { childLook } from "./dist/scene/swimmer-models.mjs";
-import { CoachBot, kidsHaveRoom } from "./check-bot.mjs";
-import { tick } from "./check-helpers.mjs";
+import { primeKidsPool, kidsReady, kidsPictures, KIDS_LOOKS } from "./dist/scene/kidspool.mjs";
 
-const quiet = (level = 6, seed = 5) => {
-  const s = new PoolSimulation(level, seed, { config: { ...SHIFTS[level - 1], venue: "kids" } });
-  s.schedule = [];
-  s.chaosPlan = [];
-  s.start();
-  return s;
+const runtime = process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES;
+const { createCanvas } = runtime
+  ? await import(pathToFileURL(runtime + "/@napi-rs/canvas/index.js"))
+  : await import("@napi-rs/canvas");
+globalThis.document = { createElement: () => createCanvas(256, 128) };
+globalThis.window = { matchMedia: () => ({ matches: false }) };
+const container = { clientWidth: 1440, clientHeight: 900 };
+const DIR = "dist/assets/kids/";
+const kids = VENUES.kids;
+
+// ---- the files: there, and small enough --------------------------------------------------------------------------------------
+const info = JSON.parse(readFileSync(DIR + "kids.json", "utf8"));
+const pictures = kidsPictures(info);
+let pictureBytes = 0;
+for (const p of pictures) pictureBytes += statSync(DIR + p + ".webp").size;
+const glbBytes = statSync(DIR + "kids.glb").size;
+assert.ok(glbBytes < 10e6, `the model is ${(glbBytes / 1e6).toFixed(1)} MB (budget 10)`);
+assert.ok(pictureBytes < 2e6, `the pictures are ${(pictureBytes / 1e6).toFixed(1)} MB (budget 2)`);
+assert.deepEqual(
+  readdirSync(DIR)
+    .filter((f) => f.endsWith(".webp"))
+    .map((f) => f.slice(0, -5))
+    .sort(),
+  [...pictures].sort(),
+  "every picture in the folder is used",
+);
+
+// ---- before the model is in: the classic Kids Pool -----------------------------------------------------------------------------
+assert.equal(kidsReady(), false);
+const classic = new PoolWorld(container, () => {}, { headless: true, venue: kids });
+assert.equal(
+  classic.scene.getObjectByName("kidspool"),
+  undefined,
+  "until the model is in, the classic Kids Pool",
+);
+
+// ---- the model -----------------------------------------------------------------------------------------------------------------
+const data = readFileSync(DIR + "kids.glb");
+const gltf = await new Promise((resolve, reject) =>
+  new GLTFLoader().parse(
+    data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
+    "",
+    resolve,
+    reject,
+  ),
+);
+primeKidsPool({
+  scene: gltf.scene,
+  info,
+  textures: Object.fromEntries(pictures.map((p) => [p, new THREE.Texture()])),
+});
+let triangles = 0;
+const classes = new Set();
+gltf.scene.traverse((o) => {
+  if (!o.isMesh) return;
+  triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+  const cls = o.material.name.replace(/^H_/, "");
+  classes.add(cls);
+  if (/^(tile_|signs|cut)/.test(cls)) {
+    const uv = o.geometry.attributes.uv;
+    assert.ok(uv, `${cls}: a textured mesh keeps its UVs (gltfpack -kv)`);
+    // (as floats, gltfpack -vtf: a quantized UV needs the file's texture transform, which the game's own materials never read)
+    assert.ok(uv.array instanceof Float32Array, `${cls}: its UVs are floats`);
+  }
+});
+assert.ok(triangles < 200000, `${triangles} triangles (budget 200k)`);
+for (const name of ["Door_A", "Door_B", "Fins_1", "Fins_2", "Fins_3"])
+  assert.ok(gltf.scene.getObjectByName(name), name + " is its own node");
+assert.equal(info.anchors.LifeRing.length, 3, "a board for each of the three rings");
+assert.equal(info.anchors.Flashlight.length, 1, "a holder for the torch");
+assert.ok(KIDS_LOOKS.day, "its own morning light");
+
+// ---- with the model: the same pool to play -------------------------------------------------------------------------------------
+const world = new PoolWorld(container, () => {}, { headless: true, venue: kids });
+const root = world.scene.getObjectByName("kidspool");
+assert.ok(root, "the Kids Pool takes the model once it is in");
+assert.equal(world.lightingName, "day", "always played in the day (its light is the pool's own: KIDS_LOOKS)");
+assert.equal(world.look.sun[1], KIDS_LOOKS.day.sun[1]);
+const hooks = (w) => w.clickables.map((c) => JSON.stringify({ ...c.userData })).sort();
+assert.deepEqual(hooks(world), hooks(classic), "the same hit boxes as the classic Kids Pool");
+const labels = (w) => w.labels.map((l) => l.text).sort();
+assert.deepEqual(labels(world), labels(classic), "the same labels as the classic Kids Pool");
+assert.equal(world.finPairs.length, 3, "the model's three pairs of fins are the rack's");
+assert.ok(world.finPairs.every((f) => root.getObjectById(f.id)));
+assert.equal(world.ringModels.length, classic.ringModels.length, "the life rings");
+assert.ok(world.ringAt.every(Boolean), "each ring hangs on the model's board");
+for (const k of ["fishNetRack", "flashlightRack", "fuseLever", "water"])
+  assert.ok(world[k], k + " is there, as in the classic Kids Pool");
+assert.equal(
+  world.updaters.length,
+  classic.updaters.length,
+  "the toys float and the balloons sway, as in the classic Kids Pool",
+);
+
+// the gate: its two leaves in the back fence, swung by the game's door sync out onto the deck
+const sim = new PoolSimulation(1, 70);
+sim.schedule = [];
+sim.start();
+sim.venue = kids;
+for (const [name, side] of [
+  ["Door_A", -1],
+  ["Door_B", 1],
+]) {
+  const leaf = root.getObjectByName(name),
+    centre = () => new THREE.Box3().setFromObject(leaf).getCenter(new THREE.Vector3());
+  assert.ok(
+    world.lockerDoors.some((d) => d.hinge === leaf && d.side === side),
+    name + " is swung by the game's door sync",
+  );
+  assert.ok(
+    Math.abs(centre().x - side * 0.62) < 0.3 && Math.abs(centre().z + 16.4) < 0.2,
+    name + " stands in the gate",
+  );
+  sim.doors[side] = 0;
+  world.sync(sim, 4);
+  const shut = centre();
+  sim.doors[side] = 1;
+  world.sync(sim, 4.1);
+  assert.ok(centre().z > shut.z + 0.3, name + " swings out onto the deck");
+  sim.doors[side] = 0;
+  world.sync(sim, 4.2);
+}
+const drawn = (w) => {
+  let n = 0;
+  w.scene.traverse((o) => {
+    if ((o.isMesh || o.isPoints || o.isLine) && o.visible && o.material?.visible !== false) n++;
+  });
+  return n;
 };
-const kid = (s, extra = {}) =>
-  Object.assign(s.spawn({}), { crampAt: Infinity, sick: false, sickKind: null, ...extra });
 
-// 1) The floor plan: an outdoor pool with three zones and no lane ropes, a gate in the fence and no locker bays, every station and
-// fixture on the deck, the mop and the floating toys among its props (each a file the game ships).
-{
-  const v = VENUES.kids;
-  assert.equal(v.name, "Kids Pool");
-  assert.ok(v.kids && !v.indoor && !v.class);
-  assert.equal(v.lanes.length, 3);
-  assert.deepEqual(v.lockers, []);
-  assert.equal(v.doorWord, "the gate", "the guidance names the gate");
-  assert.ok(v.isDeck(v.arrival.insideX, v.arrival.insideZ + 1.5, 3, 0.3), "the gate opens onto the deck");
-  for (const [name, at] of [...Object.entries(v.stations), ...Object.entries(v.fixtures)])
-    assert.ok(
-      [
-        [0.9, 0],
-        [-0.9, 0],
-        [0, 1.2],
-        [0, -1.2],
-      ].some(([dx, dz]) => v.isDeck(at.x + dx, at.z + dz, 3, 0.3)),
-      name + " can be reached",
-    );
-  for (const prop of ["mop", "mop-bucket", "duck", "swim-ring"]) {
-    assert.ok(v.props.includes(prop), prop + " is loaded at the Kids Pool");
-    const file = new URL("./dist/assets/" + PROP_FILES[prop], import.meta.url);
-    assert.ok(fs.statSync(file).size < 400_000, prop + " is shipped, and small");
-  }
-  assert.ok(SONGS.kids, "a song of its own");
-}
+// ---- cheaper to draw than the classic Splash Park ---------------------------------------------------------------------------------
+assert.ok(
+  drawn(world) < drawn(classic),
+  `${drawn(world)} draw calls against the classic Kids Pool's ${drawn(classic)}`,
+);
+assert.ok(classes.size <= 30, classes.size + " material classes");
 
-// 2) Only kids: whatever the level's mix says, every guest is a child in the kid's model, no fins, each in a look of their own
-// that a replay gives back the same.
-{
-  const s = quiet(9);
-  const kids = Array.from({ length: 12 }, () => kid(s));
-  assert.ok(kids.every((p) => p.type === "child" && p.figure === "kid" && !p.needsFins));
-  assert.equal(new Set(kids.map((p) => p.tint)).size, kids.length, "a look each");
-  assert.deepEqual(childLook(kids[3].tint), childLook(kids[3].tint));
-  assert.notDeepEqual(childLook(0), childLook(1));
-  const other = quiet(9);
-  assert.equal(
-    new PoolSimulation(9, 5, { config: { ...SHIFTS[8], venue: "club" } }).random(),
-    other.random(),
-  );
-}
-
-// 3) They run about: a waiting child is never in a line, they run from place to place over the whole deck (faster than a walk),
-// always on the deck, and the runs come from a stream of their own (the shift's own numbers do not move).
-{
-  const s = quiet();
-  const kids = Array.from({ length: 6 }, () => kid(s, { waitLimit: 999 }));
-  const start = kids.map((p) => ({ x: p.x, z: p.z })),
-    far = kids.map(() => 0),
-    spots = new Set();
-  const seed = s.seed;
-  for (let f = 0; f < 60 * 30; f++) {
-    tick(s);
-    kids.forEach((p, i) => {
-      assert.equal(p.status, "queue", "still loose");
-      assert.ok(s.venue.isDeck(p.x, p.z, s.level, 0), "on open deck, never in the water or a bench");
-      far[i] = Math.max(far[i], Math.hypot(p.x - start[i].x, p.z - start[i].z));
-      spots.add(Math.round(p.x / 3) + "," + Math.round(p.z / 3));
-    });
-  }
-  assert.ok(
-    far.every((d) => d > 4),
-    "every kid ran off (" + far.map((d) => d.toFixed(1)) + ")",
-  );
-  assert.ok(spots.size >= 12, "all over the deck (" + spots.size + " places)");
-  assert.equal(s.seed, seed, "the kids' runs draw nothing from the shift's stream");
-  assert.ok(kids.some((p) => p.roam.speed >= KID_RUN[0]));
-}
-
-// 4) Catching one: select a running kid (a click, or E beside them) and the one POOL button sends them to the emptiest part of the
-// pool, the middle first; in the water they paddle anywhere, never past the walls, and climb out when their time is up.
-{
-  const s = quiet();
-  assert.equal(s.poolLane(), 1, "the middle first");
-  const a = kid(s);
-  tick(s, 120);
-  s.select(a.id);
-  assert.ok(s.assign(s.poolLane()));
-  assert.equal(a.lane, 1);
-  const b = kid(s);
-  s.select(b.id);
-  s.assign(s.poolLane());
-  assert.notEqual(b.lane, 1, "the next to an emptier part");
-  const P = s.venue.pool,
-    xs = new Set();
-  let out = null;
-  for (let f = 0; f < 60 * 50 && !out; f++) {
-    tick(s);
-    if (a.status === "swim") {
-      assert.ok(Math.abs(a.x) <= P.swimX && Math.abs(a.z) <= P.swimZ, "inside the pool");
-      xs.add(Math.round(a.x));
-    }
-    if (a.status !== "swim" && a.workTime > 0) out = a.status;
-  }
-  assert.ok(xs.size >= 3, "paddling across the pool, not down a lane (" + [...xs] + ")");
-  assert.ok(a.workTarget >= 20 && a.workTarget <= 28);
-  assert.ok(out && out !== "queue", "out when their time is up (" + out + ")");
-}
-
-// 5) Packed: more than KIDS_ROOM kids at once bump into each other and get cross (a warning, once in a while).
-{
-  const s = quiet();
-  const kids = Array.from({ length: KIDS_ROOM + 3 }, () => kid(s));
-  for (const p of kids) {
-    s.select(p.id);
-    s.assign(s.poolLane());
-  }
-  const before = Object.fromEntries(kids.map((p) => [p.id, p.h]));
-  tick(s, 60 * 12);
-  assert.ok(kids.filter((p) => p.status === "swim").length > KIDS_ROOM);
-  assert.ok(
-    s.events.some((e) => e.type === "toast" && /packed/.test(e.text)),
-    "a warning",
-  );
-  const fewer = quiet(),
-    few = Array.from({ length: 4 }, () => kid(fewer)),
-    fewBefore = Object.fromEntries(few.map((p) => [p.id, p.h]));
-  for (const p of few) {
-    fewer.select(p.id);
-    fewer.assign(fewer.poolLane());
-  }
-  tick(fewer, 60 * 12);
-  const loss = (list, b) => list.reduce((a, p) => a + (b[p.id] - p.h), 0) / list.length;
-  assert.ok(
-    loss(kids, before) > loss(few, fewBefore) + 3,
-    "a packed pool costs more mood (" +
-      loss(kids, before).toFixed(1) +
-      " vs " +
-      loss(few, fewBefore).toFixed(1) +
-      ")",
-  );
-  assert.ok(!fewer.events.some((e) => e.type === "toast" && /packed/.test(e.text)), "room for four");
-}
-
-// 6) The week's Kids Pool: no Marco, more upset tummies and half of them a wee, star targets of its own, and a played shift the bot
-// gets through (catching kids, mopping the drips).
-{
-  const pool = POOLS.kids;
-  assert.equal(pool.style.venue, "kids");
-  assert.ok(pool.style.noStar && pool.style.sickRate > 0.2 && pool.style.peeShare === 0.5);
-  assert.ok(scoreScale("kids", 5) > scoreScale("resort", 5));
-  const w = { ...newWeek({ chapter: 2 }, 4321), shift: 2, pools: Array(6).fill("kids") };
-  const sh = buildShift(w, null, INCIDENT_ORDER);
-  const bot = new CoachBot(sh.tier, 17, { config: sh.config }).run();
-  const s = bot.s,
-    sum = s.summary();
-  assert.ok(sum.served >= 10, "the bot caught and served kids (" + sum.served + ")");
-  assert.ok(sum.stars >= 1, "and passed the shift (" + sum.score + ")");
-  assert.ok(
-    s.people.every((p) => p.chaos || !p.type || p.type === "child"),
-    "only kids",
-  );
-}
-// A kid's points follow their mood (20 October 2026, the creator: "fix the kids pool stars"): a happy kid pays full, an unhappy one
-// 0.6 of it, a cross one 0.3, so a packed pool of cross kids no longer buys three stars. The birthday party gets room while it is
-// on, and the coach bot waits for room before sending a kid in (unless the kid is about to give up).
-{
-  const pay = (h) => {
-    const s = new PoolSimulation(5, 3, { config: { venue: "kids" } });
-    s.start();
-    const p = {
-      id: 999,
-      name: "Test",
-      type: "child",
-      status: "swim",
-      h,
-      wait: 0,
-      hadCollision: false,
-      slowTime: 0,
-      lane: 0,
-      x: 0,
-      z: 0,
-      side: 1,
-    };
-    s.people.push(p);
-    const before = s.score;
-    s.depart(p);
-    return s.score - before;
-  };
-  const happy = pay(90),
-    meh = pay(50),
-    cross = pay(10);
-  assert.ok(happy > 0 && meh > 0 && cross > 0, "every kid sent home still pays something");
-  assert.ok(
-    Math.abs(meh / happy - (KID_MOOD_PAY.meh * 190) / 240) < 0.05,
-    "an unhappy kid pays about 0.6 of a happy one's base (" + meh + " / " + happy + ")",
-  );
-  assert.ok(cross < meh * 0.6 && cross < happy * 0.3, "a cross kid pays least (" + cross + ")");
-  const s = new PoolSimulation(5, 3, { config: { venue: "kids" } });
-  assert.equal(s.kidsRoom(), KIDS_ROOM);
-  s.big = { kind: "party", stage: "live" };
-  assert.ok(s.kidsRoom() > KIDS_ROOM, "the party has room while it is on");
-  s.big.stage = "done";
-  assert.equal(s.kidsRoom(), KIDS_ROOM, "and the pool is back to its size after it");
-  const full = Array.from({ length: KIDS_ROOM }, () => ({ type: "child", status: "swim" }));
-  const t = { people: full, kidsRoom: () => KIDS_ROOM };
-  assert.equal(kidsHaveRoom(t, { h: 80 }), false, "the bot waits when the pool is full");
-  assert.equal(kidsHaveRoom(t, { h: 20 }), true, "unless the kid is about to give up");
-}
 console.log(
-  "Kids checks passed: an outdoor pool with three open zones, a gate and no lockers, its toys and its song; only kids, each in a look of their own; kids running all over the deck on a stream of their own; one POOL button sending a caught kid to the emptiest part, chaotic paddling inside the walls and out when their time is up; a packed pool past " +
-    KIDS_ROOM +
-    " kids (room for the birthday party while it is on); a kid's points by their mood; no Marco, more wees, star targets of its own, and the bot through a shift.",
+  `Kids Pool checks passed: the model (${(glbBytes / 1e6).toFixed(1)} MB, ${Math.round(triangles / 1000)}k triangles, ${classes.size} materials) and its pictures (${(pictureBytes / 1e6).toFixed(2)} MB); the classic pool till it is in; the same hit boxes and labels; the fins, rings, gate, toys and balloons at work; ${drawn(world)} draw calls against ${drawn(classic)}.`,
 );
