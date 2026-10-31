@@ -201,9 +201,10 @@ function balustrades(w, venue) {
   }
 }
 
-export function kioskTreats(w, p) {
+// (`top`: the counter's height, when it is not the kiosk's 1.24 m: the Aquatic Centre's officials' table)
+export function kioskTreats(w, p, { top = 1.24 } = {}) {
   const jar = treatsObject(w);
-  jar.position.set(p.x + 0.55, 1.45, p.z);
+  jar.position.set(p.x + 0.55, top + 0.21, p.z);
   jar.rotation.y = -Math.PI / 2;
   w.scene.add(jar);
   stationHit(w, { kind: "fixture", item: "treats" }, p, 1.4, 1.8);

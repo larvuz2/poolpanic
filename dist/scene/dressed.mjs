@@ -34,6 +34,12 @@ const TILE_ROUGH = {
   grille: 0.9,
   mirrortile: 0.1,
   terrazzo: 0.3,
+  deck: 0.5,
+  rubberfloor: 0.75,
+  panel: 0.8,
+  seats: 0.35,
+  concrete: 0.85,
+  walltile: 0.2,
 };
 const FLAT = { matte: [0.82, 0], satin: [0.5, 0], gloss: [0.22, 0], metal: [0.32, 1], leaf: [0.6, 0] };
 const WATER_Y = -0.25;
@@ -458,6 +464,10 @@ const LAMP = {
   Uplight: { color: 0xff6ad8, size: 0.8, light: 1.3 },
   Torchiere: { color: 0xffd8a0, size: 1.3, light: 1.4 },
   Bonfire: { color: 0xff8a30, size: 5.0, light: 2.6 },
+  // (the Aquatic Centre: the spots over the timing board, the CHANGING boxes; its hall lamps are the Coach Cam's ceiling's, no glow)
+  Spot: { color: 0xf4f8ff, size: 0.7, light: 1.0 },
+  Sign: { color: 0xbfe6ff, size: 0.6, light: 0.6 },
+  HallLamp: { color: 0xf2f8ff, size: 0, light: 0 },
   default: { color: 0xffe2b0, size: 0.8, light: 0.8 },
 };
 function glows(w, lights = [], name = "dressed") {
