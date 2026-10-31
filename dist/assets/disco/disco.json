@@ -1,0 +1,374 @@
+{
+ "made": "tools/venues/common/export_three.py -- tools/venues/disco",
+ "triangles": 127348,
+ "lights": [
+  {
+   "kind": "Sconce",
+   "at": [
+    -13.7,
+    2.43,
+    -11.0
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -13.7,
+    2.43,
+    -7.4
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -13.7,
+    2.43,
+    -3.7
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -13.7,
+    2.43,
+    -0.0
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -13.7,
+    2.43,
+    3.7
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -13.7,
+    2.43,
+    7.4
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -13.7,
+    2.43,
+    10.6
+   ]
+  },
+  {
+   "kind": "Torchiere",
+   "at": [
+    -8.7,
+    2.0,
+    13.1
+   ]
+  },
+  {
+   "kind": "Torchiere",
+   "at": [
+    8.7,
+    2.0,
+    13.1
+   ]
+  },
+  {
+   "kind": "Uplight",
+   "at": [
+    3.062,
+    0.33,
+    12.085
+   ]
+  },
+  {
+   "kind": "Uplight",
+   "at": [
+    2.762,
+    0.33,
+    13.007
+   ]
+  },
+  {
+   "kind": "Uplight",
+   "at": [
+    2.192,
+    0.33,
+    13.792
+   ]
+  },
+  {
+   "kind": "Uplight",
+   "at": [
+    1.407,
+    0.33,
+    14.362
+   ]
+  },
+  {
+   "kind": "Uplight",
+   "at": [
+    0.485,
+    0.33,
+    14.662
+   ]
+  },
+  {
+   "kind": "Uplight",
+   "at": [
+    -0.485,
+    0.33,
+    14.662
+   ]
+  },
+  {
+   "kind": "Uplight",
+   "at": [
+    -1.407,
+    0.33,
+    14.362
+   ]
+  },
+  {
+   "kind": "Uplight",
+   "at": [
+    -2.192,
+    0.33,
+    13.792
+   ]
+  },
+  {
+   "kind": "Uplight",
+   "at": [
+    -2.762,
+    0.33,
+    13.007
+   ]
+  },
+  {
+   "kind": "Uplight",
+   "at": [
+    -3.062,
+    0.33,
+    12.085
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    13.7,
+    2.43,
+    -11.0
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    13.7,
+    2.43,
+    -7.4
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    13.7,
+    2.43,
+    -3.7
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    13.7,
+    2.43,
+    -0.0
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    13.7,
+    2.43,
+    3.7
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    13.7,
+    2.43,
+    7.4
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    13.7,
+    2.43,
+    10.6
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -6.591,
+    -0.78,
+    -6.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -6.591,
+    -0.78,
+    -2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -6.591,
+    -0.78,
+    2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -6.591,
+    -0.78,
+    6.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    6.601,
+    -0.78,
+    -6.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    6.601,
+    -0.78,
+    -2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    6.601,
+    -0.78,
+    2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    6.601,
+    -0.78,
+    6.0
+   ]
+  }
+ ],
+ "atlases": {
+  "atlas_signs": {
+   "size": 2048,
+   "images": 11,
+   "scale": 1.0
+  },
+  "atlas_cut": {
+   "size": 1024,
+   "images": 1,
+   "scale": 1.0
+  }
+ },
+ "ao": 1,
+ "paint": {
+  "size": 2048,
+  "x0": -14.6,
+  "z0": -17.0,
+  "span": 31.0
+ },
+ "anchors": {
+  "LifeRing": [
+   [
+    -3.6,
+    1.9,
+    -15.92
+   ],
+   [
+    -13.78,
+    1.9,
+    -6.0
+   ],
+   [
+    13.78,
+    1.9,
+    -4.6
+   ]
+  ],
+  "Flashlight": [
+   [
+    11.6,
+    1.17,
+    -7.4
+   ]
+  ]
+ },
+ "tiles": {
+  "glassfloor": 2.0,
+  "glass_mosaic": 0.8,
+  "mosaic_band": 0.8,
+  "quilt": 0.9,
+  "acoustic": 1.2,
+  "grille": 0.25,
+  "mirrortile": 0.6,
+  "terrazzo": 1.6
+ },
+ "sharp": [
+  "glassfloor",
+  "glass_mosaic"
+ ],
+ "meshes": [
+  "C_gloss",
+  "C_lamp",
+  "C_metal",
+  "C_metal_n",
+  "C_satin",
+  "C_signs",
+  "C_tile_acoustic",
+  "C_tile_mirrortile",
+  "C_tile_quilt",
+  "Door_A",
+  "Door_B",
+  "Fins_1",
+  "Fins_2",
+  "Fins_3",
+  "S_cut",
+  "S_glass",
+  "S_gloss",
+  "S_gloss_n",
+  "S_lamp",
+  "S_matte",
+  "S_matte_n",
+  "S_metal",
+  "S_metal_n",
+  "S_nightglow",
+  "S_satin",
+  "S_satin_n",
+  "S_signs",
+  "S_tile_acoustic",
+  "S_tile_glass_mosaic",
+  "S_tile_glassfloor",
+  "S_tile_grille",
+  "S_tile_mirrortile",
+  "S_tile_mosaic_band",
+  "S_tile_quilt",
+  "S_tile_terrazzo"
+ ]
+}

@@ -28,6 +28,12 @@ const TILE_ROUGH = {
   thatch: 0.95,
   weave: 0.8,
   sand: 1.0,
+  glassfloor: 0.16,
+  quilt: 0.85,
+  acoustic: 0.9,
+  grille: 0.9,
+  mirrortile: 0.1,
+  terrazzo: 0.3,
 };
 const FLAT = { matte: [0.82, 0], satin: [0.5, 0], gloss: [0.22, 0], metal: [0.32, 1], leaf: [0.6, 0] };
 const WATER_Y = -0.25;
@@ -106,7 +112,7 @@ export function dressModel(w, model, { look, name, deckSet, hour = false }) {
   const U = {
     lamps: { value: Array.from({ length: MAX_LAMPS }, () => new THREE.Vector4()) },
     lampCount: { value: 0 },
-    lampColor: { value: new THREE.Color(0xffc477) },
+    lampColor: { value: new THREE.Color(look.lampColor ?? 0xffc477) },
     night: { value: look.lamps || 0 },
     clouds: { value: look.clouds || 0 },
     lampMaterials: [],
@@ -352,6 +358,13 @@ function makeMaterials(w, U, model, deckSet) {
       m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.25, emissive: 0xffffff });
       m.color.setScalar(0.85);
       m.emissiveIntensity = 0;
+      // (the glow takes each lamp's own colour, its vertex colour: warm lanterns, pink and cyan neon)
+      m.onBeforeCompile = (shader) => {
+        shader.fragmentShader = shader.fragmentShader.replace(
+          "#include <emissivemap_fragment>",
+          "#include <emissivemap_fragment>\n  totalEmissiveRadiance *= vColor.rgb;",
+        );
+      };
       U.lampMaterials.push(m);
     } else if (base === "nightglow") {
       // lit windows and halos: nothing by day, added onto the picture after dusk
@@ -441,6 +454,9 @@ const LAMP = {
   Kiosk: { color: 0xffd8a0, size: 0.9, light: 1.2 },
   Underwater: { color: 0xbff4ff, size: 1.3, light: 0 },
   Paper: { color: 0xffa060, size: 1.2, light: 1.0 },
+  Sconce: { color: 0xffc86a, size: 0.9, light: 1.0 },
+  Uplight: { color: 0xff6ad8, size: 0.8, light: 1.3 },
+  Torchiere: { color: 0xffd8a0, size: 1.3, light: 1.4 },
   Bonfire: { color: 0xff8a30, size: 5.0, light: 2.6 },
   default: { color: 0xffe2b0, size: 0.8, light: 0.8 },
 };

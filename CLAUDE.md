@@ -34,7 +34,9 @@ raised boardwalk, a thatched beach house with the changing rooms' doors in its w
 bonfire, `dist/scene/lagoonclub.mjs`, `tools/venues/lagoon/`; its light the game's own sliding hour, which the model follows),
 the **Aquatic Centre** (indoor and competitive, where Marco "the Missile" always swims), the **Aqua
    Disco** (a party pool with no lanes: four zones of aqua dancers facing Valentina, the instructor, all on one dance routine and its
-   own song, `dist/dance.mjs`, `dist/music.mjs`; every incident still comes), the **Kids Pool** (only kids, who run all over the deck
+   own song, `dist/dance.mjs`, `dist/music.mjs`; every incident still comes; since 31 October 2026 dressed for real, three.js only:
+   an art-deco nightclub round the pool, `dist/scene/discoclub.mjs`, `tools/venues/disco/`, what moves to the beat still the game's,
+   the Rooftop Pool's DJ and bartender models, a ceiling for the Coach Cam only), the **Kids Pool** (only kids, who run all over the deck
    until the coach catches one, no lanes, one POOL button, chaotic paddling, floating toys, its own song; more wees and poos; since
    31 October 2026 dressed for real like Splash Park, a seaside playground with beach huts, a slide turret and a painted seaside town:
    `dist/scene/kidspool.mjs`, `tools/venues/kids/`, the shared kit `tools/venues/common/` and `dist/scene/dressed.mjs`),
@@ -160,7 +162,7 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
 3. **The look.** Lighting, textures, the art pass. **Last, on purpose.** Do not polish it unless asked: it must not change how the game plays.
    (Asked so far: Senior Aqua Fit's photographs and models, the Community Pool as the Harbourside, 28 October 2026, where
    "performance is key": a venue's look is a few merged meshes, baked light and no new lights, measured against the old one; and
-   Splash Park, the Kids Pool and the Sunset Lagoon, 31 October 2026, the same way, the next venue on the ladder each time with the shared kit
+   Splash Park, the Kids Pool, the Sunset Lagoon and the Aqua Disco, 31 October 2026, the same way, the next venue on the ladder each time with the shared kit
    (`tools/venues/common/`, `dist/scene/dressed.mjs`). Venues are dressed in three.js only from now on, never in the Godot test,
    the creator's.)
 4. **Launch.** Store page, trailer, wishlists, a demo, review, release.

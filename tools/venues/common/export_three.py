@@ -397,28 +397,40 @@ for o, asset in static:
     o.matrix_world = Matrix.Identity(4)
 
 # ---- merge: one mesh per class ------------------------------------------------------------------------------------------------------------
-objs = [o for o, _ in static]
-for ob in bpy.context.scene.objects:
-    ob.select_set(False)
-for ob in objs:
-    ob.select_set(True)
-bpy.context.view_layer.objects.active = objs[0]
-bpy.ops.object.join()
-merged = bpy.context.active_object
-merged.name = "Static"
-bpy.ops.object.mode_set(mode="EDIT")
-bpy.ops.mesh.select_all(action="SELECT")
-bpy.ops.mesh.separate(type="MATERIAL")
-bpy.ops.object.mode_set(mode="OBJECT")
-statics = [o for o in bpy.context.scene.objects if o.type == "MESH" and (o.name == "Static" or o.name.startswith("Static."))]
-for o in statics:
-    m = o.data.materials[o.data.polygons[0].material_index]
-    cls = m.name[2:]
-    o.name = o.data.name = "S_" + cls
-    o.data.materials.clear()
-    o.data.materials.append(m)
-    for p in o.data.polygons:
-        p.material_index = 0
+# (the parts a venue lists in kit.COACH_PARTS, an indoor hall's ceiling and the wall the overview's camera looks over, merge on their
+# own as C_<class>: the game shows them to the Coach Cam only)
+COACH_PARTS = set(getattr(kit, "COACH_PARTS", []))
+
+
+def merge(objs, prefix):
+    if not objs:
+        return []
+    for ob in bpy.context.scene.objects:
+        ob.select_set(False)
+    for ob in objs:
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
+    bpy.ops.object.join()
+    merged = bpy.context.active_object
+    merged.name = "Merging"
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.separate(type="MATERIAL")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    out = [o for o in bpy.context.scene.objects if o.type == "MESH" and (o.name == "Merging" or o.name.startswith("Merging."))]
+    for o in out:
+        m = o.data.materials[o.data.polygons[0].material_index]
+        cls = m.name[2:]
+        o.name = o.data.name = prefix + cls
+        o.data.materials.clear()
+        o.data.materials.append(m)
+        for p in o.data.polygons:
+            p.material_index = 0
+    return out
+
+
+statics = merge([o for o, a in static if a not in COACH_PARTS], "S_") + merge([o for o, a in static if a in COACH_PARTS], "C_")
+cls_of = lambda o: o.name[2:]  # noqa: E731  (S_<class>, C_<class>)
 
 # the kept nodes: their colours, one class each (a door: satin; the fins: their own)
 for o, node in special:
@@ -516,14 +528,14 @@ def bake_floor_ao():
 
 
 if AO:
-    see_through = [o for o in statics if o.name.startswith(("S_cut", "S_glass", "S_glow", "S_lamp", "S_nightglow"))]
+    see_through = [o for o in statics if cls_of(o).startswith(("cut", "glass", "glow", "lamp", "nightglow"))]
     for o in see_through:
         o.hide_render = True
     props_ao = [
         o
         for o in statics
-        if not o.name.startswith(("S_glass", "S_lamp", "S_nightglow", "S_cut", "S_signs", "S_tile_"))
-        or o.name in ("S_tile_pine", "S_tile_conifer")  # (the trees' canopies: dense enough for occlusion in their vertices)
+        if not cls_of(o).startswith(("glass", "lamp", "nightglow", "cut", "signs", "tile_"))
+        or cls_of(o) in ("tile_pine", "tile_conifer")  # (the trees' canopies: dense enough for occlusion in their vertices)
     ]
     bake_vertex_ao(props_ao)
     print("AO in the vertices of", [o.name for o in props_ao])
@@ -570,8 +582,8 @@ json.dump(
         "ao": AO,
         "paint": PAINT,
         "anchors": anchors,
-        "tiles": {k: v for k, v in TILES.items() if any(o.name == "S_tile_" + k for o in statics)},
-        "sharp": [t for t in getattr(kit, "SHARP_TILES", []) if any(o.name == "S_tile_" + t for o in statics)],
+        "tiles": {k: v for k, v in TILES.items() if any(cls_of(o) == "tile_" + k for o in statics)},
+        "sharp": [t for t in getattr(kit, "SHARP_TILES", []) if any(cls_of(o) == "tile_" + t for o in statics)],
         "meshes": sorted(o.name for o in keep),
     },
     open(os.path.join(OUTW, NAME + ".json"), "w"),
