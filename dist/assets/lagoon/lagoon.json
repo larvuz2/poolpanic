@@ -1,0 +1,488 @@
+{
+ "made": "tools/venues/common/export_three.py -- tools/venues/lagoon",
+ "triangles": 195490,
+ "lights": [
+  {
+   "kind": "Bonfire",
+   "at": [
+    8.583,
+    -0.746,
+    22.966
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    -3.4,
+    0.43,
+    17.9
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    3.4,
+    0.43,
+    20.5
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    -3.2,
+    0.446,
+    21.9
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    2.4,
+    0.7,
+    24.5
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    -11.95,
+    2.28,
+    -15.72
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    11.95,
+    2.28,
+    -15.72
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.97,
+    2.07,
+    9.9
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.97,
+    2.027,
+    10.271
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.97,
+    2.003,
+    10.643
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.97,
+    2.057,
+    11.014
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.97,
+    2.057,
+    11.386
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.97,
+    2.003,
+    11.757
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.97,
+    2.027,
+    12.129
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.97,
+    2.07,
+    12.5
+   ]
+  },
+  {
+   "kind": "Kiosk",
+   "at": [
+    12.9,
+    2.09,
+    10.6
+   ]
+  },
+  {
+   "kind": "Kiosk",
+   "at": [
+    12.9,
+    2.09,
+    11.8
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    -14.4,
+    3.25,
+    -14.87
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    -11.9,
+    3.25,
+    -14.87
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    -9.5,
+    3.25,
+    -14.87
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    -7.1,
+    3.25,
+    -14.87
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    7.1,
+    3.25,
+    -14.87
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    9.5,
+    3.25,
+    -14.87
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    11.9,
+    3.25,
+    -14.87
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    14.4,
+    3.25,
+    -14.87
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    -3.55,
+    4.25,
+    -14.27
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    3.55,
+    4.25,
+    -14.27
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    -16.22,
+    2.53,
+    -13.0
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    -16.22,
+    2.53,
+    -9.2
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    -16.22,
+    2.53,
+    10.6
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    17.02,
+    2.53,
+    -13.0
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    17.02,
+    2.53,
+    -9.6
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    17.02,
+    2.53,
+    2.6
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    17.02,
+    2.53,
+    7.4
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    -12.0,
+    2.53,
+    13.62
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    -7.6,
+    2.53,
+    13.62
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    7.2,
+    2.53,
+    13.62
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    -2.95,
+    2.78,
+    13.62
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    2.95,
+    2.78,
+    13.62
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -8.191,
+    -0.78,
+    -6.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -8.191,
+    -0.78,
+    -2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -8.191,
+    -0.78,
+    2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -8.191,
+    -0.78,
+    6.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    8.201,
+    -0.78,
+    -6.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    8.201,
+    -0.78,
+    -2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    8.201,
+    -0.78,
+    2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    8.201,
+    -0.78,
+    6.0
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    15.75,
+    1.21,
+    4.457
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    15.75,
+    1.21,
+    5.537
+   ]
+  }
+ ],
+ "atlases": {
+  "atlas_signs": {
+   "size": 2048,
+   "images": 12,
+   "scale": 1.0
+  },
+  "atlas_cut": {
+   "size": 1024,
+   "images": 3,
+   "scale": 1.0
+  }
+ },
+ "ao": 1,
+ "paint": {
+  "size": 2048,
+  "x0": -16.6,
+  "z0": -17.2,
+  "span": 34.4
+ },
+ "anchors": {
+  "LifeRing": [
+   [
+    -4.0,
+    1.9,
+    -15.92
+   ],
+   [
+    -15.56,
+    1.9,
+    -5.4
+   ],
+   [
+    16.31,
+    1.9,
+    -6.6
+   ]
+  ],
+  "Flashlight": [
+   [
+    -12.6,
+    1.17,
+    -6.7
+   ]
+  ]
+ },
+ "tiles": {
+  "boardwalk": 1.8,
+  "glass_mosaic": 0.8,
+  "mosaic_band": 0.8,
+  "thatch": 1.6,
+  "weave": 0.9,
+  "teak": 1.0,
+  "sand": 4.0,
+  "canopy": 2.0,
+  "hedge": 1.6
+ },
+ "sharp": [
+  "boardwalk",
+  "glass_mosaic"
+ ],
+ "meshes": [
+  "Door_A",
+  "Door_B",
+  "Fins_1",
+  "Fins_2",
+  "Fins_3",
+  "S_cut",
+  "S_glass",
+  "S_gloss",
+  "S_gloss_n",
+  "S_lamp",
+  "S_leaf",
+  "S_matte",
+  "S_matte_n",
+  "S_metal",
+  "S_metal_n",
+  "S_nightglow",
+  "S_satin",
+  "S_satin_n",
+  "S_signs",
+  "S_tile_boardwalk",
+  "S_tile_canopy",
+  "S_tile_glass_mosaic",
+  "S_tile_hedge",
+  "S_tile_mosaic_band",
+  "S_tile_sand",
+  "S_tile_teak",
+  "S_tile_thatch",
+  "S_tile_weave"
+ ]
+}

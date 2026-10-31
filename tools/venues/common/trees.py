@@ -107,8 +107,9 @@ def frond_card(name, base, azim, pitch, length, width, droop, fold=0.32, segs=6)
     return o
 
 
-def palm(x, z, height, seed, y0=-1.95, lean=0.12):
-    """A coconut palm `height` tall from y0: a ringed, gently curving trunk; a boot of old frond bases; coconuts; 14 fronds."""
+def palm(x, z, height, seed, y0=-1.95, lean=0.12, light=False):
+    """A coconut palm `height` tall from y0: a ringed, gently curving trunk; a boot of old frond bases; coconuts; 14 fronds.
+    `light`: a far one, about half the triangles (a coarser trunk, two coconuts, 11 fronds)."""
     r = random.Random(seed)
     la = r.uniform(0, math.tau)
     lean_dir = Vector((math.cos(la), math.sin(la), 0))
@@ -123,7 +124,9 @@ def palm(x, z, height, seed, y0=-1.95, lean=0.12):
     bm = bmesh.new()
     sides = 8
     rings = []
-    steps = 22
+    steps = 10 if light else 22
+    if light:
+        sides = 6
     for k in range(steps + 1):
         t = k / steps
         f = t * n
@@ -146,10 +149,10 @@ def palm(x, z, height, seed, y0=-1.95, lean=0.12):
     top = pts[-1]
     gtop = (top.x, top.z, -top.y)  # game coordinates
     out.append(lathe("PalmBoot", [(0.2, -0.45), (0.34, -0.15), (0.3, 0.1), (0.12, 0.28)], 8, M_["palm_boot"], tuple(top), 0.12, seed))
-    for k in range(4):
+    for k in range(2 if light else 4):
         a = k * math.tau / 4 + r.uniform(-0.3, 0.3)
-        out.append(sphere("Coconut", 0.11, top + Vector((math.cos(a) * 0.24, math.sin(a) * 0.24, -0.12)), M_["coconut"], 8, 6))
-    count = 14
+        out.append(sphere("Coconut", 0.11, top + Vector((math.cos(a) * 0.24, math.sin(a) * 0.24, -0.12)), M_["coconut"], *((5, 4) if light else (8, 6))))
+    count = 11 if light else 14
     for k in range(count):
         a = k * math.tau / count + r.uniform(-0.15, 0.15)
         young = k % 3 == 0
@@ -213,7 +216,7 @@ def shrub(x, z, s, seed, y0=-1.95):
     return blob("Shrub", g(x, y0 + s * 0.45, z), (s, s * 0.9, s * 0.7), M_["hedge"], seed, (9, 5), 0.25)
 
 
-def broadleaf(x, z, height, seed, y0=0.0):
+def broadleaf(x, z, height, seed, y0=0.0, light=False):
     """A broadleaf tree (a plane tree, a lime): a straight trunk forking into three or four limbs, the crown a cluster of lumpy
     rounded masses (the canopy picture), taller than wide."""
     r = random.Random(seed)
@@ -233,6 +236,7 @@ def broadleaf(x, z, height, seed, y0=0.0):
         d = crown_r * r.uniform(0.35, 0.6)
         h = r.uniform(-0.25, 0.35) * crown_r
         rr = crown_r * r.uniform(0.5, 0.68)
-        out.append(blob("Crown", centre + Vector((math.cos(a) * d, math.sin(a) * d, h)), (rr, rr * 0.92, rr * 0.85), M_["canopy"], seed * 11 + k, (12, 7), 0.16))
-    out.append(blob("CrownTop", centre + Vector((0, 0, crown_r * 0.5)), (crown_r * 0.62, crown_r * 0.6, crown_r * 0.55), M_["canopy"], seed * 11 + 9, (12, 7), 0.16))
+        segs = (8, 5) if light else (12, 7)
+        out.append(blob("Crown", centre + Vector((math.cos(a) * d, math.sin(a) * d, h)), (rr, rr * 0.92, rr * 0.85), M_["canopy"], seed * 11 + k, segs, 0.16))
+    out.append(blob("CrownTop", centre + Vector((0, 0, crown_r * 0.5)), (crown_r * 0.62, crown_r * 0.6, crown_r * 0.55), M_["canopy"], seed * 11 + 9, (8, 5) if light else (12, 7), 0.16))
     return out
