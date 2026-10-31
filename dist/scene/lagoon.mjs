@@ -10,12 +10,16 @@ import { SCENERY } from "./sky.mjs";
 import { mergeGeos, paint, placed, rngOf, wind, flagGeo, garland } from "./geom.mjs";
 import { figure } from "./crowd.mjs";
 import { signTexture } from "./hall-art.mjs";
-import { bench, lifeguardTower, lockerBay, lounger, stripedCone, umbrella, woodMaterial } from "./props.mjs";
+import { changingDoors } from "./club.mjs";
+import { buildLagoonClub, lagoonClubReady } from "./lagoonclub.mjs";
+import { bench, lifeguardTower, lounger, stripedCone, umbrella, woodMaterial } from "./props.mjs";
 
 const TAU = Math.PI * 2;
 const SAND = 0xecd2a0;
 
 export function buildLagoon(w, venue) {
+  // The Sunset Lagoon dressed for real when its model is in (scene/lagoonclub.mjs); this one till then, and with ?nomodels.
+  if (lagoonClubReady()) return buildLagoonClub(w, venue);
   const dynamic = { ...w.look.water, glow: Math.max(w.look.water.glow || 0, 0.001) };
   buildDeck(w, venue, {
     base: "#cf9660",
@@ -33,8 +37,8 @@ export function buildLagoon(w, venue) {
   w.liveProps.push(live);
   const ctx = { w, venue, live, rand: rngOf(41), fronds: [] };
   beachClub(ctx);
-  lockerBay(w, venue, -12, "HUT A", 0x2f9aa0, "resort");
-  lockerBay(w, venue, 12, "HUT B", 0xee6a4a, "resort");
+  // (no locker huts since 31 October 2026: the changing rooms' doors are in the beach house's wall, as Splash Park's)
+  changingDoors(w, venue, -16.125);
   railings(ctx);
   for (const f of venue.furniture) {
     if (f.kind === "bench") bench(w, f.x, f.z, f.angle);
@@ -153,7 +157,7 @@ function beachClub(ctx) {
   });
   w.dimmers.push((k) => (sign.visible = k > 0.4));
   // Portholes with the lights on inside, and surfboards leaning against the boards.
-  for (const x of [-7.6, -3.8, 3.8, 7.6, 0.4 + 11.2]) {
+  for (const x of [-13.8, -7.6, -3.8, 3.8, 7.6, 13.8]) {
     w.torus(0.5, 0.09, 0xfff1d6, w.scene).position.set(x, 1.55, z0 + 0.27);
     const glass = new THREE.Mesh(
       new THREE.CircleGeometry(0.44, 16),

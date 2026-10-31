@@ -13,6 +13,7 @@ import { buildClub } from "./scene/club.mjs";
 import { harbourReady } from "./scene/harbourside.mjs";
 import { splashReady, SPLASH_LOOKS } from "./scene/splashpark.mjs";
 import { kidsReady, KIDS_LOOKS } from "./scene/kidspool.mjs";
+import { lagoonClubReady } from "./scene/lagoonclub.mjs";
 import { buildResort } from "./scene/resort.mjs";
 import { buildLagoon } from "./scene/lagoon.mjs";
 import { buildArena } from "./scene/arena.mjs";
@@ -456,6 +457,9 @@ const defaultLighting = (venue) =>
 const DRESSED = {
   resort: [splashReady, SPLASH_LOOKS],
   kids: [kidsReady, KIDS_LOOKS],
+  // (the Sunset Lagoon keeps the game's own light: its shifts slide from golden hour into dusk and meet storms, and the model
+  // follows the hour itself: scene/lagoonclub.mjs)
+  lagoon: [lagoonClubReady, {}],
 };
 const dressedFor = (venue) => !!DRESSED[venue.id]?.[0]();
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the

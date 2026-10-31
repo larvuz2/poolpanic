@@ -24,13 +24,18 @@ const TILE_ROUGH = {
   rubber: 0.9,
   boards: 0.6,
   canopy: 0.8,
+  boardwalk: 0.72,
+  thatch: 0.95,
+  weave: 0.8,
+  sand: 1.0,
 };
 const FLAT = { matte: [0.82, 0], satin: [0.5, 0], gloss: [0.22, 0], metal: [0.32, 1], leaf: [0.6, 0] };
 const WATER_Y = -0.25;
 const MAX_LAMPS = 24;
 
 // A dressed venue's model: `dir` under dist/assets/, `file` the GLB's and the JSON's name, `horizon` its painted horizon's ring
-// (radius, copies round the ring, the picture's height over width, its foot, its turn) when it has one.
+// (radius, copies round the ring, the picture's height over width, its foot, its turn; `arc` [start, length] in radians for a
+// ring that only goes part of the way round, the copies then spread over the arc) when it has one.
 export function dressedVenue({ dir, file, label, horizon = null }) {
   const BASE = new URL(`../assets/${dir}/`, import.meta.url).href;
   let ready = null,
@@ -93,8 +98,10 @@ export function dressedVenue({ dir, file, label, horizon = null }) {
 
 // Put the model into the world `w` with its materials, its lamps and glows and its horizon, lit as `look` says (`lamps`: how lit the
 // lanterns are, 0 by day; `clouds`: the drifting shade; `horizon`: its tint). `deckSet` is the tile set the deck's paint lies on.
+// `hour`: the venue's light slides with the game's hour (the Sunset Lagoon's golden hour into dusk, and its storms): the lamps
+// follow the hour's glow and the horizon takes the hour's light, every frame, instead of `look`'s fixed values.
 // Returns the model's root (the venue's module wires the game's live parts to it).
-export function dressModel(w, model, { look, name, deckSet }) {
+export function dressModel(w, model, { look, name, deckSet, hour = false }) {
   const info = model.info;
   const U = {
     lamps: { value: Array.from({ length: MAX_LAMPS }, () => new THREE.Vector4()) },
@@ -125,7 +132,7 @@ export function dressModel(w, model, { look, name, deckSet }) {
     o.castShadow = !cls.endsWith("_n") && !["glass", "lamp", "nightglow", "signs"].includes(base);
     o.receiveShadow = !["nightglow", "glass", "lamp"].includes(base);
   });
-  horizonRing(w, model, look, name);
+  const ring = horizonRing(w, model, look, name);
   const glow = glows(w, info.lights, name);
   // the hour's lamps: the shader's pools of light, the lanterns' glass, the windows, the glows; all die with the power
   const setLamps = (k) => {
@@ -134,12 +141,46 @@ export function dressModel(w, model, { look, name, deckSet }) {
     for (const m of U.glowMaterials) m.color.setScalar(0.85 * k);
     if (glow) glow.uniforms.uLight.value = k;
   };
-  setLamps(look.lamps || 0);
-  w.dimmers.push((k, dark) => setLamps(dark ? 0 : (look.lamps || 0) * Math.max(0, Math.min(1, k))));
-  // (festoons and glows hide in a power cut by the game's own rule for string lights: incident-view.mjs)
   w.stringLights = glow?.points || null;
-  if (w.stringLights) w.stringLights.visible = (look.lamps || 0) > 0;
+  if (!hour) {
+    setLamps(look.lamps || 0);
+    w.dimmers.push((k, dark) => setLamps(dark ? 0 : (look.lamps || 0) * Math.max(0, Math.min(1, k))));
+    // (festoons and glows hide in a power cut by the game's own rule for string lights: incident-view.mjs)
+    if (w.stringLights) w.stringLights.visible = (look.lamps || 0) > 0;
+    return root;
+  }
+  // Following the hour: the lamps come on as the glow of dusk rises (none in the full sun, all lit by dusk), the power cut's
+  // dimmer over them; the horizon takes the hour's light (bright and warm at golden hour, dim and blue at dusk, grey in a storm).
+  let power = 1,
+    key = null;
+  const tint = new THREE.Color(),
+    sky = new THREE.Color();
+  w.dimmers.push((k, dark) => (power = dark ? 0 : Math.max(0, Math.min(1, k))));
+  w.updaters.push((time, dt, world) => {
+    const L = world.look || look,
+      lit = hourLamps(world.ambience?.glow ?? L.glow ?? 0);
+    const k = lit * power;
+    const next = Math.round(k * 200) + ":" + (L.t ?? "") + ":" + Math.round((L.storm || 0) * 100);
+    if (next === key) return;
+    key = next;
+    setLamps(k);
+    if (w.stringLights) w.stringLights.visible = k > 0.02;
+    if (ring) ring.material.color.copy(horizonLight(L, tint, sky));
+  });
   return root;
+}
+
+// How lit the lamps are for the hour's glow (dayLook: 0 at noon, 0.05 at golden hour, 0.2 at sunset, 0.7 at dusk, 1 at night).
+export const hourLamps = (glow) => Math.max(0, Math.min(1, (glow - 0.06) / 0.4));
+// The painted horizon's tint for a look: the hour's horizon colour over white, as bright as the hour's sun and sky light.
+export function horizonLight(look, out = new THREE.Color(), tmp = new THREE.Color()) {
+  const hz = look.dome?.horizon ?? look.fog?.[0] ?? 0xffffff;
+  out.setRGB(1, 1, 1).lerp(tmp.set(hz), 0.42);
+  const light = Math.max(
+    0.28,
+    Math.min(1.05, 0.3 + 0.18 * (look.sun?.[1] ?? 2.5) + 0.12 * (look.hemi?.[2] ?? 1)),
+  );
+  return out.multiplyScalar(light);
 }
 
 // The life rings hang where the model's boards hold them: the nearest of its LifeRing places to each mount.
@@ -357,10 +398,20 @@ function makeMaterials(w, U, model, deckSet) {
 function horizonRing(w, model, look, name) {
   const map = model.textures.horizon,
     H = model.horizon;
-  if (!map || !H) return;
-  const height = ((Math.PI * 2 * H.radius) / H.copies) * H.aspect;
+  if (!map || !H) return null;
+  const [start, arc] = H.arc || [0, Math.PI * 2];
+  const height = ((arc * H.radius) / H.copies) * H.aspect;
   const ring = new THREE.Mesh(
-    new THREE.CylinderGeometry(H.radius, H.radius, height, 128, 1, true),
+    new THREE.CylinderGeometry(
+      H.radius,
+      H.radius,
+      height,
+      Math.ceil((128 * arc) / (Math.PI * 2)),
+      1,
+      true,
+      start,
+      arc,
+    ),
     new THREE.MeshBasicMaterial({
       map,
       color: look.horizon ?? 0xffffff,
@@ -376,6 +427,7 @@ function horizonRing(w, model, look, name) {
   ring.renderOrder = -10; // (first of the see-through things: everything nearer is drawn over it)
   w.scene.add(ring);
   w.dressedHorizon = ring;
+  return ring;
 }
 
 // The lamps by kind: the size of their glow (points), its colour, and how much light each pours on what is near it after dusk.
@@ -388,6 +440,8 @@ const LAMP = {
   Torch: { color: 0xffa040, size: 1.4, light: 1.6 },
   Kiosk: { color: 0xffd8a0, size: 0.9, light: 1.2 },
   Underwater: { color: 0xbff4ff, size: 1.3, light: 0 },
+  Paper: { color: 0xffa060, size: 1.2, light: 1.0 },
+  Bonfire: { color: 0xff8a30, size: 5.0, light: 2.6 },
   default: { color: 0xffe2b0, size: 0.8, light: 0.8 },
 };
 function glows(w, lights = [], name = "dressed") {

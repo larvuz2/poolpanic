@@ -602,19 +602,23 @@ function massageObstacle(t) {
   const alongX = Math.abs(Math.sin(t.angle || 0)) > 0.5;
   return { x: t.x, z: t.z, hx: alongX ? 1.0 : 0.1, hz: alongX ? 0.1 : 1.0, kind: "massage-table" };
 }
+// No cabanas and no lockers (31 October 2026, the creator: "Remove the lockers and just put doors within the wall"): the
+// changing rooms' doors stand flush in the building's front along the back (its face at z -16.12), crossed along z as the
+// Community Pool's are. Splash Park (its hotel) and the Sunset Lagoon (its beach house); the Arena and the Aquatic Centre keep
+// the plan's locker rooms.
+const WALL_DOORS = {
+  doors: { insideX: 10.7, doorX: 10.7, doorZ: -14.27, outsideX: 10.7, insideZ: -15.97 },
+  doorWord: "a changing-room door",
+  lockers: [],
+  furniture: RESORT_SPEC.furniture.filter((f) => f.kind !== "locker-wall" && f.kind !== "locker-bench"),
+};
 export const RESORT = makeVenue({
   ...RESORT_SPEC,
   id: "resort",
   name: "Splash Park",
   scenery: "park",
   sunAzimuth: 2.65,
-  // No cabanas and no lockers (31 October 2026, the creator: "Remove the lockers and just put doors within the wall"): the
-  // changing rooms' doors stand flush in the hotel's front (its face at z -16.12), crossed along z as the Community Pool's are.
-  // Only Splash Park: the Sunset Lagoon, the Arena and the Aquatic Centre keep the plan's locker rooms.
-  doors: { insideX: 10.7, doorX: 10.7, doorZ: -14.27, outsideX: 10.7, insideZ: -15.97 },
-  doorWord: "a changing-room door",
-  lockers: [],
-  furniture: RESORT_SPEC.furniture.filter((f) => f.kind !== "locker-wall" && f.kind !== "locker-bench"),
+  ...WALL_DOORS,
 });
 // Open-air beach club on a lagoon: the sun sinks into the sea behind the start line, from golden hour into dusk.
 export const LAGOON = makeVenue({
@@ -625,6 +629,7 @@ export const LAGOON = makeVenue({
   sunAzimuth: 2.45,
   lighting: "golden",
   fixtures: { ...RESORT_SPEC.fixtures, massage: MASSAGE_TABLE },
+  ...WALL_DOORS,
 });
 // A domed indoor arena for the season finale: grandstands, spotlights and a very tall roof.
 export const ARENA = makeVenue({

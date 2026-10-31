@@ -591,13 +591,15 @@ const emitted = (s, type, kind) => s.events.filter((e) => e.type === type && e.k
     "senior",
     "wave",
   ]);
-  assert.equal(plan(VENUES.arena), plan(VENUES.lagoon));
-  assert.equal(plan(VENUES.aquatic), plan(VENUES.lagoon));
-  // Splash Park shares the plan but for its doors, flush in its hotel's facade since 31 October 2026 (no locker rooms)
+  assert.equal(plan(VENUES.aquatic), plan(VENUES.arena));
+  // Splash Park and the Sunset Lagoon share the plan but for their doors, flush in the building along the back since 31 October
+  // 2026 (no locker rooms)
   const noDoors = (v) => JSON.stringify([v.pool, v.deck, v.lanes]);
-  assert.equal(noDoors(VENUES.resort), noDoors(VENUES.lagoon));
-  assert.equal(VENUES.resort.arrival.crossesZ, true, "Splash Park's doors are crossed along z");
-  assert.ok(!VENUES.resort.obstacles.some((o) => /locker/.test(o.kind)), "no locker walls at Splash Park");
+  for (const id of ["resort", "lagoon"]) {
+    assert.equal(noDoors(VENUES[id]), noDoors(VENUES.arena));
+    assert.equal(VENUES[id].arrival.crossesZ, true, id + "'s doors are crossed along z");
+    assert.ok(!VENUES[id].obstacles.some((o) => /locker/.test(o.kind)), "no locker walls at " + id);
+  }
   assert.equal(VENUES.lagoon.name, "Sunset Lagoon");
   assert.equal(VENUES.arena.name, "Grand Gala Arena");
   assert.equal(VENUES.aquatic.name, "Aquatic Centre");
