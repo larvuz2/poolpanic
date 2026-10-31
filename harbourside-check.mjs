@@ -71,8 +71,11 @@ gltf.scene.traverse((o) => {
   if (!o.isMesh) return;
   triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
   classes.add(o.material.name.replace(/^H_/, ""));
-  if (/^(tile_|signs|cut)/.test(o.material.name.replace(/^H_/, "")))
+  if (/^(tile_|signs|cut)/.test(o.material.name.replace(/^H_/, ""))) {
     assert.ok(o.geometry.attributes.uv, `${o.name}: a textured mesh keeps its UVs (gltfpack -kv)`);
+    // (as floats, gltfpack -vtf: quantized, they would need the file's texture transform, which the game's materials never read)
+    assert.ok(o.geometry.attributes.uv.array instanceof Float32Array, `${o.name}: its UVs are floats`);
+  }
 });
 assert.ok(triangles < 260000, `${triangles} triangles (budget 260k)`);
 for (const name of ["Door_Men", "Door_Women", "Fins_1", "Fins_2", "Fins_3", "NearWall", "ShadowOnly"])

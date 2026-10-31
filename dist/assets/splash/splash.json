@@ -1,12 +1,108 @@
 {
  "made": "tools/venues/splash/export_three.py",
- "triangles": 71076,
+ "triangles": 199703,
  "lights": [
   {
    "kind": "Lantern",
    "at": [
+    -11.97,
+    2.49,
+    -15.82
+   ]
+  },
+  {
+   "kind": "Lantern",
+   "at": [
+    11.97,
+    2.49,
+    -15.82
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.89,
+    2.29,
+    9.9
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.89,
+    2.247,
+    10.271
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.89,
+    2.223,
+    10.643
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.89,
+    2.277,
+    11.014
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.89,
+    2.277,
+    11.386
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.89,
+    2.223,
+    11.757
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.89,
+    2.247,
+    12.129
+   ]
+  },
+  {
+   "kind": "Festoon",
+   "at": [
+    11.89,
+    2.29,
+    12.5
+   ]
+  },
+  {
+   "kind": "Kiosk",
+   "at": [
+    12.9,
+    2.09,
+    10.6
+   ]
+  },
+  {
+   "kind": "Kiosk",
+   "at": [
+    12.9,
+    2.09,
+    11.8
+   ]
+  },
+  {
+   "kind": "Lantern",
+   "at": [
     -1.75,
-    2.91,
+    2.79,
     -15.82
    ]
   },
@@ -14,7 +110,7 @@
    "kind": "Lantern",
    "at": [
     1.75,
-    2.91,
+    2.79,
     -15.82
    ]
   },
@@ -22,7 +118,7 @@
    "kind": "PierLantern",
    "at": [
     -16.1,
-    1.995,
+    1.885,
     -14.6
    ]
   },
@@ -30,7 +126,7 @@
    "kind": "PierLantern",
    "at": [
     -16.1,
-    1.995,
+    1.885,
     -5.4
    ]
   },
@@ -38,7 +134,7 @@
    "kind": "PierLantern",
    "at": [
     -16.1,
-    1.995,
+    1.885,
     5.6
    ]
   },
@@ -46,7 +142,7 @@
    "kind": "PierLantern",
    "at": [
     16.85,
-    1.995,
+    1.885,
     -14.6
    ]
   },
@@ -54,7 +150,7 @@
    "kind": "PierLantern",
    "at": [
     16.85,
-    1.995,
+    1.885,
     -6.6
    ]
   },
@@ -62,8 +158,8 @@
    "kind": "PierLantern",
    "at": [
     16.85,
-    1.995,
-    1.6
+    1.885,
+    6.8
    ]
   },
   {
@@ -128,12 +224,33 @@
     8.201,
     -0.78,
     6.0
+   ]
+  },
+  {
+   "kind": "Bollard",
+   "at": [
+    15.75,
+    1.055,
+    4.46
+   ]
+  },
+  {
+   "kind": "Bollard",
+   "at": [
+    15.75,
+    1.055,
+    5.54
    ]
   }
  ],
  "atlases": {
   "atlas_signs": {
    "size": 2048,
+   "images": 7,
+   "scale": 1.0
+  },
+  "atlas_cut": {
+   "size": 1024,
    "images": 1,
    "scale": 1.0
   }
@@ -146,18 +263,50 @@
   "span": 34.4
  },
  "anchors": {
-  "LifeRing": [],
-  "Flashlight": []
+  "LifeRing": [
+   [
+    -4.0,
+    1.9,
+    -15.92
+   ],
+   [
+    -15.56,
+    1.9,
+    -5.4
+   ],
+   [
+    16.31,
+    1.9,
+    -6.6
+   ]
+  ],
+  "Flashlight": [
+   [
+    -12.6,
+    1.17,
+    -6.7
+   ]
+  ]
  },
  "tiles": {
   "travertine": 2.4,
   "glass_mosaic": 0.8,
   "mosaic_band": 0.8,
   "stucco": 2.5,
+  "teak": 1.0,
   "hedge": 1.6,
-  "cobble": 1.5
+  "cobble": 1.5,
+  "pine": 2.2,
+  "conifer": 1.2,
+  "groundcover": 3.0
  },
  "meshes": [
+  "Door_A",
+  "Door_B",
+  "Fins_1",
+  "Fins_2",
+  "Fins_3",
+  "S_cut",
   "S_glass",
   "S_gloss",
   "S_gloss_n",
@@ -172,10 +321,14 @@
   "S_satin_n",
   "S_signs",
   "S_tile_cobble",
+  "S_tile_conifer",
   "S_tile_glass_mosaic",
+  "S_tile_groundcover",
   "S_tile_hedge",
   "S_tile_mosaic_band",
+  "S_tile_pine",
   "S_tile_stucco",
+  "S_tile_teak",
   "S_tile_travertine"
  ]
 }

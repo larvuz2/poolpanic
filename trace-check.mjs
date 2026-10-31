@@ -455,7 +455,8 @@ function rescue(withTracer = true) {
   const own = [],
     tracer2 = new Tracer((k, t) => own.push(k + " " + t));
   sc.triggerChaos("fish");
-  for (let f = 0; f < 60 * 40; f++) {
+  // (45 s: the fish is loose from about 15 s, so its stage stands still past the 25 s mark)
+  for (let f = 0; f < 60 * 45; f++) {
     sc.tick(1 / 60);
     tracer2.look(sc);
   }

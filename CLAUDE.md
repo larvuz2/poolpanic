@@ -25,8 +25,11 @@ the same twice: see `docs/incidents.md`).
    dressed as the **Harbourside Community Swim Club**, the Godot test's building and props made cheap for this game, its own
    golden light: `dist/scene/harbourside.mjs`, README "The Community Pool as the Harbourside"; the classic pool stands in while it
    loads and with ?nomodels; since 30 October 2026 no locker rooms: the MEN's and WOMEN's doors flush in its back wall, and
-   **no footprints at any venue's queue spots, ever**, the creator's), Splash
-   Park, the Sunset Lagoon, the **Aquatic Centre** (indoor and competitive, where Marco "the Missile" always swims), the **Aqua
+   **no footprints at any venue's queue spots, ever**, the creator's), **Splash
+   Park** (since 31 October 2026 dressed for real, three.js only: a Mediterranean park round a hotel, its assets made by
+   `tools/venues/splash/`, `dist/scene/splashpark.mjs`, its own light at day, sunset and night, README "Splash Park dressed for
+   real"; no lawn: tall trees round it and a painted horizon of hills, a village and mountains; no cabanas and no lockers: its
+   changing rooms' doors are in the hotel's wall, the creator's; the classic park stands in while it loads), the Sunset Lagoon, the **Aquatic Centre** (indoor and competitive, where Marco "the Missile" always swims), the **Aqua
    Disco** (a party pool with no lanes: four zones of aqua dancers facing Valentina, the instructor, all on one dance routine and its
    own song, `dist/dance.mjs`, `dist/music.mjs`; every incident still comes), the **Kids Pool** (only kids, who run all over the deck
    until the coach catches one, no lanes, one POOL button, chaotic paddling, floating toys, its own song; more wees and poos),
@@ -150,8 +153,10 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
    motion), more achievements, localisation, and the last pass before release (`desktop/steam/checklist.md`, section E: specs measured on
    a weak machine, a clean install, a long session, a rehearsed hotfix and rollback, dev mode off).
 3. **The look.** Lighting, textures, the art pass. **Last, on purpose.** Do not polish it unless asked: it must not change how the game plays.
-   (Asked so far: Senior Aqua Fit's photographs and models, and the Community Pool as the Harbourside, 28 October 2026, where
-   "performance is key": a venue's look is a few merged meshes, baked light and no new lights, measured against the old one.)
+   (Asked so far: Senior Aqua Fit's photographs and models, the Community Pool as the Harbourside, 28 October 2026, where
+   "performance is key": a venue's look is a few merged meshes, baked light and no new lights, measured against the old one; and
+   Splash Park, 31 October 2026, the same way. Venues are dressed in three.js only from now on, never in the Godot test, the
+   creator's.)
 4. **Launch.** Store page, trailer, wishlists, a demo, review, release.
 
 What only the creator can do (do not pretend to do it, and remind them when it blocks something): the Steamworks account and the $100 app fee,

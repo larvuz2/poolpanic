@@ -70,7 +70,12 @@ const assign = (s, p, lane) => {
   assert.ok(door.insideZ < disco.room.minZ + 0.3, "inside is behind the back wall");
   assert.ok(disco.isDeck(door.outsideX, door.doorZ, 3, 0.3), "the doorway opens onto the deck");
   assert.equal(disco.doorWord, "the door");
-  assert.equal(VENUES.resort.doorWord, "a locker door", "the resort pools keep their locker rooms");
+  assert.equal(VENUES.lagoon.doorWord, "a locker door", "the Sunset Lagoon keeps its locker rooms");
+  assert.equal(
+    VENUES.resort.doorWord,
+    "a changing-room door",
+    "Splash Park's doors in its facade (31 October 2026)",
+  );
   assert.equal(
     VENUES.club.doorWord,
     "a changing-room door",

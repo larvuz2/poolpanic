@@ -30,7 +30,7 @@ import {
   medkitCabinet,
   trampolineTower,
 } from "./props.mjs";
-import { kioskTreats, lawn } from "./resort.mjs";
+import { kioskTreats } from "./resort.mjs";
 
 const BASE = new URL("../assets/splash/", import.meta.url).href;
 // (roughness of each tile set)
@@ -67,6 +67,7 @@ export const SPLASH_LOOKS = {
     },
     lamps: 0,
     clouds: 0.26,
+    horizon: 0xf2f5f7,
   },
   sunset: {
     exposure: 1.0,
@@ -85,6 +86,7 @@ export const SPLASH_LOOKS = {
     },
     lamps: 0.55,
     clouds: 0,
+    horizon: 0xffbf98,
   },
   night: {
     exposure: 1.06,
@@ -103,6 +105,7 @@ export const SPLASH_LOOKS = {
     },
     lamps: 1,
     clouds: 0,
+    horizon: 0x26314e,
   },
 };
 
@@ -132,10 +135,14 @@ export function loadSplashPark(base = BASE) {
       ...Object.keys(info.atlases || {}).map((a) => picture(a)),
       picture("floor_paint", { flip: true }),
       picture("floor_ao", { srgb: false, flip: true }),
+      picture("horizon", { flip: true }),
     ]);
     const textures = Object.fromEntries(pictures);
     for (const t of tiles)
       for (const k of [t, t + "_n"]) textures[k].wrapS = textures[k].wrapT = THREE.RepeatWrapping;
+    // (the horizon goes round four times, every other copy mirrored, so each seam meets itself)
+    textures.horizon.wrapS = THREE.MirroredRepeatWrapping;
+    textures.horizon.repeat.x = HORIZON.copies;
     ready = { scene: gltf.scene, info, textures };
     return ready;
   })().catch((error) => {
@@ -155,6 +162,7 @@ export const splashPictures = (info) => [
   ...Object.keys(info.atlases || {}),
   "floor_paint",
   "floor_ao",
+  "horizon",
 ];
 
 // One addition to every lit material of the venue: caustics on what lies under the water; on the deck its paint and its contact
@@ -399,7 +407,8 @@ export function buildSplashPark(w, venue, lighting) {
     if (base === "cut") o.customDepthMaterial = undefined; // (three.js gives an alpha-tested caster its own depth material)
   });
   liveParts(w, venue, root, info);
-  lawn(w, venue, { palms: false });
+  // (no lawn: the model's ground under the trees runs out to the fog)
+  horizon(w, look);
   const glow = glows(w, info.lights);
   // the hour's lamps: the shader's pools of light, the lanterns' glass, the windows, the glows; all die with the power
   const setLamps = (k) => {
@@ -449,6 +458,35 @@ function liveParts(w, venue, root, info) {
     const hinge = root.getObjectByName(name);
     if (hinge) w.lockerDoors.push({ side, hinge });
   }
+}
+
+// The horizon (31 October 2026, the creator: "behind the trees, there's nothing… it looks like we're on a platform in the middle of
+// the sky"): a painted Mediterranean panorama (olive terraces, cypresses and umbrella pines, a white hill village with terracotta
+// roofs, blue mountains in the haze; tools/venues/splash/horizon.sh) on a ring round the park beyond the trees, tinted by the hour
+// and never fogged, the sky dome and its clouds over it. One draw call; nothing else in the game sees it.
+const HORIZON = { radius: 96, copies: 4, aspect: 615 / 4096, base: -3.5 };
+function horizon(w, look) {
+  const map = splashModel().textures.horizon;
+  if (!map) return;
+  const { radius, copies, aspect, base } = HORIZON,
+    height = ((Math.PI * 2 * radius) / copies) * aspect;
+  const ring = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius, height, 128, 1, true),
+    new THREE.MeshBasicMaterial({
+      map,
+      color: look.horizon ?? 0xffffff,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.BackSide,
+      fog: false,
+    }),
+  );
+  ring.name = "splash-horizon";
+  ring.position.y = base + height / 2;
+  ring.rotation.y = 0.6; // (a village over the far wall, another beyond the hedge)
+  ring.renderOrder = -10; // (first of the see-through things: everything nearer is drawn over it)
+  w.scene.add(ring);
+  w.splashHorizon = ring;
 }
 
 // The lamps by kind: the size of their glow (points), its colour, and how much light each pours on what is near it after dusk.

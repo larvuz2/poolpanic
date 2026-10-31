@@ -1,4 +1,4 @@
-// Splash Park (the resort venue): an open-air five-lane pool with cabanas, palms, a snack kiosk and a trampoline tower
+// Splash Park (the resort venue): an open-air five-lane pool with its changing rooms' doors in the hotel's facade, palms, a snack kiosk and a trampoline tower
 // whose splash zone lands in the last lane. Same toy palette as the club, warmer and sunnier.
 import { THREE, COLORS } from "./kit.mjs";
 import { buildPool, buildDeck } from "./pool.mjs";
@@ -8,7 +8,6 @@ import {
   bench,
   station,
   finRack,
-  lockerBay,
   rescueStations,
   sanitationCorner,
   fishNetHook,
@@ -25,6 +24,7 @@ import {
   stationHit,
 } from "./props.mjs";
 import { buildSplashPark, splashReady } from "./splashpark.mjs";
+import { changingDoors } from "./club.mjs";
 
 export function buildResort(w, venue, lighting = "day") {
   // Splash Park dressed for real when its model is in (scene/splashpark.mjs); this one till then, and with ?nomodels.
@@ -40,8 +40,8 @@ export function buildResort(w, venue, lighting = "day") {
   buildPool(w, venue, w.look.water);
   poolSurround(w, venue);
   facade(w, venue);
-  lockerBay(w, venue, -12, "CABANA A", 0x2f9aa0, "resort");
-  lockerBay(w, venue, 12, "CABANA B", 0xe0513f, "resort");
+  // (no cabanas since 31 October 2026: the changing rooms' doors are in the facade, as the dressed Splash Park's)
+  changingDoors(w, venue, -16.125);
   balustrades(w, venue);
   for (const f of venue.furniture) {
     if (f.kind === "bench") bench(w, f.x, f.z, f.angle);
@@ -216,8 +216,7 @@ export function kioskTreats(w, p) {
   });
 }
 
-// The ground round the tabletop out to the horizon, and distant palms (`palms: false`: Splash Park's model has its own).
-export function lawn(w, venue, { palms = true } = {}) {
+function lawn(w, venue) {
   const grass = grassTexture();
   // The ground runs out to the horizon; on a coast it stops at the beach, where the Sky's sand and sea begin.
   const shore = SCENERY[venue.scenery]?.sea ? SCENERY[venue.scenery].shoreX + 3.4 : -300,
@@ -233,7 +232,6 @@ export function lawn(w, venue, { palms = true } = {}) {
   floor.receiveShadow = true;
   w.scene.add(floor);
   // Distant palms frame the tabletop.
-  if (!palms) return;
   const room = venue.room;
   for (const [x, z, s] of [
     [room.minX - 3, -8, 1.1],

@@ -217,9 +217,9 @@ function rearWall(w) {
 
 // The changing rooms' doors, flush in the back wall where the locker rooms stood (30 October 2026): a leaf each, hinged on its
 // outer edge and swinging out onto the deck as a guest comes or goes (`world.lockerDoors`), a dark doorway behind it, a sign.
-function changingDoors(w, venue) {
-  const face = -16.13, // the rear wall's front face (rearWall)
-    half = 0.6,
+// (Splash Park's classic stand-in has them too, in its facade: scene/resort.mjs.)
+export function changingDoors(w, venue, face = -16.13) {
+  const half = 0.6, // (face: the rear wall's front face, rearWall)
     height = 2.4;
   for (const [side, name, color] of [
     [-1, "MEN", COLORS.teal],

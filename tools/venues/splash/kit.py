@@ -14,7 +14,7 @@ Conventions (as the Harbourside's):
     Light_<kind> an object whose centre is a lamp (glows, the night's pools of light on the deck: splash.json `lights`)
     NightGlow_*  (object names) drawn additively, lit only after dusk (lit windows, lantern glass, bulbs' halos)
     leaf/frond…  two-sided foliage; a material with an alpha picture becomes the cut-out atlas (palm fronds, flowers)
-  Object names the game keeps as its own nodes: Door_A, Door_B (the cabanas' doors), Fins_1..3, Keep_* (see export_three.py).
+  Object names the game keeps as its own nodes: Door_A, Door_B (the changing rooms' doors), Fins_1..3, Keep_* (see export_three.py).
 """
 
 import os, sys, math, json
@@ -52,7 +52,7 @@ from props_kit import (  # noqa: F401
 )
 
 WORK = os.environ.get("SPLASH_WORK", "/tmp/splash-work")
-PARTS = os.path.join(WORK, "parts")  # one GLB per script (shell.glb, cabanas.glb, ...)
+PARTS = os.path.join(WORK, "parts")  # one GLB per script (shell.glb, doors.glb, ...)
 TEX = os.path.join(WORK, "textures")  # tile sets and cut-out pictures (PNG)
 SIGNS = os.path.join(WORK, "signs")  # printed and painted surfaces (PNG, drawn by signs.py with Pillow)
 PREVIEWS = os.environ.get("PP_PREVIEWS", os.path.join(WORK, "previews"))
@@ -70,7 +70,7 @@ WATER_Y = -0.25
 FLOOR_Y = -1.42  # the basin's floor (pool.mjs depth)
 FACADE_Z = -16.35  # the back wall's face line (the classic facade's middle)
 WALL_X = (-16.1, 16.85)  # the low walls with glass on the long sides (x)
-CABANAS = {-1: -12.0, 1: 12.0}  # the changing cabanas' centres (x); their door is in the side toward the pool's centre
+DOORS_X = 10.7  # the changing rooms' doors, flush in the hotel's front (x = +-10.7; dist/spatial.mjs RESORT doors)
 STATIONS = dict(fins=(-12.6, 7.9), chlorine=(13.6, 8.1), relief=(13.6, 0.4))
 SANITATION = dict(rack=(-15.0, -2.2), bin=(-14.0, 1.6))
 RING_MOUNTS = [(-4.0, -15.7, 0.0), (-15.85, -5.4, PI / 2), (16.85, -6.6, -PI / 2)]
@@ -89,7 +89,7 @@ KIOSK = (13.4, 11.2)
 DECK_PALMS = [(-14.7, 11.5), (15.5, -11.2), (-14.7, -9.6)]
 LOUNGERS = [(-13.2, 10.1), (-11.4, 10.1)]
 UMBRELLA = (-12.3, 11.7)
-# where people walk and wait (kept clear of anything that would hide them): the queue between the cabanas, the doors' paths
+# where people walk and wait (kept clear of anything that would hide them): the queue between the doors, the doors' paths
 QUEUE = dict(outerX=4.6, startZ=-11.1)
 
 # ---- the palette: a sun-bleached Mediterranean park -------------------------------------------------------------------------
@@ -163,6 +163,9 @@ TILES = {
     "teak": 1.0,  # boards and slats
     "hedge": 1.6,  # clipped hedges
     "cobble": 1.5,  # the path and the plinth's stone
+    "pine": 2.2,  # the umbrella pines' canopies: needle tufts
+    "conifer": 1.2,  # the cypresses: dense scale-leaves
+    "groundcover": 3.0,  # the ground under the trees round the park: dark leaves and pine needles
 }
 
 

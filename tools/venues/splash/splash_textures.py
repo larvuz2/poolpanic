@@ -46,9 +46,10 @@ def travertine(size=1024):
     # 2.4 m a repeat: 60 cm squares, 4 x 4, laid square (a resort's stone deck)
     ix, iy, lu, lv, h = tile_grid(size, 4, 4, grout=0.016, bevel=0.035)
     r1, r2, r3, r4 = per_tile(ix, iy, 31, 4)
-    tones = np.stack([hexrgb(c) for c in ("#ecdcbf", "#e8d4b1", "#f0e3ca", "#e2caa3", "#eddabb")])
+    # (close tones: from the game's height a stronger spread reads as a checkerboard)
+    tones = np.stack([hexrgb(c) for c in ("#ebdcc0", "#e8d7b8", "#eee1c9", "#e6d3b2", "#ecdcbe")])
     col = tones[(r1 * len(tones)).astype(int) % len(tones)]
-    col = col * (0.96 + 0.06 * r2[..., None])
+    col = col * (0.975 + 0.035 * r2[..., None])
     # faint strata across each slab (the stone's bedding), at a per-slab phase and slant
     warp = noise(size, 6, 32, 3)
     ys, xs = np.mgrid[0:size, 0:size].astype(np.float32) / size
@@ -162,6 +163,33 @@ def cobble(size=512):
     tile_set("cobble", albedo, h * 0.8 + rough * 0.2 * h, 4.0)
 
 
+# ---- the umbrella pines' canopy: tufts of needles, dark inside, sunlit olive tips ------------------------------------------------
+def tufts(name, dark, mid, light, scale, seed, strength):
+    size = 512
+    a = noise(size, scale, seed, 4, 0.62)
+    b = noise(size, scale * 4, seed + 1, 2)
+    c = noise(size, 4, seed + 2, 3)
+    tuft = np.clip((a - 0.38) * 2.6, 0, 1)
+    col = hexrgb(dark) * (1 - tuft[..., None]) + hexrgb(mid) * tuft[..., None]
+    tip = np.clip((b - 0.55) * 3, 0, 1) * tuft
+    col = col * (1 - tip[..., None] * 0.6) + hexrgb(light) * (tip[..., None] * 0.6)
+    col *= (0.86 + 0.22 * c)[..., None]
+    tile_set(name, col, a * 0.7 + b * 0.3, strength)
+
+
+def groundcover(size=512):
+    a = noise(size, 40, 141, 4, 0.6)
+    b = noise(size, 128, 142, 2)
+    c = noise(size, 5, 143, 3)
+    leaf = np.clip((a - 0.4) * 2.2, 0, 1)
+    soil, dark, mid = hexrgb("#3b3326"), hexrgb("#24402a"), hexrgb("#3f6634")
+    col = soil * (1 - leaf[..., None]) + (dark * (1 - b[..., None]) + mid * b[..., None]) * leaf[..., None]
+    needles = (noise(size, 256, 144, 1) > 0.7) * (1 - leaf)
+    col = col * (1 - needles[..., None] * 0.4) + hexrgb("#8a6a42") * needles[..., None] * 0.4
+    col *= (0.8 + 0.3 * c)[..., None]
+    tile_set("groundcover", col, a * 0.8 + b * 0.2, 4.0)
+
+
 # ---- cut-outs ---------------------------------------------------------------------------------------------------------------------------
 def cutout(name, rgb, alpha):
     save(name + "_alpha", rgb, alpha)
@@ -246,6 +274,9 @@ if __name__ == "__main__":
         "teak": teak,
         "hedge": hedge,
         "cobble": cobble,
+        "pine": lambda: tufts("pine", "#1d3a24", "#3b6a35", "#8fae5a", 20, 121, 5.0),
+        "conifer": lambda: tufts("conifer", "#162f22", "#2c5534", "#5f8a48", 48, 131, 6.0),
+        "groundcover": groundcover,
         "palm_frond": palm_frond,
         "bougainvillea": lambda: flower_cluster("bougainvillea", ["#d6337f", "#e2559a", "#c22a6e", "#ec7ab0"], ["#3f7d34", "#2f6a2c", "#55903f"], seed=7, n_flowers=60),
         "hibiscus": lambda: flower_cluster("hibiscus", ["#e0412f", "#f26b3a", "#f4c849"], ["#2f6a2c", "#3f7d34", "#4c8a3a"], seed=9, n_flowers=12, n_leaves=40, flower_r=(0.07, 0.1)),

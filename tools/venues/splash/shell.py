@@ -54,10 +54,14 @@ M = dict(
 parts = []
 
 
-def ring(name, x_in, z_in, x_out, z_out, y0, y1, m, bev=0.0):
-    """A flat rectangular ring round the pool (outer minus inner rectangle) from y0 to y1, game coordinates."""
+def ring(name, x_in, z_in, x_out, z_out, y0, y1, m, bev=0.0, outer=None):
+    """A flat rectangular ring round the pool (outer minus inner rectangle) from y0 to y1, game coordinates. `outer`
+    (x0, x1, z0, z1): an outer rectangle not centred on the pool."""
     bm = bmesh.new()
     pts_o = [(-x_out, -z_out), (x_out, -z_out), (x_out, z_out), (-x_out, z_out)]
+    if outer:
+        ox0, ox1, oz0, oz1 = outer
+        pts_o = [(ox0, oz0), (ox1, oz0), (ox1, oz1), (ox0, oz1)]
     pts_i = [(-x_in, -z_in), (x_in, -z_in), (x_in, z_in), (-x_in, z_in)]
     vo = [bm.verts.new(g(x, y1, z)) for x, z in pts_o]
     vi = [bm.verts.new(g(x, y1, z)) for x, z in pts_i]
@@ -89,16 +93,8 @@ COP = 0.4  # coping width
 GUT = (0.42, 0.62)  # the gutter's slot, out from the basin's edge
 BAND = (0.72, 1.42)  # the mosaic band (pool.mjs poolSurround)
 # the deck: travertine from the gutter out to the plinth's edge (the hole a little smaller than the band, which lies on it)
-deck = ring("Deck", HX + GUT[1], HZ + GUT[1], 1, 1, -0.3, 0.0, M["deck"])
-for v in deck.data.vertices:  # stretch the outer rectangle to the room (it is not centred on the pool)
-    gx, gz = v.co.x, -v.co.y
-    if abs(gx) > HX + 0.7 or abs(gz) > HZ + 0.7:
-        pass
-for v in deck.data.vertices:
-    gx, gz = v.co.x, -v.co.y
-    if abs(abs(gx) - 1) < 1e-4 and abs(abs(gz) - 1) < 1e-4:
-        v.co.x = RX1 + 0.05 if gx > 0 else RX0 - 0.05
-        v.co.y = -(RZ1 + 0.05 if gz > 0 else RZ0 - 0.6)
+# (built with its real outline from the start: a ring whose outer edge starts inside its hole turns inside out)
+deck = ring("Deck", HX + GUT[1], HZ + GUT[1], 0, 0, -0.3, 0.0, M["deck"], outer=(RX0 - 0.05, RX1 + 0.05, RZ0 - 0.6, RZ1 + 0.05))
 parts.append(deck)
 parts.append(ring("Band", HX + BAND[0], HZ + BAND[0], HX + BAND[1], HZ + BAND[1], -0.02, 0.004, M["band"]))
 # the gutter: a dark slot with a stainless grate over it (bars every 12 cm along the long sides, every 12 cm across the ends)
@@ -221,7 +217,7 @@ parts.append(join(blocks, "Blocks"))
 posts = []
 for x in (-HX - 1.0, HX + 1.0):
     for z in (-5.7, 5.7):
-        posts.append(cyl("PennantPost", 0.07, 3.4, g(x, 1.7, z), M["white"], 14, r2=0.055))
+        posts.append(cyl("PennantPost", 0.07, 3.4, g(x, 0.0, z), M["white"], 14, r2=0.055))
         posts.append(cyl("PostBase", 0.2, 0.06, g(x, 0.03, z), M["grate"], 18, bev=0.01))
         posts.append(sphere("PostCap", 0.1, g(x, 3.42, z), M["sun"], 12, 8))
 parts.append(join(posts, "PennantPosts"))
@@ -361,7 +357,7 @@ def balcony(x, w):
 # ground floor: the entrance in the middle, windows either side, more windows over the cabanas' roofs
 GW, GH = 1.25, 2.15  # a ground-floor window
 UW, UH = 1.05, 1.85  # an upper window
-for x in (-6.2, 6.2):
+for x in (-6.2, 6.2, -14.4, 14.4):  # (the two by the corners where the cabanas stood, before 31 October 2026)
     hotel += opening("GroundWin", x, 1.05, GW, GH)
     hotel += shutters(x, 1.05, GW, GH)
 for x in (-12.0, -7.2, -4.0, 4.0, 7.2, 12.0):
@@ -406,10 +402,10 @@ for x in (-1.75, 1.75, -9.0, 9.0):
         a = k * math.tau / 6
         lt.append(gbx("LanternBar", x + math.cos(a) * 0.1 - 0.008, x + math.cos(a) * 0.1 + 0.008, 2.62, 2.92, FZ + 0.3 + math.sin(a) * 0.1 - 0.008, FZ + 0.3 + math.sin(a) * 0.1 + 0.008, M["iron"], 0))
     hotel += lt
-    glass_ = cyl("Light_Lantern", 0.09, 0.28, g(x, 2.77, FZ + 0.3), M["lamp"], 6)
+    glass_ = cyl("Light_Lantern", 0.09, 0.3, g(x, 2.64, FZ + 0.3), M["lamp"], 6)
     hotel.append(glass_)
 # planters with bougainvillea climbing the wall either side of the entrance (the climbers are props_planting's)
-for x in (-3.6, 3.6):
+for x in (-2.65, 2.65):  # (clear of the life ring's board at x -4)
     hotel.append(gbx("Planter", x - 0.7, x + 0.7, 0, 0.62, FZ, FZ + 0.62, M["coping"], 0.03))
     hotel.append(gbx("PlanterSoil", x - 0.62, x + 0.62, 0.58, 0.6, FZ + 0.06, FZ + 0.56, M["soil"], 0))
 parts += hotel
@@ -479,7 +475,7 @@ parts += roof()
 # ---- the long sides: a low stucco wall, a limestone cap, frameless glass, stucco piers with lanterns --------------------------
 PIERS = {  # z of each pier on each side (rings, the fish net and lamps hang on them); the fuse box has a taller one
     -1: [-14.6, -9.6, -5.4, 0.6, 5.6, 11.0],
-    1: [-14.6, -10.2, -6.6, -2.8, 1.6, 6.8],
+    1: [-14.6, -10.2, -6.6, 1.6, 6.8],  # (no pier at the fish net's board, z -2.8: it hangs on the glass's posts)
 }
 glass, walls = [], []
 WZ0, WZ1 = DECK["z0"] - 0.0, RZ1 - 0.4
@@ -505,11 +501,11 @@ for side, x in ((-1, WALL_X[0]), (1, WALL_X[1])):
         # a lantern on every other pier
         if pz.index(z) % 2 == 0:
             walls.append(cyl("PierLanternBase", 0.1, 0.06, g(x, 1.69, z), M["iron"], 8))
-            walls.append(cyl("PierLanternCap", 0.15, 0.1, g(x, 2.06, z), M["iron"], 8, r2=0.03))
+            walls.append(cyl("PierLanternCap", 0.15, 0.1, g(x, 2.02, z), M["iron"], 8, r2=0.03))
             for k in range(4):
                 a = k * math.tau / 4 + PI / 4
                 walls.append(gbx("PierLanternBar", x + math.cos(a) * 0.1 - 0.01, x + math.cos(a) * 0.1 + 0.01, 1.72, 2.01, z + math.sin(a) * 0.1 - 0.01, z + math.sin(a) * 0.1 + 0.01, M["iron"], 0))
-            walls.append(cyl("Light_PierLantern", 0.085, 0.27, g(x, 1.86, z), M["lamp"], 8))
+            walls.append(cyl("Light_PierLantern", 0.085, 0.27, g(x, 1.75, z), M["lamp"], 8))
 # the utility pier that carries the fuse box (props.mjs fuseBox: its back at x 17.17), right-hand corner
 walls.append(slab("FusePier", 17.17, 17.6, 9.9, RZ1 - 0.3, 0, 2.75, M["stucco"], 0.02))
 walls.append(slab("FusePierCap", 17.1, 17.68, 9.84, RZ1 - 0.24, 2.75, 2.86, M["coping"], 0.02))

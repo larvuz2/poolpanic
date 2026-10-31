@@ -32,7 +32,7 @@ AO_SAMPLES = int(os.environ.get("SPLASH_AO_SAMPLES", "48"))
 DECIMATE = json.loads(os.environ.get("SPLASH_DECIMATE", "{}"))  # (asset -> ratio, for a dense prop)
 DROP = re.compile(r"^(LifeRing|Flashlight)(\.\d+)?$")
 # the longest side a sign or cut-out keeps in its atlas (others: as large as the atlas allows, up to 512)
-ATLAS_SIZE = {"splash_park": 1024, "palm_frond": 1024, "snacks_menu": 512, "pool_rules": 384}
+ATLAS_SIZE = {"splash_park": 1024, "palm_frond": 1000, "snacks_menu": 512, "pool_rules": 384}
 
 reset()
 
@@ -514,7 +514,12 @@ if AO:
     see_through = [o for o in statics if o.name.startswith(("S_cut", "S_glass", "S_glow", "S_lamp", "S_nightglow"))]
     for o in see_through:
         o.hide_render = True
-    props_ao = [o for o in statics if not o.name.startswith(("S_glass", "S_lamp", "S_nightglow", "S_cut", "S_signs", "S_tile_"))]
+    props_ao = [
+        o
+        for o in statics
+        if not o.name.startswith(("S_glass", "S_lamp", "S_nightglow", "S_cut", "S_signs", "S_tile_"))
+        or o.name in ("S_tile_pine", "S_tile_conifer")  # (the trees' canopies: dense enough for occlusion in their vertices)
+    ]
     bake_vertex_ao(props_ao)
     print("AO in the vertices of", [o.name for o in props_ao])
     bake_floor_ao()
