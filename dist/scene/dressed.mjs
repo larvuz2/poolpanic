@@ -42,6 +42,10 @@ const TILE_ROUGH = {
   walltile: 0.2,
   pavers: 0.72,
   malibu: 0.22,
+  fanmosaic: 0.2,
+  marble: 0.25,
+  brick: 0.85,
+  gravel: 0.95,
 };
 const FLAT = { matte: [0.82, 0], satin: [0.5, 0], gloss: [0.22, 0], metal: [0.32, 1], leaf: [0.6, 0] };
 const WATER_Y = -0.25;
@@ -116,9 +120,12 @@ export function dressedVenue({ dir, file, label, horizon = null }) {
 // `hour`: the venue's light slides with the game's hour (the Sunset Lagoon's golden hour into dusk, and its storms): the lamps
 // follow the hour's glow and the horizon takes the hour's light, every frame, instead of `look`'s fixed values.
 // Returns the model's root (the venue's module wires the game's live parts to it).
-export function dressModel(w, model, { look, name, deckSet, hour = false }) {
+// (`caustics`: the box [minX, maxX, minZ, maxZ] the pool's caustics stay in, for a venue whose ground outside lies below the
+// water's level, Senior Aqua Fit's garden; everywhere by default)
+export function dressModel(w, model, { look, name, deckSet, hour = false, caustics = null }) {
   const info = model.info;
   const U = {
+    causticBox: { value: new THREE.Vector4(...(caustics || [-1e4, 1e4, -1e4, 1e4])) },
     lamps: { value: Array.from({ length: MAX_LAMPS }, () => new THREE.Vector4()) },
     lampCount: { value: 0 },
     lampColor: { value: new THREE.Color(look.lampColor ?? 0xffc477) },
@@ -224,6 +231,7 @@ function venueShader(material, w, U, model, { deck = false } = {}) {
     shader.uniforms.uLampColor = U.lampColor;
     shader.uniforms.uNight = U.night;
     shader.uniforms.uClouds = U.clouds;
+    shader.uniforms.uCausticBox = U.causticBox;
     if (deck) {
       shader.uniforms.uPaint = { value: T.floor_paint };
       shader.uniforms.uFloorAO = { value: T.floor_ao };
@@ -246,6 +254,7 @@ function venueShader(material, w, U, model, { deck = false } = {}) {
       uniform vec3 uLampColor;
       uniform float uNight;
       uniform float uClouds;
+      uniform vec4 uCausticBox;
       ${CAUSTIC_GLSL}
       float cloudHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float cloudNoise(vec2 p) {
@@ -289,6 +298,7 @@ function venueShader(material, w, U, model, { deck = false } = {}) {
       "#include <emissivemap_fragment>",
       `#include <emissivemap_fragment>
       float under = 1.0 - smoothstep(${(WATER_Y - 0.12).toFixed(2)}, ${(WATER_Y + 0.06).toFixed(2)}, vDressed.y);
+      under *= step(uCausticBox.x, vDressed.x) * step(vDressed.x, uCausticBox.y) * step(uCausticBox.z, vDressed.z) * step(vDressed.z, uCausticBox.w);
       totalEmissiveRadiance += vec3(0.55, 0.95, 0.95) * caustic(vDressed.xz, uTime) * uCaustic * under * 0.8;`,
     );
   };
@@ -393,6 +403,7 @@ function makeMaterials(w, U, model, deckSet) {
         roughness: 0.04,
         metalness: 0,
         depthWrite: false,
+        side: THREE.DoubleSide, // (a pane is seen from inside and out)
         envMapIntensity: 1.5,
       });
     else {

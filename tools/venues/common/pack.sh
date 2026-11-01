@@ -17,7 +17,9 @@ mkdir -p "$OUT"
 # (every picture but the horizon, which is made once by the venue's horizon.sh)
 find "$OUT" -name "*.webp" ! -name "horizon.webp" -delete
 
-npx --yes gltfpack@1.3.0 -i "$WORK/out/$NAME.raw.glb" -o "$OUT/$NAME.glb" -kn -km -kv -vtf
+# (positions quantized to VENUE_VP bits over each mesh's bounds, 14 by default: a venue whose class meshes run out into a wide
+# garden, its pictures a few mm in front of their boards, asks for 16, or the steps outgrow the gap)
+npx --yes gltfpack@1.3.0 -i "$WORK/out/$NAME.raw.glb" -o "$OUT/$NAME.glb" -kn -km -kv -vtf -vp "${VENUE_VP:-14}"
 cp "$WORK/out/$NAME.json" "$OUT/$NAME.json"
 
 webp() { # webp <in> <max size> <quality> <out> [extra convert options]

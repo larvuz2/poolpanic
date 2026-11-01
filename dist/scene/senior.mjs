@@ -29,6 +29,7 @@ import {
   woodMaterial,
 } from "./props.mjs";
 import { propModel } from "./prop-models.mjs";
+import { seniorClubReady, buildSeniorClub } from "./seniorclub.mjs";
 
 const FLOOR = -1.95;
 const EMERALD = 0x1f5c4a,
@@ -96,8 +97,27 @@ const live = (w, object) => {
   return object;
 };
 
+// What the conservatory's builders share: the world, the venue, its seeded randomness, and what glows (dimmed in a blackout).
+export const seniorContext = (w, venue) => ({
+  w,
+  venue,
+  rand: rngOf(1926),
+  ivy: [],
+  columns: new Set(),
+  glows: [],
+});
+// Everything that glows fades with the lights in a blackout.
+export function glowDimmer(ctx) {
+  ctx.w.dimmers.push((k) => {
+    const f = Math.min(1, Math.max(0, k));
+    for (const dim of ctx.glows) dim(f);
+  });
+}
+
 export function buildSenior(w, venue) {
-  const ctx = { w, venue, rand: rngOf(1926), ivy: [], columns: new Set(), glows: [] };
+  // (dressed for real once its model is in: scene/seniorclub.mjs; this classic conservatory till then and with ?nomodels)
+  if (seniorClubReady()) return buildSeniorClub(w, venue);
+  const ctx = seniorContext(w, venue);
   deck(ctx);
   pool(ctx);
   outside(ctx);
@@ -127,10 +147,7 @@ export function buildSenior(w, venue) {
   ivy(ctx);
   roof(ctx);
   sunlight(ctx);
-  w.dimmers.push((k) => {
-    const f = Math.min(1, Math.max(0, k));
-    for (const dim of ctx.glows) dim(f);
-  });
+  glowDimmer(ctx);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -690,10 +707,8 @@ function gardenBench(ctx, f) {
 }
 
 // The hydrotherapy spa: a round tub in travertine with a brass rail, glowing water, bubbles and steam (the picture's alone).
-function spa(ctx, f) {
-  const { w, rand } = ctx,
-    r = Math.min(f.hx, f.hz);
-  // The tub: a lathe from the floor up the outside, over a rounded marble lip and down inside to the water.
+// The tub: a lathe from the floor up the outside, over a rounded marble lip and down inside to the water; its brass rail.
+function spaTub(w, f, r) {
   const profile = [
     [r + 0.05, 0],
     [r + 0.02, 0.56],
@@ -706,6 +721,31 @@ function spa(ctx, f) {
   ].map(([x, y]) => new THREE.Vector2(x, y));
   const tub = w.mesh(new THREE.LatheGeometry(profile, 48), w.mat(0xf1eadc, { roughness: 0.3 }), f.x, 0, f.z);
   tub.receiveShadow = true;
+  const rail = w.torus(
+    r - 0.05,
+    0.03,
+    w.mat(BRASS, { roughness: 0.22, metalness: 0.9 }),
+    w.scene,
+    Math.PI * 0.7,
+    8,
+    28,
+  );
+  rail.rotation.x = -Math.PI / 2;
+  rail.position.set(f.x, 1.05, f.z);
+  for (const a of [0, Math.PI * 0.7])
+    w.rod(
+      [f.x + Math.cos(a) * (r - 0.05), 0.66, f.z - Math.sin(a) * (r - 0.05)],
+      [f.x + Math.cos(a) * (r - 0.05), 1.05, f.z - Math.sin(a) * (r - 0.05)],
+      0.03,
+      BRASS,
+    );
+}
+
+// (`body: false` leaves the tub and its rail to the dressed model: the water, its glow, the bubbles and the steam stay the game's)
+export function spa(ctx, f, { body = true } = {}) {
+  const { w, rand } = ctx,
+    r = Math.min(f.hx, f.hz);
+  if (body) spaTub(w, f, r);
   const water = new THREE.Mesh(
     new THREE.CircleGeometry(r - 0.17, 40),
     new THREE.MeshStandardMaterial({
@@ -726,24 +766,6 @@ function spa(ctx, f) {
   w.scene.add(glow);
   glowing(ctx, glow.material);
   glowing(ctx, water.material, "emissiveIntensity");
-  const rail = w.torus(
-    r - 0.05,
-    0.03,
-    w.mat(BRASS, { roughness: 0.22, metalness: 0.9 }),
-    w.scene,
-    Math.PI * 0.7,
-    8,
-    28,
-  );
-  rail.rotation.x = -Math.PI / 2;
-  rail.position.set(f.x, 1.05, f.z);
-  for (const a of [0, Math.PI * 0.7])
-    w.rod(
-      [f.x + Math.cos(a) * (r - 0.05), 0.66, f.z - Math.sin(a) * (r - 0.05)],
-      [f.x + Math.cos(a) * (r - 0.05), 1.05, f.z - Math.sin(a) * (r - 0.05)],
-      0.03,
-      BRASS,
-    );
   // Bubbles: an instanced field that rises and pops, and steam: soft puffs that climb and fade.
   const count = 46,
     bubbles = new THREE.InstancedMesh(
@@ -810,17 +832,20 @@ function hoist(ctx, f) {
 }
 
 // The tea trolley: the dog treats are the biscuits in the tin on its top tier.
-function teaTrolley(ctx, f) {
+// (`body: false`: the dressed model's trolley; the tin of treats, its hit box and its label stay the game's)
+export function teaTrolley(ctx, f, { body = true } = {}) {
   const { w } = ctx;
-  const g = live(w, w.group(f.x, 0, f.z, w.scene, Math.PI / 2));
-  g.add(
-    propModel("trolley", { height: 0.98 }, (s) => {
-      for (const y of [0.25, 0.78]) w.box(0.95, 0.04, 0.55, 0x6b3d22, 0, y, 0, 0.01, s);
-      for (const x of [-0.44, 0.44])
-        for (const z of [-0.24, 0.24]) w.cyl(0.015, 0.015, 0.8, BRASS, x, 0.42, z, s, 6);
-      w.ball(0.12, 0xffffff, 0.1, 0.92, 0, s);
-    }),
-  );
+  if (body) {
+    const g = live(w, w.group(f.x, 0, f.z, w.scene, Math.PI / 2));
+    g.add(
+      propModel("trolley", { height: 0.98 }, (s) => {
+        for (const y of [0.25, 0.78]) w.box(0.95, 0.04, 0.55, 0x6b3d22, 0, y, 0, 0.01, s);
+        for (const x of [-0.44, 0.44])
+          for (const z of [-0.24, 0.24]) w.cyl(0.015, 0.015, 0.8, BRASS, x, 0.42, z, s, 6);
+        w.ball(0.12, 0xffffff, 0.1, 0.92, 0, s);
+      }),
+    );
+  }
   const tin = treatsObject(w);
   tin.scale.setScalar(0.7);
   tin.position.set(f.x - 0.18, 1.05, f.z + 0.3);
@@ -836,18 +861,21 @@ function teaTrolley(ctx, f) {
 }
 
 // The gramophone on a mahogany side table, playing: a gold note rises from the horn now and then.
-function gramophone(ctx, f) {
+// (`body: false`: the dressed model's gramophone and table; the notes it floats stay the game's)
+export function gramophone(ctx, f, { body = true } = {}) {
   const { w } = ctx;
-  w.cyl(0.4, 0.4, 0.05, woodMaterial(w, "#5b2c1a", 13), f.x, 0.7, f.z, w.scene, 24);
-  w.cyl(0.05, 0.08, 0.68, 0x4a2414, f.x, 0.35, f.z, w.scene, 10);
-  w.cyl(0.26, 0.3, 0.04, 0x4a2414, f.x, 0.02, f.z, w.scene, 16);
-  const g = live(w, w.group(f.x, 0.73, f.z, w.scene, (Math.PI * 3) / 4));
-  g.add(
-    propModel("gramophone", { height: 0.8 }, (s) => {
-      w.box(0.36, 0.18, 0.36, 0x6b2e1a, 0, 0.09, 0, 0.02, s);
-      w.cyl(0.04, 0.2, 0.5, BRASS, 0.1, 0.45, 0, s, 12).rotation.z = -0.8;
-    }),
-  );
+  if (body) {
+    w.cyl(0.4, 0.4, 0.05, woodMaterial(w, "#5b2c1a", 13), f.x, 0.7, f.z, w.scene, 24);
+    w.cyl(0.05, 0.08, 0.68, 0x4a2414, f.x, 0.35, f.z, w.scene, 10);
+    w.cyl(0.26, 0.3, 0.04, 0x4a2414, f.x, 0.02, f.z, w.scene, 16);
+    const g = live(w, w.group(f.x, 0.73, f.z, w.scene, (Math.PI * 3) / 4));
+    g.add(
+      propModel("gramophone", { height: 0.8 }, (s) => {
+        w.box(0.36, 0.18, 0.36, 0x6b2e1a, 0, 0.09, 0, 0.02, s);
+        w.cyl(0.04, 0.2, 0.5, BRASS, 0.1, 0.45, 0, s, 12).rotation.z = -0.8;
+      }),
+    );
+  }
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 64;
   const c = canvas.getContext("2d");
@@ -895,21 +923,24 @@ function armchair(ctx, f) {
 }
 
 // The brass standard lamp between the armchairs, its silk shade lit, and a small table with a book and a teacup.
-function readingLamp(ctx) {
+// (`body: false`: the dressed model's lamp; its warm glow on the wall and the floor stays the game's)
+export function readingLamp(ctx, { body = true } = {}) {
   const { w, venue } = ctx;
   const chairs = venue.furniture.filter((f) => f.kind === "armchair");
   if (!chairs.length) return;
   const x = chairs[0].x + 0.35,
     z = chairs.reduce((a, f) => a + f.z, 0) / chairs.length;
-  w.cyl(0.18, 0.2, 0.04, BRASS, x, 0.02, z, w.scene, 16);
-  w.cyl(0.022, 0.022, 1.55, w.mat(BRASS, { roughness: 0.25, metalness: 0.9 }), x, 0.8, z, w.scene, 8);
-  const silk = glowing(
-    ctx,
-    w.mat(0xf6e3bd, { emissive: 0xffc77a, emissiveIntensity: 0.75, roughness: 0.9 }),
-    "emissiveIntensity",
-  );
-  const shade = w.cyl(0.18, 0.28, 0.32, silk, x, 1.62, z);
-  shade.castShadow = false;
+  if (body) {
+    w.cyl(0.18, 0.2, 0.04, BRASS, x, 0.02, z, w.scene, 16);
+    w.cyl(0.022, 0.022, 1.55, w.mat(BRASS, { roughness: 0.25, metalness: 0.9 }), x, 0.8, z, w.scene, 8);
+    const silk = glowing(
+      ctx,
+      w.mat(0xf6e3bd, { emissive: 0xffc77a, emissiveIntensity: 0.75, roughness: 0.9 }),
+      "emissiveIntensity",
+    );
+    const shade = w.cyl(0.18, 0.28, 0.32, silk, x, 1.62, z);
+    shade.castShadow = false;
+  }
   const glow = w.decal(w.glowMap, 2.0, 2.0, 0xffcf8a, 0.3, true);
   glowing(ctx, glow.material);
   glow.position.set(x - 0.1, 1.55, z);
@@ -983,10 +1014,7 @@ function roof(ctx) {
     lenZ = z1 - z0,
     midZ = (z0 + z1) / 2,
     rise = ROOF.ridge - ROOF.eave;
-  const caster = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
-  const shadowGrid = new THREE.Group();
-  shadowGrid.name = "roof-shadow";
-  w.scene.add(shadowGrid);
+  roofShadows(ctx);
   const slab = (parent, material, sx, sy, sz, x, y, z, tilt) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
     m.position.set(x, y, z);
@@ -1004,17 +1032,12 @@ function roof(ctx) {
     const pane = slab(upper, glass, slope, 0.03, lenZ, cx, cy, midZ, tilt);
     pane.renderOrder = 3;
     // Rafters every 1.6 m and three purlins down each slope: real ribs above, unseen casters for the shadow.
-    for (let z = z0; z <= z1 + 0.01; z += lenZ / Math.round(lenZ / 1.6)) {
+    for (let z = z0; z <= z1 + 0.01; z += lenZ / Math.round(lenZ / 1.6))
       slab(upper, iron, slope, 0.14, 0.08, cx, cy - 0.06, z, tilt);
-      const c = slab(shadowGrid, caster, slope, 0.14, 0.1, cx, cy - 0.06, z, tilt);
-      c.castShadow = true;
-    }
     for (const k of [0.25, 0.5, 0.75]) {
       const x = edge * (1 - k),
         y = ROOF.eave + rise * k;
       slab(upper, iron, 0.08, 0.12, lenZ, x, y - 0.08, midZ, 0);
-      const c = slab(shadowGrid, caster, 0.08, 0.12, lenZ, x, y - 0.08, midZ, 0);
-      c.castShadow = true;
     }
   }
   // Ridge, cresting and finials.
@@ -1102,9 +1125,43 @@ function roof(ctx) {
   };
 }
 
+// The roof's ribs as unseen casters: only their shadow, the window pattern the late sun lays across the deck (the classic roof's and
+// the dressed model's alike: the model's roof is the Coach Cam's and casts nothing).
+export function roofShadows(ctx) {
+  const { w } = ctx;
+  const z0 = WALL.back,
+    z1 = WALL.end,
+    lenZ = z1 - z0,
+    midZ = (z0 + z1) / 2,
+    rise = ROOF.ridge - ROOF.eave;
+  const caster = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
+  const grid = new THREE.Group();
+  grid.name = "roof-shadow";
+  w.scene.add(grid);
+  const slab = (sx, sy, sz, x, y, z, tilt) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), caster);
+    m.position.set(x, y, z);
+    m.rotation.z = tilt;
+    m.castShadow = true;
+    grid.add(m);
+  };
+  for (const s of [-1, 1]) {
+    const edge = s < 0 ? WALL.near : WALL.far,
+      run = Math.abs(edge),
+      slope = Math.hypot(run, rise),
+      tilt = s * -Math.atan2(rise, run),
+      cx = edge / 2,
+      cy = (ROOF.eave + ROOF.ridge) / 2;
+    for (let z = z0; z <= z1 + 0.01; z += lenZ / Math.round(lenZ / 1.6))
+      slab(slope, 0.14, 0.1, cx, cy - 0.06, z, tilt);
+    for (const k of [0.25, 0.5, 0.75])
+      slab(0.08, 0.12, lenZ, edge * (1 - k), ROOF.eave + rise * k - 0.08, midZ, 0);
+  }
+}
+
 // ---------------------------------------------------------------------------------------------------------------------------
 // The late sun: slanting shafts through the far end's glass with motes of dust turning in them.
-function sunlight(ctx) {
+export function sunlight(ctx) {
   const { w, rand } = ctx;
   const beam = beamTexture();
   w.textures.push(beam);

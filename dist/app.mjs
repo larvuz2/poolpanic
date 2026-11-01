@@ -67,6 +67,7 @@ import { loadCrowdModels } from "./scene/crowd-models.mjs";
 import { loadOfficials } from "./scene/officials.mjs";
 import { loadOnsenClub } from "./scene/onsenclub.mjs";
 import { loadWaveClub } from "./scene/waveclub.mjs";
+import { loadSeniorClub } from "./scene/seniorclub.mjs";
 import { cannonballMan } from "./incidents/carl.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
@@ -4957,6 +4958,10 @@ try {
       .then(() => {
         const began = performance.now();
         return loadWaveClub().then(loaded("Wave Pool", began));
+      })
+      .then(() => {
+        const began = performance.now();
+        return loadSeniorClub().then(loaded("Senior Aqua Fit", began));
       });
   });
   if (fetching.length) {
