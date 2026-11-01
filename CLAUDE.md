@@ -70,7 +70,10 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    guests waiting in the snow grow cold and hug themselves (ColdHug) until sent to one, where they sit to the shoulders; snow
    monkeys come out of the forest for the warm water, shooed by running into them, and one that gets in makes the spring panic
    until shooed out from the rim; the coach skates and slides on the ice (IceSkate, IceSlide, `venue.ice`) and wades in the springs;
-   `dist/onsen.mjs`, `dist/onsen-plan.mjs`, `dist/scene/onsen.mjs`, `snow-monkey.glb`; koto and shakuhachi), the **Jumping Pool**
+   `dist/onsen.mjs`, `dist/onsen-plan.mjs`, `dist/scene/onsen.mjs`, `snow-monkey.glb`; koto and shakuhachi; since 1 November 2026
+   dressed for real, three.js only: a bathhouse of charred cedar and plaster under a snowy roof, stone lanterns, snowy cedars,
+   wooden stations, `dist/scene/onsenclub.mjs`, `tools/venues/onsen/`, every place taken from the game's own plan by
+   `tools/venues/onsen/plan.mjs`, the water, steam, snowfall and cast still the game's), the **Jumping Pool**
    (24 October 2026, last on the ladder: a country club's deep pool with no lanes and a diving station at each end, LOW 1 a green
    springboard, MID 2 a yellow 3 m platform, HIGH 3 a red 6 m platform, each with its stairs and a line; the boards open one by one
    in a shift; the right height for the guest's skill is clean points, too high wipes out (a beginner on HIGH 70% of the time: a
@@ -167,7 +170,8 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
 3. **The look.** Lighting, textures, the art pass. **Last, on purpose.** Do not polish it unless asked: it must not change how the game plays.
    (Asked so far: Senior Aqua Fit's photographs and models, the Community Pool as the Harbourside, 28 October 2026, where
    "performance is key": a venue's look is a few merged meshes, baked light and no new lights, measured against the old one; and
-   Splash Park, the Kids Pool, the Sunset Lagoon, the Aqua Disco and the Aquatic Centre, 31 October 2026, the same way, the next venue on the ladder each time with the shared kit
+   Splash Park, the Kids Pool, the Sunset Lagoon, the Aqua Disco and the Aquatic Centre, 31 October 2026, and the Mountain Hot
+   Springs, 1 November 2026, the same way, the next venue on the ladder each time with the shared kit
    (`tools/venues/common/`, `dist/scene/dressed.mjs`). Venues are dressed in three.js only from now on, never in the Godot test,
    the creator's.)
 4. **Launch.** Store page, trailer, wishlists, a demo, review, release.

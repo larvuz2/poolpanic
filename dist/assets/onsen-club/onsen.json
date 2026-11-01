@@ -1,0 +1,139 @@
+{
+ "made": "tools/venues/common/export_three.py -- tools/venues/onsen",
+ "triangles": 111198,
+ "lights": [
+  {
+   "kind": "Doorway",
+   "at": [
+    0.62,
+    1.125,
+    -16.39
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    -0.48,
+    2.46,
+    -14.55
+   ]
+  },
+  {
+   "kind": "Paper",
+   "at": [
+    1.72,
+    2.46,
+    -14.55
+   ]
+  },
+  {
+   "kind": "Lantern",
+   "at": [
+    -7.8,
+    0.84,
+    -13.9
+   ]
+  },
+  {
+   "kind": "Lantern",
+   "at": [
+    8.2,
+    0.84,
+    -13.9
+   ]
+  },
+  {
+   "kind": "Lantern",
+   "at": [
+    0.2,
+    0.84,
+    6.2
+   ]
+  },
+  {
+   "kind": "Lantern",
+   "at": [
+    10.6,
+    0.84,
+    2.9
+   ]
+  }
+ ],
+ "atlases": {
+  "atlas_signs": {
+   "size": 2048,
+   "images": 18,
+   "scale": 1.0
+  }
+ },
+ "ao": 1,
+ "paint": {
+  "size": 2048,
+  "x0": -15.4,
+  "z0": -16.4,
+  "span": 30.8
+ },
+ "anchors": {
+  "LifeRing": [
+   [
+    -14.85,
+    1.65,
+    -1.4
+   ],
+   [
+    -14.85,
+    1.65,
+    6.4
+   ],
+   [
+    2.0,
+    1.65,
+    12.9
+   ]
+  ],
+  "Flashlight": [
+   [
+    -8.4,
+    1.24,
+    12.6
+   ]
+  ]
+ },
+ "tiles": {
+  "flagstone": 3.6,
+  "snow": 4.0,
+  "rock": 1.6,
+  "pebbles": 1.4,
+  "hinoki": 1.0,
+  "timber": 1.2,
+  "plaster": 2.0,
+  "kawara": 1.0,
+  "bark": 1.0,
+  "cedar": 1.2
+ },
+ "sharp": [],
+ "meshes": [
+  "S_glass",
+  "S_gloss",
+  "S_gloss_n",
+  "S_lamp",
+  "S_matte",
+  "S_matte_n",
+  "S_metal",
+  "S_metal_n",
+  "S_nightglow",
+  "S_satin",
+  "S_satin_n",
+  "S_signs",
+  "S_tile_bark",
+  "S_tile_cedar",
+  "S_tile_flagstone",
+  "S_tile_hinoki",
+  "S_tile_kawara",
+  "S_tile_pebbles",
+  "S_tile_plaster",
+  "S_tile_rock",
+  "S_tile_snow",
+  "S_tile_timber"
+ ]
+}
