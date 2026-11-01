@@ -34,6 +34,7 @@ import {
 } from "./props.mjs";
 import { kioskTreats } from "./resort.mjs";
 import { tubeObject, TUBE_COLORS } from "./river-view.mjs";
+import { riverClubReady, buildRiverClub } from "./riverclub.mjs";
 
 const TAU = Math.PI * 2;
 const BED = -1.15; // the river bed, under the water's surface at -0.25
@@ -45,14 +46,21 @@ const MOSS = 0x5f8a3a,
   JOINT = 0x9c7a3c,
   LEAF = [0x2f7a3a, 0x3d8f45, 0x4f9f4a, 0x2a6b3c, 0x5aa850];
 
-export function buildRiver(w, venue) {
-  const r = venue.river;
+// What the river's builders share: the world, the venue, the river, a group for what moves, seeded randomness, and the leaves and
+// flames gathered on the way (the dressed river, scene/riverclub.mjs, starts from the same).
+export function riverContext(w, venue) {
   const live = new THREE.Group();
   live.name = "river-live";
   w.scene.add(live);
   w.liveProps.push(live);
-  const ctx = { w, venue, r, live, rand: rngOf(171), fronds: [], leaves: [], flames: [] };
   w.poolUniforms = { uTime: { value: 0 }, uCaustic: { value: 1 } };
+  return { w, venue, r: venue.river, live, rand: rngOf(171), fronds: [], leaves: [], flames: [] };
+}
+
+export function buildRiver(w, venue) {
+  // (dressed for real once its model is in: scene/riverclub.mjs; this classic jungle till then and with ?nomodels)
+  if (riverClubReady()) return buildRiverClub(w, venue);
+  const ctx = riverContext(w, venue);
   ground(ctx);
   deck(ctx);
   channel(ctx);
@@ -501,7 +509,7 @@ void main() {
   gl_FragColor = vec4(color, mix(0.97, alpha, seen));
 }`;
 
-function water(ctx) {
+export function water(ctx) {
   const { w, r, live } = ctx,
     look = w.look.water;
   const geo = ribbon(r, { s0: 0, s1: r.length, d0: -r.w - 0.06, d1: r.w + 0.06, step: 0.22, across: 16 });
@@ -652,7 +660,21 @@ function cave(ctx) {
   dark.position.set(back.x, height / 2 - 0.4, back.z);
   dark.rotation.y = Math.atan2(c.tx, c.tz);
   w.scene.add(dark);
-  // The waterfall: a sheet of falling water across the mouth, its streaks running down, and mist where it lands.
+  waterfall(ctx);
+  vines(ctx, left, right, height);
+  void room;
+}
+
+// The waterfall across the cave's mouth: a sheet of falling water, its streaks running down, and mist where it lands (the classic
+// cave's and the dressed model's alike).
+export function waterfall(ctx) {
+  const { w, r, live, rand } = ctx;
+  const s = r.start,
+    c = r.at(s),
+    left = r.point(s, -r.w - 0.9),
+    right = r.point(s, r.w + 0.9),
+    span = Math.hypot(right.x - left.x, right.z - left.z),
+    height = 3.4;
   const fall = new THREE.Mesh(
     new THREE.PlaneGeometry(span * 0.86, height * 0.82, 1, 1),
     new THREE.ShaderMaterial({
@@ -695,8 +717,6 @@ function cave(ctx) {
       m.blob.material.opacity = 0.22 * Math.sin(t * Math.PI);
     }
   });
-  vines(ctx, left, right, height);
-  void room;
 }
 
 // The temple the river goes into: two carved stone pillars with tiki faces, a lintel with glyphs, stone blocks stepped up
@@ -968,19 +988,22 @@ function docks(ctx) {
 
 // The tube rack (the venue's `fins` station): bamboo posts and a rail, the guests' tubes standing in a row on their edges (one
 // for each tube on the rack: `finPairs`, shown while the rack has them).
-function tubeRack(ctx) {
+// (`rack: false`: the dressed model's rack; the tubes, the hit box and the label stay the game's)
+export function tubeRack(ctx, { rack = true } = {}) {
   const { w, venue } = ctx,
     p = venue.stations.fins,
     f = venue.furniture.find((x) => x.kind === "tube-rack") || { hx: 0.6, hz: 1.1 },
     g = w.group(p.x, 0, p.z),
     count = venue.tubes ?? 3,
     wood = woodMaterial(w, "#8f5e33", 3);
-  for (const z of [-f.hz, f.hz]) {
-    bambooPole(w, -0.35, z, 1.5, g);
-    bambooPole(w, 0.35, z, 1.5, g);
+  if (rack) {
+    for (const z of [-f.hz, f.hz]) {
+      bambooPole(w, -0.35, z, 1.5, g);
+      bambooPole(w, 0.35, z, 1.5, g);
+    }
+    w.box(0.9, 0.1, f.hz * 2 + 0.2, wood, 0, 0.1, 0, 0.03, g);
+    w.rod([0, 1.38, -f.hz - 0.1], [0, 1.38, f.hz + 0.1], 0.06, BAMBOO, g);
   }
-  w.box(0.9, 0.1, f.hz * 2 + 0.2, wood, 0, 0.1, 0, 0.03, g);
-  w.rod([0, 1.38, -f.hz - 0.1], [0, 1.38, f.hz + 0.1], 0.06, BAMBOO, g);
   w.finPairs = [];
   for (let i = 0; i < count; i++) {
     const tube = tubeObject(w, i, 0.82);
@@ -995,8 +1018,10 @@ function tubeRack(ctx) {
     g.add(tube);
     w.finPairs.push(tube);
   }
-  const sign = w.textPlane("TUBES", 1.1, 0.34, "#2f6b3c", "#ffd23f", -0.36, 1.72, 0, g, 52);
-  sign.rotation.y = -Math.PI / 2;
+  if (rack) {
+    const sign = w.textPlane("TUBES", 1.1, 0.34, "#2f6b3c", "#ffd23f", -0.36, 1.72, 0, g, 52);
+    sign.rotation.y = -Math.PI / 2;
+  }
   stationHit(w, { kind: "station", item: "fins" }, p, 2.6, 2.2, Math.PI / 2);
   w.labels.push({ text: "E · TUBE RACK", x: p.x, y: 2.3, z: p.z });
 }
@@ -1224,10 +1249,8 @@ function snackHut(ctx, f) {
 // ---- fire, plants and birds -------------------------------------------------------------------------------------------
 
 function torches(ctx) {
-  const { w, venue, live } = ctx,
-    room = venue.room,
-    flame = flameTexture();
-  w.textures.push(flame);
+  const { w, venue } = ctx,
+    room = venue.room;
   // Bamboo torches round the deck's edge, by the gate and at both docks.
   const spots = [
     [room.minX + 0.5, -12],
@@ -1250,6 +1273,14 @@ function torches(ctx) {
     w.cyl(0.13, 0.08, 0.2, 0x3a2614, x, 1.98, z, w.scene, 8);
     ctx.flames.push({ x, y: 2.35, z, size: 0.85 });
   }
+  flameSprites(ctx);
+}
+
+// A flame burning at each of `ctx.flames` ({x, y, z, size}): an additive sprite that flickers (brighter in a blackout).
+export function flameSprites(ctx) {
+  const { w, live } = ctx,
+    flame = flameTexture();
+  w.textures.push(flame);
   const sprites = ctx.flames.map((f, i) => {
     const sprite = new THREE.Sprite(
       new THREE.SpriteMaterial({
@@ -1453,7 +1484,7 @@ function jungle(ctx) {
 }
 
 // Two parrots circling over the jungle, wings flapping (only in the picture).
-function parrots(ctx) {
+export function parrots(ctx) {
   const { w, live } = ctx,
     birds = [];
   for (const [color, wing, radius, alt, speed] of [
@@ -1524,7 +1555,7 @@ function finishLeaves(ctx) {
 
 // The river is the one "lane": an invisible strip over the seen water for clicks (send the selected guest down the river), and
 // a highlight of the same shape with a rim along both banks for the guidance (scene.mjs drives both like a lane's).
-function pickVolume(ctx) {
+export function pickVolume(ctx) {
   const { w, r } = ctx;
   const strip = ribbon(r, { s0: r.start + 0.4, s1: r.end - 0.4, d0: -r.w, d1: r.w, step: 0.5, across: 2 });
   const pick = new THREE.Mesh(strip, new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));

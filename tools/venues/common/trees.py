@@ -107,11 +107,14 @@ def frond_card(name, base, azim, pitch, length, width, droop, fold=0.32, segs=6)
     return o
 
 
-def palm(x, z, height, seed, y0=-1.95, lean=0.12, light=False):
+def palm(x, z, height, seed, y0=-1.95, lean=0.12, light=False, away=None):
     """A coconut palm `height` tall from y0: a ringed, gently curving trunk; a boot of old frond bases; coconuts; 14 fronds.
-    `light`: a far one, about half the triangles (a coarser trunk, two coconuts, 11 fronds)."""
+    `light`: a far one, about half the triangles (a coarser trunk, two coconuts, 11 fronds). `away`: the game's (x, z) of a place
+    to lean away from (the water), else a random way."""
     r = random.Random(seed)
     la = r.uniform(0, math.tau)
+    if away is not None:
+        la = math.atan2(-(z - away[1]), x - away[0])  # (Blender's y is the game's -z)
     lean_dir = Vector((math.cos(la), math.sin(la), 0))
     out = []
     pts = []

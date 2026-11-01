@@ -39,7 +39,8 @@ for t in $(node -e "console.log(Object.keys(require('$WORK/out/$NAME.json').tile
   webp "$TEX/${t}_normal.png" ${n}x${n} 90 "$OUT/${t}_n.webp"
 done
 [ -f "$WORK/out/atlas_signs.png" ] && webp "$WORK/out/atlas_signs.png" 2048x2048 86 "$OUT/atlas_signs.webp"
-[ -f "$WORK/out/atlas_cut.png" ] && webp "$WORK/out/atlas_cut.png" 1024x1024 90 "$OUT/atlas_cut.webp" -define webp:alpha-quality=95
+CUT=$(node -e "console.log((require('$WORK/out/$NAME.json').atlases || {}).atlas_cut?.size || 1024)")
+[ -f "$WORK/out/atlas_cut.png" ] && webp "$WORK/out/atlas_cut.png" ${CUT}x${CUT} 90 "$OUT/atlas_cut.webp" -define webp:alpha-quality=95
 webp "$WORK/out/floor_paint.png" 2048x2048 88 "$OUT/floor_paint.webp" -define webp:alpha-quality=95
 # (a touch of blur hides the bake's noise)
 webp "$WORK/out/floor_ao.png" 1024x1024 86 "$OUT/floor_ao.webp" -colorspace Gray -blur 0x1.2

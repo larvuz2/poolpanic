@@ -1,0 +1,202 @@
+{
+ "made": "tools/venues/common/export_three.py -- tools/venues/river",
+ "triangles": 142845,
+ "lights": [
+  {
+   "kind": "Lantern",
+   "at": [
+    16.2,
+    0.91,
+    -2.75
+   ]
+  },
+  {
+   "kind": "Lantern",
+   "at": [
+    -1.724,
+    1.05,
+    11.187
+   ]
+  },
+  {
+   "kind": "Lantern",
+   "at": [
+    3.775,
+    1.05,
+    4.317
+   ]
+  }
+ ],
+ "atlases": {
+  "atlas_signs": {
+   "size": 2048,
+   "images": 25,
+   "scale": 0.85
+  },
+  "atlas_cut": {
+   "size": 2048,
+   "images": 14,
+   "scale": 0.85
+  }
+ },
+ "ao": 1,
+ "paint": {
+  "size": 2048,
+  "x0": -15.6,
+  "z0": -17.0,
+  "span": 31.2
+ },
+ "anchors": {
+  "LifeRing": [
+   [
+    -14.85,
+    1.65,
+    -1.2
+   ],
+   [
+    14.85,
+    1.65,
+    5.6
+   ],
+   [
+    -14.85,
+    1.65,
+    9.4
+   ]
+  ],
+  "Flashlight": [
+   [
+    -7.6,
+    1.24,
+    10.6
+   ]
+  ],
+  "Flame": [
+   [
+    -14.0,
+    2.95,
+    -14.75
+   ],
+   [
+    12.6,
+    2.95,
+    11.4
+   ],
+   [
+    16.8,
+    0.35,
+    -0.2
+   ],
+   [
+    2.281,
+    2.75,
+    13.782
+   ],
+   [
+    9.928,
+    2.75,
+    11.433
+   ],
+   [
+    -14.7,
+    2.35,
+    -12.0
+   ],
+   [
+    -14.7,
+    2.35,
+    4.0
+   ],
+   [
+    14.7,
+    2.35,
+    -13.0
+   ],
+   [
+    14.7,
+    2.35,
+    4.5
+   ],
+   [
+    -2.2,
+    2.35,
+    -16.1
+   ],
+   [
+    2.2,
+    2.35,
+    -16.1
+   ],
+   [
+    14.7,
+    2.35,
+    12.2
+   ],
+   [
+    -2.512,
+    2.35,
+    -7.782
+   ],
+   [
+    -4.857,
+    2.35,
+    -5.305
+   ],
+   [
+    2.26,
+    2.35,
+    -12.185
+   ],
+   [
+    0.797,
+    2.35,
+    -10.747
+   ]
+  ]
+ },
+ "tiles": {
+  "sandstone": 3.2,
+  "templestone": 3.0,
+  "riverrock": 2.2,
+  "riverbed": 2.6,
+  "planks": 2.0,
+  "leaflitter": 4.0,
+  "bamboo": 2.4,
+  "thatch": 1.5,
+  "canopy": 2.0,
+  "hedge": 1.5
+ },
+ "sharp": [
+  "sandstone",
+  "templestone",
+  "riverrock",
+  "riverbed",
+  "planks",
+  "bamboo",
+  "leaflitter"
+ ],
+ "meshes": [
+  "Door_A",
+  "Door_B",
+  "S_cut",
+  "S_gloss",
+  "S_lamp",
+  "S_leaf",
+  "S_matte",
+  "S_matte_n",
+  "S_metal",
+  "S_metal_n",
+  "S_satin",
+  "S_signs",
+  "S_tile_bamboo",
+  "S_tile_canopy",
+  "S_tile_hedge",
+  "S_tile_leaflitter",
+  "S_tile_planks",
+  "S_tile_riverbed",
+  "S_tile_riverrock",
+  "S_tile_sandstone",
+  "S_tile_templestone",
+  "S_tile_thatch"
+ ]
+}

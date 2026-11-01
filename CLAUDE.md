@@ -55,7 +55,10 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    every guest wants a tube from the rack, is sent on the lazy loop or down the rapids (a chiller or a thrill-seeker), gets on at the ALL ABOARD dock (TubeBoard), lies back in it (TubeFloat) round a loop out of
    sight and gets off at the EXIT dock, leaving the tube at the tube return for the coach to rack; a rope bridge and two stepping
    stones the coach jumps to, a jump that falls short lands him in the river; `dist/river.mjs`, `dist/river-ride.mjs`,
-   `dist/scene/river.mjs`; a calypso song), the **Wave Pool** (a surf park with a beach and no lanes: guests walk in and straight
+   `dist/scene/river.mjs`; a calypso song; since 1 November 2026 dressed for real, three.js only, with photographic materials: the
+   Lost Temple of the Lazy River, a temple courtyard the jungle has taken back, the cave, the temple of the Lazy Idol, the bridge,
+   the docks, the expedition's camp, `dist/scene/riverclub.mjs`, `tools/venues/river/`, the water, waterfall, flames, parrots and
+   tubes still the game's), the **Wave Pool** (a surf park with a beach and no lanes: guests walk in and straight
    into the waves, the coach meets them with one of five tubes; every crest makes a bather dizzy, a dizzy one hit again is knocked
    under (a ring rescue); the WAVES button stops the machine and the bathers grow impatient; a monster wave announced by a siren;
    `dist/waves.mjs`, `dist/wave-pool.mjs`, `dist/scene/wave.mjs`; surf rock; since 1 November 2026 dressed for real, three.js only:
@@ -177,7 +180,7 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
    (Asked so far: Senior Aqua Fit's photographs and models, the Community Pool as the Harbourside, 28 October 2026, where
    "performance is key": a venue's look is a few merged meshes, baked light and no new lights, measured against the old one; and
    Splash Park, the Kids Pool, the Sunset Lagoon, the Aqua Disco and the Aquatic Centre, 31 October 2026, and the Mountain Hot
-   Springs, the Wave Pool and Senior Aqua Fit, 1 November 2026, the same way, the next venue on the ladder each time with the shared kit
+   Springs, the Wave Pool, Senior Aqua Fit and the Lazy River, 1 November 2026, the same way, the next venue on the ladder each time with the shared kit
    (`tools/venues/common/`, `dist/scene/dressed.mjs`). Venues are dressed in three.js only from now on, never in the Godot test,
    the creator's.)
 4. **Launch.** Store page, trailer, wishlists, a demo, review, release.

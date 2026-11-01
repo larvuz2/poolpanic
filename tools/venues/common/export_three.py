@@ -309,7 +309,7 @@ for cut in (False, True):
     if not group:
         continue
     name = "atlas_cut" if cut else "atlas_signs"
-    size = 2048 if not cut else 1024
+    size = 2048 if not cut else getattr(kit, "CUT_ATLAS", 1024)  # (a venue with many cut-outs asks for a bigger one)
     for scale in (1.0, 0.85, 0.7, 0.6, 0.5, 0.4, 0.3):
         pics = {k: scaled_pixels(a["img"], int(ATLAS_SIZE.get(a["name"], 512) * scale)) for k, a in group.items()}
         spots = pack([(k, p.shape[0], p.shape[1]) for k, p in pics.items()], size)
