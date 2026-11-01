@@ -19,6 +19,7 @@ import { aquaticClubReady, AQUATIC_LOOKS } from "./scene/aquaticclub.mjs";
 import { onsenClubReady, ONSEN_LOOKS } from "./scene/onsenclub.mjs";
 import { waveClubReady, WAVE_LOOKS } from "./scene/waveclub.mjs";
 import { seniorClubReady, SENIOR_LOOKS } from "./scene/seniorclub.mjs";
+import { riverClubReady, RIVER_LOOKS } from "./scene/riverclub.mjs";
 import { buildResort } from "./scene/resort.mjs";
 import { buildLagoon } from "./scene/lagoon.mjs";
 import { buildArena } from "./scene/arena.mjs";
@@ -470,6 +471,7 @@ const DRESSED = {
   onsen: [onsenClubReady, ONSEN_LOOKS],
   wave: [waveClubReady, WAVE_LOOKS],
   senior: [seniorClubReady, SENIOR_LOOKS],
+  river: [riverClubReady, RIVER_LOOKS],
 };
 const dressedFor = (venue) => !!DRESSED[venue.id]?.[0]();
 // A lighting preset with the sky dome's colours: the classic moods sit at fixed points of the day scale, and the
