@@ -69,7 +69,10 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    wish) to chill in chat groups in the water or on sunbeds and cabanas; margaritas on a tray of three from the SKY BAR, messy sunbeds to tidy, a tipsy guest's selfie on
    the infinity edge to talk down before they go over into the gutter and must be hauled back, the DJ's drop that slops water onto
    the deck; the coach can wade; lots of VIPs; 14 Tripo props, a Meshy DJ and bartender; `dist/rooftop.mjs`, `dist/roof-plan.mjs`,
-   `dist/scene/rooftop.mjs`, `dist/scene/city.mjs`; deep house built round the drops), the **Cruise Ship** (a physics level: the
+   `dist/scene/rooftop.mjs`, `dist/scene/city.mjs`; deep house built round the drops; since 1 November 2026 dressed for real,
+   three.js only, with photographic materials: the Sky Pool of Hotel Vertigo, quirky at its edges (the window cleaner's cradle,
+   the phone net, the pigeons), its posters made with our coaches as references, `dist/scene/roofclub.mjs`, `tools/venues/roof/`,
+   the water, the edge's flows, the lifts' doors, the LED wall, the neon, the city and the cast still the game's), the **Cruise Ship** (a physics level: the
    pool deck of a ship at sea that rolls, never in a rhythm: calm spells, then a swell leans her to one side, the big ones announced
    by the ship's bell; everything loose slides downhill, the people on deck, the coach, the sun loungers along their rows, which
    end up adrift until the coach straightens a row (E); someone at the pool's end slides in and must be helped out (E); the pool
@@ -183,7 +186,7 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
    (Asked so far: Senior Aqua Fit's photographs and models, the Community Pool as the Harbourside, 28 October 2026, where
    "performance is key": a venue's look is a few merged meshes, baked light and no new lights, measured against the old one; and
    Splash Park, the Kids Pool, the Sunset Lagoon, the Aqua Disco and the Aquatic Centre, 31 October 2026, and the Mountain Hot
-   Springs, the Wave Pool, Senior Aqua Fit, the Lazy River and the Cruise Ship, 1 November 2026, the same way, the next venue on the ladder each time with the shared kit
+   Springs, the Wave Pool, Senior Aqua Fit, the Lazy River, the Cruise Ship and the Rooftop Pool, 1 November 2026, the same way, the next venue on the ladder each time with the shared kit
    (`tools/venues/common/`, `dist/scene/dressed.mjs`). Venues are dressed in three.js only from now on, never in the Godot test,
    the creator's.)
 4. **Launch.** Store page, trailer, wishlists, a demo, review, release.

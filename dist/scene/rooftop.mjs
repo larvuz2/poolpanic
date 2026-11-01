@@ -33,6 +33,7 @@ import { syncRoof, buildRoofCast } from "./roof-view.mjs";
 import { doorOpening } from "../spatial.mjs";
 import { danceAt } from "../dance.mjs";
 import { nextDrop } from "../rooftop.mjs";
+import { roofClubReady, buildRoofClub } from "./roofclub.mjs";
 
 const TAU = Math.PI * 2;
 export const ROOF_WATER = -0.08; // the pool's surface (the deck is at 0)
@@ -47,16 +48,9 @@ const GUTTER_WATER = -0.62,
   TEAK = 0xb07a48;
 
 export function buildRooftop(w, venue) {
-  const live = new THREE.Group();
-  live.name = "roof-live";
-  w.scene.add(live);
-  w.liveProps.push(live);
-  const ctx = { w, venue, live, rand: rngOf(57), glow: glowTexture(128) };
-  w.textures.push(ctx.glow);
-  w.poolUniforms = { uTime: { value: 0 }, uCaustic: { value: 1 } };
-  // The city is 185 m down and 2 km out: the camera sees that far here (scene.mjs puts it back for other venues).
-  w.camera.far = 3200;
-  w.camera.updateProjectionMatrix();
+  // (dressed for real once its model has loaded: scene/roofclub.mjs)
+  if (roofClubReady()) return buildRoofClub(w, venue);
+  const ctx = roofContext(w, venue);
   deck(ctx);
   slabAndTower(ctx);
   basin(ctx);
@@ -80,6 +74,25 @@ export function buildRooftop(w, venue) {
   treatsTable(w, venue.fixtures.treats);
   const city = buildCity(w);
   buildRoofCast(w, venue, ctx);
+  syncRooftop(w, ctx, city);
+}
+
+// What every rooftop shares, classic or dressed: the live group, the glow, the pool's uniforms, the camera's reach.
+export function roofContext(w, venue) {
+  const live = new THREE.Group();
+  live.name = "roof-live";
+  w.scene.add(live);
+  w.liveProps.push(live);
+  const ctx = { w, venue, live, rand: rngOf(57), glow: glowTexture(128) };
+  w.textures.push(ctx.glow);
+  w.poolUniforms = { uTime: { value: 0 }, uCaustic: { value: 1 } };
+  // The city is 185 m down and 2 km out: the camera sees that far here (scene.mjs puts it back for other venues).
+  w.camera.far = 3200;
+  w.camera.updateProjectionMatrix();
+  return ctx;
+}
+// The city, the beats (the edge's flows, the lifts' doors, the flames, the LED wall), the cast, every frame.
+export function syncRooftop(w, ctx, city) {
   w.updaters.push((time, dt, world, sim) => {
     city.update(time, dt);
     for (const f of ctx.beats || []) f(time, dt, sim);
@@ -174,7 +187,12 @@ function deck(ctx) {
 
 // The roof slab's edges (white, with a bronze lip), its underside where it hangs out over the street, and the tower below it, a
 // glass curtain wall of lit floors down to the ground.
-function slabAndTower(ctx) {
+// (`slab: false`: the tower only, under the dressed roof's own slab)
+export function slabAndTower(ctx, { slab = true } = {}) {
+  if (slab) slabEdges(ctx);
+  tower(ctx);
+}
+function slabEdges(ctx) {
   const { w } = ctx,
     white = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.5 });
   const t = 0.3,
@@ -203,6 +221,9 @@ function slabAndTower(ctx) {
     lamps.setMatrixAt(i, m);
   }
   w.scene.add(lamps);
+}
+function tower(ctx) {
+  const { w } = ctx;
   // The tower: four walls of glass, floors of lit windows (facade-a.jpg laid on in metres), from the slab to the street.
   const glass = new THREE.MeshLambertMaterial({ color: 0xc8d2ea, emissive: 0xffffff, emissiveIntensity: 0 });
   roofPicture(
@@ -365,7 +386,7 @@ void main() {
   gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
 }`;
 
-function water(ctx) {
+export function water(ctx) {
   const { w } = ctx,
     look = w.look.water,
     dome = w.look.roofSky || {};
@@ -429,7 +450,8 @@ void main() {
   vec3 c = mix(uColor, uFoam, streak * 0.55 + vUv.y * 0.15);
   gl_FragColor = vec4(c * mix(0.3, 1.0, uLight), 0.78 + streak * 0.2);
 }`;
-function infinityEdge(ctx) {
+// (`stone: false`: only the water's two sheets, over the dressed roof's granite)
+export function infinityEdge(ctx, { stone = true } = {}) {
   const { w } = ctx,
     hz = ROOF.halfZ,
     hx = ROOF.halfX,
@@ -453,7 +475,7 @@ function infinityEdge(ctx) {
     return material;
   };
   // The knife edge: a slim dark-granite top on the far wall, flush with the water.
-  w.box(0.3, 0.04, hz * 2, 0x2b3236, hx + 0.15, ROOF_WATER - 0.02, 0, 0.005);
+  if (stone) w.box(0.3, 0.04, hz * 2, 0x2b3236, hx + 0.15, ROOF_WATER - 0.02, 0, 0.005);
   // The sheet sliding over it, down the outer face into the gutter.
   const sheet = new THREE.Mesh(
     new THREE.PlaneGeometry(hz * 2, ROOF_WATER - GUTTER_WATER),
@@ -466,11 +488,15 @@ function infinityEdge(ctx) {
   const dark = new THREE.MeshStandardMaterial({ color: 0x1d2a2e, roughness: 0.4 });
   const g0 = ROOF.gutter.x0,
     g1 = ROOF.gutter.x1;
-  w.scene.add(flat(rect(g0, -hz - 0.35, g1, hz + 0.35), dark, GUTTER_FLOOR));
-  w.scene.add(wall(dark, g1, hz + 0.35, g1, -hz - 0.35, GUTTER_FLOOR, 0, false));
-  w.scene.add(wall(dark, hx + 0.3, -hz - 0.35, hx + 0.3, hz + 0.35, GUTTER_FLOOR, ROOF_WATER - 0.04, false));
-  for (const s of [-1, 1])
-    w.scene.add(wall(dark, g0, s * (hz + 0.35), g1, s * (hz + 0.35), GUTTER_FLOOR, 0, s > 0));
+  if (stone) {
+    w.scene.add(flat(rect(g0, -hz - 0.35, g1, hz + 0.35), dark, GUTTER_FLOOR));
+    w.scene.add(wall(dark, g1, hz + 0.35, g1, -hz - 0.35, GUTTER_FLOOR, 0, false));
+    w.scene.add(
+      wall(dark, hx + 0.3, -hz - 0.35, hx + 0.3, hz + 0.35, GUTTER_FLOOR, ROOF_WATER - 0.04, false),
+    );
+    for (const s of [-1, 1])
+      w.scene.add(wall(dark, g0, s * (hz + 0.35), g1, s * (hz + 0.35), GUTTER_FLOOR, 0, s > 0));
+  }
   const run = new THREE.Mesh(
     new THREE.PlaneGeometry(hz * 2 + 0.7, g1 - hx - 0.3),
     flow(0.8, 0x1f6f74, 0x9fe8de),
@@ -480,7 +506,7 @@ function infinityEdge(ctx) {
   run.position.set((hx + 0.3 + g1) / 2, GUTTER_WATER, 0);
   w.scene.add(run);
   // The gutter's outer wall top, in travertine, the rail's base.
-  w.box(0.3, 0.06, hz * 2 + 0.7, ctx.stone, g1 + 0.12, 0.0, 0, 0.01);
+  if (stone) w.box(0.3, 0.06, hz * 2 + 0.7, ctx.stone, g1 + 0.12, 0.0, 0, 0.01);
   ctx.flows = flows;
   (ctx.beats ||= []).push((time, dt, sim) => {
     const light = w.water.material.uniforms.uLight.value;
@@ -534,7 +560,8 @@ function rails(ctx) {
 
 // A bronze lift core at each end: a tall box clad in bronze fins, a brass portal round two brushed-steel doors that slide apart
 // when a guest comes or goes (the sim's door timer), the lit car behind them, the floor shown above (57, the top), a canopy.
-function lifts(ctx) {
+// (`core: false`: only the doors' sliding leaves, in the dressed roof's own cores)
+export function lifts(ctx, { core = true } = {}) {
   const { w } = ctx,
     door = ctx.venue.arrival,
     cladding = new THREE.MeshStandardMaterial({ color: 0x5a4632, roughness: 0.45, metalness: 0.6 }),
@@ -545,6 +572,16 @@ function lifts(ctx) {
       x = door.doorX,
       depth = EDGE.z + 0.6 - door.doorZ,
       z = side * (door.doorZ + depth / 2);
+    if (!core) {
+      for (const s of [-1, 1]) {
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.78, 2.35, 0.05), steel);
+        leaf.position.set(x + s * 0.39, 1.2, face + side * 0.05);
+        leaf.castShadow = true;
+        w.scene.add(leaf);
+        leaves.push({ leaf, side, s, x });
+      }
+      continue;
+    }
     // The core: either side of the doorway, and over it.
     w.box(1.5, 3.4, depth, cladding, x - 1.55, 1.7, z, 0.04);
     w.box(1.5, 3.4, depth, cladding, x + 1.55, 1.7, z, 0.04);
@@ -689,7 +726,14 @@ function lantern(ctx, x, z) {
 }
 
 // The lounge in the middle of the back row: three sofas round a long fire table whose flames dance.
-function lounge(ctx) {
+// (`sofas: false`: only the flames and their light, on the dressed roof's own fire table)
+export function lounge(ctx, { sofas = true } = {}) {
+  const { w } = ctx,
+    L = ROOF.lounge;
+  if (sofas) loungeSofas(ctx);
+  flamesAt(ctx, L);
+}
+function loungeSofas(ctx) {
   const { w } = ctx,
     L = ROOF.lounge;
   const sofa = (x, z, angle) => {
@@ -705,9 +749,12 @@ function lounge(ctx) {
   sofa(L.x, L.z - 1.35, 0);
   sofa(L.x, L.z + 1.35, Math.PI);
   sofa(L.x - 1.05, L.z, Math.PI / 2);
-  // The fire table: dark stone, a bed of glass beads, flames.
+  // The fire table: dark stone, a bed of glass beads.
   w.box(0.7, 0.42, 1.5, 0x3a3533, L.x + 0.1, 0.21, L.z, 0.04);
   w.box(0.5, 0.04, 1.2, 0x9fd6e6, L.x + 0.1, 0.43, L.z, 0.01);
+}
+function flamesAt(ctx, L) {
+  const { w } = ctx;
   const flames = [];
   for (let i = 0; i < 5; i++) {
     const f = w.decal(ctx.glow, 0.32, 0.6, 0xff9a3a, 0.9, true);
@@ -734,9 +781,16 @@ function lounge(ctx) {
 // The cocktail bar at the far left end: the counter (bar-counter, its customer side to the pool), stools at its ends, a back bar
 // against the end wall with lit shelves of bottles and SKY BAR in warm neon, a row of margaritas on the counter (the trays the coach
 // takes), and the bartender behind it (roof-view.mjs).
-function bar(ctx) {
+// (`counter: false`: only the margaritas waiting on it and SKY BAR's neon, on the dressed roof's own bar)
+export function bar(ctx, { counter: built = true } = {}) {
   const { w } = ctx,
     B = ROOF.bar;
+  ctx.barSpot = { x: B.x, z: B.z - 0.75 };
+  if (!built) {
+    margaritas(ctx, B);
+    neon(ctx, { x: B.x, z: -15.05 });
+    return;
+  }
   const counter = propModel("bar-counter", { size: 3.5 }, (s) => {
     w.box(3.5, 1.05, 0.9, 0x1f5a5c, 0, 0.53, 0, 0.04, s);
     w.box(3.6, 0.06, 1.0, 0xf6f4ef, 0, 1.08, 0, 0.02, s);
@@ -751,7 +805,12 @@ function bar(ctx) {
     stool.position.set(B.x + dx, 0, B.z + 0.85);
     w.scene.add(stool);
   }
-  // The margaritas waiting on the counter.
+  margaritas(ctx, B);
+  barBack(ctx);
+}
+// The margaritas waiting on the counter.
+function margaritas(ctx, B) {
+  const { w } = ctx;
   for (let i = 0; i < 3; i++) {
     const glass = propModel("margarita", { height: 0.18 }, (s) => {
       w.cyl(0.07, 0.02, 0.1, 0xe8f2b0, 0, 0.13, 0, s, 10);
@@ -759,7 +818,11 @@ function bar(ctx) {
     glass.position.set(B.x - 0.3 + i * 0.3, 1.1, B.z + 0.25);
     w.scene.add(glass);
   }
-  // The back bar: dark wood, three lit shelves of bottles, mirror glow, the neon.
+}
+// The back bar: dark wood, three lit shelves of bottles, mirror glow, the neon.
+function barBack(ctx) {
+  const { w } = ctx,
+    B = ROOF.bar;
   const back = { x: B.x, z: -15.05 };
   w.box(4.2, 2.6, 0.4, 0x2a1d14, back.x, 1.3, back.z, 0.03);
   const shelfGlow = new THREE.MeshBasicMaterial({ color: 0xffcf8a });
@@ -782,6 +845,10 @@ function bar(ctx) {
     }
   }
   w.scene.add(bottles);
+  neon(ctx, back);
+}
+function neon(ctx, back) {
+  const { w } = ctx;
   const neon = w.textPlane(
     "SKY BAR",
     2.6,
@@ -798,20 +865,26 @@ function bar(ctx) {
   const bloom = w.decal(ctx.glow, 4.2, 1.6, 0xffa24a, 0.35, true);
   bloom.position.set(back.x, 2.95, back.z + 0.25);
   w.scene.add(bloom);
-  ctx.barSpot = { x: B.x, z: B.z - 0.75 };
 }
 
 // ---- the DJ ---------------------------------------------------------------------------------------------------------------------
 
 // The DJ's stage at the far right end: a lit riser, the booth (dj-booth: its front to the pool), a speaker either side, and behind
 // it an LED wall that plays bars of light to the music, counts down to the drop and flashes white on it. The DJ is roof-view's.
-function djStage(ctx) {
+// (`stage: false`: the riser's lit edge, the LED wall, its light and beams over the dressed roof's own riser, booth and speakers)
+export function djStage(ctx, { stage = true } = {}) {
   const { w, venue } = ctx,
     D = ROOF.dj;
   // The riser, its edge lit.
-  w.box(3.6, 0.25, 1.4, 0x141418, D.x, 0.125, 14.75, 0.03);
+  if (stage) w.box(3.6, 0.25, 1.4, 0x141418, D.x, 0.125, 14.75, 0.03);
   const edge = new THREE.MeshBasicMaterial({ color: 0xff3fb4 });
   w.box(3.6, 0.04, 0.04, edge, D.x, 0.23, 14.05, 0);
+  if (stage) djGear(ctx);
+  ledWall(ctx, edge);
+}
+function djGear(ctx) {
+  const { w, venue } = ctx,
+    D = ROOF.dj;
   const booth = propModel("dj-booth", { size: 2.0 }, (s) => {
     w.box(2.2, 1.1, 0.8, 0x111114, 0, 0.55, 0, 0.04, s);
     w.box(2.0, 0.05, 0.02, 0xff3fb4, 0, 0.6, 0.41, 0, s);
@@ -828,6 +901,10 @@ function djStage(ctx) {
     sp.rotation.y = Math.atan2(0 - f.x, 0 - f.z);
     w.scene.add(sp);
   }
+}
+function ledWall(ctx, edge) {
+  const { w } = ctx,
+    D = ROOF.dj;
   // The LED wall: 24 columns of light over a dark panel, driven by the beat.
   const cols = 24,
     rows = 10,
