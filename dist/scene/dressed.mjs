@@ -122,9 +122,12 @@ export function dressedVenue({ dir, file, label, horizon = null }) {
 // Returns the model's root (the venue's module wires the game's live parts to it).
 // (`caustics`: the box [minX, maxX, minZ, maxZ] the pool's caustics stay in, for a venue whose ground outside lies below the
 // water's level, Senior Aqua Fit's garden; everywhere by default)
-export function dressModel(w, model, { look, name, deckSet, hour = false, caustics = null }) {
+// (`frame`: an object the model moves with whose own frame the shader should work in, the Cruise Ship's rolling scene: the paint,
+// the lamps' pools and the caustics stay put on the deck as it tips; the world's frame by default)
+export function dressModel(w, model, { look, name, deckSet, hour = false, caustics = null, frame = null }) {
   const info = model.info;
   const U = {
+    frame: { value: new THREE.Matrix4() },
     causticBox: { value: new THREE.Vector4(...(caustics || [-1e4, 1e4, -1e4, 1e4])) },
     lamps: { value: Array.from({ length: MAX_LAMPS }, () => new THREE.Vector4()) },
     lampCount: { value: 0 },
@@ -145,6 +148,7 @@ export function dressModel(w, model, { look, name, deckSet, hour = false, causti
   root.name = name;
   w.scene.add(root);
   (w.liveProps ||= []).push(root); // (the model is batched already: never again by scene.mjs)
+  if (frame) w.updaters.push(() => U.frame.value.copy(frame.matrixWorld).invert());
   const material = makeMaterials(w, U, model, deckSet);
   root.traverse((o) => {
     if (!o.isMesh) return;
@@ -232,16 +236,17 @@ function venueShader(material, w, U, model, { deck = false } = {}) {
     shader.uniforms.uNight = U.night;
     shader.uniforms.uClouds = U.clouds;
     shader.uniforms.uCausticBox = U.causticBox;
+    shader.uniforms.uFrame = U.frame;
     if (deck) {
       shader.uniforms.uPaint = { value: T.floor_paint };
       shader.uniforms.uFloorAO = { value: T.floor_ao };
       shader.uniforms.uPaintRect = { value: new THREE.Vector3(P.x0, P.z0, P.span) };
     }
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vDressed;")
+      .replace("#include <common>", "#include <common>\nvarying vec3 vDressed;\nuniform mat4 uFrame;")
       .replace(
         "#include <project_vertex>",
-        "#include <project_vertex>\nvDressed = (modelMatrix * vec4(transformed, 1.0)).xyz;",
+        "#include <project_vertex>\nvDressed = (uFrame * modelMatrix * vec4(transformed, 1.0)).xyz;",
       );
     let fragment = shader.fragmentShader.replace(
       "#include <common>",
