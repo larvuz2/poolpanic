@@ -92,10 +92,11 @@ export const cruiseClubPictures = CRUISE_CLUB.pictures;
 export const loadCruiseClub = (base) => CRUISE_CLUB.load(base);
 
 // The painted golden hour all round (dist/assets/cruise-club/sky.jpg: its horizon half way down, the sun 62% across): once round,
-// as tall as it is wide over the circle's length, turned so its sun sets where the game's sun shines from.
+// as tall as it is wide over the circle's length, turned so its one seam (the picture's two edges) lies straight ahead, behind the
+// superstructure, where it never shows (the creator: "rotate only").
 const SKY = { file: "sky.jpg", dir: "cruise-club", horizon: 0.496, copies: 1, height: 2827, cap: 0x837bb6 };
-// (where the sun lies on the ring: the cylinder's angle at the picture's 62%, turned to the sun's own azimuth)
-SKY.turn = Math.atan2(20, 17) - 2 * Math.PI * 0.62;
+// (the ring's seam is at its angle 0, the ocean's local +z: turned a quarter, it points along +x, the bow)
+SKY.turn = Math.PI / 2;
 
 // The pool's box, for the caustics (the lower deck aft and the hull's sides lie below the water's level).
 const POOL_BOX = [-CRUISE.halfX - 0.05, CRUISE.free.x1 + 0.05, -CRUISE.halfZ - 0.05, CRUISE.halfZ + 0.05];

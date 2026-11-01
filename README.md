@@ -1458,7 +1458,7 @@ hour**, a 1930s ocean liner's glamour on a modern cruise ship.
   butt joints, then turned to run fore and aft. The prompts are in `tools/venues/cruise/README.md`.
 - **The sky**: its own painted golden hour (fal: islands with a striped lighthouse, a yacht, a rival cruise ship, dolphins, a whale's
   spout, pink-and-gold clouds, the sun's glitter road), wrapped once round the sea by the game's `ocean` (now taking its picture, its
-  horizon line, its turn so the painted sun sets where the game's sun shines from, and a cap: the painting fades into the sky's own
+  horizon line, its turn so its one seam lies dead ahead behind the superstructure, and a cap: the painting fades into the sky's own
   colour overhead, drawn as the painting is, so the Coach Cam looking up never sees the ring's edge); the coach-only sky dome is
   hidden here (it would cover the painting). The light (`CRUISE_LOOKS` over `LIGHTING.cruise`): a low warm sun from ahead and to
   starboard, long shadows across the teak, a lilac fill, the festoons and sconces just glowing.
