@@ -71,6 +71,7 @@ import { loadSeniorClub } from "./scene/seniorclub.mjs";
 import { loadRiverClub } from "./scene/riverclub.mjs";
 import { loadCruiseClub } from "./scene/cruiseclub.mjs";
 import { loadRoofClub } from "./scene/roofclub.mjs";
+import { loadDiveClub } from "./scene/diveclub.mjs";
 import { cannonballMan } from "./incidents/carl.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
@@ -4977,6 +4978,10 @@ try {
       .then(() => {
         const began = performance.now();
         return loadRoofClub().then(loaded("Rooftop Pool", began));
+      })
+      .then(() => {
+        const began = performance.now();
+        return loadDiveClub().then(loaded("Jumping Pool", began));
       });
   });
   if (fetching.length) {

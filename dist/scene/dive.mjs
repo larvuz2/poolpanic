@@ -26,6 +26,7 @@ import {
   stripedCone,
 } from "./props.mjs";
 import { buildDiveCast, TUB_TOP, TUB_WATER_Y } from "./dive-view.mjs";
+import { diveClubReady, buildDiveClub } from "./diveclub.mjs";
 export { TUB_WATER_Y };
 
 const TAU = Math.PI * 2;
@@ -42,13 +43,9 @@ const CONCRETE = 0xf1ede4,
 const MARKER = HEIGHTS.map((h) => new THREE.Color(h.color).getHex());
 
 export function buildDive(w, venue) {
-  const live = new THREE.Group();
-  live.name = "dive-live";
-  w.scene.add(live);
-  w.liveProps.push(live);
-  const ctx = { w, venue, live, rand: rngOf(211) };
-  w.camera.far = 320;
-  w.camera.updateProjectionMatrix();
+  // (dressed for real once its model has loaded: scene/diveclub.mjs)
+  if (diveClubReady()) return buildDiveClub(w, venue);
+  const ctx = diveContext(w, venue);
   lawn(ctx);
   deckAndPool(ctx);
   stations(ctx);
@@ -60,6 +57,18 @@ export function buildDive(w, venue) {
   dressing(ctx);
   pickVolumes(ctx);
   buildDiveCast(w, ctx);
+}
+
+// What every Jumping Pool shares, classic or dressed: the live group (the boards that bend, the tub's water), the camera's reach.
+export function diveContext(w, venue) {
+  const live = new THREE.Group();
+  live.name = "dive-live";
+  w.scene.add(live);
+  w.liveProps.push(live);
+  const ctx = { w, venue, live, rand: rngOf(211) };
+  w.camera.far = 320;
+  w.camera.updateProjectionMatrix();
+  return ctx;
 }
 
 // ---- the ground, the deck and the pool ----------------------------------------------------------------------------------
@@ -87,6 +96,26 @@ function lawn(ctx) {
   }
 }
 
+// The pool's water only, over the dressed model's own basin (scene/diveclub.mjs).
+export function diveWater(ctx) {
+  const { w, venue } = ctx;
+  buildPool(w, venue, POOL_WATER, {
+    basin: false,
+    line: null,
+    ropes: null,
+    pennants: null,
+    ladderAt: [],
+    depth: DIVE.depth,
+  });
+  w.clickables = w.clickables.filter((m) => m.userData?.kind !== "lane");
+}
+const POOL_WATER = {
+  shallow: [0.08, 0.46, 0.8],
+  deep: [0.02, 0.2, 0.52],
+  sky: [0.7, 0.88, 1],
+  glint: [1, 0.97, 0.9],
+  clarity: 0.3,
+};
 function deckAndPool(ctx) {
   const { w, venue } = ctx;
   buildDeck(w, venue, {
@@ -103,29 +132,18 @@ function deckAndPool(ctx) {
     wallMap = mosaicTexture({ seed: 43, base: "#3b93cf", grout: "#bfe3f5" });
   floorMap.repeat.set(DIVE.halfX * 1.2, DIVE.halfZ * 1.2);
   wallMap.repeat.set(6, 2.2);
-  buildPool(
-    w,
-    venue,
-    {
-      shallow: [0.08, 0.46, 0.8],
-      deep: [0.02, 0.2, 0.52],
-      sky: [0.7, 0.88, 1],
-      glint: [1, 0.97, 0.9],
-      clarity: 0.3,
-    },
-    {
-      line: null,
-      ropes: null,
-      pennants: null,
-      floorMap,
-      wallMap,
-      band: 0x1d4f86,
-      coping: { color: 0xf4efe6, roughness: 0.55 },
-      ladders: { color: 0xe9eef0, metalness: 0.55, rung: 0xf0f2ee },
-      depth: DIVE.depth,
-      ladderAt: LADDERS.map((l) => [l.side * DIVE.halfX, l.water.z]),
-    },
-  );
+  buildPool(w, venue, POOL_WATER, {
+    line: null,
+    ropes: null,
+    pennants: null,
+    floorMap,
+    wallMap,
+    band: 0x1d4f86,
+    coping: { color: 0xf4efe6, roughness: 0.55 },
+    ladders: { color: 0xe9eef0, metalness: 0.55, rung: 0xf0f2ee },
+    depth: DIVE.depth,
+    ladderAt: LADDERS.map((l) => [l.side * DIVE.halfX, l.water.z]),
+  });
   // (the basin's lane volumes: the Jumping Pool has none, its boards and its tub are clicked instead: pickVolumes)
   w.clickables = w.clickables.filter((m) => m.userData?.kind !== "lane");
   // A band of patterned tiles round the waterline: terracotta, saffron and teal diamonds on cream.
@@ -202,9 +220,14 @@ function bandTexture() {
 
 // ---- the diving stations ------------------------------------------------------------------------------------------------
 
-function stations(ctx) {
+// (`built: false`: only the springboards' planks, which bend, on the dressed model's own stands, platforms and stairs)
+export function stations(ctx, { built = true } = {}) {
   const { w } = ctx;
   w.springboards = [];
+  if (!built) {
+    for (const b of BOARDS) if (b.h === 0) springboard(ctx, b, { stand: false });
+    return;
+  }
   for (const b of BOARDS) {
     if (b.h === 0) springboard(ctx, b);
     else platform(ctx, b);
@@ -232,12 +255,28 @@ function stations(ctx) {
 
 // The LOW springboard: a long fibreglass board on a fulcrum stand, bending when a diver bounces on it (`w.springboards`: the view
 // sets each one's bend), its stand painted green with its height.
-function springboard(ctx, b) {
+function springboard(ctx, b, { stand = true } = {}) {
   const { w, live } = ctx,
     H = HEIGHTS[b.h],
     s = b.side,
     len = Math.abs(b.topZ - b.tipZ) + 0.2;
-  // The stand under the back of the board and the fulcrum roller.
+  if (stand) springStand(ctx, b);
+  // The board itself, pivoting at its back end (in a live group, so it can bend).
+  const pivot = new THREE.Group();
+  pivot.position.set(b.x, H.y, b.topZ);
+  live.add(pivot);
+  const plank = new THREE.Group();
+  pivot.add(plank);
+  w.box(0.52, 0.07, len, 0xf7f8f4, 0, 0, (-s * len) / 2, 0.03, plank);
+  w.box(0.46, 0.012, len - 0.3, 0x2f6fa8, 0, 0.04, (-s * (len - 0.1)) / 2, 0.004, plank);
+  w.box(0.53, 0.075, 0.18, MARKER[b.h], 0, 0, -s * (len - 0.09), 0.02, plank);
+  w.springboards.push({ board: b, pivot, len });
+}
+// The springboard's stand under the back of the board, the fulcrum roller, its label and side rails.
+function springStand(ctx, b) {
+  const { w } = ctx,
+    H = HEIGHTS[b.h],
+    s = b.side;
   const standZ = (b.topZ + b.backZ) / 2;
   w.box(1.0, H.y - 0.12, 1.4, CONCRETE, b.x, (H.y - 0.12) / 2, standZ, 0.08);
   w.box(1.02, 0.22, 1.42, MARKER[b.h], b.x, H.y - 0.32, standZ, 0.04);
@@ -256,16 +295,6 @@ function springboard(ctx, b) {
     70,
   );
   label.rotation.y = s < 0 ? Math.PI : 0;
-  // The board itself, pivoting at its back end (in a live group, so it can bend).
-  const pivot = new THREE.Group();
-  pivot.position.set(b.x, H.y, b.topZ);
-  live.add(pivot);
-  const plank = new THREE.Group();
-  pivot.add(plank);
-  w.box(0.52, 0.07, len, 0xf7f8f4, 0, 0, (-s * len) / 2, 0.03, plank);
-  w.box(0.46, 0.012, len - 0.3, 0x2f6fa8, 0, 0.04, (-s * (len - 0.1)) / 2, 0.004, plank);
-  w.box(0.53, 0.075, 0.18, MARKER[b.h], 0, 0, -s * (len - 0.09), 0.02, plank);
-  w.springboards.push({ board: b, pivot, len });
   // Side rails up the stand's top.
   for (const x of [-0.5, 0.5])
     w.rod([b.x + x, H.y + 0.9, b.topZ], [b.x + x, H.y + 0.9, b.backZ + s * 0.3], 0.03, RAIL);
@@ -402,8 +431,16 @@ function lineMarks(ctx, b) {
 
 // ---- the hot tub --------------------------------------------------------------------------------------------------------
 
-function hotTub(ctx) {
+// (`cabinet: false`: only its water and glow, in the dressed model's own tub)
+export function hotTub(ctx, { cabinet: built = true } = {}) {
   const { w, live } = ctx,
+    hx = TUB.hx,
+    hz = TUB.hz;
+  if (built) tubCabinet(ctx);
+  tubWater(ctx, live, hx, hz);
+}
+function tubCabinet(ctx) {
+  const { w } = ctx,
     H = TUB_TOP,
     hx = TUB.hx,
     hz = TUB.hz,
@@ -465,6 +502,10 @@ function hotTub(ctx) {
   const rx = TUB.x + ox - 0.05;
   w.rod([rx, 0, edgeZ + e * 0.75], [rx, 0.95, edgeZ + e * 0.75], 0.03, RAIL);
   w.rod([rx, 0.95, edgeZ + e * 0.75], [rx, H + 0.75, edgeZ], 0.03, RAIL);
+}
+function tubWater(ctx, live, hx, hz) {
+  const { w } = ctx,
+    H = TUB_TOP;
   // The water: a glowing turquoise disc that clouds over with a mess (the view's), bubbling.
   const waterMat = new THREE.MeshPhysicalMaterial({
     color: 0x7fe3ee,
@@ -644,13 +685,15 @@ function garden(ctx) {
   }
 }
 
-function clubhouse(ctx) {
+// (`building: false`: only its flag, on the dressed model's own flagpole)
+export function clubhouse(ctx, { building = true } = {}) {
   const { w } = ctx,
     x0 = DIVE.room.maxX + 5.5,
     width = 30,
     depth = 9,
     height = 7.5;
   const g = w.group(x0 + depth / 2, -0.6, 0, w.scene);
+  if (!building) return clubFlag(w, g, height);
   // The body, white with a terracotta roof and a deep cornice.
   w.box(depth, height, width, CREAM, 0, height / 2, 0, 0.1, g);
   const roof = new THREE.Mesh(
@@ -695,6 +738,9 @@ function clubhouse(ctx) {
     a.rotation.z = -0.35;
   }
   w.cyl(0.06, 0.06, 4, 0xf7f7f2, 0, height + 4.5, 0, g);
+  clubFlag(w, g, height);
+}
+function clubFlag(w, g, height) {
   const flag = new THREE.Mesh(
     new THREE.PlaneGeometry(1.8, 1.1),
     new THREE.MeshStandardMaterial({ color: NAVY, side: THREE.DoubleSide }),
@@ -707,37 +753,42 @@ function clubhouse(ctx) {
 
 // The two garden gates in the end hedges, at the near corners: white picket leaves that swing open as a guest comes or goes
 // (`world.lockerDoors`, as the locker doors do), an arch of roses over each.
-function gates(ctx) {
+// (`posts: false`: only the picket leaves, which swing, in the dressed model's own posts and rose arches)
+export function gates(ctx, { posts = true } = {}) {
   const { w } = ctx,
     gx = DIVE.gateX,
     z0 = DIVE.room.maxZ - 0.3;
   for (const side of [-1, 1]) {
     const z = side * z0;
-    for (const dx of [-0.95, 0.95]) {
-      w.box(0.2, 2.4, 0.2, 0xfbf8f1, gx + dx, 1.2, z, 0.03);
-      w.ball(0.13, 0xfbf8f1, gx + dx, 2.5, z);
-    }
-    // The arch, with roses on it.
-    const arch = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.07, 8, 24, Math.PI), w.mat(0xfbf8f1));
-    arch.position.set(gx, 2.4, z);
-    w.scene.add(arch);
-    const rand = rngOf(side > 0 ? 5 : 9);
-    for (let k = 0; k < 14; k++) {
-      const a = rand() * Math.PI;
-      w.ball(
-        0.1,
-        k % 3 ? 0xe53958 : 0x4f8f3c,
-        gx + Math.cos(a) * 0.95,
-        2.4 + Math.sin(a) * 0.95,
-        z + (rand() - 0.5) * 0.15,
-      );
-    }
+    if (posts) gatePosts(w, gx, z, side);
     const hinge = new THREE.Group();
     hinge.position.set(gx - 0.85, 0, z);
     w.scene.add(hinge);
     for (let i = 0; i < 5; i++) w.box(0.09, 1.05, 0.05, 0xffffff, 0.17 + i * 0.33, 0.6, 0, 0.02, hinge);
     for (const y of [0.35, 0.9]) w.box(1.65, 0.07, 0.05, 0xffffff, 0.85, y, 0, 0.02, hinge);
     w.lockerDoors.push({ side, hinge });
+  }
+}
+// A gate's two white posts and the arch of roses over them.
+function gatePosts(w, gx, z, side) {
+  for (const dx of [-0.95, 0.95]) {
+    w.box(0.2, 2.4, 0.2, 0xfbf8f1, gx + dx, 1.2, z, 0.03);
+    w.ball(0.13, 0xfbf8f1, gx + dx, 2.5, z);
+  }
+  // The arch, with roses on it.
+  const arch = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.07, 8, 24, Math.PI), w.mat(0xfbf8f1));
+  arch.position.set(gx, 2.4, z);
+  w.scene.add(arch);
+  const rand = rngOf(side > 0 ? 5 : 9);
+  for (let k = 0; k < 14; k++) {
+    const a = rand() * Math.PI;
+    w.ball(
+      0.1,
+      k % 3 ? 0xe53958 : 0x4f8f3c,
+      gx + Math.cos(a) * 0.95,
+      2.4 + Math.sin(a) * 0.95,
+      z + (rand() - 0.5) * 0.15,
+    );
   }
 }
 
@@ -784,7 +835,7 @@ function dressing(ctx) {
 
 // Each height: an invisible box round both of its boards to click (that height, 1 to 3), a highlight on both platforms and a rim
 // line round them for the guidance; the hot tub: a disc (4). scene.mjs drives them as `springHighlights` and `springRims`.
-function pickVolumes(ctx) {
+export function pickVolumes(ctx) {
   const { w } = ctx;
   w.springHighlights = [];
   w.springRims = [];

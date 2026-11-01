@@ -1,0 +1,97 @@
+{
+ "made": "tools/venues/common/export_three.py -- tools/venues/dive",
+ "triangles": 106004,
+ "lights": [],
+ "atlases": {
+  "atlas_signs": {
+   "size": 2048,
+   "images": 35,
+   "scale": 0.7
+  },
+  "atlas_cut": {
+   "size": 2048,
+   "images": 8,
+   "scale": 1.0
+  }
+ },
+ "ao": 1,
+ "paint": {
+  "size": 2048,
+  "x0": -11.0,
+  "z0": -17.2,
+  "span": 34.4
+ },
+ "anchors": {
+  "LifeRing": [
+   [
+    -10.05,
+    1.65,
+    -7.8
+   ],
+   [
+    -10.05,
+    1.65,
+    7.3
+   ],
+   [
+    13.75,
+    1.65,
+    4.0
+   ]
+  ],
+  "Flashlight": [
+   [
+    12.4,
+    1.24,
+    9.8
+   ]
+  ]
+ },
+ "tiles": {
+  "travertine": 3.6,
+  "mosaic": 1.6,
+  "majolica": 0.3,
+  "marble": 2.4,
+  "concrete": 4.0,
+  "teak": 2.6,
+  "lawn": 6.0,
+  "hedge": 1.6,
+  "stucco": 3.0,
+  "rooftile": 2.4,
+  "awning": 1.6,
+  "linen": 1.2
+ },
+ "sharp": [
+  "travertine",
+  "mosaic",
+  "majolica",
+  "lawn",
+  "hedge",
+  "concrete"
+ ],
+ "meshes": [
+  "S_cut",
+  "S_gloss",
+  "S_lamp",
+  "S_leaf",
+  "S_matte",
+  "S_matte_n",
+  "S_metal",
+  "S_metal_n",
+  "S_satin",
+  "S_satin_n",
+  "S_signs",
+  "S_tile_awning",
+  "S_tile_concrete",
+  "S_tile_hedge",
+  "S_tile_lawn",
+  "S_tile_linen",
+  "S_tile_majolica",
+  "S_tile_marble",
+  "S_tile_mosaic",
+  "S_tile_rooftile",
+  "S_tile_stucco",
+  "S_tile_teak",
+  "S_tile_travertine"
+ ]
+}

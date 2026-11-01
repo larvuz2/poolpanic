@@ -99,7 +99,11 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    boards stay in view: a long rectangular tub and the beds end to end along the walk by the pool, the camera leaning toward the far
    side, `cameraFollow.biasX`); Carl and the leopard
    man come as divers (cannonballs, not incidents: no Carl, fish kid or dog incident there); its big moment THE DIVE SHOW;
-   `dist/dive.mjs`, `dist/dive-plan.mjs`, `dist/scene/dive.mjs`, `dist/scene/dive-view.mjs`; a swing with a slide whistle) and
+   `dist/dive.mjs`, `dist/dive-plan.mjs`, `dist/scene/dive.mjs`, `dist/scene/dive-view.mjs`; a swing with a slide whistle;
+   since 1 November 2026 dressed for real, three.js only, with photographic materials: the Splashworth Country Club (est. 1927),
+   its CHICKEN-OUT ZONE, judges and SPLASH-O-METER, its Hall of Fame and founder's portrait made with our coaches as references,
+   `dist/scene/diveclub.mjs`, `tools/venues/dive/`, the water, the springboards' planks, the tub's water, the gates' leaves, the flag
+   and the divers still the game's) and
    the Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
    running (the creator wants that). In every pool **one swimmer in five climbing out drips a wet spot** that never dries until the coach
    mops it (Q, `dist/incidents/wet.mjs`; the coach slips in one too, down for 1.3 s, unless he jumps over it), and a tummy ache can be a poo or **a wee** (yellow water, chlorine only). **Marco swims in
@@ -186,7 +190,7 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
    (Asked so far: Senior Aqua Fit's photographs and models, the Community Pool as the Harbourside, 28 October 2026, where
    "performance is key": a venue's look is a few merged meshes, baked light and no new lights, measured against the old one; and
    Splash Park, the Kids Pool, the Sunset Lagoon, the Aqua Disco and the Aquatic Centre, 31 October 2026, and the Mountain Hot
-   Springs, the Wave Pool, Senior Aqua Fit, the Lazy River, the Cruise Ship and the Rooftop Pool, 1 November 2026, the same way, the next venue on the ladder each time with the shared kit
+   Springs, the Wave Pool, Senior Aqua Fit, the Lazy River, the Cruise Ship, the Rooftop Pool and the Jumping Pool, 1 November 2026, the same way, the next venue on the ladder each time with the shared kit
    (`tools/venues/common/`, `dist/scene/dressed.mjs`). Venues are dressed in three.js only from now on, never in the Godot test,
    the creator's.)
 4. **Launch.** Store page, trailer, wishlists, a demo, review, release.
