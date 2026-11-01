@@ -32,6 +32,7 @@ import { propModel } from "./prop-models.mjs";
 import { roofPicture } from "./city.mjs";
 import { buildCast, syncCast } from "./roof-view.mjs";
 import { doorOpening } from "../spatial.mjs";
+import { cruiseClubReady, buildCruiseClub } from "./cruiseclub.mjs";
 
 const TAU = Math.PI * 2;
 export const CRUISE_WATER = -0.15; // the pool's surface (the deck is at 0)
@@ -56,7 +57,8 @@ export const cruiseFloorAt = (x) => {
   return BENCH + (FREE_FLOOR - BENCH) * t;
 };
 
-export function buildCruise(w, venue) {
+// The live group, the shared bits every part reads, the sea's reach (also the dressed ship's: scene/cruiseclub.mjs).
+export function cruiseContext(w, venue) {
   const live = new THREE.Group();
   live.name = "cruise-live";
   w.scene.add(live);
@@ -68,6 +70,13 @@ export function buildCruise(w, venue) {
   // The sea runs out to the horizon, 2 km away.
   w.camera.far = 3000;
   w.camera.updateProjectionMatrix();
+  return ctx;
+}
+
+export function buildCruise(w, venue) {
+  // (dressed for real once its model is in: scene/cruiseclub.mjs; this classic ship till then and with ?nomodels)
+  if (cruiseClubReady()) return buildCruiseClub(w, venue);
+  const ctx = cruiseContext(w, venue);
   materials(ctx);
   ocean(ctx);
   hull(ctx);
@@ -111,6 +120,7 @@ function picture(ctx, file, material, repeat, color, extra = {}) {
   });
 }
 function materials(ctx) {
+  basicMaterials(ctx);
   ctx.teak = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.66 });
   picture(ctx, "teak.jpg", ctx.teak, [1 / 2.4, 1 / 2.4], "#b98d5c");
   ctx.paint = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.42, metalness: 0.05 });
@@ -119,6 +129,9 @@ function materials(ctx) {
   picture(ctx, "nonskid.jpg", ctx.nonskid, [1 / 1.5, 1 / 1.5], "#a9bac5");
   ctx.tile = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, metalness: 0.04 });
   picture(ctx, "pool-tile.jpg", ctx.tile, [1 / 1.8, 1 / 1.8], "#2f9fd6");
+}
+// (the plain ones, without pictures: the dressed ship's live parts need only these)
+export function basicMaterials(ctx) {
   ctx.white = new THREE.MeshStandardMaterial({ color: WHITE, roughness: 0.35 });
   ctx.navy = new THREE.MeshStandardMaterial({ color: NAVY, roughness: 0.45 });
   ctx.chrome = new THREE.MeshStandardMaterial({ color: CHROME, roughness: 0.18, metalness: 0.9 });
@@ -288,7 +301,20 @@ void main() {
   color = mix(color, uHaze, far * 0.85);
   gl_FragColor = vec4(color * mix(0.3, 1.0, uLight), 1.0);
 }`;
-function ocean(ctx) {
+// (`sky`: the painted panorama's file and folder, where its horizon lies from the top, how many times it goes round, its turn and
+// how tall it stands: the classic's ocean-sky.jpg, or the dressed ship's golden hour, scene/cruiseclub.mjs)
+export function ocean(
+  ctx,
+  {
+    file = "ocean-sky.jpg",
+    dir = "cruise",
+    horizon = 0.55,
+    copies = 2,
+    turn = 0.9,
+    height = 900,
+    cap = null,
+  } = {},
+) {
   const { w } = ctx,
     look = w.look.cruiseSea || {};
   const group = new THREE.Group();
@@ -322,32 +348,64 @@ function ocean(ctx) {
   // The painted horizon all round: the open sea and the sky with the low sun (ocean-sky.jpg; its horizon at 55% down, laid at sea
   // level), not fogged.
   const pano = new THREE.ShaderMaterial({
-    uniforms: { map: { value: null } },
+    uniforms: {
+      map: { value: null },
+      uCap: { value: rawColour(cap ?? 0xffffff) },
+      uFade: { value: cap == null ? 0 : 1 },
+    },
     side: THREE.BackSide,
     depthWrite: false,
     vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform sampler2D map; varying vec2 vUv;
-      void main() { gl_FragColor = vec4(texture2D(map, vec2(vUv.x * 2.0, vUv.y)).rgb, 1.0); }`,
+    // (with a cap, the painting's top fades into the cap's colour, so its edge never shows)
+    fragmentShader: `uniform sampler2D map; uniform vec3 uCap; uniform float uFade; varying vec2 vUv;
+      void main() {
+        vec3 c = texture2D(map, vec2(vUv.x * ${copies.toFixed(1)}, vUv.y)).rgb;
+        gl_FragColor = vec4(mix(c, uCap, smoothstep(0.78, 1.0, vUv.y) * uFade), 1.0);
+      }`,
   });
   pano.visible = false;
   roofPicture(
     w,
-    "ocean-sky.jpg",
+    file,
     (t, real) => {
       pano.uniforms.map.value = t;
       pano.visible = real;
     },
-    { dir: "cruise" },
+    { dir },
   );
   const R = 1800,
-    H = 900,
+    H = height,
     panorama = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 64, 1, true), pano);
-  panorama.position.y = SEA + H / 2 - 0.45 * H;
-  panorama.rotation.y = 0.9;
+  // (its horizon laid at sea level)
+  panorama.position.y = SEA + H / 2 - (1 - horizon) * H;
+  panorama.rotation.y = turn;
   panorama.renderOrder = -50;
   panorama.frustumCulled = false;
   group.add(panorama);
+  // (a cap over the ring, in the sky's own colour overhead: the Coach Cam looking up sees sky, not the ring's edge)
+  if (cap != null) {
+    const lid = new THREE.Mesh(
+      new THREE.CircleGeometry(R, 64),
+      // (drawn as the painting is, its colour straight to the screen: no light, no tone mapping, the same shade)
+      new THREE.ShaderMaterial({
+        uniforms: { uCap: { value: rawColour(cap) } },
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        vertexShader: `void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+        fragmentShader: `uniform vec3 uCap; void main() { gl_FragColor = vec4(uCap, 1.0); }`,
+      }),
+    );
+    lid.rotation.x = Math.PI / 2;
+    lid.position.y = panorama.position.y + H / 2 - 1;
+    lid.renderOrder = -50;
+    lid.frustumCulled = false;
+    group.add(lid);
+  }
 }
+
+// A colour as the painting's own numbers (0..1 straight from the hex, as its texels reach the screen).
+const rawColour = (hex) =>
+  new THREE.Vector3(((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255);
 
 // ---- the hull --------------------------------------------------------------------------------------------------------------
 
@@ -645,7 +703,7 @@ void main() {
   alpha += edge * 0.3;
   gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
 }`;
-function water(ctx) {
+export function water(ctx) {
   const { w } = ctx,
     look = w.look.water;
   const ripples = Array.from({ length: MAX_RIPPLES }, () => new THREE.Vector4(0, 0, 0, 0));
@@ -688,7 +746,7 @@ function water(ctx) {
 
 // The rope of floats between the lanes and the free half (blue and white), and the lane rope between the two lanes (red, white and
 // blue). Instanced floats, riding the slosh.
-function ropes(ctx) {
+export function ropes(ctx, { hooks = true } = {}) {
   const { w, live } = ctx,
     n = Math.round((P.halfZ * 2) / 0.32),
     geo = new THREE.CylinderGeometry(0.075, 0.075, 0.24, 10);
@@ -713,7 +771,8 @@ function ropes(ctx) {
     live.add(mesh);
     ctx.ropes.push({ mesh, x, n });
     // The rope's hooks in the end walls.
-    for (const s of [-1, 1]) w.box(0.12, 0.1, 0.12, ctx.chrome, x, -0.05, s * (P.halfZ - 0.05), 0.02);
+    if (hooks)
+      for (const s of [-1, 1]) w.box(0.12, 0.1, 0.12, ctx.chrome, x, -0.05, s * (P.halfZ - 0.05), 0.02);
   }
 }
 
@@ -774,7 +833,24 @@ function superstructure(ctx) {
   }
   // The café's glass front at deck level, with doors.
   for (let z = -14; z <= 14; z += 2) w.box(0.08, 3.6, 0.06, ctx.chrome, BOW - 0.05, 1.8, z, 0);
-  // The giant screen (16:9), on the second tier's face, the movie playing.
+  screen(ctx);
+  // The bridge across the top, its wings out past the sides, dark windows all round.
+  const bx = BOW + 6;
+  w.box(7, 3, 36, ctx.paint, bx + 3.5, 14.7, 0, 0.1);
+  w.box(0.1, 1.3, 35, ctx.darkGlass, bx - 0.02, 15.0, 0, 0);
+  w.box(7.2, 0.25, 36.4, NAVY, bx + 3.5, 16.3, 0, 0.05);
+  const mx = bx + 4;
+  w.cyl(0.18, 0.28, 12, ctx.white, mx, 22.2, 0);
+  w.box(0.2, 0.2, 5, ctx.white, mx, 25.5, 0, 0.03);
+  w.ball(1.2, ctx.white, mx, 29.2, 0);
+  mastLive(ctx);
+  funnel(ctx);
+  smoke(ctx);
+}
+
+// The giant screen (16:9), on the second tier's face, the movie playing (`frame`: its black frame, the dressed ship has its own).
+export function screen(ctx, { frame = true } = {}) {
+  const { w, live } = ctx;
   const screenMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   roofPicture(w, "movie.jpg", (t) => ((screenMat.map = t), (screenMat.needsUpdate = true)), {
     dir: "cruise",
@@ -783,22 +859,18 @@ function superstructure(ctx) {
   });
   const sw = 12,
     sh = 6.75;
-  w.box(0.4, sh + 0.5, sw + 0.5, 0x15181c, BOW + 0.9, 4.6 + sh / 2, 0, 0.08);
+  if (frame) w.box(0.4, sh + 0.5, sw + 0.5, 0x15181c, BOW + 0.9, 4.6 + sh / 2, 0, 0.08);
   const screen = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), screenMat);
   screen.rotation.y = -Math.PI / 2;
   screen.position.set(BOW + 0.68, 4.6 + sh / 2, 0);
   live.add(screen);
   ctx.screen = screenMat;
-  // The bridge across the top, its wings out past the sides, dark windows all round.
-  const bx = BOW + 6;
-  w.box(7, 3, 36, ctx.paint, bx + 3.5, 14.7, 0, 0.1);
-  w.box(0.1, 1.3, 35, ctx.darkGlass, bx - 0.02, 15.0, 0, 0);
-  w.box(7.2, 0.25, 36.4, NAVY, bx + 3.5, 16.3, 0, 0.05);
-  // The mast with its radar, and the signal flags strung from it down to the deck's forward corners.
-  const mx = bx + 4;
-  w.cyl(0.18, 0.28, 12, ctx.white, mx, 22.2, 0);
-  w.box(0.2, 0.2, 5, ctx.white, mx, 25.5, 0, 0.03);
-  w.ball(1.2, ctx.white, mx, 29.2, 0);
+}
+
+// The mast's radar, turning, and the signal flags strung from the masthead down to the deck's forward corners.
+export function mastLive(ctx) {
+  const { w, live } = ctx,
+    mx = BOW + 10;
   const radar = w.box(0.25, 0.25, 3.4, 0x31363b, mx, 27, 0, 0.03);
   ctx.radar = radar;
   live.add(radar);
@@ -829,8 +901,13 @@ function superstructure(ctx) {
       ctx.flagLines.push({ flag, base: flag.rotation.y, phase: i * 0.7 + side });
     }
   }
-  // The funnel: an oval stack raked back, red with a white band and a black top, our wave on its sides.
-  const fx = bx + 9;
+}
+
+// The funnel: an oval stack raked back, red with a white band and a black top.
+function funnel(ctx) {
+  const { w } = ctx,
+    s = w.scene,
+    fx = BOW + 15;
   const funnelGeo = new THREE.CylinderGeometry(2.0, 2.5, 8.5, 32);
   funnelGeo.scale(1.45, 1, 1);
   const red = new THREE.MeshStandardMaterial({ color: 0xc8202e, roughness: 0.45 });
@@ -851,8 +928,13 @@ function superstructure(ctx) {
   cap.position.set(fx + 0.5, 24.45, 0);
   cap.rotation.z = 0.12;
   s.add(cap);
-  ctx.funnelTop = new THREE.Vector3(fx + 0.6, 25.2, 0);
-  // Smoke: soft puffs drifting aft from the funnel.
+}
+
+// Smoke: soft puffs drifting aft from the funnel's top.
+// (`top`: where it leaves the stack; the dressed ship's funnel is raked its own way)
+export function smoke(ctx, top = new THREE.Vector3(BOW + 15.6, 25.2, 0)) {
+  const { live } = ctx;
+  ctx.funnelTop = top;
   const smokeMat = new THREE.SpriteMaterial({
     map: ctx.glow,
     color: 0xd9dde2,
@@ -871,7 +953,8 @@ function superstructure(ctx) {
 // ---- the stairway lobbies --------------------------------------------------------------------------------------------------
 
 // Two glass deckhouses at the left end where the guests come up from below, each with a sliding glass door on its inner side.
-function lobbies(ctx) {
+// (`house: false`: the sliding leaves only, the dressed ship's deckhouses are its own)
+export function lobbies(ctx, { house = true } = {}) {
   const { w, venue, live } = ctx,
     a = venue.arrival;
   ctx.doors = [];
@@ -881,6 +964,22 @@ function lobbies(ctx) {
       z0 = -15.4,
       z1 = -13.3,
       cx = (x0 + x1) / 2;
+    if (house) lobbyHouse(ctx, side, x0, x1, z0, z1, cx, a);
+    // The sliding door: a glass leaf that slides back along z.
+    const leaf = new THREE.Group();
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 2.3), ctx.glass);
+    pane.rotation.y = Math.PI / 2;
+    leaf.add(pane);
+    w.box(0.06, 2.3, 0.06, ctx.chrome, 0, 0, -0.57, 0, leaf);
+    w.box(0.06, 2.3, 0.06, ctx.chrome, 0, 0, 0.57, 0, leaf);
+    leaf.position.set(x0, 1.15, a.doorZ);
+    live.add(leaf);
+    ctx.doors.push({ side, leaf, z: a.doorZ });
+  }
+}
+function lobbyHouse(ctx, side, x0, x1, z0, z1, cx, a) {
+  const { w } = ctx;
+  {
     // Glass box on a white frame, a white roof with a navy fascia.
     w.box(4.0, 0.25, 2.1, ctx.paint, cx, 3.0, (z0 + z1) / 2, 0.06);
     w.box(4.1, 0.12, 2.2, ctx.navy, cx, 2.84, (z0 + z1) / 2, 0.02);
@@ -921,16 +1020,6 @@ function lobbies(ctx) {
       sign.position.set(x0 + side * -0.02, 2.55, a.doorZ);
       w.scene.add(sign);
     }
-    // The sliding door: a glass leaf that slides back along z.
-    const leaf = new THREE.Group();
-    const pane = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 2.3), ctx.glass);
-    pane.rotation.y = Math.PI / 2;
-    leaf.add(pane);
-    w.box(0.06, 2.3, 0.06, ctx.chrome, 0, 0, -0.57, 0, leaf);
-    w.box(0.06, 2.3, 0.06, ctx.chrome, 0, 0, 0.57, 0, leaf);
-    leaf.position.set(x0, 1.15, a.doorZ);
-    live.add(leaf);
-    ctx.doors.push({ side, leaf, z: a.doorZ });
   }
 }
 
@@ -938,7 +1027,8 @@ function lobbies(ctx) {
 
 // Every lounger (the ship's state says where each is), with a rolled towel when free, a spread one under a guest, a crumpled one
 // and an empty glass when messy; furled navy umbrellas in deck sockets between the pairs (they never slide).
-function loungers(ctx) {
+// (`umbrellas: false`: the dressed ship furls its own)
+export function loungers(ctx, { umbrellas = true } = {}) {
   const { w, live } = ctx,
     towel = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 }),
     stripe = new THREE.MeshStandardMaterial({ color: NAVY, roughness: 0.95 });
@@ -978,17 +1068,18 @@ function loungers(ctx) {
     return { g, rolled, spread, crumpled, x: spot.x, vz: 0 };
   });
   // Furled umbrellas between the pairs, on the head side.
-  for (const row of P.rows)
-    for (let i = 0; i < row.homes.length; i += 2) {
-      const z = (row.homes[i] + row.homes[i + 1]) / 2,
-        x = row.x - row.facing * 1.15;
-      const u = new THREE.Group();
-      w.cyl(0.035, 0.035, 2.4, 0xb5874f, 0, 1.2, 0, u, 6);
-      w.cyl(0.02, 0.17, 1.35, NAVY, 0, 1.75, 0, u, 10);
-      w.cyl(0.16, 0.16, 0.06, ctx.white, 0, 0.03, 0, u, 12);
-      u.position.set(x, 0, z);
-      ctx.w.scene.add(u);
-    }
+  if (umbrellas)
+    for (const row of P.rows)
+      for (let i = 0; i < row.homes.length; i += 2) {
+        const z = (row.homes[i] + row.homes[i + 1]) / 2,
+          x = row.x - row.facing * 1.15;
+        const u = new THREE.Group();
+        w.cyl(0.035, 0.035, 2.4, 0xb5874f, 0, 1.2, 0, u, 6);
+        w.cyl(0.02, 0.17, 1.35, NAVY, 0, 1.75, 0, u, 10);
+        w.cyl(0.16, 0.16, 0.06, ctx.white, 0, 0.03, 0, u, 12);
+        u.position.set(x, 0, z);
+        ctx.w.scene.add(u);
+      }
 }
 
 // ---- the Lido Bar, the hot tub and the rest ---------------------------------------------------------------------------------
@@ -1020,11 +1111,14 @@ function bar(ctx) {
     live.add(glass);
   }
 }
-function hotTub(ctx) {
+// (`shell: false`: the water and its bubbles only, in the dressed ship's own tub)
+export function hotTub(ctx, { shell = true } = {}) {
   const { w, live } = ctx;
   for (const t of P.tubs) {
-    w.cyl(t.r, t.r + 0.05, 0.55, ctx.teak, t.x, 0.27, t.z, w.scene, 32);
-    w.cyl(t.r + 0.06, t.r + 0.06, 0.06, ctx.white, t.x, 0.56, t.z, w.scene, 32);
+    if (shell) {
+      w.cyl(t.r, t.r + 0.05, 0.55, ctx.teak, t.x, 0.27, t.z, w.scene, 32);
+      w.cyl(t.r + 0.06, t.r + 0.06, 0.06, ctx.white, t.x, 0.56, t.z, w.scene, 32);
+    }
     const tub = new THREE.Mesh(
       new THREE.CircleGeometry(t.r - 0.12, 32),
       new THREE.MeshStandardMaterial({
@@ -1050,6 +1144,20 @@ function hotTub(ctx) {
     ctx.bubbles = { mesh: bubbles, t };
   }
 }
+// The ship's bell (it swings when the bell rings a swell: syncCruise).
+export function shipBell(ctx) {
+  const { w, venue, live } = ctx,
+    f = venue.furniture.find((q) => q.kind === "ship-bell");
+  if (!f) return;
+  const g = propModel("ship-bell", { height: 1.6 }, (st) => {
+    w.cyl(0.05, 0.05, 1.4, WHITE, 0, 0.7, 0, st, 8);
+    w.cyl(0.08, 0.2, 0.3, 0xc99a3a, 0, 1.25, 0.25, st, 12);
+  });
+  g.position.set(f.x, 0, f.z);
+  g.rotation.y = Math.PI;
+  live.add(g);
+  ctx.bell = g;
+}
 function decor(ctx) {
   const { w, venue, live } = ctx;
   const put = (name, fit, x, z, angle, fallback) => {
@@ -1060,12 +1168,8 @@ function decor(ctx) {
     return g;
   };
   for (const f of venue.furniture) {
-    if (f.kind === "ship-bell") {
-      ctx.bell = put("ship-bell", { height: 1.6 }, f.x, f.z, Math.PI, (st) => {
-        w.cyl(0.05, 0.05, 1.4, WHITE, 0, 0.7, 0, st, 8);
-        w.cyl(0.08, 0.2, 0.3, 0xc99a3a, 0, 1.25, 0.25, st, 12);
-      });
-    } else if (f.kind === "lifejacket-box")
+    if (f.kind === "ship-bell") shipBell(ctx);
+    else if (f.kind === "lifejacket-box")
       put("lifejacket-box", { height: 0.84 }, f.x, f.z, f.z > 0 ? Math.PI : 0, (st) =>
         w.box(1.3, 0.8, 0.8, WHITE, 0, 0.4, 0, 0.06, st),
       );
@@ -1091,7 +1195,7 @@ function decor(ctx) {
 
 // Things that slide and roll about the deck as the ship rolls (on screen only): steamer chairs and beach balls, and a ball afloat
 // in the free half.
-function loose(ctx) {
+export function loose(ctx) {
   const { w, live } = ctx;
   ctx.loose = [];
   for (const [x, z, a, lo, hi] of [
@@ -1138,7 +1242,7 @@ function loose(ctx) {
 
 // ---- every frame ----------------------------------------------------------------------------------------------------------------
 
-function syncCruise(w, sim, time, dt, ctx) {
+export function syncCruise(w, sim, time, dt, ctx) {
   const S = sim?.ship,
     angle = S?.angle || 0,
     motion = w.reducedMotion?.matches ? 0 : 1;

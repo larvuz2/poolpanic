@@ -75,7 +75,10 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    end up adrift until the coach straightens a row (E); someone at the pool's end slides in and must be helped out (E); the pool
    sloshes over its low end; a pool across the deck with two lap lanes and free water where half the guests chill as on the
    rooftop, margaritas from the Lido Bar; `dist/ship.mjs`, `dist/cruise-plan.mjs`, `dist/scene/cruise.mjs`; yacht pop on a steel
-   pan), the **Mountain Hot Springs** (four natural hot springs on an icy terrace in the snow, SPRING 1–4 for the four springs:
+   pan; since 1 November 2026 dressed for real, three.js only, with photographic materials: the Lido Deck of the Panic of the Seas
+   at golden hour, the kraken on the pool's floor, the Lido Bar, its own painted sky, the model rolling with the ship and the
+   shader in its frame, `dist/scene/cruiseclub.mjs`, `tools/venues/cruise/`; the people in its pictures repainted as our own
+   characters with GPT Image 2.5 and the coaches as references, the creator's), the **Mountain Hot Springs** (four natural hot springs on an icy terrace in the snow, SPRING 1–4 for the four springs:
    guests waiting in the snow grow cold and hug themselves (ColdHug) until sent to one, where they sit to the shoulders; snow
    monkeys come out of the forest for the warm water, shooed by running into them, and one that gets in makes the spring panic
    until shooed out from the rim; the coach skates and slides on the ice (IceSkate, IceSlide, `venue.ice`) and wades in the springs;
@@ -180,7 +183,7 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
    (Asked so far: Senior Aqua Fit's photographs and models, the Community Pool as the Harbourside, 28 October 2026, where
    "performance is key": a venue's look is a few merged meshes, baked light and no new lights, measured against the old one; and
    Splash Park, the Kids Pool, the Sunset Lagoon, the Aqua Disco and the Aquatic Centre, 31 October 2026, and the Mountain Hot
-   Springs, the Wave Pool, Senior Aqua Fit and the Lazy River, 1 November 2026, the same way, the next venue on the ladder each time with the shared kit
+   Springs, the Wave Pool, Senior Aqua Fit, the Lazy River and the Cruise Ship, 1 November 2026, the same way, the next venue on the ladder each time with the shared kit
    (`tools/venues/common/`, `dist/scene/dressed.mjs`). Venues are dressed in three.js only from now on, never in the Godot test,
    the creator's.)
 4. **Launch.** Store page, trailer, wishlists, a demo, review, release.
