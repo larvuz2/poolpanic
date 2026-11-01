@@ -52,6 +52,12 @@ const TILE_ROUGH = {
   linen: 0.9,
   rattan: 0.8,
   zellige: 0.15,
+  majolica: 0.2,
+  lawn: 0.95,
+  hedge: 0.85,
+  stucco: 0.88,
+  rooftile: 0.8,
+  awning: 0.8,
 };
 const FLAT = { matte: [0.82, 0], satin: [0.5, 0], gloss: [0.22, 0], metal: [0.32, 1], leaf: [0.6, 0] };
 const WATER_Y = -0.25;
