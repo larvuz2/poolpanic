@@ -1306,6 +1306,79 @@ story, the density at the edges of play and the walks left calm and open, warm l
   classic Wave Pool stands in until it loads (after the Mountain Hot Springs, `loadWaveClub`) and with `?nomodels`. Measured here
   with software drawing only: the frame rate on a real graphics card is not yet measured.
 
+**Senior Aqua Fit dressed for real** (1 November 2026, `dist/scene/seniorclub.mjs`; the creator: "The exact same approach to how
+the artist builds the scene: the props, the small clusters, the detail, edge of play, walkways, everything, and even better. More
+attention to the detail"). The next venue on the ladder, the same way, three.js only, its assets made by `tools/venues/senior/` with
+the shared kit: the Palm House Baths, est. 1926, a Victorian palm house of white cast iron and glass round the pool, for a gentle
+crowd. The same discipline as the Wave Pool (a landmark, clusters that each tell a story, the density at the edge of play, the walks
+calm), with more pieces per cluster and every surface given a second detail (a frieze, a bead, a pin, a rosette).
+- **Placed from the game's own plan**: `tools/venues/senior/plan.mjs` writes the pool and lanes, the deck and room, the doors, the
+  lounge's 24 waiting places, the 48 evacuation spots, the furniture, stations, fixtures and the massage table the game draws, and
+  the classic's walls and roof lines. The props stand in the furniture's boxes, in the strips between the deck and the walls, on the
+  sills and up on the columns, and outside; `seniorclub-check.mjs` casts rays to prove it (the waiting places, the evacuation
+  columns, the corridors along the pool, the walks round its ends, the way in from the doors, the deck along the sides, the massage
+  table's place: nothing between 0.1 and 1.9 m; open water over the whole pool).
+- **The conservatory**: a travertine deck with an emerald-and-gold frieze and brass strips round the pool; the fan mosaic pool
+  (the classic's photograph) with a **mosaic swan** on its floor (fal, keyed into a cut-out: a swan in a flowered swim cap and
+  pearls), marble coping, steps and risers, brass ladders and depth plates; the lounge's two rugs either side of an emerald runner
+  with brass stair rods from the doors and a SALVETE doormat. The glazing of the far side and the far end: a cream brick dwarf wall
+  with a brass cap, white iron columns with brass necks and capitals, panes with mullions and transoms, a fanlight in every bay with
+  iron lace in its spandrels, the eave beam and gutter. The back wall: cream stucco, fluted pilasters, a cornice with dentils, an
+  emerald-tiled dado under a brass rail, the glass doors (`Door_A`/`Door_B`, swung by the game) in a brass frame under a pediment
+  and the club's sign. The near side's low brick wall. The roof (glass slopes on iron rafters and purlins, the lantern on its
+  ridge, cresting and finials, the gables, brass pendant lamps) is the Coach Cam's (`C_` classes), and its ribs' window pattern on
+  the deck is still the classic's unseen casters (`roofShadows`).
+- **The stations**, each a Victorian piece on its hit box: a mahogany fin rack with brass pegs (its three pairs the model's,
+  `Fins_1..3`, hidden by the game as they are taken), WATER CARE an apothecary's cabinet of brass-bound mahogany (bottles of
+  chlorine, a brass balance, a test kit, a feather duster), EYE CARE a marble washstand (porcelain basins, brass taps, eye baths, a
+  mirror, folded towels), enamel boards on brass-capped posts; the ring boards, the fish net's board (a goldfish in a jar at its
+  foot), the skimmer's board with today's paper, a bingo card and two notes pinned to it, a green cast-iron litter bin with a gilt
+  band, the torch's brass pedestal, the fuse board. The spa's marble tub with its brass rail and steps; the hoist; the rest bench
+  with a tartan blanket; the tea trolley (a knitted cosy on the pot, cups, a cake stand of scones with jam and cream, BISCUITS);
+  the gramophone and its records; two emerald wing chairs with lace antimacassars, the brass standard lamp lit between them, the
+  knitting (a swimming costume, half done), a side table of tea and large-print books; the steamer loungers with tartan blankets,
+  an eye mask, a crossword.
+- **The edge of play, the back wall hung like a Victorian salon**, bay by bay between the pilasters: TODAY'S MOVES on a chalkboard
+  (the Flamingo, the Teapot, the Slow Wave) over an aspidistra on a pedestal and a basket of pool noodles and foam dumbbells; the
+  slippers' corner (a bench, five pairs of slippers under it, a rack with two more and the pair of flippers that should be on the
+  other rack, a handbag, a cardigan, SLIPPERS HERE, PLEASE), a coat stand with a straw sun hat and a towel; the station clock (it is
+  always time for aqua fit); the lost property cabinet behind glass (one flipper, dentures in a glass, reading glasses, a hearing
+  aid, a knitted cap, a toupee, a rubber duck, a handbag, a walking stick); **the founder**, Mrs. Edith Plumm, in oils (fal) in a
+  gilt frame with rosettes, a brass picture light and her plate (1926 · SHE NEVER SPLASHED), and on a half-moon table under it a
+  vase of roses, a candle and her flowered cap under a glass dome; the HONEST penny scale in red enamel; the umbrella stand; the
+  conservatory rules (1. No bombing. This means you, Harold.) under **six photographs of the club** (fal: the leg kicks, the
+  moustache with the trophy, six pairs of legs, the dive in pearls, the pyramid, the lady reading the paper afloat); **ZIMMER
+  PARKING**, four walking frames with tennis-ball feet in painted bays (a basket of knitting, a bicycle horn, a garland, a learner's
+  L); the bingo console (a brass cage and its balls, the called balls in a tray, cards, dabbers, a cup of tea) under AQUA BINGO and
+  a shield of crossed flippers; TODAY'S PROGRAMME (13:00 NAP, COMPULSORY) over a Boston fern; a brass sconce with a tulip shade on
+  every pilaster.
+- **The glass and the corners**: by the end's glass, fern stands, QUIET PLEASE · NAP IN PROGRESS on an easel by the loungers, the
+  CAP OF THE WEEK (DORIS, again) on an easel with the cap itself, the canary in a brass cage, a hamper of towels, watering cans, a
+  stack of pots and a trowel; geraniums, lavender and orchids in pots along the sills; a hanging basket of fern and geraniums on
+  every column; terracotta troughs along the near wall's cap; at the spa's corners a stool of towels with a rubber duck, the
+  HYDROTHERAPY board (MAX. 4 BATHERS, 3 IF ONE IS HAROLD) and a bucket of ducks with one escaped; a tall fan palm in a
+  blue-and-white jardiniere at the end.
+- **The garden**, 1.95 m down past the terrace's stone face: a gravel walk along the far glass with Victorian lamp posts and
+  benches (a newspaper, a forgotten handbag), standard roses with a topiary mother duck and three ducklings and a topiary swan, a
+  yew hedge with a gap and the three-tier fountain seen through it between Irish yews; past the end, box and lavender, stone urns
+  of geraniums, a topiary teapot pouring into a topiary teacup, a sundial, the bandstand (white iron, an emerald roof striped in
+  cream, a gilt duck on its weathervane, music stands left on it), a row of Irish yews and limes beyond; three great limes over
+  the back wall's cornice; and all round the painted English estate (fal: rose arches, a lily pond and gazebo, a walled kitchen
+  garden, oaks and a copper beech, sheep on the hills, a village with a spire). No lawn: ground cover.
+- **What moves stays the game's** (`dist/scene/senior.mjs`, split for it: `seniorContext`, `spa`, `teaTrolley`, `gramophone`,
+  `readingLamp` with `body: false`, `roofShadows`, `sunlight`, `glowDimmer`), placed at the model's anchors (`Spa`, `Notes`,
+  `Biscuits`): the spa's water, glow, bubbles and steam, the gramophone's notes, the tin of treats, the lamp's warm glow, the late
+  sun's shafts and dust, the window pattern; the glass darkens in a storm (`windowGlass`); the pool's caustics stay inside the
+  conservatory (`dressModel`'s `caustics` box, since this venue: its garden lies below the water's level). Its light (`SENIOR_LOOKS` over
+  `LIGHTING.senior`): the game's golden late afternoon, the sconces, picture light, reading lamp and garden lanterns lit softly and
+  warm, a few slow clouds.
+- **Cost**: about 173k triangles in a 6.2 MB GLB, its pictures 1.5 MB (`dist/assets/senior-club/`; the classic's photographs stay in
+  `dist/assets/senior/`), packed with 16-bit positions (`VENUE_VP=16`, `tools/venues/common/pack.sh`: at the default 14 bits the
+  garden's 70 m made steps bigger than a picture's 3 mm in front of its board, and the signs flickered); 263 draw calls headless
+  against the classic's 418. `seniorclub-check.mjs` holds it to the classic's hit boxes and labels, to its placements and to its
+  budget; the classic conservatory stands in until it loads (after the Wave Pool, `loadSeniorClub`) and with `?nomodels`. Measured
+  here with software drawing only: the frame rate on a real graphics card is not yet measured.
+
 - **Grand Gala Arena** (`dist/scene/arena.mjs`, `crowd.mjs`): a stage with an LED screen and a chasing-light marquee, a rotating trophy, three grandstands of instanced spectators who cheer on every save, scrolling LED ribbons, a hanging scoreboard cube that shows the live score, time and stars, two sweeping spotlight rigs with floor decals, balloons and confetti cannons.
 - **Aquatic Centre** (`dist/scene/aquatic.mjs`, 16 October 2026): an indoor competition pool. The pool builder takes a dress (`buildPool`'s second options: tiles, lane lines, rope colours, block tops, pennants), here deep-blue tiles with black lines, red, white and blue racing ropes and navy blocks on a white deck; an electronic timing board on the back wall (five named lanes, their times running with the shift's clock, MARCO in orange) between two pace clocks, a row of club flags, blue grandstands with a crowd on two sides (a third for the Coach Cam), scrolling LED ribbons, a victory podium, the officials' table with timing screens, a team bench, and painted lane numbers. Its light is `LIGHTING.aquatic`, cool daylight with the underwater lamps on; its hall (glass walls, a white steel lattice roof, banners, bunting) is for the Coach Cam. `?pool=aquatic` (any pool id) plays every shift of the week there, for a look or a test.
 - **Aqua Disco** (`dist/scene/disco.mjs`, 16 October 2026; the classic one, until the dressed disco below loads): a party pool built from scratch, every light on the routine's beat (`danceAt`, the shift's clock). A dark checkered deck, a glowing purple pool with no lines or ropes and a rim of LED tiles chasing round it in rainbow colours, a dark hall with AQUA DISCO banners, the back wall with its neon sign and equaliser over the entrance (a double door with a neon frame and porthole windows, whose leaves swing open as someone comes or goes), eight coloured spotlights sweeping the water left and right, sparkles, three laser emitters, a turning mirror ball, four speakers whose cones pump, a DJ booth with spinning records and a nodding DJ, a juice bar, and the stage: a round disc that pulses, a ring of bulbs chasing round an arch, and Valentina dancing (a classic figure with the same moves until her model is in). Its light is `LIGHTING.disco`, dark purple with the water glowing. A blackout dims all of it. With reduced motion every light holds still at one steady glow (no sweeping, no flashing).
@@ -1880,6 +1953,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/scene/dressed.mjs`, `tools/venues/common/` | What every dressed venue shares: the model's loading, the venue's shader (caustics, the deck's paint and contact shadows, the lamps' light after dusk, the clouds' shade), the classes' materials, the glows, the painted horizon; the Blender kit, textures, trees, exporter, pack and horizon keying |
 | `dist/scene/onsenclub.mjs`, `dist/assets/onsen-club/`, `tools/venues/onsen/` | The Mountain Hot Springs dressed for real ("The Mountain Hot Springs dressed for real", above): the terrace, the springs' basins and stones, the bathhouse, the garden and the stations round what moves (scene/onsen.mjs), placed from the game's own plan (`plan.mjs`); the classic springs stand in until it loads |
 | `dist/scene/waveclub.mjs`, `dist/assets/wave-club/`, `tools/venues/wave/` | The Wave Pool dressed for real ("The Wave Pool dressed for real", above): the wave house, the deck and beach, the stations and the stories round what moves (scene/wave.mjs, placed at the model's `Anchor_` places), from the game's own plan (`plan.mjs`); the classic Wave Pool stands in until it loads |
+| `dist/scene/seniorclub.mjs`, `dist/assets/senior-club/`, `tools/venues/senior/` | Senior Aqua Fit dressed for real ("Senior Aqua Fit dressed for real", above): the palm house, the stations, the salon hang on the back wall and the clusters at the edge of play, the garden, round what moves (scene/senior.mjs, placed at the model's `Anchor_` places), from the game's own plan (`plan.mjs`); the classic conservatory stands in until it loads |
 | `dist/scene/aquaticclub.mjs`, `dist/assets/aquatic/`, `tools/venues/aquatic/` | The Aquatic Centre dressed for real ("The Aquatic Centre dressed for real", above): the hall round the game's board, clocks, flags and crowd; the scripts that make it; the classic hall stands in until it loads |
 | `dist/scene/crowd-models.mjs`, `dist/assets/crowd/`, `tools/blender/crowd_bake.py` | The crowd of Meshy spectators (`ModelCrowd`): five bodies baked sitting and cheering, 450 triangles a pose, instanced, each shirt its own colour; the dressed Aquatic Centre's stands |
 | `dist/scene/officials.mjs`, `dist/assets/models/official-*.glb` | The Aquatic Centre's Chief Judge and Starter, seated at the officials' table on their clips (JudgeWatch, StarterGlare) |
@@ -2064,6 +2138,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node splash-check.mjs` | Splash Park dressed for real: its files within budget (the model under 10 MB and 230k triangles, the pictures under 2 MB, every picture used, the textured meshes' UVs kept as floats), the classic park until it is in, then the same hit boxes and labels as the classic park at day, sunset and night, the fins, rings, trampoline bed and medkit at work, the doors in the hotel's front swinging out onto the deck, no lockers, the Sunset Lagoon not taking Splash Park's model, fewer draw calls than the classic park |
 | `node onsenclub-check.mjs` | The Mountain Hot Springs dressed for real: its files within budget (under 10 MB and 200k triangles, the pictures under 2 MB, every picture used, float UVs), the classic springs until it is in, then the same hit boxes and labels, the rings on the model's boards, the torch on its post at 1.24 m, a rock of the model over every boulder the walks go round and open water in every spring's middle, the net, skimmer and fuse lever, the four springs to click, the steam, snow, curtain, spout and flames, fewer draw calls than the classic springs |
 | `node waveclub-check.mjs` | The Wave Pool dressed for real: its files within budget (under 10 MB and 200k triangles, the pictures under 2.2 MB, every picture used, float UVs), the classic Wave Pool until it is in, then the same hit boxes and labels, the anchors (a surge in every chamber at the water, the LED board over the middle one, two beacons, the flags and bulbs, the torch at 1.24 m, the tubes' peg in the tube hut), nothing between 0.1 and 1.9 m over the queue, the evacuation spots, the towels and the walks round the pool, open water over the whole pool and every chamber open, the rings, net, skimmer, fuse lever, the tubes and the gate's leaves, fewer draw calls than the classic |
+| `node seniorclub-check.mjs` | Senior Aqua Fit dressed for real: its files within budget (under 10 MB and 200k triangles, the pictures under 2.2 MB, every picture used, float UVs), the classic conservatory until it is in, then the same hit boxes and labels, the anchors (the spa's water at 0.58 m, the gramophone's notes, the treats on the trolley where the classic has them, the torch at 1.24 m), nothing between 0.1 and 1.9 m over the waiting places, the evacuation columns, the corridors and walks, the way in and the massage table's place, open water over the whole pool, the model's fins, the rings, net, skimmer, fuse lever, the doors' leaves, the storm's glass, the sun's shafts and the roof's shadow casters, the roof for the Coach Cam alone, fewer draw calls than the classic |
 | `node aquaticclub-check.mjs` | The Aquatic Centre dressed for real: its files within budget (under 10 MB and 200k triangles, every picture used, float UVs), the classic hall until it is in, then the same hit boxes and labels, the fins, rings, fish net, torch, fuse and pool lamps, the club flags and the timing board on the wall's face, the roof and near stand hidden from the overview and shown to the Coach Cam without shadows, the changing rooms' doors in the timing wall swinging out onto the deck, the crowd's files (five spectators, UVs kept, at most 500 triangles a pose, under 600 KB) and its instanced meshes cheering, the officials' clips and skins and their seats behind the table, fewer draw calls than the classic hall |
 | `node discoclub-check.mjs` | The Aqua Disco dressed for real: its files within budget (under 10 MB and 200k triangles, the pictures under 2 MB, every picture used, float UVs), the classic disco until it is in, then the same hit boxes and labels, the fins, rings, fish net, torch, fuse and pool lamps, the spots sweeping to the beat, the ceiling and near wall hidden from the overview and shown to the Coach Cam without shadows, the entrance's leaves swinging out onto the deck, fewer draw calls than the classic disco |
 | `node lagoon-check.mjs` | The Sunset Lagoon dressed for real: its files within budget (the model under 10 MB and 200k triangles, the pictures under 2 MB, every picture used, float UVs), its torches, lanterns and bonfire, the classic lagoon until it is in, then the same hit boxes and labels as the classic lagoon, the fins, rings, torch and sky, the horizon kept off the sea side, the lamps out at golden hour and lit at dusk, out in a power cut, the horizon dimming at dusk and in a storm, the doors in the beach house's wall swinging out onto the deck, fewer draw calls than the classic lagoon |

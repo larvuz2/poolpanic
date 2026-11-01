@@ -47,7 +47,10 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    `dist/scene/kidspool.mjs`, `tools/venues/kids/`, the shared kit `tools/venues/common/` and `dist/scene/dressed.mjs`),
    **Senior Aqua Fit** (a Victorian glass conservatory, the premium-dressed venue: photographs and Tripo models, golden light, clear
    water over a mosaic; only seniors, who walk stooped and slowly, a third in wheelchairs who stand up out of them when given a lane
-   and sit back down on the way out; glass doors, no lockers; a tea-dance song), the **Lazy River** (a jungle water park with no pool and
+   and sit back down on the way out; glass doors, no lockers; a tea-dance song; since 1 November 2026 dressed for real, three.js
+   only: the Palm House Baths, a Victorian palm house with a salon hang on its back wall, clusters at every edge of play and a
+   pleasure garden outside, `dist/scene/seniorclub.mjs`, `tools/venues/senior/`, the spa's water, the notes, the treats and the
+   sun's shafts still the game's), the **Lazy River** (a jungle water park with no pool and
    no lanes: a river curves through the room, out of a cave behind a waterfall and into a jungle temple, and only that stretch is seen;
    every guest wants a tube from the rack, is sent on the lazy loop or down the rapids (a chiller or a thrill-seeker), gets on at the ALL ABOARD dock (TubeBoard), lies back in it (TubeFloat) round a loop out of
    sight and gets off at the EXIT dock, leaving the tube at the tube return for the coach to rack; a rope bridge and two stepping
@@ -174,7 +177,7 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
    (Asked so far: Senior Aqua Fit's photographs and models, the Community Pool as the Harbourside, 28 October 2026, where
    "performance is key": a venue's look is a few merged meshes, baked light and no new lights, measured against the old one; and
    Splash Park, the Kids Pool, the Sunset Lagoon, the Aqua Disco and the Aquatic Centre, 31 October 2026, and the Mountain Hot
-   Springs and the Wave Pool, 1 November 2026, the same way, the next venue on the ladder each time with the shared kit
+   Springs, the Wave Pool and Senior Aqua Fit, 1 November 2026, the same way, the next venue on the ladder each time with the shared kit
    (`tools/venues/common/`, `dist/scene/dressed.mjs`). Venues are dressed in three.js only from now on, never in the Godot test,
    the creator's.)
 4. **Launch.** Store page, trailer, wishlists, a demo, review, release.
