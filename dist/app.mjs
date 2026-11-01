@@ -65,6 +65,7 @@ import { loadDiscoClub } from "./scene/discoclub.mjs";
 import { loadAquaticClub } from "./scene/aquaticclub.mjs";
 import { loadCrowdModels } from "./scene/crowd-models.mjs";
 import { loadOfficials } from "./scene/officials.mjs";
+import { loadOnsenClub } from "./scene/onsenclub.mjs";
 import { cannonballMan } from "./incidents/carl.mjs";
 import { PoolAudio } from "./audio.mjs";
 import { CoachInput } from "./input.mjs";
@@ -4913,7 +4914,8 @@ try {
     // the classic Splash Park plays, and a shift already running there keeps it.
     const splashBegan = performance.now();
     // Then the venues after it on the ladder, one at a time (the Kids Pool: scene/kidspool.mjs; the Sunset Lagoon:
-    // scene/lagoonclub.mjs; the Aqua Disco: scene/discoclub.mjs; the Aquatic Centre: scene/aquaticclub.mjs).
+    // scene/lagoonclub.mjs; the Aqua Disco: scene/discoclub.mjs; the Aquatic Centre: scene/aquaticclub.mjs; the Mountain Hot
+    // Springs: scene/onsenclub.mjs).
     const loaded = (name, began) => (model) =>
       crashlog.crumb(
         "venue",
@@ -4946,6 +4948,10 @@ try {
         return Promise.all([loadCrowdModels(), loadOfficials()]).then(([a, b]) =>
           loaded("Aquatic Centre's people", began)(a && b),
         );
+      })
+      .then(() => {
+        const began = performance.now();
+        return loadOnsenClub().then(loaded("Mountain Hot Springs", began));
       });
   });
   if (fetching.length) {

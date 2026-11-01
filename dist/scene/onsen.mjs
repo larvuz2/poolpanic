@@ -22,6 +22,7 @@ import {
   treatsTable,
 } from "./props.mjs";
 import { buildOnsenCast } from "./onsen-view.mjs";
+import { buildOnsenClub, onsenClubReady } from "./onsenclub.mjs";
 
 const TAU = Math.PI * 2;
 export const ONSEN_WATER_Y = -0.15; // the springs' surface
@@ -32,14 +33,9 @@ const SNOW = 0xe9eff8,
   CEDAR = 0x2d4a3a;
 
 export function buildOnsen(w, venue) {
-  const live = new THREE.Group();
-  live.name = "onsen-live";
-  w.scene.add(live);
-  w.liveProps.push(live);
-  const ctx = { w, venue, live, rand: rngOf(181) };
-  w.poolUniforms = { uTime: { value: 0 }, uCaustic: { value: 1 } };
-  w.camera.far = 400;
-  w.camera.updateProjectionMatrix();
+  // The Mountain Hot Springs dressed for real when its model is in (scene/onsenclub.mjs); this one till then, and with ?nomodels.
+  if (onsenClubReady()) return buildOnsenClub(w, venue);
+  const ctx = onsenContext(w, venue);
   materials(ctx);
   ground(ctx);
   terrace(ctx);
@@ -57,6 +53,20 @@ export function buildOnsen(w, venue) {
   snowfall(ctx);
   pickVolumes(ctx);
   buildOnsenCast(w, ctx);
+}
+
+// What both the classic springs and the dressed ones (scene/onsenclub.mjs) start from: a group for what moves, the venue's random
+// numbers, the uniforms the water and the deck's shader share, a camera that sees the painted mountains.
+export function onsenContext(w, venue) {
+  const live = new THREE.Group();
+  live.name = "onsen-live";
+  w.scene.add(live);
+  w.liveProps.push(live);
+  const ctx = { w, venue, live, rand: rngOf(181) };
+  w.poolUniforms = { uTime: { value: 0 }, uCaustic: { value: 1 } };
+  w.camera.far = 400;
+  w.camera.updateProjectionMatrix();
+  return ctx;
 }
 
 // ---- the materials and the pictures ------------------------------------------------------------------------------------
@@ -343,7 +353,7 @@ function basins(ctx) {
 // The water: one mesh for the four springs, a shader of its own. Milky turquoise (the minerals), darker and clearer toward the
 // middle, ripples from the spout and the bathers, the sky's light glancing off it, and a warm glow from below at dusk. The game's
 // water uniforms drive it as they drive a pool (cloudy, brown, yellow, dark in a blackout).
-function water(ctx) {
+export function water(ctx) {
   const { w } = ctx,
     look = w.look.water,
     parts = [];
@@ -594,13 +604,7 @@ function bathhouse(ctx) {
   });
   house.position.set(B.x, 0, B.z - 0.3);
   w.scene.add(house);
-  // The curtain in the door.
-  const cloth = new THREE.MeshStandardMaterial({ color: 0x2c3c78, roughness: 0.9, side: THREE.DoubleSide });
-  picture(ctx, "noren.jpg", cloth, [1, 1], "#2c3c78");
-  const noren = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.1, 6, 1), cloth);
-  noren.position.set(0.62, 1.95, ONSEN.deck.minZ - 0.2);
-  live.add(noren);
-  ctx.noren = noren;
+  noren(ctx);
   // Warm windows and a lamp at the door.
   const glow = new THREE.MeshBasicMaterial({ color: 0xffc27a, transparent: true, opacity: 0.85 });
   for (const x of [-3.0, -1.6, 2.6, 3.9]) {
@@ -618,11 +622,27 @@ function bathhouse(ctx) {
     glow.color.setRGB(1 * on, 0.76 * on, 0.48 * on);
   });
 }
+// The curtain in the bathhouse door (the indigo 湯 noren), swaying a little (the updater in `snowfall`).
+export function noren(ctx) {
+  const cloth = new THREE.MeshStandardMaterial({ color: 0x2c3c78, roughness: 0.9, side: THREE.DoubleSide });
+  picture(ctx, "noren.jpg", cloth, [1, 1], "#2c3c78");
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.1, 6, 1), cloth);
+  mesh.position.set(0.62, 1.95, ONSEN.deck.minZ - 0.2);
+  ctx.live.add(mesh);
+  ctx.noren = mesh;
+}
+// A lantern's flame in its fire box (0.84 m up), flickering (the updater in `snowfall`).
+export function lanternFlame(ctx, x, z) {
+  ctx.flameMaterial ||= new THREE.MeshBasicMaterial({ color: 0xffb35a });
+  const fire = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), ctx.flameMaterial);
+  fire.position.set(x, 0.84, z);
+  ctx.live.add(fire);
+  (ctx.flames ||= []).push(fire);
+  return fire;
+}
 // The stone lanterns (the venue's furniture), each with a warm flame in its fire box and a little pool of light round it.
 function lanterns(ctx) {
   const { w, venue, live } = ctx;
-  const flame = new THREE.MeshBasicMaterial({ color: 0xffb35a });
-  ctx.flames = [];
   let lights = 0;
   for (const f of venue.furniture.filter((f) => f.kind === "lantern")) {
     const g = propModel("stone-lantern", { height: 1.6 }, (s) => {
@@ -639,10 +659,7 @@ function lanterns(ctx) {
     });
     g.position.set(f.x, 0, f.z);
     w.scene.add(g);
-    const fire = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), flame);
-    fire.position.set(f.x, 0.84, f.z);
-    live.add(fire);
-    ctx.flames.push(fire);
+    lanternFlame(ctx, f.x, f.z);
     if (lights++ < 3) {
       const light = new THREE.PointLight(0xffa25a, 3.2, 6.5, 1.8);
       light.position.set(f.x, 1.0, f.z);
@@ -652,7 +669,7 @@ function lanterns(ctx) {
 }
 // The bamboo spout at the far spring: a pipe of bamboo on a stone, pouring a thread of hot water into it, splashing.
 function spout(ctx) {
-  const { w, venue, live } = ctx,
+  const { w, venue } = ctx,
     f = venue.furniture.find((q) => q.kind === "bamboo-spout");
   if (!f) return;
   const angle = Math.atan2(SPOUT.z - f.z, SPOUT.x - f.x);
@@ -670,6 +687,14 @@ function spout(ctx) {
   g.position.set(f.x, 0, f.z);
   g.rotation.y = -angle;
   w.scene.add(g);
+  spoutStream(ctx);
+}
+// The spout's thread of hot water, from the pipe's mouth (0.6 m from the spout's post toward the spring, 0.38 m up) to the water.
+export function spoutStream(ctx) {
+  const { venue, live } = ctx,
+    f = venue.furniture.find((q) => q.kind === "bamboo-spout");
+  if (!f) return;
+  const angle = Math.atan2(SPOUT.z - f.z, SPOUT.x - f.x);
   const mouth = { x: f.x + Math.cos(angle) * 0.6, z: f.z + Math.sin(angle) * 0.6 };
   // The falling thread of water: a thin bent ribbon from the mouth down to the surface.
   const curve = new THREE.QuadraticBezierCurve3(
@@ -748,7 +773,7 @@ function standInCedar(w, s, h) {
   }
 }
 // The painted mountains all round (mountains.jpg wraps: its misty valley at about half its height, set at eye level), unfogged.
-function mountains(ctx) {
+export function mountains(ctx) {
   const { w } = ctx;
   const pano = new THREE.ShaderMaterial({
     uniforms: { map: { value: null } },
@@ -832,7 +857,7 @@ function dressing(ctx) {
 
 // Steam rolling off the hot water: soft puffs that rise from all over each spring, swell, drift with the breeze and fade, many at
 // a time. One set of points, moved on the GPU.
-function steam(ctx) {
+export function steam(ctx) {
   const { w, live, rand } = ctx,
     per = 46,
     pos = [],
@@ -891,7 +916,7 @@ function steam(ctx) {
   ctx.steam = points;
 }
 // Snow falling over the terrace: flakes drifting down and sideways, wrapping round, on the GPU.
-function snowfall(ctx) {
+export function snowfall(ctx) {
   const { w, live, rand } = ctx,
     n = 1800,
     pos = [],
@@ -957,7 +982,7 @@ function snowfall(ctx) {
 
 // Each spring: an invisible disc to click (SPRING k), a highlight in its shape and a rim line for the guidance (scene.mjs drives
 // them as `springHighlights` and `springRims`).
-function pickVolumes(ctx) {
+export function pickVolumes(ctx) {
   const { w } = ctx;
   w.springHighlights = [];
   w.springRims = [];

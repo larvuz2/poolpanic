@@ -160,7 +160,16 @@ def bake_floor_paint():
             else:
                 p = principled(m)
                 em.inputs["Color"].default_value = p.inputs["Base Color"].default_value if p else (1, 1, 1, 1)
-            nt.links.new(em.outputs[0], out.inputs[0])
+            if img is not None and img.alpha_mode != "NONE" and img.depth in (32, 64, 128):
+                # (a picture with transparency, the hot springs' snow cover: only as much paint as its alpha)
+                mix = nt.nodes.new("ShaderNodeMixShader")
+                clear = nt.nodes.new("ShaderNodeBsdfTransparent")
+                nt.links.new(tex.outputs["Alpha"], mix.inputs["Fac"])
+                nt.links.new(clear.outputs[0], mix.inputs[1])
+                nt.links.new(em.outputs[0], mix.inputs[2])
+                nt.links.new(mix.outputs[0], out.inputs[0])
+            else:
+                nt.links.new(em.outputs[0], out.inputs[0])
             o.data.materials[i] = bm_
     cam = bpy.data.objects.new("PaintCam", bpy.data.cameras.new("PaintCam"))
     s.collection.objects.link(cam)
