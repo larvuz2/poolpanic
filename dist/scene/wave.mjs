@@ -32,6 +32,7 @@ import { kioskTreats } from "./resort.mjs";
 import { tubeObject } from "./river-view.mjs";
 import { propModel } from "./prop-models.mjs";
 import { syncLostTubes } from "./wave-view.mjs";
+import { waveClubReady, buildWaveClub } from "./waveclub.mjs";
 
 const TAU = Math.PI * 2;
 const W = WAVE.water; // the water's surface at rest
@@ -50,12 +51,9 @@ export const CHAMBERS = [-7.2, -3.6, 0, 3.6, 7.2];
 const CHAMBER_W = 2.5;
 
 export function buildWave(w, venue) {
-  const live = new THREE.Group();
-  live.name = "wave-live";
-  w.scene.add(live);
-  w.liveProps.push(live);
-  const ctx = { w, venue, live, rand: rngOf(97), fronds: [] };
-  w.poolUniforms = { uTime: { value: 0 }, uCaustic: { value: 1 } };
+  // (the surf park dressed for real once its model is in: scene/waveclub.mjs; the classic one till then, and with ?nomodels)
+  if (waveClubReady()) return buildWaveClub(w, venue);
+  const ctx = waveContext(w, venue);
   ground(ctx);
   deck(ctx);
   bed(ctx);
@@ -85,7 +83,21 @@ export function buildWave(w, venue) {
   outside(ctx);
   finishPalms(ctx);
   pickVolume(ctx);
-  // Live: the lost tubes riding in, and spray along a crest the moment it breaks (app.mjs calls `waveBreak` on the event).
+  waveLife(w);
+}
+
+// What every build of the Wave Pool starts with: the group of what moves, the pool's uniforms, the scene's context.
+export function waveContext(w, venue) {
+  const live = new THREE.Group();
+  live.name = "wave-live";
+  w.scene.add(live);
+  w.liveProps.push(live);
+  w.poolUniforms = { uTime: { value: 0 }, uCaustic: { value: 1 } };
+  return { w, venue, live, rand: rngOf(97), fronds: [] };
+}
+
+// Live: the lost tubes riding in, and spray along a crest the moment it breaks (app.mjs calls `waveBreak` on the event).
+export function waveLife(w) {
   w.lostTubes = new Map();
   w.updaters.push((time, dt, world, sim) => syncLostTubes(w, sim, time));
   w.waveBreak = (e) => {
@@ -488,7 +500,7 @@ void main() {
   gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0) * smoothstep(-0.005, 0.02, depth));
 }`;
 
-function water(ctx) {
+export function water(ctx) {
   const { w } = ctx,
     look = w.look.water,
     x0 = WAVE.sandTop - 0.2,
@@ -566,8 +578,7 @@ function waveHouse(ctx) {
     piece.castShadow = piece.receiveShadow = true;
     w.scene.add(piece);
   }
-  // Each chamber: an arch over the opening, a dark mouth, a grille, a coral keystone and the water surging in it.
-  ctx.surges = [];
+  // Each chamber: an arch over the opening, a dark mouth, a grille, a coral keystone (and the water surging in it: `surges`).
   for (const z of CHAMBERS) {
     const archTop = 1.45;
     const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.9, top - archTop, CHAMBER_W), white);
@@ -604,16 +615,11 @@ function waveHouse(ctx) {
         0.01,
       );
     w.box(0.08, 0.08, CHAMBER_W, 0x2b4f5c, front + 0.15, archTop - 0.05, z, 0.01);
-    // The water inside the chamber: rises and falls as each wave is pushed out (live, see the updater).
-    const surge = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.75, CHAMBER_W - 0.1),
-      new THREE.MeshStandardMaterial({ color: 0x1d7f99, roughness: 0.2, transparent: true, opacity: 0.85 }),
-    );
-    surge.rotation.x = -Math.PI / 2;
-    surge.position.set(front + 0.4, W, z);
-    live.add(surge);
-    ctx.surges.push(surge);
   }
+  surges(
+    ctx,
+    CHAMBERS.map((z) => [front + 0.4, W, z]),
+  );
   // The block over the chambers: the terrace's floor, its front a coral band with a row of portholes, the railing.
   const block = new THREE.Mesh(new THREE.BoxGeometry(back - front - 0.9, top, halfZ * 2), white);
   block.position.set((front + 0.9 + back) / 2, top / 2, 0);
@@ -655,38 +661,62 @@ function waveHouse(ctx) {
   w.box(back - upFront + 0.4, 0.3, halfZ * 2 - 0.8, CREAM, (upFront + back) / 2, upTop + 0.15, 0, 0.06);
   w.box(0.1, 0.18, halfZ * 2 - 0.8, CORAL, upFront - 0.2, upTop + 0.08, 0, 0.02);
   roofSign(ctx, upFront + 0.6, upTop + 0.3);
-  ledBoard(ctx, front - 0.07, top - 0.95);
+  ledBoard(ctx, { x: front - 0.1, y: top - 0.95 });
   for (const s of [-1, 1]) lighthouse(ctx, front + 1.6, s * (halfZ + 0.35));
-  const flagGeo = new THREE.PlaneGeometry(0.9, 0.55, 6, 1);
-  flagGeo.translate(0.45, 0, 0);
-  ctx.flags = [];
+  const poles = [];
   for (let k = 0; k < 7; k++) {
     const z = -6.6 + k * 2.2;
     w.cyl(0.04, 0.05, 2.4, 0xe9e9e9, upFront + 1.6, upTop + 1.35, z, w.scene, 6);
-    const flag = new THREE.Mesh(
-      flagGeo,
-      new THREE.MeshStandardMaterial({ color: [CORAL, TEAL, SUN, CREAM][k % 4], side: THREE.DoubleSide }),
-    );
-    flag.position.set(upFront + 1.6, upTop + 2.3, z);
-    flag.rotation.y = Math.PI / 2 + 0.6;
-    live.add(flag);
-    ctx.flags.push(flag);
+    poles.push([upFront + 1.6, upTop + 2.3, z]);
   }
-  // Live: the chambers surge as each wave is launched (and ease back), the flags flap.
+  flags(ctx, poles);
+}
+
+// The water in the chambers (one at each of `at`, [x, y, z] at rest): it rises and falls as each wave is pushed out.
+export function surges(ctx, at) {
+  const { w, live } = ctx;
+  const planes = at.map(([x, y, z]) => {
+    const surge = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.75, CHAMBER_W - 0.1),
+      new THREE.MeshStandardMaterial({ color: 0x1d7f99, roughness: 0.2, transparent: true, opacity: 0.85 }),
+    );
+    surge.rotation.x = -Math.PI / 2;
+    surge.position.set(x, y, z);
+    live.add(surge);
+    return surge;
+  });
   let lastLaunched = -1;
-  const pulse = new Float32Array(CHAMBERS.length);
+  const pulse = new Float32Array(planes.length);
   w.updaters.push((time, dt, world, sim) => {
     const machine = sim?.waves;
     if (machine && machine.launched !== lastLaunched) {
       if (lastLaunched >= 0) for (let i = 0; i < pulse.length; i++) pulse[i] = 1;
       lastLaunched = machine.launched;
     }
-    ctx.surges.forEach((s, i) => {
+    planes.forEach((s, i) => {
       pulse[i] = Math.max(0, pulse[i] - dt * 1.2);
-      const k = pulse[i];
-      s.position.y = W + Math.sin(k * Math.PI) * 0.55 + Math.sin(time * 1.3 + i) * 0.03;
+      s.position.y = at[i][1] + Math.sin(pulse[i] * Math.PI) * 0.55 + Math.sin(time * 1.3 + i) * 0.03;
     });
-    ctx.flags.forEach((f, i) => {
+  });
+}
+
+// Flags flying from poles, each from `at` ([x, y, z], its edge at the pole) out along +x, flapping.
+export function flags(ctx, at) {
+  const { w, live } = ctx;
+  const flagGeo = new THREE.PlaneGeometry(0.9, 0.55, 6, 1);
+  flagGeo.translate(0.45, 0, 0);
+  const list = at.map(([x, y, z], k) => {
+    const flag = new THREE.Mesh(
+      flagGeo,
+      new THREE.MeshStandardMaterial({ color: [CORAL, TEAL, SUN, CREAM][k % 4], side: THREE.DoubleSide }),
+    );
+    flag.position.set(x, y, z);
+    flag.rotation.y = Math.PI / 2 + 0.6;
+    live.add(flag);
+    return flag;
+  });
+  w.updaters.push((time) => {
+    list.forEach((f, i) => {
       f.rotation.y = Math.PI / 2 + 0.6 + Math.sin(time * 2.3 + i * 0.7) * 0.18;
     });
   });
@@ -717,7 +747,7 @@ function awning(ctx, x0, x1, y, length) {
 
 // The sign on the roof: WAVE POOL in big retro letters on a coral board edged with light bulbs, SURF'S UP! under it.
 function roofSign(ctx, x, y) {
-  const { w, live } = ctx;
+  const { w } = ctx;
   const canvas = typeof document !== "undefined" ? document.createElement("canvas") : null;
   const g = w.group(x, y, 0);
   w.box(0.25, 2.1, 9.4, CORAL, 0, 1.05, 0, 0.12, g);
@@ -749,30 +779,39 @@ function roofSign(ctx, x, y) {
     face.position.set(-0.135, 1.05, 0);
     g.add(face);
   }
-  // Bulbs round the board, chasing.
+  signBulbs(ctx, [x - 0.16, y + 0.05, -4.6], [x - 0.16, y + 2.05, 4.6], 44);
+}
+
+// Bulbs round a sign's board, chasing: `n` of them round the rectangle in the plane x = low[0] from (y, z) `low` to `high`, from
+// its top left corner along the top, down, back along the bottom and up.
+export function signBulbs(ctx, low, high, n = 44) {
+  const { w, live } = ctx;
+  const [x, y0, z0] = low,
+    [, y1, z1] = high,
+    W_ = z1 - z0,
+    H_ = y1 - y0,
+    per = 2 * (W_ + H_);
   const bulbs = [];
   const bulbGeo = new THREE.SphereGeometry(0.06, 8, 6);
-  for (let i = 0; i < 44; i++) {
-    const t = i / 44,
-      per = 2 * (9.2 + 2.0);
-    let d = t * per,
+  for (let i = 0; i < n; i++) {
+    let d = (i / n) * per,
       z,
       yy;
-    if (d < 9.2) {
-      z = -4.6 + d;
-      yy = 2.05;
-    } else if ((d -= 9.2) < 2.0) {
-      z = 4.6;
-      yy = 2.05 - d;
-    } else if ((d -= 2.0) < 9.2) {
-      z = 4.6 - d;
-      yy = 0.05;
+    if (d < W_) {
+      z = z0 + d;
+      yy = y1;
+    } else if ((d -= W_) < H_) {
+      z = z1;
+      yy = y1 - d;
+    } else if ((d -= H_) < W_) {
+      z = z1 - d;
+      yy = y0;
     } else {
-      z = -4.6;
-      yy = 0.05 + (d - 9.2);
+      z = z0;
+      yy = y0 + (d - W_);
     }
     const b = new THREE.Mesh(bulbGeo, new THREE.MeshBasicMaterial({ color: 0xfff2b0 }));
-    b.position.set(x - 0.16, y + yy, z);
+    b.position.set(x, yy, z);
     live.add(b);
     bulbs.push(b);
   }
@@ -784,8 +823,8 @@ function roofSign(ctx, x, y) {
 }
 
 // The LED board on the terrace's front: what the machine is doing, in amber dots (waves.mjs `waveBoard`), red when a monster is on
-// its way. Redrawn only when the words change.
-function ledBoard(ctx, x, y) {
+// its way. Redrawn only when the words change. Its face at (x, y, z), facing -x, `width` × `height`; `frame`: its own dark box.
+export function ledBoard(ctx, { x, y, z = 0, width = 4.3, height = 0.74, frame = true }) {
   const { w } = ctx;
   if (typeof document === "undefined") return;
   const canvas = document.createElement("canvas");
@@ -795,10 +834,13 @@ function ledBoard(ctx, x, y) {
   const t = new THREE.CanvasTexture(canvas);
   t.colorSpace = THREE.SRGBColorSpace;
   w.textures.push(t);
-  w.box(0.16, 0.86, 4.6, 0x1b2b33, x + 0.06, y, 0, 0.05);
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(4.3, 0.74), new THREE.MeshBasicMaterial({ map: t }));
+  if (frame) w.box(0.16, height + 0.12, width + 0.3, 0x1b2b33, x + 0.09, y, z, 0.05);
+  const face = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, height),
+    new THREE.MeshBasicMaterial({ map: t }),
+  );
   face.rotation.y = -Math.PI / 2;
-  face.position.set(x - 0.03, y, 0);
+  face.position.set(x, y, z);
   w.scene.add(face);
   let said = "";
   const draw = (text, color) => {
@@ -844,7 +886,7 @@ function ledBoard(ctx, x, y) {
 // A red-and-white striped lighthouse tower at each end of the wave house, a lantern on top whose beacon turns and flashes red when a
 // monster wave is coming (and amber with the horn).
 function lighthouse(ctx, x, z) {
-  const { w, live } = ctx;
+  const { w } = ctx;
   const g = w.group(x, 0, z);
   const bands = 7,
     height = 9.2;
@@ -871,9 +913,15 @@ function lighthouse(ctx, x, z) {
   // A horn speaker on the lantern gallery, facing the pool.
   const horn = w.cyl(0.08, 0.32, 0.5, 0x9aa6ab, -1.0, height - 0.3, 0, g, 10);
   horn.rotation.z = Math.PI / 2;
-  // The beacon: a lamp and a soft cone of light that turns.
+  beacon(ctx, x, height + 0.65, z);
+}
+
+// A lighthouse's beacon at (x, y, z): a lamp and a soft cone of light that turns, fast and red when a monster wave is coming,
+// amber with the horn.
+export function beacon(ctx, x, y, z) {
+  const { w, live } = ctx;
   const beacon = new THREE.Group();
-  beacon.position.set(x, height + 0.65, z);
+  beacon.position.set(x, y, z);
   live.add(beacon);
   const lamp = new THREE.Mesh(
     new THREE.SphereGeometry(0.28, 12, 8),
@@ -1026,14 +1074,19 @@ function beach(ctx) {
     if (i % 3 === 0) starfish(w, x, z, rand() * TAU);
     else w.ball(0.05 + rand() * 0.03, i % 2 ? 0xfff0e0 : 0xf6c6b0, x, 0.02, z, w.scene, [1, 0.45, 1.2]);
   }
-  // Pennants from the lifeguard tower's roof out to the walls.
+  pennants(ctx);
+}
+
+// Pennants from the lifeguard tower's roof out to the walls (flapping in the wind), from the roof's height `top`.
+export function pennants(ctx, top = 3.7) {
+  const { w, venue } = ctx;
   const tower = venue.furniture.find((f) => f.kind === "lifeguard-tower");
   if (tower)
     for (const to of [
       [-14.8, 2.6, -9.6],
       [-14.8, 2.6, 9.6],
     ]) {
-      const { flags, line } = garland([tower.x - 0.2, 3.7, tower.z], to, {
+      const { flags, line } = garland([tower.x - 0.2, top, tower.z], to, {
         count: 12,
         size: 0.42,
         sag: 0.5,
@@ -1128,7 +1181,6 @@ function tubeHut(ctx) {
     p = venue.stations.fins,
     f = venue.furniture.find((x) => x.kind === "tube-hut") || { hx: 0.75, hz: 1.05 },
     g = w.group(p.x, 0, p.z),
-    count = venue.tubes ?? 5,
     wood = woodMaterial(w, "#a8743f", 7);
   for (const [dx, dz] of [
     [-f.hx, -f.hz],
@@ -1149,15 +1201,24 @@ function tubeHut(ctx) {
     m.castShadow = true;
     g.add(m);
   }
+  tubeStack(w, venue, { x: p.x + 0.15, y: 0.2, z: p.z });
+  const sign = w.textPlane("TUBES", 1.3, 0.4, "#1f9aa0", "#ffc93c", f.hx + 0.08, 1.85, 0, g, 56);
+  sign.rotation.y = Math.PI / 2;
+}
+
+// The tube hut's tubes, stacked from `foot` (one for each tube in the hut: `finPairs`, hidden as they are taken), its hit box and
+// label.
+export function tubeStack(w, venue, foot) {
+  const p = venue.stations.fins,
+    count = venue.tubes ?? 5,
+    g = w.group(foot.x, foot.y, foot.z);
   w.finPairs = [];
   for (let i = 0; i < count; i++) {
     const tube = tubeObject(w, i, 0.8);
-    tube.position.set(0.15, 0.2 + i * 0.25, ((i % 2) - 0.5) * 0.12);
+    tube.position.set(0, i * 0.25, ((i % 2) - 0.5) * 0.12);
     g.add(tube);
     w.finPairs.push(tube);
   }
-  const sign = w.textPlane("TUBES", 1.3, 0.4, "#1f9aa0", "#ffc93c", f.hx + 0.08, 1.85, 0, g, 56);
-  sign.rotation.y = Math.PI / 2;
   stationHit(w, { kind: "station", item: "fins" }, p, 2.4, 2.4, Math.PI / 2);
   w.labels.push({ text: "E · TUBE HUT", x: p.x, y: 2.8, z: p.z });
 }
@@ -1242,7 +1303,7 @@ function outside(ctx) {
 
 // The water is the one "lane": an invisible plane for clicks, and a highlight with a rim for the guidance (scene.mjs drives them
 // as `riverHighlight` and `riverRim`, as for the Lazy River's water).
-function pickVolume(ctx) {
+export function pickVolume(ctx) {
   const { w } = ctx,
     sizeX = WAVE.halfX * 2,
     sizeZ = ENDZ * 2;
