@@ -40,6 +40,8 @@ const TILE_ROUGH = {
   seats: 0.35,
   concrete: 0.85,
   walltile: 0.2,
+  pavers: 0.72,
+  malibu: 0.22,
 };
 const FLAT = { matte: [0.82, 0], satin: [0.5, 0], gloss: [0.22, 0], metal: [0.32, 1], leaf: [0.6, 0] };
 const WATER_Y = -0.25;
@@ -109,7 +111,8 @@ export function dressedVenue({ dir, file, label, horizon = null }) {
 }
 
 // Put the model into the world `w` with its materials, its lamps and glows and its horizon, lit as `look` says (`lamps`: how lit the
-// lanterns are, 0 by day; `clouds`: the drifting shade; `horizon`: its tint). `deckSet` is the tile set the deck's paint lies on.
+// lanterns are, 0 by day; `clouds`: the drifting shade; `horizon`: its tint). `deckSet` is the tile set the deck's paint lies on
+// (or a list of them: the Wave Pool's pavers and its beach).
 // `hour`: the venue's light slides with the game's hour (the Sunset Lagoon's golden hour into dusk, and its storms): the lamps
 // follow the hour's glow and the horizon takes the hour's light, every frame, instead of `look`'s fixed values.
 // Returns the model's root (the venue's module wires the game's live parts to it).
@@ -337,7 +340,7 @@ function makeMaterials(w, U, model, deckSet) {
         w,
         U,
         model,
-        { deck: set === deckSet },
+        { deck: [deckSet].flat().includes(set) },
       );
     } else if (base === "signs")
       m = venueShader(

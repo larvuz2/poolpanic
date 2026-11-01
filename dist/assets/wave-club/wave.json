@@ -1,0 +1,273 @@
+{
+ "made": "tools/venues/common/export_three.py -- tools/venues/wave",
+ "triangles": 169854,
+ "lights": [
+  {
+   "kind": "Torch",
+   "at": [
+    -2.3,
+    2.38,
+    -17.8
+   ]
+  },
+  {
+   "kind": "Torch",
+   "at": [
+    2.3,
+    2.38,
+    -17.8
+   ]
+  },
+  {
+   "kind": "Neon",
+   "at": [
+    10.35,
+    12.745,
+    0.339
+   ]
+  },
+  {
+   "kind": "Neon",
+   "at": [
+    10.35,
+    12.251,
+    -0.526
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    7.465,
+    1.6,
+    -9.425
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    7.465,
+    1.6,
+    -5.4
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    7.465,
+    1.6,
+    -1.8
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    7.465,
+    1.6,
+    1.8
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    7.465,
+    1.6,
+    5.4
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    7.465,
+    1.6,
+    9.425
+   ]
+  }
+ ],
+ "atlases": {
+  "atlas_signs": {
+   "size": 2048,
+   "images": 50,
+   "scale": 0.6
+  },
+  "atlas_cut": {
+   "size": 1024,
+   "images": 6,
+   "scale": 0.6
+  }
+ },
+ "ao": 1,
+ "paint": {
+  "size": 2048,
+  "x0": -15.6,
+  "z0": -17.0,
+  "span": 31.2
+ },
+ "anchors": {
+  "LifeRing": [
+   [
+    -14.85,
+    1.65,
+    -4.4
+   ],
+   [
+    -10.75,
+    1.65,
+    2.0
+   ],
+   [
+    -14.85,
+    1.65,
+    9.6
+   ]
+  ],
+  "Flashlight": [
+   [
+    3.4,
+    1.24,
+    -14.6
+   ]
+  ],
+  "Beacon": [
+   [
+    8.55,
+    10.8,
+    -9.75
+   ],
+   [
+    8.55,
+    10.8,
+    9.75
+   ]
+  ],
+  "BulbHigh": [
+   [
+    10.24,
+    11.97,
+    5.12
+   ]
+  ],
+  "BulbLow": [
+   [
+    10.24,
+    9.83,
+    -5.12
+   ]
+  ],
+  "Flag": [
+   [
+    11.4,
+    12.1,
+    -6.1
+   ],
+   [
+    11.4,
+    12.1,
+    -6.95
+   ],
+   [
+    11.4,
+    12.1,
+    -7.8
+   ],
+   [
+    11.4,
+    12.1,
+    6.1
+   ],
+   [
+    11.4,
+    12.1,
+    6.95
+   ],
+   [
+    11.4,
+    12.1,
+    7.8
+   ]
+  ],
+  "LED": [
+   [
+    7.415,
+    2.43,
+    0.0
+   ]
+  ],
+  "Surge": [
+   [
+    7.9,
+    -0.25,
+    -7.2
+   ],
+   [
+    7.9,
+    -0.25,
+    -3.6
+   ],
+   [
+    7.9,
+    -0.25,
+    0.0
+   ],
+   [
+    7.9,
+    -0.25,
+    3.6
+   ],
+   [
+    7.9,
+    -0.25,
+    7.2
+   ]
+  ],
+  "Tubes": [
+   [
+    -12.35,
+    0.2,
+    -11.5
+   ]
+  ]
+ },
+ "tiles": {
+  "pavers": 2.4,
+  "malibu": 0.6,
+  "sand": 2.2,
+  "glass_mosaic": 1.0,
+  "mosaic_band": 1.0,
+  "stucco": 2.5,
+  "teak": 1.2,
+  "boardwalk": 1.8,
+  "thatch": 1.2
+ },
+ "sharp": [
+  "malibu",
+  "pavers",
+  "sand",
+  "glass_mosaic"
+ ],
+ "meshes": [
+  "Door_A",
+  "Door_B",
+  "S_cut",
+  "S_glass",
+  "S_gloss",
+  "S_gloss_n",
+  "S_lamp",
+  "S_leaf",
+  "S_matte",
+  "S_matte_n",
+  "S_metal",
+  "S_metal_n",
+  "S_satin",
+  "S_satin_n",
+  "S_signs",
+  "S_tile_boardwalk",
+  "S_tile_glass_mosaic",
+  "S_tile_malibu",
+  "S_tile_mosaic_band",
+  "S_tile_pavers",
+  "S_tile_sand",
+  "S_tile_stucco",
+  "S_tile_teak",
+  "S_tile_thatch"
+ ]
+}

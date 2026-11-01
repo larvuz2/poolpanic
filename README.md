@@ -1233,6 +1233,79 @@ at the blue hour:
   in until it loads (after the Aquatic Centre's people, `loadOnsenClub`) and with `?nomodels`. Measured here with software drawing
   only: the frame rate on a real graphics card is not yet measured.
 
+**The Wave Pool dressed for real** (1 November 2026, `dist/scene/waveclub.mjs`; the creator: "Impress me with props and
+placements… extra focus on environment design… when I'm inside this venue, I can see, 'Wow… look at these details here, those
+details there. Everything looks aesthetic and good'… and of course lighting"). The next venue on the ladder, the same way, three.js
+only, its assets made by `tools/venues/wave/` with the shared kit: a 1960s surf park in the late-afternoon sun. Made the way an
+environment artist works: one landmark that owns the skyline (the wave house), props in readable clusters that each tell a small
+story, the density at the edges of play and the walks left calm and open, warm light against cool shade.
+- **Placed from the game's own plan**: `tools/venues/wave/plan.mjs` writes the basin, the floor's profile (`floorAt`), the five
+  chambers, the deck and room, the gate, the waiting rows, the towels the bathers rest on, the evacuation spots, the furniture,
+  stations and fixtures from `dist/waves.mjs`, `dist/scene/wave.mjs` and `dist/spatial.mjs` into the work folder, and every script
+  reads it. Nothing stands in anyone's way: the props live in the plan's furniture boxes, against the walls (the strips between the
+  deck and the walls), on the wave house's terrace and outside; `waveclub-check.mjs` casts rays to prove it (the queue, the
+  evacuation rows, the towels, the walks round the pool's ends, the boardwalk, the way in through the gate: nothing between 0.1 and
+  1.9 m; open water over the whole pool; every chamber open to its surge).
+- **The wave house**, the landmark: a streamline-moderne surf temple of cream stucco across the far side. The five chambers in arches
+  of glazed Malibu tile (stars and quatrefoils, cobalt, sunshine, coral and teal), coral keystones with their numbers, riveted
+  steel grilles, dark tunnels back into the machine, brass porthole lamps between them, DANGER: WAVE CHAMBER (NO SWIMMING IN HERE.
+  SERIOUSLY.) and WHEN THE SIREN SOUNDS, HOLD ON TO YOUR TRUNKS; the wall below the water in glass mosaic with the waterline band.
+  The terrace over them: a coral fascia with chrome speed lines and the machine's brass plate (WAVE-O-MATIC MK II · 1962), teak
+  decking, a chrome rail with life rings, the judges' booth under a striped canopy (three score cards: 10, 9.5 and 2; a megaphone,
+  binoculars, a clipboard, two director's chairs), a lifeguard's high chair under a red umbrella, two retro spotlights aimed at the
+  waves, potted palms, a rack of boards. The upper storey set back, its corners rounded with speed stripes wrapping round them,
+  portholes and vertical fins, and on its face the **mural** painted on fal (a smiling retro sun, a surfer and an octopus in
+  sunglasses riding a giant wave, a whale's tail, palms) framed in teal with lamps over it. Two red-and-cream lighthouse turrets on
+  the terrace's corners (galleries, rails, glass lanterns where the game's beacons turn, siren horns aimed at the pool), and on the
+  roof the WAVE POOL sign in brush script on its steel truss (the game's bulbs chase round it), a neon wave curl over it, six flag
+  poles, a water tank, vents. Its left end is the wave machine's: AUTHORISED STAFF ONLY · KNOCK LOUDLY on a steel door, two big
+  intake pipes with flanges, red valve wheels and a gauge (its needle in the red, WAVES), a ladder to the terrace, a yellow pipe
+  bridged over the walk to the water care's drum; the service yard behind it has pipes along its wall, a pegboard of tools,
+  chlorine tubs and a coiled hose.
+- **The ground**: a deck of sun-bleached coquina pavers (the classic's photograph, each paver its own warmth, shells and pits in
+  the stone, sandy joints) with Malibu borders along the coping and the walls and two tile **sun medallions** in the ends' decks
+  (WAVE POOL · EST. 1962 round a smiling sun); a boardwalk at the top of the beach; the beach and the pool's floor in one surface on
+  the game's profile, sand then aqua glass mosaic along the classic's wavy line, and a **giant octopus in tile** on the deep floor
+  (painted on fal, keyed into a cut-out: it waves up through the water); the ends tiled down to the floor with the waterline band,
+  the bullnose coping with its depth plaques and NO DIVING; the deck's paint over the pavers and the beach both (`deckSet` takes a
+  list since this venue): the wet sand at the water's edge, the wrack line of seaweed and shell bits, sand blown onto the pavers,
+  damp patches where the bathers walk out and under the showers, grime at the walls' feet. The walls: a low capped wall on the near
+  side (little pots along its top), **breeze-block screens** at the ends (stucco piers with sun-yellow balls, a Malibu base course),
+  the service yard's solid wall; the surf gate (streamline pylons with speed stripes, the SURF GATE arch board, slatted teak leaves
+  the game swings: `Door_A`/`Door_B`).
+- **The gameplay furniture**, each on its hit box: the lifeguard tower (white legs, a sky-blue clapboard hut, LIFEGUARD and a red
+  cross, today's flag board with the chalk tick always on WAVES, a rescue can, binoculars, the ring's board between its front
+  legs); the tube hut, thatched, the game's tubes stacked on a **ring-toss peg** (its back open and its roof's near eave short, so
+  the overview's camera sees the stack), its rules chalkboard (NO SITTING ON THE DUCK), a bell, a foot pump, a patch kit and one
+  sad deflated tube over the rail; the Surf Shack (a striped awning, shave ice, three syrups, a till, a coconut cup, leis, a chalk
+  menu in cents: A TUBE · ASK THE COACH; the game's treats on its counter); WATER CARE (a blue drum, a pH can, a test kit) and EYE
+  CARE (a chrome beach shower, a green eyewash, a slatted grate); the near wall's ring boards, fish net board (FOR FISH. NOT
+  OCTOPUSES.) and skimmer board; the waste bin, a fat teal fish with its mouth open (FEED ME); the torch's striped bollard; the fuse
+  box's conduits.
+- **The stories in the corners**: each of the five towels with its owner's things on the boardwalk side (a paperback face down and
+  sunglasses; a tote, sunscreen and a sun hat; a boombox and a soda; a snorkel mask; a bucket and spade); the **sandcastle**, the
+  wave house itself in sand with paper flags and a crab in sunglasses on its terrace; beach balls, shells, starfish, a message in a
+  bottle in the wrack line; fringed umbrellas and striped deck chairs with a towel, a straw hat or a cocktail; along the right wall
+  three beach showers, the **surf report** (TODAY: WAVES · TOMORROW: ALSO WAVES · WATER: WET · OCTOPUS: FRIENDLY), YOU MUST BE THIS
+  TALL TO SURF on a grinning shark, SPF 9000, the **Hall of Wipeouts** (snapshots of splashes: TED '62, THE DUCK, MARCO?!, COACH
+  '65), the lost & found (we only ever find one flip-flop) and a clutch of boards; along the left wall the rules (5. THE OCTOPUS IS
+  NOT A LIFEGUARD), a chrome drinking fountain, a bench with a towel and a radio, the surf rack (six boards, each deck its own) and a
+  clock; outside, palm groves on the sand, sea grape and hibiscus, bougainvillea against the screens, tiki torches by the gate, a
+  ticket kiosk, three beach cruisers, a two-tone camper van with boards on its roof, a sandwich board, a hammock slung between two
+  palms, a volleyball court; and round three sides the **painted horizon** (fal: a surf town of pastel bungalows, a chapel and a
+  water tower under green volcanic peaks with a waterfall), the near side the game's own sea, lighthouse and boats.
+- **What moves stays the game's** (`dist/scene/wave.mjs`, split for it: `waveContext`, `water`, `surges`, `ledBoard`, `beacon`,
+  `signBulbs`, `flags`, `pennants`, `tubeStack`, `pickVolume`, `waveLife`), placed at the model's **anchors**: an object named
+  `Anchor_<Name>` is left out of the model and its centre recorded (`export_three.py`, since this venue: `info.anchors.<Name>`),
+  so the surges sit in their chambers, the LED board's words on its frame, the beacons in the lanterns, the bulbs round the sign,
+  the flags on their poles and the tubes on their peg wherever the model puts them. Its light (`WAVE_LOOKS`): a low warm sun from
+  behind the beach raking across the deck and gilding the wave house's face, long palm shadows, cool sky in the shade, slow clouds.
+- **Cost**: about 170k triangles in a 6 MB GLB, its pictures 1.6 MB (`dist/assets/wave-club/`; the classic's photographs stay in
+  `dist/assets/wave/`); 349 draw calls headless against the classic Wave Pool's 423 (78 against 131 drawn in the shift's first
+  frame here). `waveclub-check.mjs` holds it to the classic's hit boxes and labels, to its placements and to its budget; the
+  classic Wave Pool stands in until it loads (after the Mountain Hot Springs, `loadWaveClub`) and with `?nomodels`. Measured here
+  with software drawing only: the frame rate on a real graphics card is not yet measured.
+
 - **Grand Gala Arena** (`dist/scene/arena.mjs`, `crowd.mjs`): a stage with an LED screen and a chasing-light marquee, a rotating trophy, three grandstands of instanced spectators who cheer on every save, scrolling LED ribbons, a hanging scoreboard cube that shows the live score, time and stars, two sweeping spotlight rigs with floor decals, balloons and confetti cannons.
 - **Aquatic Centre** (`dist/scene/aquatic.mjs`, 16 October 2026): an indoor competition pool. The pool builder takes a dress (`buildPool`'s second options: tiles, lane lines, rope colours, block tops, pennants), here deep-blue tiles with black lines, red, white and blue racing ropes and navy blocks on a white deck; an electronic timing board on the back wall (five named lanes, their times running with the shift's clock, MARCO in orange) between two pace clocks, a row of club flags, blue grandstands with a crowd on two sides (a third for the Coach Cam), scrolling LED ribbons, a victory podium, the officials' table with timing screens, a team bench, and painted lane numbers. Its light is `LIGHTING.aquatic`, cool daylight with the underwater lamps on; its hall (glass walls, a white steel lattice roof, banners, bunting) is for the Coach Cam. `?pool=aquatic` (any pool id) plays every shift of the week there, for a look or a test.
 - **Aqua Disco** (`dist/scene/disco.mjs`, 16 October 2026; the classic one, until the dressed disco below loads): a party pool built from scratch, every light on the routine's beat (`danceAt`, the shift's clock). A dark checkered deck, a glowing purple pool with no lines or ropes and a rim of LED tiles chasing round it in rainbow colours, a dark hall with AQUA DISCO banners, the back wall with its neon sign and equaliser over the entrance (a double door with a neon frame and porthole windows, whose leaves swing open as someone comes or goes), eight coloured spotlights sweeping the water left and right, sparkles, three laser emitters, a turning mirror ball, four speakers whose cones pump, a DJ booth with spinning records and a nodding DJ, a juice bar, and the stage: a round disc that pulses, a ring of bulbs chasing round an arch, and Valentina dancing (a classic figure with the same moves until her model is in). Its light is `LIGHTING.disco`, dark purple with the water glowing. A blackout dims all of it. With reduced motion every light holds still at one steady glow (no sweeping, no flashing).
@@ -1806,6 +1879,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/scene/splashpark.mjs`, `dist/assets/splash/`, `tools/venues/splash/` | Splash Park dressed for real ("Splash Park dressed for real", above): the model's loading, its materials (caustics, the deck's paint and contact shadows, the lamps' light after dusk, the clouds' shade by day), its own light at each hour (`SPLASH_LOOKS`), the horizon, the game's own parts round it; the scripts that make it; the classic park (`scene/resort.mjs`) stands in until it loads |
 | `dist/scene/dressed.mjs`, `tools/venues/common/` | What every dressed venue shares: the model's loading, the venue's shader (caustics, the deck's paint and contact shadows, the lamps' light after dusk, the clouds' shade), the classes' materials, the glows, the painted horizon; the Blender kit, textures, trees, exporter, pack and horizon keying |
 | `dist/scene/onsenclub.mjs`, `dist/assets/onsen-club/`, `tools/venues/onsen/` | The Mountain Hot Springs dressed for real ("The Mountain Hot Springs dressed for real", above): the terrace, the springs' basins and stones, the bathhouse, the garden and the stations round what moves (scene/onsen.mjs), placed from the game's own plan (`plan.mjs`); the classic springs stand in until it loads |
+| `dist/scene/waveclub.mjs`, `dist/assets/wave-club/`, `tools/venues/wave/` | The Wave Pool dressed for real ("The Wave Pool dressed for real", above): the wave house, the deck and beach, the stations and the stories round what moves (scene/wave.mjs, placed at the model's `Anchor_` places), from the game's own plan (`plan.mjs`); the classic Wave Pool stands in until it loads |
 | `dist/scene/aquaticclub.mjs`, `dist/assets/aquatic/`, `tools/venues/aquatic/` | The Aquatic Centre dressed for real ("The Aquatic Centre dressed for real", above): the hall round the game's board, clocks, flags and crowd; the scripts that make it; the classic hall stands in until it loads |
 | `dist/scene/crowd-models.mjs`, `dist/assets/crowd/`, `tools/blender/crowd_bake.py` | The crowd of Meshy spectators (`ModelCrowd`): five bodies baked sitting and cheering, 450 triangles a pose, instanced, each shirt its own colour; the dressed Aquatic Centre's stands |
 | `dist/scene/officials.mjs`, `dist/assets/models/official-*.glb` | The Aquatic Centre's Chief Judge and Starter, seated at the officials' table on their clips (JudgeWatch, StarterGlare) |
@@ -1989,6 +2063,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node harbourside-check.mjs` | The Harbourside: its files there and within budget (the model under 10 MB and 260k triangles, the pictures under 2 MB, every picture used, the textured meshes keeping their UVs), the classic pool until it is in, then the same hit boxes and labels as the classic pool, the fins going as they are rented, the doors swinging, the near wall for the Coach Cam only, fewer draw calls than the classic pool |
 | `node splash-check.mjs` | Splash Park dressed for real: its files within budget (the model under 10 MB and 230k triangles, the pictures under 2 MB, every picture used, the textured meshes' UVs kept as floats), the classic park until it is in, then the same hit boxes and labels as the classic park at day, sunset and night, the fins, rings, trampoline bed and medkit at work, the doors in the hotel's front swinging out onto the deck, no lockers, the Sunset Lagoon not taking Splash Park's model, fewer draw calls than the classic park |
 | `node onsenclub-check.mjs` | The Mountain Hot Springs dressed for real: its files within budget (under 10 MB and 200k triangles, the pictures under 2 MB, every picture used, float UVs), the classic springs until it is in, then the same hit boxes and labels, the rings on the model's boards, the torch on its post at 1.24 m, a rock of the model over every boulder the walks go round and open water in every spring's middle, the net, skimmer and fuse lever, the four springs to click, the steam, snow, curtain, spout and flames, fewer draw calls than the classic springs |
+| `node waveclub-check.mjs` | The Wave Pool dressed for real: its files within budget (under 10 MB and 200k triangles, the pictures under 2.2 MB, every picture used, float UVs), the classic Wave Pool until it is in, then the same hit boxes and labels, the anchors (a surge in every chamber at the water, the LED board over the middle one, two beacons, the flags and bulbs, the torch at 1.24 m, the tubes' peg in the tube hut), nothing between 0.1 and 1.9 m over the queue, the evacuation spots, the towels and the walks round the pool, open water over the whole pool and every chamber open, the rings, net, skimmer, fuse lever, the tubes and the gate's leaves, fewer draw calls than the classic |
 | `node aquaticclub-check.mjs` | The Aquatic Centre dressed for real: its files within budget (under 10 MB and 200k triangles, every picture used, float UVs), the classic hall until it is in, then the same hit boxes and labels, the fins, rings, fish net, torch, fuse and pool lamps, the club flags and the timing board on the wall's face, the roof and near stand hidden from the overview and shown to the Coach Cam without shadows, the changing rooms' doors in the timing wall swinging out onto the deck, the crowd's files (five spectators, UVs kept, at most 500 triangles a pose, under 600 KB) and its instanced meshes cheering, the officials' clips and skins and their seats behind the table, fewer draw calls than the classic hall |
 | `node discoclub-check.mjs` | The Aqua Disco dressed for real: its files within budget (under 10 MB and 200k triangles, the pictures under 2 MB, every picture used, float UVs), the classic disco until it is in, then the same hit boxes and labels, the fins, rings, fish net, torch, fuse and pool lamps, the spots sweeping to the beat, the ceiling and near wall hidden from the overview and shown to the Coach Cam without shadows, the entrance's leaves swinging out onto the deck, fewer draw calls than the classic disco |
 | `node lagoon-check.mjs` | The Sunset Lagoon dressed for real: its files within budget (the model under 10 MB and 200k triangles, the pictures under 2 MB, every picture used, float UVs), its torches, lanterns and bonfire, the classic lagoon until it is in, then the same hit boxes and labels as the classic lagoon, the fins, rings, torch and sky, the horizon kept off the sea side, the lamps out at golden hour and lit at dusk, out in a power cut, the horizon dimming at dusk and in a storm, the doors in the beach house's wall swinging out onto the deck, fewer draw calls than the classic lagoon |

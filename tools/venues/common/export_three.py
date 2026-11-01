@@ -11,7 +11,8 @@ an open-air venue lit at any hour needs. Made for Splash Park (30 October 2026),
   becomes `tile_<set>` with world-box UVs at the set's scale (kit.TILES), tinted by its `@rrggbb` if it has one; the signs share one atlas, the cut-outs (palm fronds,
   flowers: alpha-tested, two-sided, casting dappled shadows) another.
 - Keeps as their own nodes what the game moves: the cabanas' doors (Door_A, Door_B), the fins on the rack (Fins_1..3).
-- Leaves out what the game draws itself and records where it was: the life rings (anchors.LifeRing), the torch (anchors.Flashlight).
+- Leaves out what the game draws itself and records where it was: the life rings (anchors.LifeRing), the torch (anchors.Flashlight),
+  and any object named `Anchor_<Name>` (anchors.<Name>: a place a venue's module puts one of the game's moving parts).
 - Bakes the paint on the deck (floor.glb: lane numbers, the splash zone's board, NO RUNNING) into one top-down picture, and the
   ambient occlusion: into the alpha of the props' vertex colours, and from above onto the deck (`floor_ao.png`; contact shadows
   only, which the game applies to its ambient light: the sun's shadows are the game's own, at every hour).
@@ -34,7 +35,7 @@ AO = int(os.environ.get("VENUE_AO", os.environ.get("SPLASH_AO", "1")))
 AO_SAMPLES = int(os.environ.get("VENUE_AO_SAMPLES", os.environ.get("SPLASH_AO_SAMPLES", "48")))
 # (asset -> what is left of its triangles, for a dense prop: the venue's, or the environment's)
 DECIMATE = json.loads(os.environ.get("VENUE_DECIMATE", "null") or "null") or getattr(kit, "DECIMATE", {})
-DROP = re.compile(r"^(LifeRing|Flashlight)(\.\d+)?$")
+DROP = re.compile(r"^(LifeRing|Flashlight|Anchor_[A-Za-z]+)(\.\d+)?$")
 # the longest side a sign or cut-out keeps in its atlas (others: as large as the atlas allows, up to 512)
 ATLAS_SIZE = getattr(kit, "ATLAS_SIZE", {})
 
@@ -87,7 +88,9 @@ for o, asset in items:
     world = o.matrix_world.copy()
     centre = sum((world @ Vector(b) for b in o.bound_box), Vector()) / 8
     if DROP.match(n):
-        anchors["LifeRing" if n.startswith("LifeRing") else "Flashlight"].append(game(centre))
+        key = n.split(".")[0]
+        key = key[len("Anchor_") :] if key.startswith("Anchor_") else key
+        anchors.setdefault(key, []).append(game(centre))
         bpy.data.objects.remove(o)
         continue
     o.parent = None
