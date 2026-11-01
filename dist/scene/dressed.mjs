@@ -46,6 +46,12 @@ const TILE_ROUGH = {
   marble: 0.25,
   brick: 0.85,
   gravel: 0.95,
+  mosaic: 0.18,
+  granite: 0.2,
+  bronze: 0.38,
+  linen: 0.9,
+  rattan: 0.8,
+  zellige: 0.15,
 };
 const FLAT = { matte: [0.82, 0], satin: [0.5, 0], gloss: [0.22, 0], metal: [0.32, 1], leaf: [0.6, 0] };
 const WATER_Y = -0.25;
