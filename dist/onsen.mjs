@@ -84,8 +84,8 @@ export function createOnsen(sim) {
 }
 
 // A new guest at the springs: no fins, no cramps (nobody swims laps), warm from the bathhouse. A soaker: their tag says Hot tub,
-// never a swimmer's Beginner, Intermediate or Pro (2 November 2026, the creator: "they're not going to swim. They're just going to
-// chill": sim.mjs swimmerLook).
+// never a swimmer's Beginner, Intermediate or Pro, Marco's neither (2 November 2026, the creator: "they're not going to swim.
+// They're just going to chill"; "marco too, hot tub! no swimming in mountain springs!! only relaxing!!": sim.mjs swimmerLook).
 export function onsenSpawn(sim, p) {
   // (No trampoline up here: a daredevil a level writes in comes for a soak like anyone.)
   if (p.type === "daredevil") p.type = "intermediate";

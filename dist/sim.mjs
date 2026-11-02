@@ -115,6 +115,8 @@ export const FREE_PLAY_SCALE = (level) => FREE_PLAY[Math.max(1, Math.min(FREE_PL
 // How a swimmer shows in the queue and over their head: their type, or a golden VIP crown.
 export function swimmerLook(p) {
   const t = TYPES[p.type];
+  // (Nobody swims at the Mountain Hot Springs, Marco neither: he comes to relax, and his tag says so too.)
+  if (p.star && p.soaker) return { ...t, icon: "♨️", label: "VIP · Hot tub", color: "#e9a92b" };
   if (p.star) return { ...t, icon: "🚀", label: "VIP · The Missile", color: "#e9a92b" };
   // (A guest who only comes for the hot water is tagged Hot tub, never Beginner, Intermediate or Pro: the Jumping Pool's hot tub
   // guests, dive.mjs, and every guest at the Mountain Hot Springs, onsen.mjs. And the Jumping Pool's show-off, who says they are a
@@ -1068,7 +1070,9 @@ export class PoolSimulation extends ChaosController {
             (this.config.star.title || p.name) +
             (this.venue.class
               ? " joins the class! 🚀 Find him a zone with room to dance."
-              : " is here! 🚀 The fastest VIP in town: give him a clear lane."),
+              : this.venue.onsen
+                ? " is here to relax! ♨️ No swimming today: find him a warm spring."
+                : " is here! 🚀 The fastest VIP in town: give him a clear lane."),
         });
       else if (!this.vipIntro) {
         this.vipIntro = true;

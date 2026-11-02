@@ -341,7 +341,8 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   the water at closing), then out by the steps and home. A full spring refuses another guest; a settled guest stays put. Nobody
   swims here, so **every guest's tag says ♨️ Hot tub** (VIP · Hot tub for a VIP), never Beginner, Intermediate or Pro, as the
   Jumping Pool's hot tub guests' (2 November 2026, the creator: "they're not going to swim. They're just going to chill";
-  `p.soaker`, `swimmerLook`; Marco keeps his own). **The
+  `p.soaker`, `swimmerLook`), Marco's too (the creator: "marco too, hot tub! no swimming in mountain springs!! only relaxing!!":
+  VIP · Hot tub, and his toast says he is here to relax, no clear lane). **The
   cold**: waiting in the snow a guest grows colder by the second (`p.cold`, 0 to 1 in 24 s, `SOAK.coldFull`); past 0.3 it bites
   (`coldPenalty`: up to 1.5 mood a second more, a VIP 1.3 times) and they hug themselves, shivering (the ColdHug clip: the five
   swimmers and Marco); in the hot water they warm up again. **The snow monkeys** (`MONKEY`, their own random stream, `onsenRandom`):

@@ -5,7 +5,7 @@
 // the coach slides… the same incidents").
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { PoolSimulation, SHIFTS, swimmerLook } from "./dist/sim.mjs";
+import { PoolSimulation, SHIFTS, swimmerLook, MARCO } from "./dist/sim.mjs";
 import { VENUES } from "./dist/spatial.mjs";
 import {
   SPRINGS,
@@ -174,6 +174,17 @@ const monkey = (s, until) => {
     const look = swimmerLook(q);
     assert.equal(look.label, q.vip ? "VIP · Hot tub" : "Hot tub", q.name + "'s tag");
     assert.ok(look.icon === "♨️" || q.vip);
+  }
+  // Marco too: he comes to relax, never to swim (his tag VIP · Hot tub, his toast no clear lane).
+  {
+    const marco = { ...guests[0], star: true, vip: true, soaker: true };
+    assert.equal(swimmerLook(marco).label, "VIP · Hot tub", "Marco's tag at the springs");
+    assert.equal(swimmerLook(marco).icon, "♨️");
+    assert.equal(
+      swimmerLook({ ...marco, soaker: false }).label,
+      "VIP · The Missile",
+      "his own tag in a pool",
+    );
   }
   const extra = waiting(s, until);
   assert.equal(send(s, extra, k), false, "a full spring refuses another");
@@ -501,6 +512,33 @@ const monkey = (s, until) => {
     b = play();
   assert.equal(a.score, b.score, "the same score");
   assert.deepEqual(a.stats, b.stats, "the same shift");
+}
+
+// 7b) Marco at the springs: in a whole shift he arrives as a soaker, tagged VIP · Hot tub, and his toast asks for a warm spring, not
+// a clear lane.
+{
+  const bot = new CoachBot(8, 3, {
+    config: { ...SHIFTS[7], venue: "onsen", chaos: [], twist: [], sickRate: 0, star: { ...MARCO, at: 0 } },
+  });
+  const s = bot.s;
+  s.start();
+  s.onsen.nextMonkey = Infinity;
+  const toasts = [];
+  let marco = null;
+  for (let i = 0; i < 60 * 120 && !marco; i++) {
+    s.tick(1 / 60);
+    for (const e of s.events) if (e.type === "toast") toasts.push(e.text);
+    s.events.length = 0;
+    marco = s.people.find((q) => q.star);
+  }
+  assert.ok(marco, "Marco comes for a soak");
+  assert.equal(marco.soaker, true);
+  assert.equal(swimmerLook(marco).label, "VIP · Hot tub", "Marco's tag at the springs");
+  const toast = toasts.find((t) => t.includes(MARCO.title));
+  assert.ok(
+    toast && /relax/.test(toast) && !/lane/.test(toast),
+    "Marco's toast: relaxing, no lane (" + toast + ")",
+  );
 }
 
 // 8) In the week's draw like every pool; Marco comes for a soak; its song, stings and saves; its props and pictures on disk.
