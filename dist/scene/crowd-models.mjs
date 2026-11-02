@@ -140,8 +140,14 @@ const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 const FORWARD = 0.37; // metres from the classic crowd's spot to where the feet go, sitting on the seat (scene/aquatic.mjs stands)
 
 export class ModelCrowd {
-  // `seats` are { x, y, z, ry } (y is where the feet are, ry the way they face), as for the classic Crowd.
-  constructor(w, parent, seats, { seed = 1, scale = 1, waveAxis = "z" } = {}) {
+  // `seats` are { x, y, z, ry } (y is where the feet are, ry the way they face), as for the classic Crowd; `shirts` and `flags` the
+  // venue's own colours (the Grand Gala Arena's evening clothes and gold flags), the Aquatic Centre's by default.
+  constructor(
+    w,
+    parent,
+    seats,
+    { seed = 1, scale = 1, waveAxis = "z", shirts = SHIRTS, flags = FLAGS } = {},
+  ) {
     const M = ready;
     this.seats = seats;
     this.waveAxis = waveAxis;
@@ -155,13 +161,13 @@ export class ModelCrowd {
       return {
         kind,
         slot: counts[kind]++,
-        shirt: SHIRTS[Math.floor(rand() * SHIRTS.length)],
+        shirt: shirts[Math.floor(rand() * shirts.length)],
         phase: rand() * 6.28,
         size: (0.93 + rand() * 0.12) * scale,
         turn: (rand() - 0.5) * 0.5,
         eager: 0.4 + rand() * 0.6,
         holds: prop < 0.3 ? "flag" : prop < 0.4 ? "finger" : null,
-        flag: FLAGS[Math.floor(rand() * FLAGS.length)],
+        flag: flags[Math.floor(rand() * flags.length)],
         pose: -1,
       };
     });

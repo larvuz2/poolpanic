@@ -58,6 +58,13 @@ const TILE_ROUGH = {
   stucco: 0.88,
   rooftile: 0.8,
   awning: 0.8,
+  decoband: 0.2,
+  nero: 0.12,
+  velvet: 0.85,
+  carpet: 0.95,
+  goldleaf: 0.32,
+  walnut: 0.35,
+  damask: 0.6,
 };
 const FLAT = { matte: [0.82, 0], satin: [0.5, 0], gloss: [0.22, 0], metal: [0.32, 1], leaf: [0.6, 0] };
 const WATER_Y = -0.25;

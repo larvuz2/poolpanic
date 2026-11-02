@@ -604,8 +604,8 @@ function massageObstacle(t) {
 }
 // No cabanas and no lockers (31 October 2026, the creator: "Remove the lockers and just put doors within the wall"): the
 // changing rooms' doors stand flush in the building's front along the back (its face at z -16.12), crossed along z as the
-// Community Pool's are. Splash Park (its hotel), the Sunset Lagoon (its beach house) and the Aquatic Centre (its timing wall); the
-// Arena keeps the plan's locker rooms.
+// Community Pool's are. Splash Park (its hotel), the Sunset Lagoon (its beach house), the Aquatic Centre (its timing wall) and the
+// Grand Gala Arena (its stage's wall, since 2 November 2026).
 const WALL_DOORS = {
   doors: { insideX: 10.7, doorX: 10.7, doorZ: -14.27, outsideX: 10.7, insideZ: -15.97 },
   doorWord: "a changing-room door",
@@ -639,6 +639,8 @@ export const ARENA = makeVenue({
   indoor: true,
   lighting: "gala",
   fixtures: { ...RESORT_SPEC.fixtures, massage: MASSAGE_TABLE },
+  // (no locker rooms since 2 November 2026: the changing rooms' doors are in the stage's wall, WALL_DOORS)
+  ...WALL_DOORS,
 });
 
 // The Aquatic Centre (16 October 2026): an indoor competition pool for serious swimmers. Splash Park's floor plan (the same five
