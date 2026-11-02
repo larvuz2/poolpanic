@@ -30,7 +30,7 @@ band on the pool's walls aligned to the tiles' grid); the teak's boards staggere
 | The garden | `props_garden.py` | the hedges, the gates' posts and rose arches, flower beds, trees, the clubhouse (its roof, colonnade, windows, awnings, clock, flagpole, the founder's portrait, the posters), the terrace, the croquet lawn |
 | The stories | `props_stories.py` | the CHICKEN-OUT ZONE, the judges' table, the SPLASH-O-METER, the HALL OF FAME, the poncho stand, the posters and rules by the gates, the peacocks and the ducks |
 | Export | `../common/export_three.py -- tools/venues/dive` | one mesh per material class, the sign and cut-out atlases, the floor's paint and occlusion, `dive.json` |
-| Pack | `VENUE_VP=16 ../common/pack.sh dive dist/assets/dive-club` | `dist/assets/dive-club/` |
+| Pack | `../common/pack.sh dive dist/assets/dive-club` | `dist/assets/dive-club/` |
 
 The pictures made once on fal, kept in `$DIVE_GEN` (default the work folder's `gen/`; their links expire, so the results live in
 the model's pictures). The materials and the art with `fal-ai/nano-banana-2.1` (2K):

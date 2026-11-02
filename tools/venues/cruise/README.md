@@ -34,7 +34,7 @@ normal map from its own relief.
 | The ship | `props_ship.py` | the superstructure's tiers, the café's front (doors, sconces: `Light_Sconce`, the awning, SUNSET BUFFET), the fuse locker, the screen's frame and speakers, SAIL-AWAY CINEMA and the belly flop banner, the ship's name, the bridge and its navigation lights, the mast, radome and halyards, the funnel and its crest, the lifeboats on their davits, the festoons (`Light_Festoon`) |
 | The deck | `props_deck.py` | the Lido Bar (`Light_Kiosk`), the hot tub, WATER CARE, EYE CARE, the fin rack (`Fins_1..3`), the rescue bench, the first aid locker, the skimmer's board and the waste bin, the rings' boards (`LifeRing`), the net's board, the binnacle (`Flashlight`), the treats' table, the life jacket chests, the towel cart, the planters and palms, the furled umbrellas, and the stories at the edge of play |
 | Export | `../common/export_three.py -- tools/venues/cruise` | one mesh per material class, the sign and cut-out atlases, the floor's paint and occlusion, `cruise.json` |
-| Pack | `VENUE_VP=16 ../common/pack.sh cruise dist/assets/cruise-club` | `dist/assets/cruise-club/`; `sky.jpg` is the horizon's picture resized (`convert horizon.png -resize 4096x1016 -quality 88`) |
+| Pack | `../common/pack.sh cruise dist/assets/cruise-club` | `dist/assets/cruise-club/`; `sky.jpg` is the horizon's picture resized (`convert horizon.png -resize 4096x1016 -quality 88`) |
 
 The pictures made once on fal, kept in `$CRUISE_GEN` (default the work folder's `gen/`; their links expire, so the results live
 in the model's pictures). The materials, the horizon and most of the art with `fal-ai/nano-banana-2.1`:

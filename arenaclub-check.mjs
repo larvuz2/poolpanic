@@ -151,7 +151,9 @@ for (const u of world.updaters) u(3.0, 0.016, world, null);
 assert.notEqual(trophy.rotation.y, turned, "the trophy turns");
 // the Coach Cam's: the vault and the near stand, the game's near crowd, scoreboard, rigs and balloons
 const coachMeshes = [];
-root.traverse((o) => o.isMesh && /^C_/.test(o.parent?.name || o.name) && coachMeshes.push(o));
+root.traverse(
+  (o) => o.isMesh && (/^C_/.test(o.name) || /^C_/.test(o.parent?.name || "")) && coachMeshes.push(o),
+);
 assert.ok(coachMeshes.length > 3, "the roof's meshes");
 const near = world.scene.getObjectByName("arena-near");
 assert.ok(

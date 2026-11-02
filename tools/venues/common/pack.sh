@@ -17,9 +17,13 @@ mkdir -p "$OUT"
 # (every picture but the horizon, which is made once by the venue's horizon.sh)
 find "$OUT" -name "*.webp" ! -name "horizon.webp" -delete
 
-# (positions quantized to VENUE_VP bits over each mesh's bounds, 14 by default: a venue whose class meshes run out into a wide
-# garden, its pictures a few mm in front of their boards, asks for 16, or the steps outgrow the gap)
-npx --yes gltfpack@1.3.0 -i "$WORK/out/$NAME.raw.glb" -o "$OUT/$NAME.glb" -kn -km -kv -vtf -vp "${VENUE_VP:-14}"
+# (positions as floats, exact, since 2 November 2026: gltfpack quantizes every mesh on one shared grid as wide as the venue's widest
+# mesh (a ground running 280 m out to the horizon made it 17 mm at 14 bits, 4 mm at 16), so an inlay, a band or a picture a few mm
+# over its surface fell onto it and the two fought for the pixels (the Kids Pool's z-fighting). VENUE_VP=<bits> quantizes again,
+# but venue-precision-check.mjs holds every dressed venue to floats.)
+VP="-vpf"
+[ -n "${VENUE_VP:-}" ] && VP="-vp $VENUE_VP"
+npx --yes gltfpack@1.3.0 -i "$WORK/out/$NAME.raw.glb" -o "$OUT/$NAME.glb" -kn -km -kv -vtf $VP
 cp "$WORK/out/$NAME.json" "$OUT/$NAME.json"
 
 webp() { # webp <in> <max size> <quality> <out> [extra convert options]

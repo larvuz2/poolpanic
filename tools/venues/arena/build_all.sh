@@ -22,4 +22,4 @@ blender -b -P "$HERE/arena_textures.py"
 "$PY" "$HERE/signs.py"
 for s in shell props_stations props_doors props_gala; do blender -b -P "$HERE/$s.py"; done
 blender -b -P "$COMMON/export_three.py" -- "$HERE"
-VENUE_VP=16 "$COMMON/pack.sh" arena "$REPO/dist/assets/arena-club"
+"$COMMON/pack.sh" arena "$REPO/dist/assets/arena-club"

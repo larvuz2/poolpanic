@@ -23,5 +23,4 @@ blender -b -P "$HERE/river_textures.py"
 # (shell.py first: it writes the ruin's bays, which props_deck.py reads)
 for s in shell props_river props_deck garden; do blender -b -P "$HERE/$s.py"; done
 blender -b -P "$COMMON/export_three.py" -- "$HERE"
-# (16-bit positions: the jungle floor runs 70 m out and the signs sit millimetres in front of their boards)
-VENUE_VP=16 "$COMMON/pack.sh" river "$REPO/dist/assets/river-club"
+"$COMMON/pack.sh" river "$REPO/dist/assets/river-club"

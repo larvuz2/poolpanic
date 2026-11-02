@@ -21,5 +21,4 @@ blender -b -P "$HERE/senior_textures.py"
 "$COMMON/horizon.sh" "$GEN/horizon.png" "$REPO/dist/assets/senior-club/horizon.webp"
 for s in shell props_stations props_decor garden; do blender -b -P "$HERE/$s.py"; done
 blender -b -P "$COMMON/export_three.py" -- "$HERE"
-# (16-bit positions: the garden runs 70 m out and the pictures sit 3 mm in front of their boards)
-VENUE_VP=16 "$COMMON/pack.sh" senior "$REPO/dist/assets/senior-club"
+"$COMMON/pack.sh" senior "$REPO/dist/assets/senior-club"

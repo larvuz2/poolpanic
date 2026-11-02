@@ -20,7 +20,7 @@ Aquatic Centre's Meshy spectators in their evening clothes (`dist/scene/crowd-mo
 | The doors | `props_doors.py` | the changing rooms' doors in the stage's wall (`Door_A`, `Door_B`): stepped gold-leaf frames, walnut leaves with a brass sunburst, GENTLEMEN and LADIES, a marquee, velvet ropes; the first-aid cabinet |
 | The gala | `props_gala.py` | the CHAMPAGNE BAR, the floral urns, the ice swan, the VIP chaises and the champagne stand, the confetti cannons, the flamingo's memorial, the winner's lectern, the PRESS pen and the TV jib, the orchestra pit, the royal box, the coaches' tunnel |
 | Export | `../common/export_three.py -- tools/venues/arena` | one mesh per material class (the ceiling's apart, `C_<class>`: kit.COACH_PARTS), the atlases, the floor's paint and occlusion, `arena.json` |
-| Pack | `VENUE_VP=16 ../common/pack.sh arena dist/assets/arena-club` | `dist/assets/arena-club/` |
+| Pack | `../common/pack.sh arena dist/assets/arena-club` | `dist/assets/arena-club/` |
 
 Everything is modelled in game coordinates (`kit.py`: the plan, the palette, the tile sets). `arenaclub-check.mjs` holds the result
 to the classic arena's hit boxes and labels and to its budget.

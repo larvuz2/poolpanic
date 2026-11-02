@@ -14,7 +14,9 @@ OUT="${1:-$REPO/dist/assets/club}"
 TEX="$HERE/assets/textures"
 mkdir -p "$OUT"
 
-npx --yes gltfpack@1.3.0 -i "$WORK/harbourside.raw.glb" -o "$OUT/harbourside.glb" -kn -km -kv -vtf
+# (positions as floats, exact: quantized on one grid as wide as the widest mesh, a few mm decal fell onto its surface and
+# flickered; venue-precision-check.mjs)
+npx --yes gltfpack@1.3.0 -i "$WORK/harbourside.raw.glb" -o "$OUT/harbourside.glb" -kn -km -kv -vtf -vpf
 cp "$WORK/harbourside.json" "$OUT/harbourside.json"
 
 webp() { # webp <in> <max size> <quality> <out> [extra convert options]

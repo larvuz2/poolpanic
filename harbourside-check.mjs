@@ -32,7 +32,8 @@ const pictures = [
 let pictureBytes = 0;
 for (const p of pictures) pictureBytes += statSync(DIR + p + ".webp").size;
 const glbBytes = statSync(DIR + "harbourside.glb").size;
-assert.ok(glbBytes < 10e6, `the model is ${(glbBytes / 1e6).toFixed(1)} MB (budget 10)`);
+// (11 MB since 2 November 2026: its positions are floats, exact, so nothing a few mm over a surface fights it for the pixels)
+assert.ok(glbBytes < 11e6, `the model is ${(glbBytes / 1e6).toFixed(1)} MB (budget 11)`);
 assert.ok(pictureBytes < 2e6, `the pictures are ${(pictureBytes / 1e6).toFixed(1)} MB (budget 2)`);
 assert.deepEqual(
   readdirSync(DIR)
