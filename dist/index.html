@@ -851,7 +851,6 @@
       });
       (function watch() {
         setTimeout(function () {
-          if (window.__boot.picking) return watch(); // (the engine choice is waiting for a click: engine-pick.mjs)
           var box = document.getElementById("loading");
           if (window.__boot.ready || !box || box.hidden) return;
           var first = window.__boot.errors[0];

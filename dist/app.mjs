@@ -1,5 +1,3 @@
-// First: on the web site, the choice between the game and the Godot test (engine-pick.mjs); it waits for it.
-import "./engine-pick.mjs";
 import { loadProp } from "./scene/prop-models.mjs";
 import { screenMovement } from "./spatial.mjs";
 import {
@@ -2128,9 +2126,9 @@ async function loadMenuGuests(swimmersLoading) {
       (results.some((r) => r.status === "rejected") ? " (a model failed)" : ""),
   );
 }
-// The menu's stage failed to draw: the painted card behind the menu again (assets/story/coach-pool.webp).
+// The menu's stage failed to draw: the menu's plain backdrop behind it (.menu-art; never the old menu's picture).
 function dropMenuStage() {
-  crashlog.crumb("menu", "the 3D stage stopped drawing; the picture behind the menu instead");
+  crashlog.crumb("menu", "the 3D stage stopped drawing; the plain backdrop behind the menu instead");
   menuStage?.dispose();
   menuStage = null;
   document.body.classList.remove("stage");
@@ -4333,6 +4331,15 @@ const MOMENTS = new Set([
 // The map covers the pool in the menu, so once the first frames have warmed the 3D scene up nothing of it is
 // updated or drawn until a shift starts (moving speech bubbles under a full-screen map cost real frame time).
 let warmFrames = 3;
+// The loader comes off only once those frames are drawn under it and the menu's 3D stage has drawn its first: the pool behind
+// the warm-up must never show (the creator, 2 November 2026: "we don't ever show the old one"). 8 s at most.
+let revealing = false,
+  bootFrames = 0,
+  menuDrawn = false;
+function revealGame() {
+  revealing = false;
+  $("loading").hidden = true;
+}
 // The frame-rate cap (gfx.mjs: 60 on a touch device with WebKit, whose 120 Hz screen would ask for twice the drawing), the governor that
 // lowers the resolution while the frames of a shift are slow (off since 16 October 2026: `gfx.plan.govern`), and the mark a shift
 // being drawn leaves on the device (a page that died with it still there is said in the next launch's log).
@@ -4395,6 +4402,7 @@ function animate(t) {
 let logClock = 0,
   perfClock = 0;
 function frame(t) {
+  if (revealing && ++bootFrames > 4 && (mode !== "menu" || !menuStage?.ready || menuDrawn)) revealGame();
   const covered = mode === "menu" && warmFrames-- <= 0;
   if (!covered)
     document.documentElement.style.setProperty("--cue", cuePulse(t / 1000, reducedMotion.matches).toFixed(3));
@@ -4456,7 +4464,8 @@ function frame(t) {
         menuStage.update(dt);
         menuStage.render(world.renderer);
       });
-      if (!drawn && failing.menu > 30) dropMenuStage();
+      if (drawn) menuDrawn = true;
+      else if (failing.menu > 30) dropMenuStage();
     }
     sim.time += dt;
     for (const p of sim.people) {
@@ -5015,25 +5024,41 @@ try {
   world = new PoolWorld($("world"), pick);
   sim = makeDemo();
   bind();
-  // The menu's stage (not for a trial or a hunt, nor with ?oldmenu): a few hundred kB of pictures, and the coach's model.
-  if (!testing && !playHunt && !huntStep && !tuning.has("oldmenu") && world.renderer) {
-    try {
+  // The menu's stage (not for a trial or a hunt): a few hundred kB of pictures, and the coach's model. The loader stays up
+  // while it comes (12 s at most); one that comes later still takes its place behind the menu. The old menu's picture is never
+  // shown (the creator, 2 November 2026: "we don't ever show the old one"); without a stage the menu has a plain backdrop.
+  const useMenuStage = (stage) => {
+    menuStage = stage;
+    document.body.classList.add("stage");
+    if (activeSwimmerChoice() === "models")
+      loadMenuGuests(swimmersLoading).catch((e) => crashlog.error("menu-guests", e));
+  };
+  if (!testing && !playHunt && !huntStep && world.renderer) {
+    const loading = (async () => {
       const coach = activeChoice() === "panic" && coachModelReady() ? await loadCoachModel() : null;
-      menuStage = await Promise.race([
-        new MenuStage().load(coach),
-        new Promise((_, fail) =>
-          setTimeout(() => fail(new Error("the menu's pictures took over 8 s")), 8000),
-        ),
-      ]);
+      return new MenuStage().load(coach);
+    })();
+    try {
+      useMenuStage(
+        await Promise.race([
+          loading,
+          new Promise((_, fail) =>
+            setTimeout(() => fail(new Error("the menu's stage took over 12 s")), 12000),
+          ),
+        ]),
+      );
       crashlog.crumb("menu", "3D stage ready in " + Math.round(performance.now() - began) + " ms");
     } catch (e) {
       crashlog.error("menu-stage", e);
-      menuStage = null;
+      loading
+        .then((stage) => {
+          if (menuStage) return stage.dispose();
+          useMenuStage(stage);
+          crashlog.crumb("menu", "3D stage ready late, in " + Math.round(performance.now() - began) + " ms");
+        })
+        .catch(() => {});
     }
   }
-  document.body.classList.toggle("stage", !!menuStage?.ready);
-  if (menuStage?.ready && activeSwimmerChoice() === "models")
-    loadMenuGuests(swimmersLoading).catch((e) => crashlog.error("menu-guests", e));
   title = installTitle({
     $,
     audio,
@@ -5080,7 +5105,8 @@ try {
   updateMenu();
   updateUI();
   syncVenue(sim);
-  $("loading").hidden = true;
+  revealing = true; // (the loader comes off after the first frames: revealGame)
+  setTimeout(() => revealing && revealGame(), 8000);
   if (window.__boot) window.__boot.ready = true;
   renderFund();
   if (playtest)
