@@ -342,7 +342,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   swims here, so **every guest's tag says ♨️ Hot tub** (VIP · Hot tub for a VIP), never Beginner, Intermediate or Pro, as the
   Jumping Pool's hot tub guests' (2 November 2026, the creator: "they're not going to swim. They're just going to chill";
   `p.soaker`, `swimmerLook`), Marco's too (the creator: "marco too, hot tub! no swimming in mountain springs!! only relaxing!!":
-  VIP · Hot tub, and his toast says he is here to relax, no clear lane). **The
+  VIP · Hot tub; he just appears, with no message). **The
   cold**: waiting in the snow a guest grows colder by the second (`p.cold`, 0 to 1 in 24 s, `SOAK.coldFull`); past 0.3 it bites
   (`coldPenalty`: up to 1.5 mood a second more, a VIP 1.3 times) and they hug themselves, shivering (the ColdHug clip: the five
   swimmers and Marco); in the hot water they warm up again. **The snow monkeys** (`MONKEY`, their own random stream, `onsenRandom`):
@@ -1941,7 +1941,7 @@ Both reuse Splash Park's floor plan exactly (`RESORT_SPEC` in `spatial.mjs`): th
 
 ### VIP guests — levels 17 to 20
 
-A VIP is an ordinary lap swimmer in a gold suit with a crown and a crimson sash (`vipAt` in `SHIFTS` lists where in the arrivals they come; a VIP never takes a daredevil's slot). They tip big: **+150** on top of a served swimmer's points, before the streak multiplier. But they wait less (75% of the normal patience) and in the water being blocked, crowded or in dirty water costs their happiness 1.4× faster. A VIP who storms out costs **−300** instead of −100. They never come with sickness, cramps or a fin request. The swimmer tag shows 👑 and "VIP · Pro" (`swimmerLook` in `dist/sim.mjs`), and the first one of a shift gets a toast. Golden hour introduces them; the results screen counts them (`stats.vips`).
+A VIP is an ordinary lap swimmer in a gold suit with a crown and a crimson sash (`vipAt` in `SHIFTS` lists where in the arrivals they come; a VIP never takes a daredevil's slot). They tip big: **+150** on top of a served swimmer's points, before the streak multiplier. But they wait less (75% of the normal patience) and in the water being blocked, crowded or in dirty water costs their happiness 1.4× faster. A VIP who storms out costs **−300** instead of −100. They never come with sickness, cramps or a fin request. The swimmer tag shows 👑 and "VIP · Pro" (`swimmerLook` in `dist/sim.mjs`); since 2 November 2026 a VIP, Marco too, just appears (a chime, their tag), with no message (the creator: "remove the … unnecessary text!!!"). Golden hour introduces them; the results screen counts them (`stats.vips`).
 
 ### Storm — level 19 and the Storm drill
 

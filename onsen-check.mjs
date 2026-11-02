@@ -175,7 +175,7 @@ const monkey = (s, until) => {
     assert.equal(look.label, q.vip ? "VIP · Hot tub" : "Hot tub", q.name + "'s tag");
     assert.ok(look.icon === "♨️" || q.vip);
   }
-  // Marco too: he comes to relax, never to swim (his tag VIP · Hot tub, his toast no clear lane).
+  // Marco too: he comes to relax, never to swim (his tag VIP · Hot tub).
   {
     const marco = { ...guests[0], star: true, vip: true, soaker: true };
     assert.equal(swimmerLook(marco).label, "VIP · Hot tub", "Marco's tag at the springs");
@@ -514,8 +514,7 @@ const monkey = (s, until) => {
   assert.deepEqual(a.stats, b.stats, "the same shift");
 }
 
-// 7b) Marco at the springs: in a whole shift he arrives as a soaker, tagged VIP · Hot tub, and his toast asks for a warm spring, not
-// a clear lane.
+// 7b) Marco at the springs: in a whole shift he arrives as a soaker, tagged VIP · Hot tub, and just appears (no message).
 {
   const bot = new CoachBot(8, 3, {
     config: { ...SHIFTS[7], venue: "onsen", chaos: [], twist: [], sickRate: 0, star: { ...MARCO, at: 0 } },
@@ -534,10 +533,9 @@ const monkey = (s, until) => {
   assert.ok(marco, "Marco comes for a soak");
   assert.equal(marco.soaker, true);
   assert.equal(swimmerLook(marco).label, "VIP · Hot tub", "Marco's tag at the springs");
-  const toast = toasts.find((t) => t.includes(MARCO.title));
   assert.ok(
-    toast && /relax/.test(toast) && !/lane/.test(toast),
-    "Marco's toast: relaxing, no lane (" + toast + ")",
+    !toasts.some((t) => t.includes(MARCO.name) || /VIP/.test(t)),
+    "he just appears, no message: " + toasts,
   );
 }
 

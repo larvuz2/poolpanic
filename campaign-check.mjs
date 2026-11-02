@@ -538,10 +538,10 @@ const emitted = (s, type, kind) => s.events.filter((e) => e.type === type && e.k
   const { t, p } = fresh(true),
     plain = fresh(false);
   assert.equal(p.vip, true);
-  assert.equal(t.events.filter((e) => e.type === "vip").length, 1, "A VIP arrival is announced");
+  assert.equal(t.events.filter((e) => e.type === "vip").length, 1, "A VIP arrival chimes");
   assert.ok(
-    t.events.some((e) => e.type === "toast" && /VIP/.test(e.text)),
-    "…with a toast the first time",
+    !t.events.some((e) => e.type === "toast" && /VIP/.test(e.text)),
+    "…and just appears, no message (2 November 2026)",
   );
   assert.ok(Math.abs(p.waitLimit - plain.p.waitLimit * 0.75) < 1e-6, "VIPs will not wait as long");
   // swimmerLook: a golden crown over whatever they swim like.

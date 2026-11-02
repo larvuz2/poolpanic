@@ -135,10 +135,7 @@ const assign = (s, p, lane) => {
     return emit(type, e);
   };
   s.spawn({ ...MARCO, star: "marco", vip: true, name: MARCO.name });
-  assert.ok(
-    said.some((t) => /joins the class/.test(t)),
-    "Marco's arrival is told as a dancer's: " + said,
-  );
+  assert.ok(!said.some((t) => /Marco/.test(t)), "Marco just appears, no message: " + said);
 }
 
 // 3) Rows down the zone, everyone facing the stage; four to a zone is comfortable.

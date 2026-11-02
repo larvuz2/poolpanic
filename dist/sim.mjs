@@ -1062,23 +1062,9 @@ export class PoolSimulation extends ChaosController {
     if (spec.big) p.big = true; // (one of the big moment's crowd: the encore, the party, the parade)
     this.people.push(p);
     this.emit("spawn", { id: p.id });
-    if (p.vip) {
-      this.emit("vip", { id: p.id, name: p.name, star: p.star || null });
-      if (p.star)
-        this.emit("toast", {
-          text:
-            (this.config.star.title || p.name) +
-            (this.venue.class
-              ? " joins the class! 🚀 Find him a zone with room to dance."
-              : this.venue.onsen
-                ? " is here to relax! ♨️ No swimming today: find him a warm spring."
-                : " is here! 🚀 The fastest VIP in town: give him a clear lane."),
-        });
-      else if (!this.vipIntro) {
-        this.vipIntro = true;
-        this.emit("toast", { text: "A VIP has arrived! 👑 Big tips, but they lose patience fast." });
-      }
-    }
+    // (A VIP's arrival, Marco's too, makes its sound and shows on their tag, no message: 2 November 2026, the creator: "remove the
+    // … unnecessary text!!! just Marco appears … remove others like these too!")
+    if (p.vip) this.emit("vip", { id: p.id, name: p.name, star: p.star || null });
     if (type === "aqua" && !this.aquaIntro && !this.venue.class) {
       this.aquaIntro = true;
       this.emit("toast", { text: "Aqua aerobics stays in place. Give the class some space." });
