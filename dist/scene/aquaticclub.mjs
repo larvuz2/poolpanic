@@ -72,7 +72,10 @@ export function buildAquaticClub(w, venue) {
     ropes: [0xffffff, BLUE, RED],
     pennants: [RED, 0xffffff, BLUE],
   });
-  const root = dressModel(w, A, { look, name: "aquaticclub", deckSet: "deck" });
+  // (the caustics stay in the pool's box: the hall's floor and the stands lie below the water's level too)
+  const P = venue.pool,
+    box = [-P.halfX - 0.05, P.halfX + 0.05, -P.halfZ - 0.05, P.halfZ + 0.05];
+  const root = dressModel(w, A, { look, name: "aquaticclub", deckSet: "deck", caustics: box });
   liveParts(w, venue, root, info);
   // the near stand (the Coach Cam's) and its crowd live in a group of their own, shown with the ceiling
   const near = new THREE.Group();

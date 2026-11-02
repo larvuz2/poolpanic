@@ -9,13 +9,16 @@ import { glowTexture, beamTexture, checkerTextures } from "./textures.mjs";
 import { poolSurround, commonStations } from "./resort.mjs";
 import { Hall } from "./hall.mjs";
 import { Crowd, CROWD_COLORS } from "./crowd.mjs";
+import { ModelCrowd, crowdModelsReady } from "./crowd-models.mjs";
 import { flagGeo, mergeGeos, placed, rngOf, wind } from "./geom.mjs";
-import { bench, lifeguardTower, lockerBay, lounger, stripedCone, plant } from "./props.mjs";
+import { bench, lifeguardTower, lounger, stripedCone, plant } from "./props.mjs";
 import { signTexture } from "./hall-art.mjs";
+import { changingDoors } from "./club.mjs";
+import { buildArenaClub, arenaClubReady } from "./arenaclub.mjs";
 
 const TAU = Math.PI * 2;
-const FLOOR = -1.95;
-const CX = 0.4;
+export const FLOOR = -1.95;
+export const CX = 0.4;
 const GOLD = 0xd4a53c;
 const NAVY = 0x35507f;
 
@@ -96,6 +99,8 @@ const ARENA_HALL = {
 };
 
 export function buildArena(w, venue) {
+  // The Grand Gala Arena dressed for real when its model is in (scene/arenaclub.mjs); this one till then, and with ?nomodels.
+  if (arenaClubReady()) return buildArenaClub(w, venue);
   const dynamic = { ...w.look.water, glow: Math.max(w.look.water.glow || 0, 0.001) };
   buildDeck(w, venue, {
     checker: { a: "#f4ead2", b: "#e2d0a0", grout: "#c9a24a", tiles: 4 },
@@ -110,8 +115,8 @@ export function buildArena(w, venue) {
   const ctx = { w, venue, hall, upper, rand: rngOf(97), crowds: [], ribbons: [] };
   arenaFloor(ctx);
   stage(ctx);
-  lockerBay(w, venue, -12, "TEAM A", 0x2f9aa0, "arena");
-  lockerBay(w, venue, 12, "TEAM B", 0xe0513f, "arena");
+  // (no locker rooms since 2 November 2026: the changing rooms' doors are in the stage's wall)
+  changingDoors(w, venue, -16.13);
   for (const f of venue.furniture) {
     if (f.kind === "bench") bench(w, f.x, f.z, f.angle);
     if (f.kind === "palm") topiary(ctx, f.x, f.z);
@@ -126,9 +131,15 @@ export function buildArena(w, venue) {
   spotlights(ctx);
   balloons(ctx);
   cannons(ctx);
-  // Crowd, ribbons and lights update every frame; the crowd on the far side of the pool updates every other frame.
+  crowdLife(ctx);
+}
+
+// Crowd and ribbons: the ribbons scroll every frame, the crowds cheer with the game (`w.cheer`) every other frame, the near stand's
+// only while the Coach Cam sees it.
+export function crowdLife(ctx) {
+  const { w, hall } = ctx;
   let frame = 0;
-  w.updaters.push((time, dt) => {
+  w.updaters.push((time) => {
     const cheer = w.cheer || 0;
     frame++;
     for (const c of ctx.crowds)
@@ -172,17 +183,19 @@ function crackTexture(draw, width, height) {
   return t;
 }
 
-// The wall behind the huts: a wide LED screen in a gold frame with a chasing marquee, side screens, red drapes and
-// the giant trophy on its plinth.
-function stage(ctx) {
+// The wall behind the deck: a wide LED screen in a gold frame with a chasing marquee, side screens (clear of the changing rooms'
+// doors), red drapes and the giant trophy on its plinth. (`wall: false`: the dressed Arena's model has the wall, the frames, the
+// drapes' rails and the trophy's plinth, `trophyY` and `trophyZ` where the plinth's top is, in its niche over the screen; the
+// screens, the marquee, the drapes and the trophy turning stay the game's.)
+export function stage(ctx, { wall = true, trophyY = 1.2, trophyZ = TROPHY_Z } = {}) {
   const { w, hall } = ctx,
-    z0 = -16.35,
-    upper = ctx.upper;
-  void upper;
+    z0 = -16.35;
   // A solid backing wall so the stage reads in the overview too (the hall's own rear wall is coach-only), with gold rails.
-  w.box(34.4, 7.7, 0.4, NAVY, CX, 1.9, z0 - 0.02, 0, w.scene);
-  w.box(34, 0.5, 0.5, GOLD, CX, 0.4, z0 + 0.15, 0.04);
-  w.box(34, 0.3, 0.4, 0xe9d29a, CX, 5.6, z0 + 0.15, 0.04);
+  if (wall) {
+    w.box(34.4, 7.7, 0.4, NAVY, CX, 1.9, z0 - 0.02, 0, w.scene);
+    w.box(34, 0.5, 0.5, GOLD, CX, 0.4, z0 + 0.15, 0.04);
+    w.box(34, 0.3, 0.4, 0xe9d29a, CX, 5.6, z0 + 0.15, 0.04);
+  }
   const screenTex = crackTexture(
     (c, W, H) => {
       const g = c.createLinearGradient(0, 0, W, 0);
@@ -218,7 +231,7 @@ function stage(ctx) {
   const screen = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 3.28), screenMat);
   screen.position.set(CX, 3.55, z0 + 0.34);
   w.scene.add(screen);
-  w.box(8.9, 3.75, 0.2, GOLD, CX, 3.55, z0 + 0.2, 0.06);
+  if (wall) w.box(8.9, 3.75, 0.2, GOLD, CX, 3.55, z0 + 0.2, 0.06);
   // Side screens.
   const sideMat = new THREE.MeshBasicMaterial({
     map: crackTexture(
@@ -242,11 +255,11 @@ function stage(ctx) {
     ),
   });
   w.textures.push(sideMat.map);
-  for (const x of [CX - 8.6, CX + 8.6]) {
+  for (const x of SIDE_SCREENS) {
     const p = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.6), sideMat);
     p.position.set(x, 3.55, z0 + 0.34);
     w.scene.add(p);
-    w.box(2.8, 4.0, 0.2, GOLD, x, 3.55, z0 + 0.2, 0.06);
+    if (wall) w.box(2.8, 4.0, 0.2, GOLD, x, 3.55, z0 + 0.2, 0.06);
   }
   w.dimmers.push((k) => {
     screenMat.color.setScalar(Math.min(1, k));
@@ -315,13 +328,12 @@ function stage(ctx) {
     );
     mesh.frustumCulled = false;
     ctx.hall.live.add(mesh);
-    w.box(3.6, 0.16, 0.2, GOLD, x, 5.55, z0 + 0.3, 0.02);
+    if (wall) w.box(3.6, 0.16, 0.2, GOLD, x, 5.55, z0 + 0.3, 0.02);
   };
-  drape(CX - 12.6);
-  drape(CX + 12.6);
+  for (const x of DRAPES) drape(x);
   // The trophy: a lathe-turned gold cup with handles and a star, turning slowly on a marble plinth.
   const trophy = new THREE.Group();
-  trophy.position.set(CX, 1.2, -18.2);
+  trophy.position.set(CX, trophyY, trophyZ);
   const gold = new THREE.MeshStandardMaterial({ color: 0xf2c14e, metalness: 0.85, roughness: 0.28 });
   const profile = [
     [0.95, 0],
@@ -351,11 +363,19 @@ function stage(ctx) {
   trophy.add(star);
   trophy.scale.setScalar(1.15);
   w.scene.add(trophy);
-  w.box(3.4, 1.2, 3.4, 0xf3ead6, CX, 0.05, -18.2, 0.1);
-  w.box(3.7, 0.24, 3.7, GOLD, CX, 0.66, -18.2, 0.05);
+  if (wall) {
+    w.box(3.4, 1.2, 3.4, 0xf3ead6, CX, 0.05, TROPHY_Z, 0.1);
+    w.box(3.7, 0.24, 3.7, GOLD, CX, 0.66, TROPHY_Z, 0.05);
+  }
   w.updaters.push((time) => (trophy.rotation.y = time * 0.5));
   void hall;
 }
+
+// The side screens and the drapes, clear of the changing rooms' doors (x ±10.1 to ±11.3 since 2 November 2026); the trophy's plinth
+// behind the screen.
+export const SIDE_SCREENS = [CX - 6.9, CX + 6.9];
+export const DRAPES = [CX - 13.8, CX + 13.4];
+export const TROPHY_Z = -18.2;
 
 // ---- furniture in gala dress --------------------------------------------------------------------------------
 function topiary(ctx, x, z) {
@@ -393,8 +413,10 @@ function champagneBar(ctx, x, z) {
 }
 
 // ---- grandstands ------------------------------------------------------------------------------------------
-const STAND = { tiers: 8, depth: 1.15, rise: 0.55 };
-function stands(ctx) {
+// (`tiers: false`: the dressed model has the tiers and the seats, the game's crowd sits on them and its ribbons scroll in front;
+// `models`: the crowd is the Meshy spectators, scene/crowd-models.mjs, once they are in, in their evening clothes)
+export const STAND = { tiers: 8, depth: 1.15, rise: 0.55 };
+export function stands(ctx, { tiers = true, models = false } = {}) {
   const { w, hall, upper } = ctx,
     sections = [0xe0513f, GOLD, 0x2f9aa0, 0xfff1d6];
   const list = [
@@ -440,11 +462,12 @@ function stands(ctx) {
     for (let k = 0; k < STAND.tiers; k++) {
       const h = STAND.rise * (k + 1),
         along = s.front + s.dir * (k + 0.5) * STAND.depth;
-      if (s.axis === "x")
+      if (tiers && s.axis === "x")
         w.box(STAND.depth, h, length, k % 2 ? 0x1c2a48 : 0x243657, along, FLOOR + h / 2, mid, 0, s.parent);
-      else w.box(length, h, STAND.depth, k % 2 ? 0x1c2a48 : 0x243657, mid, FLOOR + h / 2, along, 0, s.parent);
+      else if (tiers)
+        w.box(length, h, STAND.depth, k % 2 ? 0x1c2a48 : 0x243657, mid, FLOOR + h / 2, along, 0, s.parent);
       // Seat strips in coloured sections.
-      for (let a = s.from; a < s.to - 0.01; a += 9) {
+      for (let a = s.from; tiers && a < s.to - 0.01; a += 9) {
         const seg = Math.min(9, s.to - a),
           color = sections[(Math.floor((a - s.from) / 9) + k) % sections.length],
           seatAlong = along - s.dir * 0.28;
@@ -481,15 +504,21 @@ function stands(ctx) {
     s.parent.add(mesh);
     w.dimmers.push((k) => mat.color.setScalar(Math.min(1, k)));
     w.textures.push(mat.map);
-    const crowd = new Crowd(w, s.coachOnly ? hall.live : w.scene, seats, {
+    const People = models && crowdModelsReady() ? ModelCrowd : Crowd;
+    const crowd = new People(w, s.coachOnly ? hall.live : w.scene, seats, {
       seed: 3 + list.indexOf(s),
       waveAxis: s.axis === "x" ? "z" : "x",
       scale: 0.95,
+      shirts: GALA_CLOTHES,
+      flags: [GOLD, 0x9c2a3a, 0xf2d58a, NAVY],
     });
-    if (!s.coachOnly) w.liveProps.push(crowd.bodies, crowd.heads, crowd.arms);
+    if (!s.coachOnly) w.liveProps.push(...(crowd.meshes || [crowd.bodies, crowd.heads, crowd.arms]));
     ctx.crowds.push({ crowd, coachOnly: s.coachOnly });
   }
 }
+
+// The evening clothes of the Meshy crowd: black tie, midnight blue, burgundy, emerald, gold, ivory, a pink one.
+const GALA_CLOTHES = [0x1b1d24, 0x22305a, 0x7a1f33, 0x1f6a4f, 0xd4a53c, 0xf1e6cf, 0xd65a8c, 0x3a2f5c];
 
 function ribbonTexture(w) {
   const t = crackTexture(
@@ -513,7 +542,7 @@ function ribbonTexture(w) {
 }
 
 // ---- the hanging scoreboard ---------------------------------------------------------------------------------
-function scoreboard(ctx) {
+export function scoreboard(ctx) {
   const { w, hall, upper } = ctx,
     cv = document.createElement("canvas");
   cv.width = 512;
@@ -589,7 +618,7 @@ function scoreboard(ctx) {
 // ---- spotlights ---------------------------------------------------------------------------------------------
 // Two rigs along the hall, each with eight lamps that sweep pools of colour across the platform. The beams are for the
 // Coach Cam; the pools of light on the deck show in the overview too.
-function spotlights(ctx) {
+export function spotlights(ctx) {
   const { w, hall, upper } = ctx,
     glow = glowTexture(96),
     beamTex = beamTexture(),
@@ -716,7 +745,7 @@ function beamGeometry(top, wide, length) {
 }
 
 // ---- balloons and cannons --------------------------------------------------------------------------------------
-function balloons(ctx) {
+export function balloons(ctx) {
   const { w, upper, rand } = ctx,
     n = 90,
     mesh = new THREE.InstancedMesh(

@@ -1,0 +1,716 @@
+{
+ "made": "tools/venues/common/export_three.py -- tools/venues/arena",
+ "triangles": 176228,
+ "lights": [
+  {
+   "kind": "Candle",
+   "at": [
+    2.0,
+    18.12,
+    -9.0
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    1.398,
+    18.12,
+    -7.749
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    0.044,
+    18.12,
+    -7.44
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    -1.042,
+    18.12,
+    -8.306
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    -1.042,
+    18.12,
+    -9.694
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    0.044,
+    18.12,
+    -10.56
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    1.398,
+    18.12,
+    -10.251
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    1.5,
+    18.82,
+    -9.0
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    0.591,
+    18.82,
+    -7.917
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    -0.634,
+    18.82,
+    -8.624
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    -0.15,
+    18.82,
+    -9.953
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    1.243,
+    18.82,
+    -9.707
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    1.0,
+    19.42,
+    -9.0
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    -0.085,
+    19.42,
+    -8.647
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    0.585,
+    19.42,
+    -9.571
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    2.0,
+    18.12,
+    17.0
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    1.398,
+    18.12,
+    18.251
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    0.044,
+    18.12,
+    18.56
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    -1.042,
+    18.12,
+    17.694
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    -1.042,
+    18.12,
+    16.306
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    0.044,
+    18.12,
+    15.44
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    1.398,
+    18.12,
+    15.749
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    1.5,
+    18.82,
+    17.0
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    0.591,
+    18.82,
+    18.083
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    -0.634,
+    18.82,
+    17.376
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    -0.15,
+    18.82,
+    16.047
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    1.243,
+    18.82,
+    16.293
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    1.0,
+    19.42,
+    17.0
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    -0.085,
+    19.42,
+    17.353
+   ]
+  },
+  {
+   "kind": "Candle",
+   "at": [
+    0.585,
+    19.42,
+    16.429
+   ]
+  },
+  {
+   "kind": "Chandelier",
+   "at": [
+    0.4,
+    18.075,
+    -9.0
+   ]
+  },
+  {
+   "kind": "Chandelier",
+   "at": [
+    0.4,
+    18.075,
+    17.0
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -26.375,
+    7.31,
+    -13.609
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -26.375,
+    7.31,
+    -8.528
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -26.375,
+    7.31,
+    -3.447
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -26.375,
+    7.31,
+    1.634
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -26.375,
+    7.31,
+    6.716
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -26.375,
+    7.31,
+    11.797
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -26.375,
+    7.31,
+    16.878
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -26.375,
+    7.31,
+    21.959
+   ]
+  },
+  {
+   "kind": "Marquee",
+   "at": [
+    -10.7,
+    3.27,
+    -16.02
+   ]
+  },
+  {
+   "kind": "Marquee",
+   "at": [
+    10.7,
+    3.27,
+    -16.02
+   ]
+  },
+  {
+   "kind": "Flash",
+   "at": [
+    17.9,
+    0.46,
+    -15.08
+   ]
+  },
+  {
+   "kind": "Flash",
+   "at": [
+    19.8,
+    0.46,
+    -14.38
+   ]
+  },
+  {
+   "kind": "Tally",
+   "at": [
+    18.8,
+    3.88,
+    -14.38
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    27.175,
+    7.31,
+    -13.609
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    27.175,
+    7.31,
+    -8.528
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    27.175,
+    7.31,
+    -3.447
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    27.175,
+    7.31,
+    1.634
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    27.175,
+    7.31,
+    6.716
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    27.175,
+    7.31,
+    11.797
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    27.175,
+    7.31,
+    16.878
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    27.175,
+    7.31,
+    21.959
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -23.81,
+    7.31,
+    24.375
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -18.43,
+    7.31,
+    24.375
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -13.05,
+    7.31,
+    24.375
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -7.67,
+    7.31,
+    24.375
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    -2.29,
+    7.31,
+    24.375
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    3.09,
+    7.31,
+    24.375
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    8.47,
+    7.31,
+    24.375
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    13.85,
+    7.31,
+    24.375
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    19.23,
+    7.31,
+    24.375
+   ]
+  },
+  {
+   "kind": "Sconce",
+   "at": [
+    24.61,
+    7.31,
+    24.375
+   ]
+  },
+  {
+   "kind": "Spot",
+   "at": [
+    -2.2,
+    11.008,
+    -16.404
+   ]
+  },
+  {
+   "kind": "Spot",
+   "at": [
+    3.0,
+    11.008,
+    -16.404
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -8.191,
+    -0.78,
+    -6.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -8.191,
+    -0.78,
+    -2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -8.191,
+    -0.78,
+    2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    -8.191,
+    -0.78,
+    6.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    8.201,
+    -0.78,
+    -6.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    8.201,
+    -0.78,
+    -2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    8.201,
+    -0.78,
+    2.0
+   ]
+  },
+  {
+   "kind": "Underwater",
+   "at": [
+    8.201,
+    -0.78,
+    6.0
+   ]
+  },
+  {
+   "kind": "Bollard",
+   "at": [
+    15.75,
+    1.055,
+    4.46
+   ]
+  },
+  {
+   "kind": "Bollard",
+   "at": [
+    15.75,
+    1.055,
+    5.54
+   ]
+  }
+ ],
+ "atlases": {
+  "atlas_signs": {
+   "size": 2048,
+   "images": 28,
+   "scale": 0.85
+  },
+  "atlas_cut": {
+   "size": 2048,
+   "images": 6,
+   "scale": 1.0
+  }
+ },
+ "ao": 1,
+ "paint": {
+  "size": 2048,
+  "x0": -16.6,
+  "z0": -17.2,
+  "span": 34.4
+ },
+ "anchors": {
+  "LifeRing": [
+   [
+    -4.0,
+    1.9,
+    -15.92
+   ],
+   [
+    -15.56,
+    1.9,
+    -5.4
+   ],
+   [
+    16.31,
+    1.9,
+    -6.6
+   ]
+  ],
+  "Flashlight": [
+   [
+    -12.6,
+    1.17,
+    -6.7
+   ]
+  ]
+ },
+ "tiles": {
+  "terrazzo": 2.4,
+  "mosaic": 1.6,
+  "decoband": 0.3,
+  "nero": 2.4,
+  "marble": 2.4,
+  "velvet": 1.4,
+  "carpet": 3.0,
+  "goldleaf": 1.8,
+  "walnut": 2.0,
+  "damask": 2.4,
+  "concrete": 4.0
+ },
+ "sharp": [
+  "terrazzo",
+  "mosaic",
+  "decoband",
+  "velvet",
+  "carpet",
+  "goldleaf",
+  "walnut"
+ ],
+ "meshes": [
+  "C_glass",
+  "C_lamp",
+  "C_metal",
+  "C_metal_n",
+  "C_satin",
+  "C_satin_n",
+  "C_signs",
+  "C_tile_concrete",
+  "C_tile_damask",
+  "C_tile_goldleaf",
+  "C_tile_velvet",
+  "C_tile_walnut",
+  "Door_A",
+  "Door_B",
+  "Fins_1",
+  "Fins_2",
+  "Fins_3",
+  "S_cut",
+  "S_glass",
+  "S_gloss",
+  "S_gloss_n",
+  "S_lamp",
+  "S_leaf",
+  "S_matte",
+  "S_matte_n",
+  "S_metal",
+  "S_metal_n",
+  "S_satin",
+  "S_satin_n",
+  "S_signs",
+  "S_tile_carpet",
+  "S_tile_concrete",
+  "S_tile_damask",
+  "S_tile_decoband",
+  "S_tile_goldleaf",
+  "S_tile_marble",
+  "S_tile_mosaic",
+  "S_tile_nero",
+  "S_tile_terrazzo",
+  "S_tile_velvet",
+  "S_tile_walnut"
+ ]
+}

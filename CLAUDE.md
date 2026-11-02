@@ -104,7 +104,12 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    its CHICKEN-OUT ZONE, judges and SPLASH-O-METER, its Hall of Fame and founder's portrait made with our coaches as references,
    `dist/scene/diveclub.mjs`, `tools/venues/dive/`, the water, the springboards' planks, the tub's water, the gates' leaves, the flag
    and the divers still the game's) and
-   the Grand Gala Arena. Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
+   the Grand Gala Arena (the season finale; since 2 November 2026 dressed for real, three.js only, with photographic materials:
+   THE POOL PANIC AWARDS in a grand old domed arena, the trophy turning in a niche over the screen, opera boxes, the champagne bar,
+   an ice swan, a press pen of rubber ducks, the royal box's empty throne (Reserved · M.), its pictures with our coaches as
+   references, `dist/scene/arenaclub.mjs`, `tools/venues/arena/`; no locker rooms: the changing rooms' doors in the stage's wall,
+   the creator's; the screens, marquee, drapes, trophy, crowd in its evening clothes, scoreboard, spotlights and balloons still the
+   game's). Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
    running (the creator wants that). In every pool **one swimmer in five climbing out drips a wet spot** that never dries until the coach
    mops it (Q, `dist/incidents/wet.mjs`; the coach slips in one too, down for 1.3 s, unless he jumps over it), and a tummy ache can be a poo or **a wee** (yellow water, chlorine only). **Marco swims in
    more than half of all shifts, in every pool but the Kids Pool and the Rooftop Pool** (`STAR_CHANCE`, 0.66; at Senior Aqua Fit, the Lazy River, the Wave Pool, the Cruise Ship, the Mountain Hot Springs and the Jumping Pool, where he dives, too), and **VIPs come in every
@@ -190,7 +195,7 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
    (Asked so far: Senior Aqua Fit's photographs and models, the Community Pool as the Harbourside, 28 October 2026, where
    "performance is key": a venue's look is a few merged meshes, baked light and no new lights, measured against the old one; and
    Splash Park, the Kids Pool, the Sunset Lagoon, the Aqua Disco and the Aquatic Centre, 31 October 2026, and the Mountain Hot
-   Springs, the Wave Pool, Senior Aqua Fit, the Lazy River, the Cruise Ship, the Rooftop Pool and the Jumping Pool, 1 November 2026, the same way, the next venue on the ladder each time with the shared kit
+   Springs, the Wave Pool, Senior Aqua Fit, the Lazy River, the Cruise Ship, the Rooftop Pool and the Jumping Pool, 1 November 2026, and the Grand Gala Arena, 2 November 2026, the same way, the next venue on the ladder each time with the shared kit
    (`tools/venues/common/`, `dist/scene/dressed.mjs`). Venues are dressed in three.js only from now on, never in the Godot test,
    the creator's.)
 4. **Launch.** Store page, trailer, wishlists, a demo, review, release.
