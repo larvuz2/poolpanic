@@ -197,7 +197,8 @@ like chopping a salad), each made for the table's height (`--massage-lift`), Coa
    Splash Park, the Kids Pool, the Sunset Lagoon, the Aqua Disco and the Aquatic Centre, 31 October 2026, and the Mountain Hot
    Springs, the Wave Pool, Senior Aqua Fit, the Lazy River, the Cruise Ship, the Rooftop Pool and the Jumping Pool, 1 November 2026, and the Grand Gala Arena, 2 November 2026, the same way, the next venue on the ladder each time with the shared kit
    (`tools/venues/common/`, `dist/scene/dressed.mjs`). Venues are dressed in three.js only from now on, never in the Godot test,
-   the creator's.)
+   the creator's. A dressed venue's model keeps its positions as floats, never quantized (since 2 November 2026: the Kids Pool's
+   floor flickered, its inlays a few mm over the deck rounded onto it; `venue-precision-check.mjs`).)
 4. **Launch.** Store page, trailer, wishlists, a demo, review, release.
 
 What only the creator can do (do not pretend to do it, and remind them when it blocks something): the Steamworks account and the $100 app fee,

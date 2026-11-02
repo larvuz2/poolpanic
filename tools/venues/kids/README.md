@@ -16,7 +16,7 @@ Three.js only.
 | The play pieces | `props_play.py` | the slide turret, the lifeguard chair, the toy chest, the ice-cream cart (its ledge carries the game's treats), shade sails, bunting, planters, towels on the fence |
 | Horizon | `horizon.sh` | the painted seaside town round the pool (generated once on fal; its prompt is in the script) |
 | Export | `../common/export_three.py -- tools/venues/kids` | one mesh per material class, the atlases, the deck's paint and occlusion, `kids.json` |
-| Pack | `../common/pack.sh kids` | `dist/assets/kids/`: the quantized GLB and WebP pictures |
+| Pack | `../common/pack.sh kids` | `dist/assets/kids/`: the GLB (positions as floats) and WebP pictures |
 
 Everything is modelled in game coordinates (`kit.py`: the plan, the palette, the tile sets). The kids run all over the deck, so
 nothing new stands in the open deck: only on the game's furniture spots, against the fence, or outside it.

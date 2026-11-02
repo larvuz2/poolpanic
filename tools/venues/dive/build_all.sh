@@ -22,5 +22,4 @@ blender -b -P "$HERE/dive_textures.py"
 "$PY" "$HERE/signs.py"
 for s in shell props_towers props_garden props_stories; do blender -b -P "$HERE/$s.py"; done
 blender -b -P "$COMMON/export_three.py" -- "$HERE"
-# (16-bit positions: the lawns run 120 m across, the basin 4.2 m deep)
-VENUE_VP=16 "$COMMON/pack.sh" dive "$REPO/dist/assets/dive-club"
+"$COMMON/pack.sh" dive "$REPO/dist/assets/dive-club"

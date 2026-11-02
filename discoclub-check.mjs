@@ -111,7 +111,9 @@ assert.ok(world.updaters.length >= 2, "the beat, and the DJ and the bartender");
 
 // the Coach Cam's ceiling: hidden from the overview, shown to the Coach Cam, never casting a shadow
 const coachMeshes = [];
-root.traverse((o) => o.isMesh && /^C_/.test(o.parent?.name || o.name) && coachMeshes.push(o));
+root.traverse(
+  (o) => o.isMesh && (/^C_/.test(o.name) || /^C_/.test(o.parent?.name || "")) && coachMeshes.push(o),
+);
 assert.ok(coachMeshes.length > 3, "the ceiling's meshes");
 world.hall.setCoach(false);
 assert.ok(

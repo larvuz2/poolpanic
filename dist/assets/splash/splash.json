@@ -1,5 +1,5 @@
 {
- "made": "tools/venues/splash/export_three.py",
+ "made": "tools/venues/common/export_three.py -- tools/venues/splash",
  "triangles": 199703,
  "lights": [
   {
@@ -300,6 +300,10 @@
   "conifer": 1.2,
   "groundcover": 3.0
  },
+ "sharp": [
+  "travertine",
+  "glass_mosaic"
+ ],
  "meshes": [
   "Door_A",
   "Door_B",

@@ -17,7 +17,7 @@ the pool. The crowd's people and the two officials are Meshy characters, not mad
 | The stations | `props_stations.py` (Splash Park's, in navy, white and red) | water care, eye care, the fin rack (`Fins_1..3`), the skimmer board, the bin, the fish net's board, the ring boards (`LifeRing`), the torch's post (`Flashlight`), the lifeguard's chair, the benches |
 | The meet | `props_meet.py` | the victory podium (trophy, bouquets, medals), the officials' table (monitors, horn, megaphone, stopwatches, the 6.0 / 5.9 / 3.2 scorecards), the team bench (towels, kit bags, swim caps, a rubber chicken nobody claims), the palm, Splashy the giant rubber duck in his cap and goggles, his poster on an easel, the Hall of Fame (ish) with a golden flipper, a golden duck, golden goggles and a fish-skeleton cup, the records board, the ISO-SPLASH machine, the drinking fountain, DAYS WITHOUT A CANNONBALL, the lane-rope reel, the leaning tower of kickboards, the POOL PANIC TV camera, cardboard Marco, WET FLOOR boards |
 | Export | `../common/export_three.py -- tools/venues/aquatic` | one mesh per material class (the ceiling's apart, `C_<class>`: kit.COACH_PARTS), the atlases, the floor's paint and occlusion, `aquatic.json` |
-| Pack | `../common/pack.sh aquatic` | `dist/assets/aquatic/`: the quantized GLB and WebP pictures |
+| Pack | `../common/pack.sh aquatic` | `dist/assets/aquatic/`: the GLB (positions as floats) and WebP pictures |
 
 Everything is modelled in game coordinates (`kit.py`: the plan, the palette, the tile sets). `aquaticclub-check.mjs` holds the result
 to the classic Aquatic Centre's hit boxes and labels and to its budget.

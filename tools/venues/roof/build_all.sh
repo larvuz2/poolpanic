@@ -22,5 +22,4 @@ blender -b -P "$HERE/roof_textures.py"
 "$PY" "$HERE/signs.py"
 for s in shell props_furniture props_stories; do blender -b -P "$HERE/$s.py"; done
 blender -b -P "$COMMON/export_three.py" -- "$HERE"
-# (16-bit positions: the roof runs 34 m end to end and the cradle's jib reaches 8 m up)
-VENUE_VP=16 "$COMMON/pack.sh" roof "$REPO/dist/assets/roof-club"
+"$COMMON/pack.sh" roof "$REPO/dist/assets/roof-club"

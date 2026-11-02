@@ -18,7 +18,7 @@ horizon). Three.js only.
 | The beach | `props_beach.py` | the signpost, torches along the path, a sandcastle, the bonfire and its log seats, the volleyball court, the rowboat and the outrigger, the surf school's shack and boards, kayaks, umbrellas |
 | Horizon | `horizon.sh` | the painted tropical coast round the land sides (generated once on fal; its prompt is in the script) |
 | Export | `../common/export_three.py -- tools/venues/lagoon` | one mesh per material class, the atlases, the deck's paint and occlusion, `lagoon.json` |
-| Pack | `../common/pack.sh lagoon` | `dist/assets/lagoon/`: the quantized GLB and WebP pictures |
+| Pack | `../common/pack.sh lagoon` | `dist/assets/lagoon/`: the GLB (positions as floats) and WebP pictures |
 
 Everything is modelled in game coordinates (`kit.py`: the plan, Splash Park's `RESORT_SPEC` with the doors in the wall, the
 palette, the tile sets, the dunes). The deck stands 1.95 m over the sand; the sea is the game's own (`scene/sky.mjs`), so nothing

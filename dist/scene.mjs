@@ -2046,7 +2046,9 @@ export class PoolWorld extends SceneKit {
       this.coachCam.resize(w / h);
       return;
     }
-    this.camera.near = 0.1;
+    // (the overview never comes nearer than about 14 m to anything: a near plane at 1 m, not 0.1, gives the depth buffer ten times
+    // the precision, so a surface a few mm over another never fights it for the pixels on any graphics card)
+    this.camera.near = 1;
     this.camera.aspect = w / h;
     this.camera.fov = 42;
     const reserve = w <= 620 ? (h <= 740 ? Math.max(220, 820 - h * 0.9) : 150) : h <= 540 ? 86 : 0;

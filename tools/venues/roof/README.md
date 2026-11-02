@@ -31,7 +31,7 @@ bronze's bright middle is taken out row by row. Each gets a normal map from its 
 | The furniture | `props_furniture.py` | the sunbeds, the cabanas, the parasols and festoons (`Light_Festoon`), the side tables (`Light_Lantern`), the lounge, the Sky Bar (`Light_Kiosk`), the DJ's riser, booth, speakers and truss, the palms, bay balls, lanterns, ice buckets, the stations and fixtures (`LifeRing`, `Flashlight`) |
 | The stories | `props_stories.py` | the window cleaner's cradle, the phone net and what fell in it, the coin binoculars, the champagne tower, the luggage cart, the concierge's desk, the framed pictures and plates on the lift cores, the pigeons |
 | Export | `../common/export_three.py -- tools/venues/roof` | one mesh per material class, the sign and cut-out atlases, the floor's paint and occlusion, `roof.json` |
-| Pack | `VENUE_VP=16 ../common/pack.sh roof dist/assets/roof-club` | `dist/assets/roof-club/` |
+| Pack | `../common/pack.sh roof dist/assets/roof-club` | `dist/assets/roof-club/` |
 
 The pictures made once on fal, kept in `$ROOF_GEN` (default the work folder's `gen/`; their links expire, so the results live in the
 model's pictures). The materials and the art with `fal-ai/nano-banana-2.1` (1:1 or 3:2, 2K):

@@ -179,7 +179,9 @@ const board = world.scene.children.find(
 assert.ok(board && board.position.z > -16.13, "the timing board, on the wall's face");
 // the Coach Cam's ceiling: hidden from the overview, shown to the Coach Cam, never casting a shadow
 const coachMeshes = [];
-root.traverse((o) => o.isMesh && /^C_/.test(o.parent?.name || o.name) && coachMeshes.push(o));
+root.traverse(
+  (o) => o.isMesh && (/^C_/.test(o.name) || /^C_/.test(o.parent?.name || "")) && coachMeshes.push(o),
+);
 assert.ok(coachMeshes.length > 3, "the roof's meshes");
 const near = world.scene.getObjectByName("aquatic-near");
 assert.ok(near && near.children.length > 0, "the near stand's crowd and ribbon");

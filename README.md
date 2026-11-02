@@ -1378,8 +1378,8 @@ calm), with more pieces per cluster and every surface given a second detail (a f
   `LIGHTING.senior`): the game's golden late afternoon, the sconces, picture light, reading lamp and garden lanterns lit softly and
   warm, a few slow clouds.
 - **Cost**: about 173k triangles in a 6.2 MB GLB, its pictures 1.5 MB (`dist/assets/senior-club/`; the classic's photographs stay in
-  `dist/assets/senior/`), packed with 16-bit positions (`VENUE_VP=16`, `tools/venues/common/pack.sh`: at the default 14 bits the
-  garden's 70 m made steps bigger than a picture's 3 mm in front of its board, and the signs flickered); 263 draw calls headless
+  `dist/assets/senior/`), packed first with 16-bit positions (at 14 bits the garden's 70 m made steps bigger than a picture's 3
+  mm in front of its board, and the signs flickered), with floats since 2 November 2026 ("No flicker", below); 263 draw calls headless
   against the classic's 418. `seniorclub-check.mjs` holds it to the classic's hit boxes and labels, to its placements and to its
   budget; the classic conservatory stands in until it loads (after the Wave Pool, `loadSeniorClub`) and with `?nomodels`. Measured
   here with software drawing only: the frame rate on a real graphics card is not yet measured.
@@ -1443,7 +1443,7 @@ of play, the walks calm), and this time **photographic materials**.
   size from the model's json), as the river's fourteen cut-outs (the idol, the foliage, the lianas, the signpost's arrows) needed;
   `trees.palm` takes `away`, a place to lean away from.
 - **Cost**: about 143k triangles in a 5.2 MB GLB, its pictures 3.6 MB (the photographic materials, over the other venues' 1.5 to 2.2
-  MB: `riverclub-check.mjs` holds them under 4 MB), packed with 16-bit positions (`VENUE_VP=16`); 289 draw calls headless against
+  MB: `riverclub-check.mjs` holds them under 4 MB), packed with its positions as floats (since 2 November 2026, below); 289 draw calls headless against
   the classic's 370. `riverclub-check.mjs` holds it to the classic's hit boxes and labels, to its placements and to its budget; the
   classic jungle stands in until it loads (after Senior Aqua Fit, `loadRiverClub`) and with `?nomodels`. Measured here with
   software drawing only: the frame rate on a real graphics card is not yet measured.
@@ -1503,7 +1503,7 @@ hour**, a 1930s ocean liner's glamour on a modern cruise ship.
   the radar and the flags, the funnel's smoke, the lobbies' sliding doors, the loungers (they slide), the tub's water and bubbles,
   the bell, the steamer chairs and balls, the bartender and the cast.
 - **Cost**: about 88k triangles in a 2.9 MB GLB, its pictures 2.1 MB and the sky 0.3 MB (`dist/assets/cruise-club/`), packed with
-  16-bit positions (`VENUE_VP=16`); 523 draw calls headless against the classic's 618. `cruiseclub-check.mjs` holds it to the
+  its positions as floats (since 2 November 2026: "No flicker", below); 523 draw calls headless against the classic's 618. `cruiseclub-check.mjs` holds it to the
   classic's hit boxes and labels, to its placements and to its budget; the classic ship stands in until it loads (after the Lazy
   River, `loadCruiseClub`) and with `?nomodels`. Measured here with software drawing only: the frame rate on a real graphics card
   is not yet measured.
@@ -1560,8 +1560,8 @@ above the city at golden hour, a five-star roof with a lot of nonsense at its ed
   `counter: false`, `djStage` with `stage: false`): the water and its ripples, the sheets of water over the knife edge and along
   the gutter, the lifts' sliding doors, the fire's flames and light, SKY BAR's neon and the margaritas, the LED wall, its light
   and beams and the riser's lit edge, the tower's glass walls and the city below, the towels, the DJ and the bartender.
-- **Cost**: about 78k triangles in a 2.6 MB GLB, its pictures 1.7 MB (`dist/assets/roof-club/`), packed with 16-bit positions
-  (`VENUE_VP=16`); 382 draw calls headless against the classic's 461. `roofclub-check.mjs` holds it to the classic's hit boxes and
+- **Cost**: about 78k triangles in a 2.6 MB GLB, its pictures 1.7 MB (`dist/assets/roof-club/`), packed with its positions as
+  floats (since 2 November 2026, below); 382 draw calls headless against the classic's 461. `roofclub-check.mjs` holds it to the classic's hit boxes and
   labels, to its placements and to its budget; the classic roof stands in until it loads (after the Cruise Ship, `loadRoofClub`)
   and with `?nomodels`. Measured here with software drawing only: the frame rate on a real graphics card is not yet measured.
 
@@ -1609,8 +1609,8 @@ above the city at golden hour, a five-star roof with a lot of nonsense at its ed
   `built: false`, `hotTub` with `cabinet: false`, `clubhouse` with `building: false`, `gates` with `posts: false`,
   `pickVolumes`): the water, the springboards' planks, the tub's water, glow and steam, the gates' leaves, the flag, the pick
   volumes, highlights, rims and landing rings, the divers, the massage beds.
-- **Cost**: about 106k triangles in a 3.3 MB GLB, its pictures 2.1 MB (`dist/assets/dive-club/`), packed with 16-bit positions
-  (`VENUE_VP=16`); 288 draw calls headless against the classic's 435. `diveclub-check.mjs` holds it to the classic's hit boxes and
+- **Cost**: about 106k triangles in a 3.3 MB GLB, its pictures 2.1 MB (`dist/assets/dive-club/`), packed with its positions as
+  floats (since 2 November 2026, below); 288 draw calls headless against the classic's 435. `diveclub-check.mjs` holds it to the classic's hit boxes and
   labels, springboards, gates and flag, to its placements and to its budget; the classic pool stands in until it loads (after the
   Rooftop Pool, `loadDiveClub`) and with `?nomodels`. Measured here with software drawing only: the frame rate on a real graphics
   card is not yet measured.
@@ -1661,12 +1661,30 @@ venue!!!! same about of deal!"). The season finale, the last venue dressed, the 
   and `models: true`, `scoreboard`, `spotlights`, `balloons`, `crowdLife`): the LED screens and the chasing marquee, the drapes (in
   the overview too now), the trophy turning, the crowds and their ribbons, the scoreboard, the spotlights' rigs, beams and pools of
   light, the balloons. The scoreboard, the rigs, the balloons and the near stand's crowd are the Coach Cam's, as in the classic.
-- **Cost**: about 176k triangles in a 6.5 MB GLB, its pictures 2.0 MB (`dist/assets/arena-club/`), packed with 16-bit positions
-  (`VENUE_VP=16`); 394 draw calls headless against the classic's 462. `arenaclub-check.mjs` holds it to the classic's hit boxes and
+- **Cost**: about 176k triangles in a 6.5 MB GLB, its pictures 2.0 MB (`dist/assets/arena-club/`), packed with its positions as
+  floats (7.6 MB since 2 November 2026: "No flicker", below); 394 draw calls headless against the classic's 462. `arenaclub-check.mjs` holds it to the classic's hit boxes and
   labels, its doors, trophy, crowds and Coach Cam parts and to its budget; the classic arena stands in until it loads (after the
   Jumping Pool, `loadArenaClub`) and with `?nomodels`. The pool's caustics now stay in the pool's box here and at the Aquatic
   Centre (`dressModel`'s `caustics`: they had shimmered on the stands' lower tiers, which lie below the water's level). Measured
   here with software drawing only: the frame rate on a real graphics card is not yet measured.
+
+**No flicker: every dressed venue's positions exact** (2 November 2026; the creator, in the Kids Pool's top-down view: "I see
+glitches everywhere… they're fighting for the same pixels, like the z-fighting maybe??? … make sure that we don't replicate this on
+other levels"). gltfpack had quantized every mesh of a venue on one shared grid as wide as its widest mesh, and the Kids Pool's ground
+runs 280 m out to the horizon: at 14 bits a step was 17 mm, so its pink band, the blue wave, the stepping stones, the hopscotch and
+the sea creatures on the pool's floor, all 6 to 9 mm over their surfaces, fell onto them and the two fought for the pixels (the sea
+creatures were hidden altogether). Splash Park (17 mm), the Mountain Hot Springs (16), the Sunset Lagoon (13) and the Wave Pool (8.5)
+had the same grid; 16 bits would still have left 4 mm. So:
+- **Positions as floats** (`tools/venues/common/pack.sh` and `godot/tools/three-club-pack.sh`: `-vpf`, `VENUE_VP` only to quantize
+  again on purpose): every dressed venue repacked from its own export (each checked first to give the committed model back
+  byte for byte at its old setting; Splash Park's export, newer than its model, re-exported from its parts and packed into the
+  same pictures pixel for pixel, 199.7k triangles against 199.4k), about 17% larger files (the Kids Pool 5.7 to 6.6 MB, the
+  Harbourside 8.9 to 10.6 MB: its budget 11 MB).
+- **The overview camera's near plane at 1 m**, not 0.1 (`resize`, `dist/scene.mjs`: it never comes nearer than about 14 m), for
+  ten times the depth buffer's precision on any graphics card; the Coach Cam keeps its own, close to the eye.
+- `venue-precision-check.mjs` holds every dressed venue's model to float positions and the overview's near plane to 1 m. The Kids
+  Pool's top-down view drawn here (software) before and after: the band and the path solid, the sea creatures back. Not yet seen on
+  a real graphics card.
 
 - **Grand Gala Arena** (`dist/scene/arena.mjs`, `crowd.mjs`; the classic one, until the dressed arena above loads; since 2 November 2026 the changing rooms' doors in its stage's wall, no locker rooms): a stage with an LED screen and a chasing-light marquee, a rotating trophy, three grandstands of instanced spectators who cheer on every save, scrolling LED ribbons, a hanging scoreboard cube that shows the live score, time and stars, two sweeping spotlight rigs with floor decals, balloons and confetti cannons.
 - **Aquatic Centre** (`dist/scene/aquatic.mjs`, 16 October 2026): an indoor competition pool. The pool builder takes a dress (`buildPool`'s second options: tiles, lane lines, rope colours, block tops, pennants), here deep-blue tiles with black lines, red, white and blue racing ropes and navy blocks on a white deck; an electronic timing board on the back wall (five named lanes, their times running with the shift's clock, MARCO in orange) between two pace clocks, a row of club flags, blue grandstands with a crowd on two sides (a third for the Coach Cam), scrolling LED ribbons, a victory podium, the officials' table with timing screens, a team bench, and painted lane numbers. Its light is `LIGHTING.aquatic`, cool daylight with the underwater lamps on; its hall (glass walls, a white steel lattice roof, banners, bunting) is for the Coach Cam. `?pool=aquatic` (any pool id) plays every shift of the week there, for a look or a test.
@@ -2438,6 +2456,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node roofclub-check.mjs` | The Rooftop Pool dressed for real: its files within budget (under 10 MB and 200k triangles, the pictures under 3 MB, every picture used, float UVs, the ten photographic materials), the classic roof until it is in, then the same hit boxes and labels, the anchors (three rings, the torch at 1.24 m), nothing between 0.1 and 1.9 m over the queue, the evacuation spots, the way out of the lifts, the aisles, the walk along the coping and the whole deck between the furniture, open water over the whole pool, the net, skimmer, fuse lever and the city, fewer draw calls than the classic |
 | `node diveclub-check.mjs` | The Jumping Pool dressed for real: its files within budget (under 10 MB and 200k triangles, the pictures under 3 MB, every picture used, float UVs, the twelve photographic materials), the classic pool until it is in, then the same hit boxes and labels, springboards, gates' leaves, highlights and flag, the anchors (three rings, the torch at 1.24 m), nothing between 0.1 and 1.9 m over the queue, the evacuation spots, the way in through the gates, the boards' lines, the walks along the pool and the whole deck between the furniture, open water over the pool but under the platforms, fewer draw calls than the classic |
 | `node arenaclub-check.mjs` | The Grand Gala Arena dressed for real: the doors in the stage's wall (no locker rooms), its files within budget (under 8 MB and 200k triangles, the pictures under 2.2 MB, every picture used, float UVs), the classic arena until it is in (its doors in the wall too), then the same hit boxes and labels, fins, rings, the doors swinging out onto the deck, the screens on the wall, the trophy turning in its niche, the Meshy crowd, the vault, near stand, scoreboard and rigs the Coach Cam's only, fewer draw calls than the classic |
+| `node venue-precision-check.mjs` | Every dressed venue's model keeps its positions as floats (never quantized: a band or an inlay a few mm over its surface would fall onto it and fight it for the pixels, the Kids Pool's z-fighting), and the overview camera's near plane is at 1 m |
 | `node aquaticclub-check.mjs` | The Aquatic Centre dressed for real: its files within budget (under 10 MB and 200k triangles, every picture used, float UVs), the classic hall until it is in, then the same hit boxes and labels, the fins, rings, fish net, torch, fuse and pool lamps, the club flags and the timing board on the wall's face, the roof and near stand hidden from the overview and shown to the Coach Cam without shadows, the changing rooms' doors in the timing wall swinging out onto the deck, the crowd's files (five spectators, UVs kept, at most 500 triangles a pose, under 600 KB) and its instanced meshes cheering, the officials' clips and skins and their seats behind the table, fewer draw calls than the classic hall |
 | `node discoclub-check.mjs` | The Aqua Disco dressed for real: its files within budget (under 10 MB and 200k triangles, the pictures under 2 MB, every picture used, float UVs), the classic disco until it is in, then the same hit boxes and labels, the fins, rings, fish net, torch, fuse and pool lamps, the spots sweeping to the beat, the ceiling and near wall hidden from the overview and shown to the Coach Cam without shadows, the entrance's leaves swinging out onto the deck, fewer draw calls than the classic disco |
 | `node lagoon-check.mjs` | The Sunset Lagoon dressed for real: its files within budget (the model under 10 MB and 200k triangles, the pictures under 2 MB, every picture used, float UVs), its torches, lanterns and bonfire, the classic lagoon until it is in, then the same hit boxes and labels as the classic lagoon, the fins, rings, torch and sky, the horizon kept off the sea side, the lamps out at golden hour and lit at dusk, out in a power cut, the horizon dimming at dusk and in a storm, the doors in the beach house's wall swinging out onto the deck, fewer draw calls than the classic lagoon |

@@ -23,5 +23,4 @@ blender -b -P "$HERE/cruise_textures.py"
 "$COMMON/horizon.sh" "$GEN/horizon.png" "$REPO/dist/assets/cruise-club/horizon.webp"
 for s in shell props_ship props_deck; do blender -b -P "$HERE/$s.py"; done
 blender -b -P "$COMMON/export_three.py" -- "$HERE"
-# (16-bit positions: the ship runs 60 m from the stern to the funnel and 26 m down to the sea)
-VENUE_VP=16 "$COMMON/pack.sh" cruise "$REPO/dist/assets/cruise-club"
+"$COMMON/pack.sh" cruise "$REPO/dist/assets/cruise-club"
