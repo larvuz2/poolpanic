@@ -338,7 +338,10 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   door), a forest round the far side and the right end. **The springs are the lanes**: SPRING 1 to 4 (the keys, the buttons, a click
   on the water) sends the selected guest to that spring (`sendToSpring`): they walk there, step down into it by its steps, wade to
   a free seat and sit in it to the shoulders, facing the middle, soaking for 22 to 32 s (cut to fit late in a shift: nobody is in
-  the water at closing), then out by the steps and home. A full spring refuses another guest; a settled guest stays put. **The
+  the water at closing), then out by the steps and home. A full spring refuses another guest; a settled guest stays put. Nobody
+  swims here, so **every guest's tag says ♨️ Hot tub** (VIP · Hot tub for a VIP), never Beginner, Intermediate or Pro, as the
+  Jumping Pool's hot tub guests' (2 November 2026, the creator: "they're not going to swim. They're just going to chill";
+  `p.soaker`, `swimmerLook`; Marco keeps his own). **The
   cold**: waiting in the snow a guest grows colder by the second (`p.cold`, 0 to 1 in 24 s, `SOAK.coldFull`); past 0.3 it bites
   (`coldPenalty`: up to 1.5 mood a second more, a VIP 1.3 times) and they hug themselves, shivering (the ColdHug clip: the five
   swimmers and Marco); in the hot water they warm up again. **The snow monkeys** (`MONKEY`, their own random stream, `onsenRandom`):
@@ -404,7 +407,7 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   s when a line has two or more): the last in a line pushes to the front and argues there for 7 s, the line crosser by the second;
   E beside them sends them to the back (+40, a save: BACK OF THE LINE!), or they win and go first and the line is crosser still
   (`updateCut`, `sendBack`, the `line-cut` incident). **The hot tub** ♨️ (TUB, key 4, a long rectangle on the narrow near side by the coach, with the massage beds): a guest in five comes only for it (they say
-  so; a diver sent there or a soaker sent to a board is refused), six seats, 20 to 30 s soaking; **only its guests have tummy
+  so, their tag ♨️ Hot tub, never a swimmer's skill; a diver sent there or a soaker sent to a board is refused), six seats, 20 to 30 s soaking; **only its guests have tummy
   trouble** (a third of them from level 3, a wee or a poo, `peeShare` 0.45), and a floater closes the tub, not the pool: the
   skimmer, the water care and the tub reopened as in the springs. **No chlorine, no poo and no vomit in the diving pool** (nobody
   who dives is sick, needs fins or cramps). **The massage corner**: two beds side by side (`MASSAGE_BEDS`, `fixtures.massage` and

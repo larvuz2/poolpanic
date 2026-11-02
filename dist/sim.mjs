@@ -116,8 +116,10 @@ export const FREE_PLAY_SCALE = (level) => FREE_PLAY[Math.max(1, Math.min(FREE_PL
 export function swimmerLook(p) {
   const t = TYPES[p.type];
   if (p.star) return { ...t, icon: "🚀", label: "VIP · The Missile", color: "#e9a92b" };
-  // (The Jumping Pool, dive.mjs: a guest only here for the hot tub, and a show-off who says they are a Pro until checked.)
-  if (p.tubOnly) {
+  // (A guest who only comes for the hot water is tagged Hot tub, never Beginner, Intermediate or Pro: the Jumping Pool's hot tub
+  // guests, dive.mjs, and every guest at the Mountain Hot Springs, onsen.mjs. And the Jumping Pool's show-off, who says they are a
+  // Pro until checked.)
+  if (p.tubOnly || p.soaker) {
     const look = { ...t, icon: "♨️", label: "Hot tub", color: "#e8875a" };
     return p.vip ? { ...look, icon: "👑", label: "VIP · Hot tub", color: "#e9a92b" } : look;
   }
