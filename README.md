@@ -599,7 +599,13 @@ AAA", the calm before the storm; everything the menu had kept but sorted differe
   turn to the doors and step up, casting shadows into the hall now, while the coach steps aside to let them in; then the light fills the
   screen and the shift's countdown comes up behind it (about 3.5 s in all; a click goes straight to the doors; reduce motion, a restart
   and the crash hunt's trials start at once; should the stage stop drawing, a watch starts the shift anyway). If the stage cannot load
-  (8 s at most) or stops drawing, the painted coach at his pool (`#menu-art`) is behind the menu as before; `?oldmenu` asks for that.
+  (12 s at most, the loader up meanwhile; one that comes later still takes its place) or stops drawing, a plain backdrop
+  (`#menu-art`) is behind the menu: never the old menu's picture of the coach at his pool, and `?oldmenu` is gone (2 November 2026).
+- **Straight to the 3D menu** (2 November 2026, the creator: "whenever you open, let's go to the main menu… we don't ever show the
+  old one"). The loader ("Filling the pool…") stays up until the menu's 3D stage has drawn its first frame (`revealGame` in app.mjs,
+  8 s at most): the three frames that warm the scene up draw the pool behind them, which a slow first launch (shaders compiling)
+  used to show for a moment as a pool with its swimmers and no menu. Measured in the desktop app here (Electron, software drawing):
+  the loader, then the menu over the Old Town Baths, nothing between.
 - **No first screen** (21 October 2026): CLICK TO ENTER is gone at the creator's word. The menu comes straight up and its music with it.
   The desktop app plays sound at once. A browser does not let any page play sound before the player's first click or key (Chrome
   lets a page that was clicked play at once after a reload); the game tries at load, takes every event a browser counts as a click
@@ -796,7 +802,7 @@ on their own, and whether a run ends on a shift they can name; only playtests ca
 
 The diagnostic of 19 October found that nothing taught the game and the first hour asked too little, then too much. Phase 1:
 
-- **The main screen** (since 20 October 2026 the Old Town Baths behind it: "The main menu", above) says what the game is: the week card over a picture of the coach at his pool (`#menu-art`), one line on the
+- **The main screen** (since 20 October 2026 the Old Town Baths behind it: "The main menu", above) says what the game is: the week card (over a picture of the coach at his pool until 20 October; since 2 November 2026 `#menu-art` is only a plain backdrop if the 3D stage cannot load), one line on the
   job (*send swimmers to the right lanes, fetch the gear, fix the chaos*), START. The old level map shows only in free play.
 - **The guided first shift** (`dist/tutorial.mjs`). The first shift of a player's first run (`!save.tutorial`, Monday of week 1) is
   the gentle minute stretched to 90 s (`TUTORIAL_SECONDS`) with `config.tutorial` on, and a yellow tip at the top of the column of messages on the left says the one
@@ -2290,7 +2296,6 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `tools/crash-triage.mjs`, `docs/crash-watch.md` | The crash watch: the reader that lists what the creator's devices have sent and sorts it (a crash, an error, a stuck incident, a flag, a hunt test), and the brief of the scheduled watch that was tried and stopped (kept for what it learned) |
 | `tools/webkit-run.py` | Runs the game in a real WebKit (WebKitGTK, installed with apt) under a virtual display and prints the web process's memory and the game's state each second, and why the process ended if it did ("Running the game in a real WebKit", below). It has the same JavaScript engine as Safari, not the iPad's graphics or memory limits. |
 | `dist/version.mjs`, `stamp-version.mjs` | The build's identity (`dev` locally, the commit on Netlify) and the script that stamps it |
-| `dist/engine-pick.mjs`, `dist/godot-web.mjs`, `tools/fetch-godot-web.mjs` | The web site's first screen, the game or the Godot test ("The Godot test", below), the note of which Godot web build the site has (`null` in a checkout), and the Netlify build step that fetches it into `dist/godot/` |
 | `dist/assets/` | Bundled Three.js, rounded-box helper, the glTF loader with its two helpers, license, `fonts/` (the five font files and their licence), `models/karen.glb` and `audio/`; `coach-panic.glb` for Coach Waters, the five `swimmer-*.glb`, the cannonball men's `carl.glb` and `leopard-man.glb`, the fish kid's `fish-kid.glb` and the fish, `fish.glb` |
 | `*-check.mjs`, `check-bot.mjs`, `check-helpers.mjs` | Deterministic regression and CPU scene checks; the coach bot and helpers they share |
 | `artifacts/game-progress.md` | Historical sprint notes; some pending statements are historical, not current status |
@@ -2560,15 +2565,11 @@ depends on it. `godot/README.md` is its brief and plan; `godot/docs/` hold the c
 Its venue is dressed as the Harbourside Community Swim Club, every asset made in Blender by `godot/tools/blender/` and lit in Godot
 (`godot/docs/look.md`).
 
-**On the web site, a choice first (27 October 2026).** The creator asked to test the Godot venue on Netlify without taking the game
-down: "a previous screen, choosing which one do we want to load". The same workflow also exports a **web build** (WebGL 2, Godot's
-Compatibility renderer, lighter textures: `godot/README.md`, "The web build") onto `godot-latest`. The Netlify build, after the checks,
-fetches it into `dist/godot/` (`tools/fetch-godot-web.mjs`: it waits a few minutes for the build of this commit's `godot/` tree, then
-takes what is there, and never fails the deploy) and writes `dist/godot-web.mjs`. When that says a build is there, the game's page
-first shows two cards (`dist/engine-pick.mjs`, imported first by `app.mjs`, which waits for it): **Pool Panic** (the game, which then
-starts in place) and **Harbourside Community Pool** (opens `/godot/`, whose corner link comes back). It is never shown in the desktop
-app (a checkout's `godot-web.mjs` is `null`), with anything after the `?` in the address (`?playtest`, `?dev=1`, `?bisect`… go straight
-into the game) or on a reload after choosing the game; the boot watchdog waits while it is open (`engine-pick-check.mjs`).
+**On the web site, a choice first (27 October to 2 November 2026).** For a week the site's first screen offered the game or the
+Godot venue's web build (WebGL 2, Godot's Compatibility renderer: `godot/README.md`, "The web build"), which the Netlify build
+fetched into `dist/godot/`. On 2 November 2026 the creator chose three.js ("there is no use for it now… whenever you open, let's go
+to the main menu"): the choice, its build step and its check are gone, and the site is the game alone. The workflow still exports
+the web build onto `godot-latest`, to unpack and serve by hand.
 
 ## Scope and future work
 

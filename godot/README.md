@@ -116,8 +116,9 @@ through the windows across the deck.
 
 ## The web build
 
-The same workflow exports it (`tools/web-export.sh`) next to the desktop builds, and the Netlify build puts it on the site at
-`/godot/` (`tools/fetch-godot-web.mjs` in the repository's root, README "The Godot test"). A browser runs Godot's **Compatibility
+The same workflow exports it (`tools/web-export.sh`) next to the desktop builds onto `godot-latest`. Until 2 November 2026 the
+Netlify build put it on the site at `/godot/`; since then the site is the game alone (README "The Godot test"), and the web build
+is unpacked and served by hand. A browser runs Godot's **Compatibility
 renderer** (WebGL 2), which has no SDFGI, SSAO, SSIL, SSR or volumetric fog, so the web build is a lighter look of the same venue:
 
 - **The light** (`club_scene.gd`, `_web_light`): more light in the ambient for what the tiles would bounce, a softer sun so its

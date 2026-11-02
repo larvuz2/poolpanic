@@ -380,7 +380,12 @@ const mixed = () => {
   assert.ok(!/Unity/.test(html), "the credits name only what the game is made with");
   assert.match(html, /as of 20 October 2026, at least/);
   assert.match(css, /\.credits-page\[open\] \{\s*display: grid;/, "a closed dialog stays closed");
-  assert.match(css, /body\.stage \.menu-art \{/, "the painted card is the fallback");
+  assert.match(css, /body\.stage \.menu-art \{/, "a plain backdrop is the fallback");
+  // The loader waits for the stage (12 s at most), and a stage that comes later is still used: never the old menu's picture,
+  // never ?oldmenu (2 November 2026).
+  assert.match(app, /the menu's stage took over 12 s/);
+  assert.match(app, /if \(menuStage\) return stage\.dispose\(\);\s*useMenuStage\(stage\);/);
+  assert.ok(!/oldmenu/.test(app), "no way back to the old menu");
   assert.match(app, /new MenuStage\(\)\.load\(coach\)/);
   assert.match(app, /menuStage\.openDoors\(\{/);
   assert.match(

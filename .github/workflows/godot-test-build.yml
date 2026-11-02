@@ -1,7 +1,8 @@
 # The Godot test (godot/, godot/README.md): checked and exported for Windows, macOS, Linux and the web on every push that changes
 # it, and offered as downloads on one release that is replaced each time (`godot-latest`), as the Electron test builds are on
-# `desktop-latest`. The web build (a .tar.gz, and godot-web.json naming the git tree of godot/ it was made from) is what the
-# Netlify build puts at /godot/ on the site (tools/fetch-godot-web.mjs). It never touches the game in dist/ or its desktop builds.
+# `desktop-latest`. The web build (a .tar.gz, and godot-web.json naming the git tree of godot/ it was made from) is on the release
+# only, to unpack and serve by hand: since 2 November 2026 the site is the game alone (the creator: "we go for three.js"). It never
+# touches the game in dist/ or its desktop builds.
 # Not signed (the Mac app is signed ad hoc), so each system asks once before it opens.
 name: Godot test builds
 
@@ -98,7 +99,7 @@ jobs:
           | Windows | \`PoolPanicGodot-windows.zip\` | Unzip it, open \`PoolPanicGodot.exe\`. Windows asks once ("Windows protected your PC"): **More info**, then **Run anyway**. |
           | A Mac (Apple chip or Intel) | \`PoolPanicGodot-mac.zip\` | Unzip, move the app to Applications, open it. macOS says it cannot check it: **System Settings, Privacy & Security, Open Anyway** (or in Terminal: \`xattr -dr com.apple.quarantine "/Applications/Pool Panic (Godot test).app"\`). |
           | Linux | \`PoolPanicGodot-linux.zip\` | Unzip, run \`./PoolPanicGodot.x86_64\`. |
-          | A browser | the site | Open the Netlify site (or a pull request's preview) and choose **Godot test**: it plays \`PoolPanicGodot-web.tar.gz\`, put there by the site's build. |
+          | A browser | \`PoolPanicGodot-web.tar.gz\` | Unpack it and serve the folder from any static server (the site no longer offers it). |
           NOTES
           gh release delete godot-latest --cleanup-tag --yes || true
           gh release create godot-latest zips/*.zip zips/PoolPanicGodot-web.tar.gz zips/godot-web.json --prerelease --target "$GITHUB_SHA" --title "Godot test $short" --notes-file notes.md
