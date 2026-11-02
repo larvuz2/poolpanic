@@ -112,7 +112,7 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    game's). Each venue has its own thing; the incidents are drawn afresh each shift, so the same one can come two shifts
    running (the creator wants that). In every pool **one swimmer in five climbing out drips a wet spot** that never dries until the coach
    mops it (Q, `dist/incidents/wet.mjs`; the coach slips in one too, down for 1.3 s, unless he jumps over it), and a tummy ache can be a poo or **a wee** (yellow water, chlorine only). **Marco swims in
-   more than half of all shifts, in every pool but the Kids Pool and the Rooftop Pool** (`STAR_CHANCE`, 0.66; at Senior Aqua Fit, the Lazy River, the Wave Pool, the Cruise Ship, the Mountain Hot Springs and the Jumping Pool, where he dives, too), and **VIPs come in every
+   more than half of all shifts, in every pool but the Kids Pool and the Rooftop Pool** (`STAR_CHANCE`, 0.66; at Senior Aqua Fit, the Lazy River, the Wave Pool, the Cruise Ship, the Mountain Hot Springs and the Jumping Pool, where he dives, too; at the Mountain Hot Springs nobody swims, Marco neither: every guest only relaxes, their tag ♨️ Hot tub, never a swimmer's skill, the creator's, 2 November 2026), and **VIPs come in every
    shift**, more as the run goes on (the creator wants to see them often); incidents drawn by a director
    (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder: one new incident a shift from the first Tuesday, all five
    met in week 1, then a fair mix where one that just came is less likely, `RECENT`). A shift not passed pays nothing but the week goes on. Marina's
