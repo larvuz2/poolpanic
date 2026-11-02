@@ -83,11 +83,14 @@ export function createOnsen(sim) {
   return { monkeys: [], nextMonkey: between(sim, MONKEY.first), uid: 0, told: {} };
 }
 
-// A new guest at the springs: no fins, no cramps (nobody swims laps), warm from the bathhouse.
+// A new guest at the springs: no fins, no cramps (nobody swims laps), warm from the bathhouse. A soaker: their tag says Hot tub,
+// never a swimmer's Beginner, Intermediate or Pro (2 November 2026, the creator: "they're not going to swim. They're just going to
+// chill": sim.mjs swimmerLook).
 export function onsenSpawn(sim, p) {
   // (No trampoline up here: a daredevil a level writes in comes for a soak like anyone.)
   if (p.type === "daredevil") p.type = "intermediate";
   Object.assign(p, {
+    soaker: true,
     needsFins: false,
     midFins: false,
     finsFirst: false,

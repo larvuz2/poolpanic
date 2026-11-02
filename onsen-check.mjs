@@ -5,7 +5,7 @@
 // the coach slides… the same incidents").
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { PoolSimulation, SHIFTS } from "./dist/sim.mjs";
+import { PoolSimulation, SHIFTS, swimmerLook } from "./dist/sim.mjs";
 import { VENUES } from "./dist/spatial.mjs";
 import {
   SPRINGS,
@@ -169,6 +169,12 @@ const monkey = (s, until) => {
     guests.push(p);
   }
   assert.ok(springFull(s, k), "full");
+  // Nobody swims here: every guest's tag says Hot tub, never Beginner, Intermediate or Pro (a VIP's says VIP · Hot tub).
+  for (const q of guests) {
+    const look = swimmerLook(q);
+    assert.equal(look.label, q.vip ? "VIP · Hot tub" : "Hot tub", q.name + "'s tag");
+    assert.ok(look.icon === "♨️" || q.vip);
+  }
   const extra = waiting(s, until);
   assert.equal(send(s, extra, k), false, "a full spring refuses another");
   assert.equal(extra.status, "queue");
@@ -580,5 +586,5 @@ const monkey = (s, until) => {
 }
 
 console.log(
-  "Mountain Hot Springs checks passed: four springs of their own sizes (5, 4, 5 and 3 seats) with steps on the rim, seats in the water and walks between round the boulders; guests grow cold waiting in the snow, and the cold bites; SPRING 1–4 sends them to walk, step down, wade to a seat and soak, a full spring refuses, a settled guest stays put, a late soak is cut to fit; snow monkeys out of the forest making for a spring, shooed by running into them (+40), in the water (−50) panicking the guests until shooed out from the rim (+25) or by wading, more of them later, never two for a spring, seeded; the coach skates and slides on the ice and wades in the springs; every incident met in a spring; whole shifts played by the bot; in the week with its song, stings, saves, props and pictures; on screen the springs, the water, guests to the shoulders, the cold hug and a monkey to its chin.",
+  "Mountain Hot Springs checks passed: four springs of their own sizes (5, 4, 5 and 3 seats) with steps on the rim, seats in the water and walks between round the boulders; guests tagged Hot tub (nobody swims), grow cold waiting in the snow, and the cold bites; SPRING 1–4 sends them to walk, step down, wade to a seat and soak, a full spring refuses, a settled guest stays put, a late soak is cut to fit; snow monkeys out of the forest making for a spring, shooed by running into them (+40), in the water (−50) panicking the guests until shooed out from the rim (+25) or by wading, more of them later, never two for a spring, seeded; the coach skates and slides on the ice and wades in the springs; every incident met in a spring; whole shifts played by the bot; in the week with its song, stings, saves, props and pictures; on screen the springs, the water, guests to the shoulders, the cold hug and a monkey to its chin.",
 );
