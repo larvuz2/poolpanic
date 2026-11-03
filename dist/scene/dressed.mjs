@@ -145,6 +145,10 @@ export function dressedVenue({ dir, file, label, horizon = null }) {
 // the lamps' pools and the caustics stay put on the deck as it tips; the world's frame by default)
 export function dressModel(w, model, { look, name, deckSet, hour = false, caustics = null, frame = null }) {
   const info = model.info;
+  // Every picture of the model is freed from the graphics card with the venue (the world's `textures`): the deck's paint and AO
+  // reach the GPU only through the venue's shader, where taking the scene down never sees them (3 November 2026). They are sent
+  // again if the venue is played again.
+  w.textures?.push(...Object.values(model.textures || {}));
   const U = {
     frame: { value: new THREE.Matrix4() },
     causticBox: { value: new THREE.Vector4(...(caustics || [-1e4, 1e4, -1e4, 1e4])) },

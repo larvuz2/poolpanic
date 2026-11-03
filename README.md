@@ -628,7 +628,8 @@ AAA", the calm before the storm; everything the menu had kept but sorted differe
 - **Settings** (from the menu, and from ⚙ in a shift): master, music and effects volumes (music and effects are now two mixes under the
   master; the shifts' songs and the disco's are music, everything else effects; heard as a slider moves), brightness (the exposure of
   every venue and of the menu), film grain (a fine moving grain over everything, 20% to start), graphics quality and on-screen controls
-  (moved here from Help), full screen, reduce motion (Settings' choice or the system's), and the Coach Cam: its view on or off
+  (moved here from Help), full screen, **Limit to 60 fps** (on by default since 3 November 2026: a 120 Hz or faster screen otherwise
+  draws every frame twice as often; "Performance", below), reduce motion (Settings' choice or the system's), and the Coach Cam: its view on or off
   (since 30 October 2026, the creator: "a settings change to coach view so I can toggle in and out"; the same switch as the shift
   card's and V, `setCoachCam` in app.mjs: a shift under way changes view at once; still off at every launch), its mouse sensitivity
   and Invert Y. They are kept with the other preferences (`pool-panic.settings.v1`, which the desktop app already saves).
@@ -2356,6 +2357,40 @@ Two scripted runs make a crash easy to hunt on the device itself. Both play leve
 **A second iPad report (October 3, 2026), not understood yet.** The game "broke" when opened in Safari on an iPad, with no report to read, and it has not been reproduced: there is no WebKit where the game is developed, only Chromium. What was checked instead: the merged build (Karen, the character models, the fish) plays 26 incident cases in Chromium without a page error, in the overview and the Coach Cam, in all four venues; the graphics and script memory it uses (the models add about 35 MB of textures and geometry) is far below what an iPad allows; and the source uses nothing newer than iPadOS 15.4 supports. Two changes were made on suspicion and cost nothing: the fonts are bundled (the Google Fonts `@import` could hold up the first paint when the network was slow or out), and `nomodels` was added to the hunt so it can rule the character models in or out. To find the cause the game needs a report from the device: **Copy report** in the crash dialog if it appears, else the **Copy results** of `?bisect` (open the game's address with `?bisect` on the end and let it run; it reloads itself between tests and carries on after a crash), and the iPad's iPadOS version.
 
 **A third iPad report (October 4, 2026), not understood yet: the page dies after an incident.** The creator was playing (they did not note the level) and, after a cramp, took the life ring, jumped in, gave it to the swimmer and, when the swimmer got out of the pool, the app crashed; they said it crashes a lot after incidents. It has not been reproduced. What was checked instead, in Chromium (software WebGL): the whole rescue (the cramp, the ring from the wall, the dive, the swim, the handoff, the swimmer climbing out, walking to the bench and resting, the ring back on the deck, the swimmer going back in) played by a script through the game's own frame loop, in the overview and in the Coach Cam, without a page error, an error in the log, a stall or a frozen page; with the GPU really drawing every sixth frame, what the renderer holds stayed flat from the shift's first seconds to the end (27 programs, 239 geometries, 48 textures, the scene's nodes back to where they began once the particles had gone), so a rescue leaks nothing; and every event, particle and effect it sets off shares its geometry and materials. One real bug did turn up in that flow and is fixed: the coach climbs out of the water on the very side the swimmer walks to the bench by, and when he stood in the way a collision pushed the swimmer into the margin of the pool's keep-out box, where the guard against stepping into the water threw them 4.5 m back to the end of the pool, again and again, so they never reached the bench (`moveAlong` in `dist/sim.mjs`; `rescue-check.mjs` holds the coach in the way for the whole walk on levels 3 and 12). The fix is only for that swimmer on purpose: every other walker who is pushed into the same margin is still sent to the end of the pool as before, because changing that moves the whole game's balance (level 10's bot scores shift by thousands of points) and belongs to a tuning pass of its own. It is not a crash, though. So the cause is likelier on the device (memory or the GPU) than in the logic, and what was built is what finds it next time: the shift's diary and the scene's counts in the crash log, and **Send report** (see Crash log). After the next crash, open the game once more and tap Send (the dialog opens by itself at launch), then read out the device code the dialog shows.
+
+### Performance (3 November 2026)
+
+The creator asked for a performance check of the web game and the desktop app, ranked fixes that are cheap and pay a lot, and the numbers
+before and after. Measured in Chromium and in the desktop app (Electron 44) under a virtual screen with no graphics card (Mesa's
+llvmpipe draws on the CPU, a few frames a second, so drawing costs are read as percentages, never as fps), the same 13-venue tour each
+time, back to the menu between venues (`renderer.info`, the processes' memory, the JS heap, the main thread's time per frame from
+`requestAnimationFrame`, the network). Five fixes went in; none changes the look:
+
+1. **The graphics memory leak between venues.** Taking a venue down (`disposeScene`, scene/kit.mjs) freed each material's colour map
+   but not its normal and AO maps, the pictures a venue's own shader reads (the deck's paint and AO, the crowd's body and shirt mask)
+   nor the characters' bones; every venue visited stayed on the graphics card, about 65 MB a venue. Now every texture a material
+   holds (its slots and its uniforms), every skeleton, and every picture of a dressed venue (`dressModel` puts them in the world's
+   `textures`) and of the crowd are freed with the venue, and sent again if it is played again. Textures after the tour 251 → 84,
+   the graphics process 1,553 → 1,208 MB; in the desktop app, after seven venues, 170 → 77 and 1,132 → 958 MB.
+2. **Venues load when they are played** (`loadVenue`, `VENUE_LOADS` in app.mjs). All thirteen dressed venues used to load one after
+   the other behind the menu at every launch (about 100 MB, most of it never played). Now the Community Pool loads at launch, START
+   loads the shift's venue while the doors open (a few tenths of a second from disk; the doors take 3.5 s, and START waits for it 15 s
+   at most before the classic look plays), and the week's next pool is fetched behind the menu (`prefetchNextPool`). Page memory at
+   the menu 846 → 498 MB in the browser (JS heap 220 → 90 MB), 858 → 488 MB in the desktop app.
+3. **No forced layout in a frame.** Every guest's tag read the view's size (`clientWidth`) just after the previous tag had moved,
+   which made the browser lay the whole page out again, once a guest, every frame (`cameraBounds` alone was a third of the game's
+   script time). The size is kept (`viewSize` in scene.mjs, forgotten on a resize and by a ResizeObserver) and the scoreboard's foot
+   read twice a second (`scoreboardBottom`). The main thread's time per frame fell 22% on average over the 13 venues (11.9 → 9.2 ms on
+   this machine, lower in every one).
+4. **The crowd draws only the pose each spectator is in** (scene/crowd-models.mjs). The other pose used to be drawn shrunk to nothing,
+   every triangle still processed: the Grand Gala Arena 617k → 426k triangles a frame, the Aquatic Centre 556k → 403k.
+5. **Limit to 60 fps**, a Settings switch on by default (`cap60`, `frameCap` in app.mjs, beside the touch WebKit's own cap): a 120 Hz
+   Mac or a 144 Hz monitor drew twice the frames the game needs. Worked out, not measured: this machine's screen is 60 Hz.
+
+Three more would pay but change the look, so they are the creator's to choose: no antialiasing on a high-DPI screen (−31% drawing time
+at the Aquatic Centre), lighter shadows (almost the whole venue is drawn again for the sun's shadow map each frame; −20% with none),
+and a Retina pixel ratio of 1.5 instead of 1.7 (half the pixels measured −29%). Not measured here: real frame rates on the creator's
+Mac and Windows PC. The report with its charts is the "Pool Panic Performance Pass" page.
 
 ### Playtest mode
 

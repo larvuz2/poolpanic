@@ -209,7 +209,12 @@ assert.ok(!isTouchWebKit(), "nothing known");
   assert.match(app, /markDrawing\(crashStorage, drawing\)/);
   assert.match(app, /addEventListener\("pagehide", putAway\)/);
   assert.match(app, /addEventListener\("visibilitychange", \(\) => document\.hidden && putAway\(\)\)/);
-  assert.match(app, /gfx\.plan\.fpsCap && lastDrawn && t - lastDrawn < 1000 \/ gfx\.plan\.fpsCap/);
+  // The cap: the device's (a touch WebKit) or Settings' "Limit to 60 fps", on by default (3 November 2026).
+  assert.match(
+    app,
+    /const cap = gfx\.plan\.fpsCap \|\| frameCap;\s*if \(cap && lastDrawn && t - lastDrawn < 1000 \/ cap - 3\)/,
+  );
+  assert.match(app, /frameCap = s\.cap60 === false \? 0 : 60;/);
   assert.match(app, /crashlog\.crumb\(\s*"gfx"/, "the log says the plan and every step of the governor");
   assert.match(app, /params\.get\("gfx"\) === "reset"\) resetGfx/);
   // Since 16 October 2026 a crash no longer lowers the graphics, so no toast may say it did; the log still says the page died.

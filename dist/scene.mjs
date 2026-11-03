@@ -2028,9 +2028,22 @@ export class PoolWorld extends SceneKit {
     this.scene.traverse(visit);
     this.coachCam?.scene?.traverse(visit);
   }
+  // The view's size in CSS pixels, kept from the last resize: reading the container's size in a frame, after the tags over the
+  // guests had moved, made the browser lay the whole page out again, once for every guest (3 November 2026). A ResizeObserver
+  // forgets it when the container changes size some other way.
+  viewSize() {
+    if (!this.view) {
+      this.view = { w: this.container.clientWidth, h: this.container.clientHeight };
+      if (!this.viewWatch && typeof ResizeObserver === "function") {
+        this.viewWatch = new ResizeObserver(() => (this.view = null));
+        this.viewWatch.observe(this.container);
+      }
+    }
+    return this.view;
+  }
   resize() {
-    const w = this.container.clientWidth,
-      h = this.container.clientHeight;
+    this.view = null;
+    const { w, h } = this.viewSize();
     if (this.renderer) {
       const ratio = this.pixelRatio(w, h);
       if (ratio !== this.renderer.getPixelRatio()) this.renderer.setPixelRatio(ratio);
@@ -2118,8 +2131,7 @@ export class PoolWorld extends SceneKit {
     }
   }
   cameraBounds() {
-    const w = this.container.clientWidth,
-      h = this.container.clientHeight,
+    const { w, h } = this.viewSize(),
       portrait = w <= 620;
     // (the left strip holds the column of messages, the right one the water check and the gear: index.html `#hud-rail`)
     return {
@@ -2197,8 +2209,7 @@ export class PoolWorld extends SceneKit {
     for (const p of this.cameraAnchors())
       if (Math.hypot(c.x - p.x, c.z - p.z) < 3.3)
         points.push(new THREE.Vector3(p.x, 0.1, p.z - 0.65), new THREE.Vector3(p.x, 2.7, p.z + 0.65));
-    const w = this.container.clientWidth,
-      h = this.container.clientHeight,
+    const { w, h } = this.viewSize(),
       ray = new THREE.Raycaster(),
       plane = new THREE.Plane(),
       hit = new THREE.Vector3();
@@ -2269,21 +2280,23 @@ export class PoolWorld extends SceneKit {
   // it sits to the right (1) or left (-1) of the camera's back.
   screenPoint(x, y, z) {
     const v = new THREE.Vector3(x, y, z).applyMatrix4(this.scene.matrixWorld),
-      local = v.clone().applyMatrix4(this.camera.matrixWorldInverse);
+      local = v.clone().applyMatrix4(this.camera.matrixWorldInverse),
+      { w, h } = this.viewSize();
     v.project(this.camera);
     return {
-      x: (v.x * 0.5 + 0.5) * this.container.clientWidth,
-      y: (-v.y * 0.5 + 0.5) * this.container.clientHeight,
+      x: (v.x * 0.5 + 0.5) * w,
+      y: (-v.y * 0.5 + 0.5) * h,
       behind: local.z > 0,
       lean: local.x / (Math.hypot(local.x, local.z) || 1),
     };
   }
   project(x, y, z) {
     // (The scene's own turn: the cruise ship's roll, scene/cruise.mjs; nothing anywhere else.)
-    const v = new THREE.Vector3(x, y, z).applyMatrix4(this.scene.matrixWorld).project(this.camera);
+    const v = new THREE.Vector3(x, y, z).applyMatrix4(this.scene.matrixWorld).project(this.camera),
+      { w, h } = this.viewSize();
     return {
-      x: (v.x * 0.5 + 0.5) * this.container.clientWidth,
-      y: (-v.y * 0.5 + 0.5) * this.container.clientHeight,
+      x: (v.x * 0.5 + 0.5) * w,
+      y: (-v.y * 0.5 + 0.5) * h,
       visible: v.z < 1,
     };
   }
