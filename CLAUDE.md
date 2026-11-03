@@ -281,6 +281,9 @@ the app and depot ids, the store page, the price, written proof that the AI tool
 - **A venue loads when it is played and leaves the graphics card with it** (3 November 2026, README "Performance"): a new dressed
   venue joins `VENUE_LOADS` in app.mjs (never a load at launch; only the Community Pool is), and a picture only a shader reads goes in
   the world's `textures` so it is freed with the venue. Nothing per frame reads the page's layout (`viewSize`, not `clientWidth`).
+- **Real-world sounds are recordings, musical cues are synthesised** (3 November 2026, README "Recorded sound effects"): a water,
+  weather, animal, crowd or object sound goes in `tools/sfx/sounds.mjs` (ElevenLabs Sound Effects v3 on fal, `tools/sfx/make.mjs`)
+  and is played from `PoolAudio.recorded` with its synthesised version kept as the fallback; its level matched to what it replaces.
 - Fonts are bundled (`dist/assets/fonts/`). The game must not need the network once its files have loaded.
 - Generated art (Meshy, fal, image models) is committed under `dist/assets/`, never linked: the CDN links expire.
 

@@ -1,6 +1,8 @@
 # Recorded audio
 
-Everything in Pool Panic is synthesised, except what is listed in `dist/audio-files.mjs`. Drop a recording here and
+Everything in Pool Panic is synthesised, except what is listed in `dist/audio-files.mjs`. Since 3 November 2026 the effects that
+are real-world sounds play recordings from `dist/assets/sfx/` (`SFX`; made by `tools/sfx/make.mjs`, README "Recorded sound
+effects"). Drop a recording here and
 add its path to that list to use it instead of the placeholder.
 
 - **Karen's voice** (`AUDIO_FILES.karen`): short complaining clips, played at random every one to two seconds
