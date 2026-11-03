@@ -105,7 +105,7 @@ import { devOn } from "./dev.mjs";
 import { MenuStage, GUESTS, GUEST_FIGURES } from "./scene/menu-stage.mjs";
 import { installTitle, normalizeSettings, volumesOf, grainOpacity, motionReduced } from "./title.mjs";
 import { installFreePlay } from "./free-ui.mjs";
-import { freePlayShift, freeLevel } from "./week.mjs";
+import { freePlayShift, freeLevel, POOLS } from "./week.mjs";
 import { installCoop } from "./coop-ui.mjs";
 import { CoopGuest, Predictor } from "./net.mjs";
 import { coachInfo } from "./crew.mjs";
@@ -1848,20 +1848,87 @@ let weekShift = null,
   weekUi = null;
 // START, from the menu: the coach walks to the doors and opens them, the light fills the screen and the shift begins behind it
 // (scene/menu-stage.mjs `openDoors`). Anywhere else (a restart, a trial), or with reduced motion, the shift begins at once.
+// The dressed venues, each loaded when a shift there is chosen (3 November 2026). Until then all thirteen loaded one after the
+// other behind the menu at every launch: about 100 MB fetched and 190 MB more of the page's memory, most of it never played. The
+// Community Pool (the Harbourside) still loads at launch; START loads the shift's venue while the doors open (a few tenths of a
+// second from the desktop app's disk, the doors take three and a half), and the week's next pool is fetched behind the menu.
+// Until a venue is in (and with ?nomodels) its classic look plays, as before.
+const VENUE_LOADS = {
+  resort: ["Splash Park", loadSplashPark],
+  kids: ["Kids Pool", loadKidsPool],
+  lagoon: ["Sunset Lagoon", loadLagoonClub],
+  disco: ["Aqua Disco", loadDiscoClub],
+  // (the hall's crowd, scene/crowd-models.mjs, and its officials, scene/officials.mjs, come with it)
+  aquatic: [
+    "Aquatic Centre",
+    () => Promise.all([loadAquaticClub(), loadCrowdModels(), loadOfficials()]).then(([m]) => m),
+  ],
+  onsen: ["Mountain Hot Springs", loadOnsenClub],
+  wave: ["Wave Pool", loadWaveClub],
+  senior: ["Senior Aqua Fit", loadSeniorClub],
+  river: ["Lazy River", loadRiverClub],
+  cruise: ["Cruise Ship", loadCruiseClub],
+  roof: ["Rooftop Pool", loadRoofClub],
+  dive: ["Jumping Pool", loadDiveClub],
+  arena: ["Grand Gala Arena", () => Promise.all([loadArenaClub(), loadCrowdModels()]).then(([m]) => m)],
+};
+const venueLoads = new Map();
+// `{ promise, done }` for the venue `id`, started on the first ask; null for a venue with nothing to load.
+function loadVenue(id) {
+  const job = VENUE_LOADS[id];
+  if (!job || tuning.has("nomodels")) return null;
+  if (!venueLoads.has(id)) {
+    const began = performance.now(),
+      load = { done: false };
+    load.promise = Promise.resolve()
+      .then(job[1])
+      .catch(() => null)
+      .then((model) => {
+        load.done = true;
+        crashlog.crumb(
+          "venue",
+          (model ? job[0] + " loaded in " : job[0] + " failed after ") +
+            Math.round(performance.now() - began) +
+            " ms" +
+            (model ? "" : ": the classic " + job[0] + " stays"),
+        );
+        return model;
+      });
+    venueLoads.set(id, load);
+  }
+  return venueLoads.get(id);
+}
+// `then` at once when the venue is in (or has nothing to load), else when it is, 15 s at most (the classic look plays after that).
+function whenVenue(load, then) {
+  if (!load || load.done) return then();
+  Promise.race([load.promise, new Promise((r) => setTimeout(r, 15000))]).then(then);
+}
+// The pool of the week's next shift, fetched behind the menu so its START is as quick as the Community Pool's.
+function prefetchNextPool() {
+  const w = weekUi?.save?.week,
+    pool = w?.pools?.[w.shift];
+  if (pool) loadVenue(POOLS[pool]?.style?.venue || pool);
+}
 function start(bookingId = null, week = null) {
   if (doorsOpening) return;
+  // (the shift's venue loads now, if it is not in yet: loadVenue)
+  const venue = loadVenue(week?.config?.venue || SHIFTS[level - 1]?.venue || "club");
   if (mode === "menu" && menuStage?.ready && !reducedMotion.matches && !testing) {
     document.querySelectorAll("dialog[open]").forEach((d) => d.close());
     document.activeElement?.blur();
     const flash = $("door-flash");
+    let finishing = false;
     const finish = () => {
-      if (!doorsOpening) return;
-      doorsOpening = false;
-      startNow(bookingId, week);
-      flash.classList.add("out");
-      flash.style.opacity = 0;
-      setTimeout(() => flash.classList.remove("out"), 900);
-      document.body.classList.remove("doors");
+      if (!doorsOpening || finishing) return;
+      finishing = true;
+      whenVenue(venue, () => {
+        doorsOpening = false;
+        startNow(bookingId, week);
+        flash.classList.add("out");
+        flash.style.opacity = 0;
+        setTimeout(() => flash.classList.remove("out"), 900);
+        document.body.classList.remove("doors");
+      });
     };
     const opening = menuStage.openDoors({
       flash: (v) => (flash.style.opacity = v),
@@ -1886,7 +1953,8 @@ function start(bookingId = null, week = null) {
       return;
     }
   }
-  startNow(bookingId, week);
+  if (testing) startNow(bookingId, week);
+  else whenVenue(venue, () => startNow(bookingId, week));
 }
 // FREE PLAY (free-ui.mjs): a shift at the pool and difficulty chosen, built by the week's builder without the week.
 function startFree(pool, levelId) {
@@ -2097,6 +2165,7 @@ function applySettings(s = settings) {
     world.coachCam.invertY = s.invertY;
   }
   motionChoice = s.motion;
+  frameCap = s.cap60 === false ? 0 : 60;
   document.body.classList.toggle("calm", reducedMotion.matches);
   // (dev mode switched in Settings: the menu's FREE PLAY count follows at once)
   if (mode === "menu") weekUi?.menu();
@@ -2174,6 +2243,7 @@ function returnMenu() {
   syncUnlocks();
   updateMenu(reveal);
   weekUi?.menu();
+  prefetchNextPool();
   renderFund();
   updateUI();
   $(document.body.classList.contains("freeplay") ? "start" : "wk-go").focus({ preventScroll: true });
@@ -3600,8 +3670,7 @@ function updateContext() {
     const xy = world.project(q.x, 0.85, q.z),
       ready = sim.nearestInteraction()?.kind === "scoop";
     floater.style.left = xy.x + "px";
-    floater.style.top =
-      Math.max(document.querySelector(".scoreboard").getBoundingClientRect().bottom + 42, xy.y) + "px";
+    floater.style.top = Math.max(scoreboardBottom() + 42, xy.y) + "px";
     floater.textContent = ready ? "E · SCOOP" : "GET CLOSER";
     floater.classList.toggle("in-reach", ready);
   }
@@ -3695,6 +3764,15 @@ function placeTag(b, screen, tagTop) {
   );
   putStyle(b, "top", Math.round(Math.max(tagTop + b._h, screen.y)) + "px");
 }
+// The scoreboard's foot (the tags stay under it), read at most twice a second: reading it after the tags had moved made the
+// browser lay the page out again in the middle of the frame (3 November 2026).
+let boardFoot = { at: -1e9, y: 0 };
+function scoreboardBottom() {
+  const now = performance.now();
+  if (now - boardFoot.at > 500)
+    boardFoot = { at: now, y: document.querySelector(".scoreboard").getBoundingClientRect().bottom };
+  return boardFoot.y;
+}
 function updateBubbles() {
   // `notags` (the played hunt): no tag, bubble or label is drawn over the pool at all.
   if (tuning.has("notags")) {
@@ -3703,7 +3781,7 @@ function updateBubbles() {
     return;
   }
   const ids = new Set(),
-    tagTop = document.querySelector(".scoreboard").getBoundingClientRect().bottom + 12;
+    tagTop = scoreboardBottom() + 12;
   for (const p of sim.people) {
     if (
       p.status === "gone" ||
@@ -4376,8 +4454,11 @@ const putAway = () => {
 };
 document.addEventListener("visibilitychange", () => document.hidden && putAway());
 window.addEventListener("pagehide", putAway);
+// The frame-rate cap: the device's (gfx.mjs, a touch WebKit) or Settings' "Limit to 60 fps" (on by default, 3 November 2026).
+let frameCap = 60;
 function animate(t) {
-  if (gfx.plan.fpsCap && lastDrawn && t - lastDrawn < 1000 / gfx.plan.fpsCap - 3) {
+  const cap = gfx.plan.fpsCap || frameCap;
+  if (cap && lastDrawn && t - lastDrawn < 1000 / cap - 3) {
     requestAnimationFrame(animate);
     return;
   }
@@ -4926,77 +5007,8 @@ try {
     );
     // (built at once when the world is behind the menu; a shift already running keeps its pool, the next one has the new)
     if (model && world && sim && mode === "menu") syncVenue(sim);
-    // Splash Park dressed for real (scene/splashpark.mjs) loads after it, behind the menu; until it is in (and with ?nomodels)
-    // the classic Splash Park plays, and a shift already running there keeps it.
-    const splashBegan = performance.now();
-    // Then the venues after it on the ladder, one at a time (the Kids Pool: scene/kidspool.mjs; the Sunset Lagoon:
-    // scene/lagoonclub.mjs; the Aqua Disco: scene/discoclub.mjs; the Aquatic Centre: scene/aquaticclub.mjs; the Mountain Hot
-    // Springs: scene/onsenclub.mjs).
-    const loaded = (name, began) => (model) =>
-      crashlog.crumb(
-        "venue",
-        (model ? name + " loaded in " : name + " failed after ") +
-          Math.round(performance.now() - began) +
-          " ms" +
-          (model ? "" : ": the classic " + name + " stays"),
-      );
-    loadSplashPark()
-      .then(loaded("Splash Park", splashBegan))
-      .then(() => {
-        const began = performance.now();
-        return loadKidsPool().then(loaded("Kids Pool", began));
-      })
-      .then(() => {
-        const began = performance.now();
-        return loadLagoonClub().then(loaded("Sunset Lagoon", began));
-      })
-      .then(() => {
-        const began = performance.now();
-        return loadDiscoClub().then(loaded("Aqua Disco", began));
-      })
-      .then(() => {
-        const began = performance.now();
-        return loadAquaticClub().then(loaded("Aquatic Centre", began));
-      })
-      .then(() => {
-        // its crowd (scene/crowd-models.mjs) and its officials (scene/officials.mjs): small, after the hall
-        const began = performance.now();
-        return Promise.all([loadCrowdModels(), loadOfficials()]).then(([a, b]) =>
-          loaded("Aquatic Centre's people", began)(a && b),
-        );
-      })
-      .then(() => {
-        const began = performance.now();
-        return loadOnsenClub().then(loaded("Mountain Hot Springs", began));
-      })
-      .then(() => {
-        const began = performance.now();
-        return loadWaveClub().then(loaded("Wave Pool", began));
-      })
-      .then(() => {
-        const began = performance.now();
-        return loadSeniorClub().then(loaded("Senior Aqua Fit", began));
-      })
-      .then(() => {
-        const began = performance.now();
-        return loadRiverClub().then(loaded("Lazy River", began));
-      })
-      .then(() => {
-        const began = performance.now();
-        return loadCruiseClub().then(loaded("Cruise Ship", began));
-      })
-      .then(() => {
-        const began = performance.now();
-        return loadRoofClub().then(loaded("Rooftop Pool", began));
-      })
-      .then(() => {
-        const began = performance.now();
-        return loadDiveClub().then(loaded("Jumping Pool", began));
-      })
-      .then(() => {
-        const began = performance.now();
-        return loadArenaClub().then(loaded("Grand Gala Arena", began));
-      });
+    // The other dressed venues load when a shift there is chosen (loadVenue), and the week's next pool behind the menu.
+    prefetchNextPool();
   });
   if (fetching.length) {
     await Promise.race([Promise.all(fetching), new Promise((resolve) => setTimeout(resolve, 6000))]);
@@ -5106,6 +5118,7 @@ try {
   updateUI();
   syncVenue(sim);
   revealing = true; // (the loader comes off after the first frames: revealGame)
+  prefetchNextPool();
   setTimeout(() => revealing && revealGame(), 8000);
   if (window.__boot) window.__boot.ready = true;
   renderFund();

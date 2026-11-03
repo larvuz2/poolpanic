@@ -45,6 +45,9 @@ const html = readFileSync("dist/index.html", "utf8"),
   assert.equal(s.sensitivity, 250);
   assert.equal(s.invertY, false, "only true inverts");
   assert.equal(s.motion, "auto");
+  assert.equal(s.cap60, true, "60 fps at most unless Settings says otherwise (3 November 2026)");
+  assert.equal(normalizeSettings({ cap60: false }).cap60, false);
+  assert.equal(normalizeSettings({ cap60: "no" }).cap60, true);
   assert.equal(s.quality, "high", "the other preferences are kept");
   assert.deepEqual(volumesOf({ master: 80, music: 50, effects: 100 }), {
     master: 0.8,

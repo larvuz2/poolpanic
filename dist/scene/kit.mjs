@@ -172,6 +172,8 @@ export function disposeScene(scene) {
   const seen = new Set();
   scene.traverse((o) => {
     if (o.isInstancedMesh) o.dispose(); // its instance buffers (spectators, marquee bulbs, palms) are not the geometry's
+    // a character's bones go to the GPU as a small picture of their own (the officials, the figures): made again if drawn again
+    if (o.isSkinnedMesh) o.skeleton?.dispose();
     if (o.geometry && !seen.has(o.geometry)) {
       seen.add(o.geometry);
       o.geometry.dispose();
@@ -180,11 +182,17 @@ export function disposeScene(scene) {
     for (const m of materials) {
       if (seen.has(m)) continue;
       seen.add(m);
-      for (const key of ["map", "bumpMap", "roughnessMap", "emissiveMap", "alphaMap"])
-        if (m[key] && !seen.has(m[key])) {
-          seen.add(m[key]);
-          m[key].dispose();
+      // Every picture the material holds, not only its colour map: the dressed venues' normal and AO maps stayed on the GPU
+      // when the venue was taken down, about 65 MB a venue visited (3 November 2026). A picture freed here is sent again if it
+      // is drawn again; a render target's own is left to its target.
+      const free = (t) => {
+        if (t?.isTexture && !t.isRenderTargetTexture && !seen.has(t)) {
+          seen.add(t);
+          t.dispose();
         }
+      };
+      for (const key of Object.keys(m)) free(m[key]);
+      for (const u of Object.values(m.uniforms || {})) free(u?.value);
       m.dispose();
     }
   });

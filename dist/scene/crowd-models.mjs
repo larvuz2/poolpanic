@@ -136,7 +136,6 @@ function merged(parts) {
   return out;
 }
 
-const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 const FORWARD = 0.37; // metres from the classic crowd's spot to where the feet go, sitting on the seat (scene/aquatic.mjs stands)
 
 export class ModelCrowd {
@@ -149,6 +148,8 @@ export class ModelCrowd {
     { seed = 1, scale = 1, waveAxis = "z", shirts = SHIRTS, flags = FLAGS } = {},
   ) {
     const M = ready;
+    // (its pictures reach the GPU through the crowd's own shader, which taking the scene down never sees: freed with the venue)
+    w.textures?.push(M.texture, M.mask);
     this.seats = seats;
     this.waveAxis = waveAxis;
     const rand = rngOf(seed + 101),
@@ -181,13 +182,12 @@ export class ModelCrowd {
         this.meshes.push(m);
         return m;
       };
-      return { sit: make("sit"), cheer: make("cheer"), hand: p.handR };
+      // (`owner`: who is drawn at each instance, so a shirt's colour is only written when the order changes)
+      return { sit: make("sit"), cheer: make("cheer"), hand: p.handR, owner: { sit: [], cheer: [] } };
     });
-    for (const [i, p] of this.people.entries()) {
-      const b = this.bodies[p.kind];
-      for (const pose of ["sit", "cheer"]) b[pose].setColorAt(p.slot, color.set(p.shirt));
-      void i;
-    }
+    for (const b of this.bodies)
+      for (const pose of ["sit", "cheer"]) b[pose].setColorAt(0, color.set(0xffffff));
+    this.color = color;
     // what they hold: a flag in the club's colours, a foam finger
     const holders = (what) => this.people.filter((p) => p.holds === what);
     this.held = [];
@@ -224,9 +224,12 @@ export class ModelCrowd {
   }
 
   // `cheer` (0..1) is how excited the hall is: 0 sits and sways, 1 is up with a wave rolling through the seats.
+  // Each pose's mesh draws only the people in that pose, one after another (3 November 2026: the other pose used to be drawn too,
+  // shrunk to nothing, which still cost the graphics card every one of its triangles: about 150k a frame in a full hall).
   update(time, cheer = 0) {
     const d = this.dummy,
       wavePos = time * 2.2;
+    for (const b of this.bodies) b.n = { sit: 0, cheer: 0 };
     this.seats.forEach((s, i) => {
       const p = this.people[i],
         b = this.bodies[p.kind],
@@ -243,10 +246,12 @@ export class ModelCrowd {
       d.rotation.set(0, s.ry + p.turn * (up ? 0.3 : 1) + Math.sin(time * 0.4 + p.phase) * 0.08, 0);
       d.scale.setScalar(k);
       d.updateMatrix();
-      b[pose].setMatrixAt(p.slot, d.matrix);
-      if (p.pose !== (up ? 1 : 0)) {
-        b[up ? "sit" : "cheer"].setMatrixAt(p.slot, HIDDEN);
-        p.pose = up ? 1 : 0;
+      const at = b.n[pose]++;
+      b[pose].setMatrixAt(at, d.matrix);
+      if (b.owner[pose][at] !== p) {
+        b.owner[pose][at] = p;
+        b[pose].setColorAt(at, this.color.set(p.shirt));
+        b[pose].instanceColor.needsUpdate = true;
       }
       if (p.heldMesh) {
         // in the right hand, waved about in a cheer
@@ -259,6 +264,10 @@ export class ModelCrowd {
         p.heldMesh.setMatrixAt(p.heldSlot, d.matrix);
       }
     });
+    for (const b of this.bodies) {
+      b.sit.count = b.n.sit;
+      b.cheer.count = b.n.cheer;
+    }
     for (const m of this.meshes) m.instanceMatrix.needsUpdate = true;
   }
 }
