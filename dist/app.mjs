@@ -102,6 +102,7 @@ import { Recorder, apply as applyInput, REPLAY_LIMITS } from "./replay.mjs";
 import { HighlightPicker, ClipPlayer, HIGHLIGHT } from "./highlight.mjs";
 import { BUILD } from "./version.mjs";
 import { devOn } from "./dev.mjs";
+import { installLookTuner, antialiasOff, LOOK_DEFAULTS } from "./look-tuner.mjs";
 import { MenuStage, GUESTS, GUEST_FIGURES } from "./scene/menu-stage.mjs";
 import { installTitle, normalizeSettings, volumesOf, grainOpacity, motionReduced } from "./title.mjs";
 import { installFreePlay } from "./free-ui.mjs";
@@ -206,7 +207,17 @@ const gfxBoot = bootGfx(crashStorage, { count: !testing });
 const gfxTier = playHunt ? 2 : 0;
 // The quality the player chose in Help (Auto, Low, Medium, Standard, High, Ultra); a hunt or a trial plays Auto.
 const gfxQuality = testing ? "auto" : readQuality(crashStorage);
+// The Look tuner's antialiasing switch (look-tuner.mjs, dev mode only), read before the drawing surface is made.
+const lookNoAA = (() => {
+  try {
+    const saved = JSON.parse(crashStorage?.getItem("pool-panic.settings.v1") || "{}") || {};
+    return !testing && antialiasOff(crashStorage, devOn(saved, params));
+  } catch {
+    return false;
+  }
+})();
 const tuning = readTuning(location.search, [
+  ...(lookNoAA ? ["noaa"] : []),
   ...(huntStep ? huntStep.flags : []),
   ...(handsOff ? ["nohands"] : []),
   ...graphicsPlan({ tier: gfxTier, quality: gfxQuality }).flags,
@@ -595,6 +606,9 @@ function updateAlert() {
 }
 const bubbles = new Map();
 let stationLabels = [];
+// The Look tuner (look-tuner.mjs): its sidebar, and whether it holds the shift still.
+let lookTuner = null,
+  lookFreeze = false;
 let hudWasPlaying = false;
 document.body.classList.add("menu");
 function toast(text, warning = false) {
@@ -1660,6 +1674,7 @@ function syncVenue(s) {
         " ms",
     );
     worldVersion = world.version;
+    lookTuner?.refresh();
     renderLaneControls(s.venue);
     for (const e of stationLabels) e.remove();
     stationLabels = world.labels.map((l) => {
@@ -2166,6 +2181,7 @@ function applySettings(s = settings) {
   }
   motionChoice = s.motion;
   frameCap = s.cap60 === false ? 0 : 60;
+  if ($("set-look")) $("set-look").hidden = !devMode();
   document.body.classList.toggle("calm", reducedMotion.matches);
   // (dev mode switched in Settings: the menu's FREE PLAY count follows at once)
   if (mode === "menu") weekUi?.menu();
@@ -4521,7 +4537,8 @@ function frame(t) {
           COACH_TUNING.speed * (sim.perks?.speed ?? 1),
         );
       } else {
-        accumulator = Math.min(0.12, accumulator + dt * speed);
+        // (the Look tuner's "Freeze the shift": nothing moves on while the look is judged)
+        accumulator = lookFreeze ? 0 : Math.min(0.12, accumulator + dt * speed);
         while (accumulator >= 1 / 60) {
           if (replayRun) feedReplay();
           sim.tick(1 / 60);
@@ -4909,6 +4926,11 @@ function bind() {
     },
   });
   document.addEventListener("keydown", (e) => {
+    // F9: the Look tuner, in dev mode (look-tuner.mjs)
+    if (e.key === "F9" && devMode() && lookTuner) {
+      e.preventDefault();
+      return lookTuner.toggle();
+    }
     if (!$("cinematic").open) input.keyDown(e);
   });
   document.addEventListener("keyup", (e) => input.keyUp(e));
@@ -5036,6 +5058,23 @@ try {
   world = new PoolWorld($("world"), pick);
   sim = makeDemo();
   bind();
+  // The Look tuner (look-tuner.mjs): F9 or Settings > Developer, in dev mode; with dev mode off the game draws its own look.
+  lookTuner = installLookTuner({
+    storage: crashStorage,
+    venue: () => world?.venue && { id: world.venue.id, name: POOLS[world.venue.id]?.name || world.venue.id },
+    restart: () => setTimeout(() => location.reload(), 300),
+    freeze: (on) => {
+      lookFreeze = on;
+      crashlog.crumb("look", on ? "the shift frozen to look" : "the shift goes on");
+    },
+  });
+  world.lookSource = (id) => (devMode() && !testing ? lookTuner.values(id) : LOOK_DEFAULTS);
+  if (devMode() && !testing) lookTuner.reopen();
+  $("set-look").onclick = () => {
+    document.querySelectorAll("dialog[open]").forEach((d) => d.close());
+    if (mode === "paused") resume();
+    lookTuner.toggle(true);
+  };
   // The menu's stage (not for a trial or a hunt): a few hundred kB of pictures, and the coach's model. The loader stays up
   // while it comes (12 s at most); one that comes later still takes its place behind the menu. The old menu's picture is never
   // shown (the creator, 2 November 2026: "we don't ever show the old one"); without a stage the menu has a plain backdrop.

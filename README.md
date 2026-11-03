@@ -629,7 +629,7 @@ AAA", the calm before the storm; everything the menu had kept but sorted differe
   master; the shifts' songs and the disco's are music, everything else effects; heard as a slider moves), brightness (the exposure of
   every venue and of the menu), film grain (a fine moving grain over everything, 20% to start), graphics quality and on-screen controls
   (moved here from Help), full screen, **Limit to 60 fps** (on by default since 3 November 2026: a 120 Hz or faster screen otherwise
-  draws every frame twice as often; "Performance", below), reduce motion (Settings' choice or the system's), and the Coach Cam: its view on or off
+  draws every frame twice as often; "Performance", below), in dev mode the **Look tuner** (F9; "The Look tuner", below), reduce motion (Settings' choice or the system's), and the Coach Cam: its view on or off
   (since 30 October 2026, the creator: "a settings change to coach view so I can toggle in and out"; the same switch as the shift
   card's and V, `setCoachCam` in app.mjs: a shift under way changes view at once; still off at every launch), its mouse sensitivity
   and Invert Y. They are kept with the other preferences (`pool-panic.settings.v1`, which the desktop app already saves).
@@ -2391,6 +2391,36 @@ Three more would pay but change the look, so they are the creator's to choose: n
 at the Aquatic Centre), lighter shadows (almost the whole venue is drawn again for the sun's shadow map each frame; −20% with none),
 and a Retina pixel ratio of 1.5 instead of 1.7 (half the pixels measured −29%). Not measured here: real frame rates on the creator's
 Mac and Windows PC. The report with its charts is the "Pool Panic Performance Pass" page.
+
+### The Look tuner (3 November 2026)
+
+For the art pass, the creator asked for "a developer sidebar… a lot of sliders that alter the materials, the textures, and the
+lighting, even this toggle for the anti-aliasing on Retina screens… see the changes in real time… on each venue, we might have
+different default settings". In dev mode, **F9** (or Settings > Developer > *Look tuner*) opens a sidebar on the right
+(`dist/look-tuner.mjs`); the view makes room for it and the shift goes on beside it, or stands still with *Freeze the shift* (the
+simulation is not stepped; nothing is recorded). Its 32 knobs, in eight groups:
+
+- **Light**: exposure, sun, sky light (the ambient), fill light, reflections (the environment), sun warmth (cool to warm), sun
+  height, and the tone mapping (ACES filmic, the game's, AgX, Neutral, Reinhard, Cineon, Linear).
+- **Shadows**: on or off, darkness, the edges (soft PCF, the game's; filtered PCF; blurred VSM; hard), the shadow map's size, blur.
+- **Materials**: texture brightness (only surfaces with a picture, never the game's flashes and markers), roughness, metalness,
+  surface detail (the normal maps), contact shade (AO), glow (emissive).
+- **Textures**: sharpness at an angle (anisotropic filtering, 1× to 16×).
+- **Water**: brightness and caustics. **Air**: fog on or off and its distance.
+- **Colour grade**: saturation, contrast, brightness, warm tint, hue shift, vignette (a CSS filter and an overlay on the drawing
+  surface, never on the menu's stage).
+- **Resolution**: the pixel ratio (0.5 to 2.5; a Retina screen draws 1.7), and **antialiasing** on or off, which restarts the game
+  (it is chosen when the drawing surface is made; `antialiasOff`, read at launch).
+
+Every value is seen at once: `scene/look.mjs` leans on the lights, exposure, fog and water for each drawing (`lookBefore`, inside the
+world's `render()`) and puts the frame's own values back after it, so a venue's sliding hour, storm or blackout stays its own; what
+lasts (tone mapping, shadows' kind and size, sharpness, pixel ratio, materials from their own values) changes once when its knob
+does, and the game's own look comes back when every knob is at its default. **This venue / All venues** says what a slider changes:
+each venue's own values over every venue's (a yellow dot marks a venue's own; antialiasing is for every venue). A double-click
+resets a slider; *Reset this venue* and *Reset everything*; *Copy settings* puts the values that differ from the game's on the
+clipboard (and in a box), one line a venue, to send so they can become that venue's own look. Kept in `pool-panic.look.v1` (with
+the desktop app's saves). With dev mode off (`DEV_DEFAULT`, before the Steam release) none of it applies. Checks:
+`look-tuner-check.mjs`.
 
 ### Playtest mode
 

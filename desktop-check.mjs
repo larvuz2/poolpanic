@@ -149,6 +149,7 @@ function trackedGameFiles() {
     "dist/story.mjs",
     "dist/week.mjs",
     "dist/free-ui.mjs",
+    "dist/look-tuner.mjs",
   ]
     .map(read)
     .join("\n");
