@@ -75,6 +75,7 @@ const SAVE_KEYS = [
   "pool-panic.achievements.v1",
   "pool-panic.week.v1",
   "pool-panic.free.v1",
+  "pool-panic.look.v1", // the Look tuner's values (look-tuner.mjs): an art pass kept with the saves
 ];
 const SAVE_VERSION = 1;
 const MAX_VALUE = 256 * 1024; // a value larger than this is not one of the game's

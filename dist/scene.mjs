@@ -8,6 +8,7 @@ import {
   stepObject,
 } from "./scene/massage-view.mjs";
 import { THREE, SceneKit, COLORS, disposeScene } from "./scene/kit.mjs";
+import { lookBefore } from "./scene/look.mjs";
 import { glowTexture, gradientTexture } from "./scene/textures.mjs";
 import { buildClub } from "./scene/club.mjs";
 import { harbourReady } from "./scene/harbourside.mjs";
@@ -550,6 +551,9 @@ export class PoolWorld extends SceneKit {
     }
     this.venue = venue;
     this.lightingName = lighting;
+    // (a new sun and new materials: the Look tuner puts its values on them again, scene/look.mjs)
+    this.lookValues = null;
+    this.lookMaterialKey = null;
     this.dressed = dressedFor(venue);
     this.staticLook = withDome(lighting, venue);
     this.look = this.staticLook;
@@ -2002,6 +2006,7 @@ export class PoolWorld extends SceneKit {
   // How many drawing pixels a CSS pixel gets: the app's graphics plan (gfx.mjs: a budget of pixels on a touch device, a lighter tier
   // after a crash, the governor's scale), else the screen's own ratio, at most 1.7 (or what ?dpr asks for).
   pixelRatio(w, h) {
+    if (this.lookScale) return Math.min(2.5, Math.max(0.5, this.lookScale)); // (the Look tuner's pixel ratio)
     const gfx = globalThis.__poolGfx;
     if (gfx?.plan) return gfx.plan.ratio(w, h, gfx.scale);
     return Math.min(devicePixelRatio, Math.max(0.5, this.tune.number("dpr", 1.7)));
@@ -2009,7 +2014,7 @@ export class PoolWorld extends SceneKit {
   // Textures seen at an angle (the deck, the tiles, the models) stay as sharp as the chosen quality asks (anisotropic filtering). Looked
   // over every two seconds, so the models that load later get it too; a texture is only sent again when its setting changes.
   sharpenTextures() {
-    const want = globalThis.__poolGfx?.plan?.anisotropy;
+    const want = this.lookAniso || globalThis.__poolGfx?.plan?.anisotropy;
     if (!want || !this.renderer) return;
     const now = performance.now();
     if (now - (this.sharpenedAt || 0) < 2000) return;
@@ -2372,7 +2377,10 @@ export class PoolWorld extends SceneKit {
   }
   render() {
     this.sharpenTextures();
+    // (the Look tuner's values, dev mode only: look-tuner.mjs, scene/look.mjs; what it leans on for this frame is put back after)
+    const undo = lookBefore(this, this.lookSource?.(this.venue?.id));
     this.renderer.render(this.scene, this.camera);
     if (this.viewMode === "coach" && !this.tune.has("nohands")) this.coachCam.render(this.renderer);
+    undo?.();
   }
 }
