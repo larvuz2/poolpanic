@@ -1,4 +1,4 @@
-import { AUDIO_FILES } from "./audio-files.mjs";
+import { AUDIO_FILES, SFX, sfxUrl } from "./audio-files.mjs";
 import { DiscoMusic } from "./music.mjs";
 
 // The menu's recordings (ElevenLabs Music and Sound Effects, 20 October 2026; see assets/audio/README.md).
@@ -89,6 +89,41 @@ export class PoolAudio {
     compressor.connect(this.ctx.destination);
     this.next = this.ctx.currentTime + 0.05;
     this.timer = setInterval(() => this.schedule(), 70);
+    this.loadSfx();
+  }
+  // ---- the recorded sound effects (audio-files.mjs SFX, 3 November 2026) ----------------------------------------------------
+  // Every take is fetched and decoded once, when the sound starts (about 0.9 MB in all); until a sound's takes are in, and if one
+  // will not load, its synthesised version plays.
+  loadSfx() {
+    if (this.sfxTakes || !this.ctx) return;
+    this.sfxTakes = {};
+    this.sfxLast = {};
+    for (const [key, { takes }] of Object.entries(SFX)) {
+      this.sfxTakes[key] = [];
+      for (let n = 1; n <= takes; n++)
+        this.buffer(new URL(sfxUrl(key, n), import.meta.url).href).then(
+          (b) => b && this.sfxTakes[key].push(b),
+        );
+    }
+  }
+  // Plays one take of the recorded `key` at `t` (+`delay`), `gain` times its own level and `rate` times its speed (a little more or
+  // less each time, so no two splashes are the same). False when it has none ready: the caller plays the synthesised one.
+  sfx(key, t = this.ctx?.currentTime || 0, { gain = 1, rate = 1, delay = 0 } = {}) {
+    const takes = this.sfxTakes?.[key];
+    if (!this.ctx || !this.enabled || !takes?.length) return false;
+    let i = Math.floor(Math.random() * takes.length);
+    if (takes.length > 1 && i === this.sfxLast[key]) i = (i + 1) % takes.length;
+    this.sfxLast[key] = i;
+    const s = this.ctx.createBufferSource(),
+      g = this.ctx.createGain();
+    s.buffer = takes[i];
+    s.playbackRate.value = rate * (0.94 + Math.random() * 0.12);
+    g.gain.value = SFX[key].gain * gain;
+    s.connect(g);
+    g.connect(this.out());
+    s.onended = () => release(s, g);
+    s.start(t + delay);
+    return true;
   }
   tone(freq, time, duration, vol = 0.15, type = "sine", endFreq = null) {
     if (!this.ctx || !this.enabled) return;
@@ -269,6 +304,7 @@ export class PoolAudio {
   effect(type, e = {}) {
     if (!this.ctx || !this.enabled) return;
     const t = this.ctx.currentTime;
+    if (this.recorded(type, e, t)) return;
     if (this.waveEffect(type, e, t)) return;
     if (this.roofEffect(type, e, t)) return;
     if (this.shipEffect(type, e, t)) return;
@@ -525,6 +561,169 @@ export class PoolAudio {
         this.tone(f, t + 0.25 + i * 0.22, i === 3 ? 0.5 : 0.2, 0.08, "sawtooth"),
       );
     }
+  }
+  // The effects that are real-world sounds, played from recordings (audio-files.mjs SFX, 3 November 2026): water, weather, animals,
+  // crowds, whistles, bells, doors, bumps and glass. A musical part some of them have (a sad trombone, a guest's chime, a "whoa")
+  // stays synthesised over the recording. False when `type` is not one of them or its recording is not in yet: the synthesised
+  // effect below plays instead.
+  recorded(type, e, t) {
+    const play = (key, opts) => this.sfx(key, t, opts);
+    switch (type) {
+      // ---- water ----
+      case "splash": // a swimmer into the pool (the creator: "very mechanical now"); a small one softer and lighter
+        return play("splash", e.small ? { gain: 0.55, rate: 1.12 } : undefined);
+      case "cannonball":
+        return play("cannonball");
+      case "trampoline-splash":
+        if (!play("cannonball", { gain: 0.8 })) return false;
+        [523, 659, 784, 1047, 1319].forEach((f, i) =>
+          this.tone(f, t + 0.12 + i * 0.06, 0.2, 0.11, "triangle"),
+        );
+        return true;
+      case "fish-dumped":
+        if (!play("splash", { rate: 0.9 })) return false;
+        [660, 523, 392, 262].forEach((f, i) => this.tone(f, t + 0.1 + i * 0.12, 0.2, 0.15, "sawtooth"));
+        return true;
+      case "coach-fell": // the Lazy River's jump that falls short: a big splash and a sad trombone
+        if (!play("fall-in")) return false;
+        [392, 370, 349, 294].forEach((f, i) =>
+          this.tone(f, t + 0.25 + i * 0.22, i === 3 ? 0.5 : 0.2, 0.08, "sawtooth"),
+        );
+        return true;
+      case "fell-in": // the cruise ship: "whoa-oa!" and a splash
+        if (!play("fall-in", { delay: 0.3 })) return false;
+        this.tone(620, t, 0.32, 0.09, "triangle", 300);
+        return true;
+      case "overboard": // the rooftop: a falling wail and a splash below
+        if (!play("fall-in", { delay: 0.55 })) return false;
+        this.tone(900, t, 0.6, 0.1, "sawtooth", 250);
+        return true;
+      case "board": // into a tube: a squeak of rubber, then the plop
+        if (!play("plop", { delay: 0.8 })) return false;
+        this.tone(900, t + 0.35, 0.12, 0.05, "sine", 1300);
+        return true;
+      case "spill":
+      case "drop-splash":
+        return play("spill");
+      case "scoop-cast":
+        return play("net-swish");
+      case "knockout": // under they go
+        return play("glug", { delay: 0.1 });
+      case "step-in":
+        return play("step-in");
+      case "wave-launch":
+      case "wave-break": {
+        // (a bigger wave: the same water louder and slower, so deeper)
+        const k =
+          type === "wave-launch"
+            ? e.kind === "monster"
+              ? 2.2
+              : e.kind === "big"
+                ? 1.4
+                : 1
+            : e.kind === "monster"
+              ? 2
+              : e.kind === "big"
+                ? 1.35
+                : 1;
+        return play(type === "wave-launch" ? "wave-launch" : "wave-crash", {
+          gain: Math.min(1.8, k),
+          rate: 1.06 / Math.sqrt(k),
+        });
+      }
+      case "dive-splash":
+        if (e.ball) return play("cannonball");
+        if (e.flat) return play("bellyflop") && (play("ooh", { delay: 0.3 }), true);
+        return play(e.outcome === "clean" ? "rip" : "splash");
+      // ---- weather, machines and the sea ----
+      case "thunder":
+        return play("thunder", { delay: 0.2 });
+      case "roll": // the hull's timbers creak as she leans
+        return play("creak", { gain: e.big ? 1.6 : 1 });
+      case "swell-warning": // the ship's bell, and the foghorn under it
+        return play("ship-bell") && (play("foghorn", { delay: 0.1 }), true);
+      case "waves-horn":
+        return play("air-horn");
+      case "monster-warning":
+        return play("siren");
+      case "outage-flicker":
+        return play("flicker");
+      case "blackout":
+        return play("power-down");
+      case "power-restored":
+        if (!play("power-up")) return false;
+        [523, 784, 1047].forEach((f, i) => this.tone(f, t + 0.45 + i * 0.08, 0.18, 0.1, "triangle"));
+        return true;
+      // ---- animals ----
+      case "dog-notice":
+        return play("dog-bark");
+      case "dog-steal":
+      case "dog-bowl":
+        return play("dog-growl");
+      case "dog-shake":
+        return play("dog-shake");
+      case "monkey":
+        return play("monkey");
+      case "monkey-in": // in it goes: a plop, and a happy hoot
+        return play("plop", { rate: 0.85 }) && (play("monkey", { delay: 0.3, rate: 1.1 }), true);
+      case "monkey-shooed":
+        return play("monkey-screech") && (e.out && play("plop", { rate: 0.85 }), true);
+      // ---- people and things ----
+      case "whistle":
+        return play("whistle");
+      case "red-card":
+        return play("whistle") && (play("whistle", { delay: 0.3, rate: 1.04 }), true);
+      case "race-go":
+        return play("starter");
+      case "collision":
+      case "slip":
+      case "coach-slip":
+        return play("thud");
+      case "door-open": // the door itself, and the little chime that says a guest has come
+        if (!play("door")) return false;
+        this.tone(784, t + 0.08, 0.17, 0.11, "sine");
+        this.tone(1047, t + 0.17, 0.23, 0.09, "sine");
+        return true;
+      case "massage-lie": // flopping onto the padded table, and a contented hum
+        if (!play("flop")) return false;
+        this.tone(262, t + 0.18, 0.4, 0.06, "triangle", 247);
+        return true;
+      case "tube-bump":
+      case "tube-lost":
+      case "bather-bump":
+        return play("bonk");
+      case "order":
+        return play("service-bell");
+      case "serve": // the clink of a glass, and an "ahh"
+        if (!play("clink")) return false;
+        this.tone(330, t + 0.12, 0.3, 0.04, "triangle", 260);
+        return true;
+      case "tray":
+        return play("tray");
+      case "selfie-start":
+        return play("shutter");
+      case "tidy":
+      case "towel":
+        return play("towel");
+      case "loungers-slide":
+        return play("scrape");
+      case "straightened":
+        return play("knock");
+      case "dive-bounce": // the second bounce deeper
+        return play("springboard", { rate: e.k ? 0.85 : 1 });
+      case "dive-launch":
+        return play("whoosh", { rate: 1.1 - Math.min(0.3, (e.h || 0) * 0.1) });
+      case "dive-result": // the crowd: a cheer for a clean dive, laughter for a flop, a groan for a bored one
+        if (e.outcome === "clean" && e.diff >= 0) {
+          if (!play("cheer", { delay: 0.1 })) return false;
+          [523, 659, 784].forEach((f, i) => this.tone(f, t + 0.1 + i * 0.06, 0.25, 0.05, "triangle"));
+          return true;
+        }
+        if (e.outcome === "flop") return play("laugh", { delay: 0.3 });
+        if (e.diff < 0) return play("groan", { delay: 0.1 });
+        return false;
+    }
+    return false;
   }
   // The Wave Pool's sounds (wave-pool.mjs, waves.mjs). True when `type` was one of them.
   waveEffect(type, e, t) {
@@ -877,6 +1076,13 @@ export class PoolAudio {
     const t = this.ctx.currentTime,
       big = tier > 1,
       length = big ? 1.4 : 0.8;
+    // The crowd recorded (a cheer, a roar for a big one), the game's own little fanfare on top; synthesised voices without it.
+    if (this.sfx(big ? "roar" : "cheer", t)) {
+      (big ? [523, 659, 784, 1047] : [659, 784, 1047]).forEach((n, i) =>
+        this.tone(n, t + i * 0.07, 0.22, big ? 0.11 : 0.08, "triangle"),
+      );
+      return;
+    }
     const b = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * length), this.ctx.sampleRate),
       d = b.getChannelData(0);
     // Voices: noise with a quick swell and a long fall, gently wobbling like a crowd.

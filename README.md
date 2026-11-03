@@ -2203,6 +2203,36 @@ Replay keeps the booking; Next shift asks again. Booked runs count toward the le
 
 Music is intended from the menu onward, subject to browser audio permissions: the desktop app plays at once; in a browser the first click or key unlocks Web Audio (the menu says so while it waits). The shifts' music and the effects are procedural; the menu's music and its buttons' sounds are recorded (ElevenLabs, `dist/assets/audio/`). Music and effects are two mixes under the master, with Settings' sliders. Selection, countdown, doors, jumping, landing, dash, service, rescue, and sanitation provide synchronized cues. Panic changes the musical arrangement. Muting must work across those states.
 
+**Recorded sound effects (3 November 2026).** The creator: "the splashing of the water whenever a swimmer dives in: it's very
+mechanical now. We need a more natural splash… find other sound effects that will improve if we make them with some API using
+FAL". Every effect was a synthesised tone or a burst of filtered noise; the 46 that are real-world sounds now play recordings made
+with **ElevenLabs Sound Effects v3 on fal** (`tools/sfx/sounds.mjs` describes each; `FAL_KEY=… node tools/sfx/make.mjs` makes the
+takes, trims their leading silence, makes them mono, fades their ends, brings them to −1 dBFS and encodes them at 64 kbps into
+`dist/assets/sfx/`, 88 takes, about 1 MB):
+
+- **Water**: the splash of a swimmer getting in or out (four takes; a small one, at the springs or the tub, softer), the cannonball,
+  the belly flop (with the crowd's oooh), the clean rip entry, falling in (the coach at the Lazy River, the Cruise Ship, the
+  Rooftop's edge), the plop into a tube, stepping into a hot spring, the Wave Pool's crest and its machine (a bigger wave louder
+  and slower, so deeper), the slosh over the coping, a bather going under, the skimmer net.
+- **Weather, machines and the sea**: thunder, the ship's timbers creaking, its bell and foghorn, the Wave Pool's air horn and the
+  monster wave's siren, the blackout, the power coming back, the lights flickering.
+- **Animals**: the dog's bark, growl and shake; the snow monkeys' chatter and screech.
+- **Crowds**: the cheer and the big roar for a save, laughter at a flop, a groan at a bored jump.
+- **People and things**: the whistle (and Karen's red card), the race's starting beep, bumps and slips, the changing rooms' door,
+  glasses clinking, the tray, the service bell, the selfie's shutter, towels, loungers scraping and knocked into line, flopping
+  onto the massage table, rubber rings bonking, the springboard, the diver's whoosh.
+
+`PoolAudio.recorded` (dist/audio.mjs) plays them ahead of the synthesised effects; a musical part some have (the trampoline's
+chime, the sad trombone, the guest's door chime, the cheer's fanfare, the "whoa") stays synthesised over the recording. Each
+sound picks one of its takes at random, never the same twice running, and plays it 6% higher or lower at random, so no two
+splashes are the same (`sfx`). Every take is loaded when the sound starts (`loadSfx`); until then, or if one will not load, the
+synthesised sound plays as before. Each sound's level (`SFX` in dist/audio-files.mjs) was set by rendering the synthesised
+effect it replaces offline and matching its loudness, so the mix stays as it was. The game's musical cues (the countdown, the
+chimes, the fanfares, the stings, the songs) stay synthesised. **Not verified by ear here**: the takes were checked by measure
+(length, loudness, how much is silence, how bright and how noisy; two near-silent takes were made again) and by playing every
+replaced effect through the game's own code; the "Pool Panic Sound Swap" page puts each old sound beside its new takes, with a
+way to mark the takes to drop. Check: `sfx-check.mjs`.
+
 Support keyboard and touch, native clickable swimmer tags, readable skill labels, help, pause, and responsive HUD/control placement. Keep tags below the measured scoreboard edge. Do not let menus or controls obscure the coach on short or portrait displays.
 
 Respect reduced motion: use steady selection cues, remove dash streaks/lean and repeated rescue bobbing, suppress panic jumping, and use a static back-on-deck slip pose. Preserve gameplay meaning and collision separation even when decorative animation is reduced.
