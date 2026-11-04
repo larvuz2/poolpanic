@@ -32,6 +32,9 @@ and the desktop app already have, and what is still to build. Sizes and rules be
 
 ## B. The store page (start it early: wishlists are the biggest thing a launch has)
 
+**Ready to upload (4 November 2026): `marketing/steam/`** has the capsules (five proposals), ten screenshots, the About section's clips,
+the short and long descriptions, the tags, a brand book and a launch plan; its README says which are the picks.
+
 A page can be public as **Coming soon** for months before the game is done; people wishlist it, and Steam tells them at release. The page must be
 live at least two weeks before release, and Valve reviews it first (a few working days).
 

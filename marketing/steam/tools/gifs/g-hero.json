@@ -1,0 +1,6 @@
+{"venue": "club", "out": "gifs/hero.jpg", "hud": false, "size": [1170, 260], "settle": 5000,
+ "setup": "s.level = Math.max(3, s.level); fill(3); return s.triggerChaos('carl');",
+ "until": "s.visitors.some(v => v.kind === 'carl' && v.status === 'windup')", "freeze": true,
+ "after": "return true;",
+ "camera": {"pos": [-13.5, 2.4, 8.5], "at": [-4.5, 1.0, 0.5], "fov": 24},
+ "gif": {"dir": "gifs/hero", "frames": 66, "step": 66}}

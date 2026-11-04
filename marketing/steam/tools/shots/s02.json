@@ -1,0 +1,5 @@
+{ "venue": "resort", "out": "shots/s02.jpg", "hud": false, "settle": 6000,
+  "setup": "s.level = Math.max(3, s.level); fill(2); return s.triggerChaos('dog');",
+  "until": "s.visitors.some(v => v.kind === 'dog')", "wait": 1500, "freeze": true,
+  "after": "const PL = s.venue.pool; const v = s.visitors.find(v => v.kind==='dog'); const d = s.dog; const X = -PL.halfX - 1.7; v.x = X; v.z = 0.6; v.status = 'carry'; v.path = [{x: X, z: -6}]; v.angle = Math.PI; d.carry = { type: 'fins' }; const c = s.coach; c.x = X + 0.3; c.z = 4.2; c.vx = 0; c.vz = -7; c.angle = Math.PI; const g = s.people.find(p => p.status !== 'swim'); if (g) { g.x = X - 0.9; g.z = 2.2; g.slipTime = 0.35; g.slipLength = 0.7; g.angle = 0.6; } return { P: [PL.halfX, PL.halfZ], guest: !!g };",
+  "cameras": [ {"pos":[-14,2.4,4.5],"at":[-7,0.7,1.2],"fov":40}, {"pos":[-12.5,3.6,-3.5],"at":[-7.2,0.6,1.6],"fov":42}, {"pos":[-16,4,7],"at":[-4,0.5,-1],"fov":42} ] }

@@ -1,0 +1,7 @@
+{"venue": "resort", "out": "gifs/incidents.jpg", "hud": false, "size": [1170, 260], "settle": 6000, "ff": 0.5, "untilMs": 300000,
+ "setup": "s.level = Math.max(3, s.level); fill(2); return s.triggerChaos('dog');",
+ "until": "s.visitors.some(v => v.kind === 'dog' && v.status === 'sniff')", "freeze": true,
+ "after": "const v = s.visitors.find(v => v.kind === 'dog'); window.__cam = null; return { st: v.status, x: v.x, z: v.z };",
+ "camera": {"pos": [0, 6, 12], "at": [0, 0, 0], "fov": 30},
+ "gif": {"dir": "gifs/incidents", "frames": 90, "step": 66,
+   "every": "const v = s.visitors.find(v => v.kind === 'dog'); if (v) { const c = s.coach; const dx = v.x - c.x, dz = v.z - c.z; if (Math.hypot(dx, dz) > 1) s.setMovement(dx, dz); const d = Math.hypot(v.x, v.z) || 1; const want = [v.x - (v.x / d) * 6.5 * -1 * 0 + (-v.x / d) * 6.5, 2.6, v.z + (-v.z / d) * 6.5]; const at = [v.x, 0.5, v.z]; window.__cam = window.__cam ? window.__cam.map((q, k) => q + (want[k] - q) * 0.25) : want; window.__at = window.__at ? window.__at.map((q, k) => q + (at[k] - q) * 0.25) : at; const P0 = window.__cam, A0 = window.__at; w.placeCamera = function () { this.camera.clearViewOffset(); this.camera.fov = 30; this.camera.aspect = 1170 / 260; this.camera.near = 0.3; this.camera.updateProjectionMatrix(); this.camera.position.set(...P0); this.camera.lookAt(...A0); this.camera.updateMatrixWorld(true); }; w.placeCamera(); }"}}

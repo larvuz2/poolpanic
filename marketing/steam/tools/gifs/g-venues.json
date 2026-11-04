@@ -1,0 +1,6 @@
+{"venue": "cruise", "out": "gifs/venues.jpg", "hud": false, "size": [1170, 260], "settle": 4000, "ff": 2, "untilMs": 500000,
+ "setup": "s.level = Math.max(8, s.level); window.__ship = await import('/ship.mjs'); window.__t0 = s.time; return true;",
+ "until": "(() => { const q = s.people.filter(p => p.status === 'queue'); if (q.length > 3) { s.selected = q[0].id; s.assign(Math.floor(Math.random() * 3)); } const S = s.ship; if (s.time - window.__t0 > 40 && S.phase === 'calm' && !window.__rogue) window.__rogue = window.__ship.rogueSwell(s); return window.__rogue && S.phase === 'warn' && S.t > S.dur - 0.3; })()",
+ "freeze": true, "after": "return true;",
+ "camera": {"pos": [-19, 6, 0], "at": [2, 1, 0], "fov": 26},
+ "gif": {"dir": "gifs/venues", "frames": 66, "step": 66}}

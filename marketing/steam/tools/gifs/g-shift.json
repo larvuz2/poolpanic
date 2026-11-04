@@ -1,0 +1,7 @@
+{"venue": "club", "out": "gifs/shift.jpg", "hud": false, "size": [1170, 260], "settle": 5000,
+ "setup": "s.level = Math.max(3, s.level); fill(3); return true;",
+ "until": "s.time > 25 || true", "freeze": true,
+ "after": "const c = s.coach; c.carry = 'fins'; return true;",
+ "camera": {"pos": [-14, 4.5, 9], "at": [-2, 0, 0], "fov": 22},
+ "gif": {"dir": "gifs/shift", "frames": 66, "step": 66,
+   "every": "s.setMovement(0.15, -1); const t = i / 65; const c = { pos: [-14 + t * 3, 4.5, 9 - t * 7], at: [-2 + t * 1, 0, 0 - t * 2], fov: 22 }; w.camera.position.set(...c.pos); w.camera.lookAt(...c.at); w.camera.updateMatrixWorld(true); w.placeCamera = function () { this.camera.clearViewOffset(); this.camera.fov = 22; this.camera.aspect = 1170 / 260; this.camera.updateProjectionMatrix(); this.camera.position.set(...c.pos); this.camera.lookAt(...c.at); this.camera.updateMatrixWorld(true); };"}}
