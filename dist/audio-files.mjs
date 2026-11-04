@@ -103,5 +103,13 @@ export const SFX = {
   "amb-sea": { takes: 1, gain: 0.15 },
   "amb-snow": { takes: 1, gain: 0.11 },
   "amb-swimmers": { takes: 1, gain: 0.22 },
+  "carl-laugh": { takes: 2, gain: 0.23 },
+  "carl-whoop": { takes: 3, gain: 0.12 },
+  "bomb-whistle": { takes: 2, gain: 0.062 },
+  "karen-gasp": { takes: 2, gain: 0.15 },
+  "kid-giggle": { takes: 3, gain: 0.12 },
+  "fish-flop": { takes: 2, gain: 0.27 },
+  "crowd-eww": { takes: 2, gain: 0.27 },
+  "crowd-rush": { takes: 2, gain: 0.16 },
 };
 export const sfxUrl = (key, n) => `./assets/sfx/${key}-${n}.mp3`;

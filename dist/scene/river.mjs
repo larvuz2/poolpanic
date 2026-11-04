@@ -10,6 +10,7 @@
 // Nothing here moves the simulation: the water's flow, the waterfall, the flames, the fronds and the parrots only move in the
 // picture. The guests on their tubes are drawn by scene/river-view.mjs.
 import { THREE, COLORS } from "./kit.mjs";
+import { loadMacaws, macawModel, flyMacaw } from "./macaws.mjs";
 import { withCaustics } from "./pool.mjs";
 import {
   grassTexture,
@@ -1483,37 +1484,51 @@ function jungle(ctx) {
     fern(ctx, x, z, 0.75);
 }
 
-// Two parrots circling over the jungle, wings flapping (only in the picture).
+// Three macaws circling over the jungle (only in the picture): the models when they are in (scene/macaws.mjs, a wingbeat and a
+// glide, two scarlet and a blue-and-gold), else birds of balls and boxes flapping.
 export function parrots(ctx) {
   const { w, live } = ctx,
     birds = [];
-  for (const [color, wing, radius, alt, speed] of [
-    [0xe8312a, 0x2a6be8, 15, 8.5, 0.32],
-    [0x2fbf4a, 0xffd23f, 18, 10.5, -0.26],
-    [0xffb000, 0x2a9be8, 21, 9.5, 0.22],
+  for (const [kind, color, wing, radius, alt, speed] of [
+    ["scarlet", 0xe8312a, 0x2a6be8, 15, 8.5, 0.32],
+    ["bluegold", 0x2a9be8, 0xffd23f, 18, 10.5, -0.26],
+    ["scarlet", 0xe8312a, 0x2a9be8, 21, 9.5, 0.22],
   ]) {
-    const g = new THREE.Group();
+    const g = new THREE.Group(),
+      classic = new THREE.Group();
+    g.add(classic);
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), w.mat(color, { roughness: 0.5 }));
     body.scale.set(0.8, 0.8, 1.7);
-    g.add(body);
+    classic.add(body);
     const tail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.03, 0.55), w.mat(wing));
     tail.position.set(0, 0, -0.5);
-    g.add(tail);
+    classic.add(tail);
     const beak = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.14, 6), w.mat(0xf2e6c8));
     beak.rotation.x = Math.PI / 2;
     beak.position.set(0, -0.02, 0.38);
-    g.add(beak);
+    classic.add(beak);
     const wings = [-1, 1].map((s) => {
       const pivot = new THREE.Group();
       const m = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.03, 0.26), w.mat(wing));
       m.position.x = s * 0.32;
       pivot.add(m);
-      g.add(pivot);
+      classic.add(pivot);
       return pivot;
     });
     live.add(g);
-    birds.push({ g, wings, radius, alt, speed, phase: birds.length * 2.1 });
+    birds.push({ g, classic, wings, kind, radius, alt, speed, phase: birds.length * 2.1, mac: null });
   }
+  const dress = (b) => {
+    if (b.mac || w.headless) return;
+    b.mac = macawModel(b.kind);
+    if (!b.mac) return;
+    b.g.add(b.mac.model);
+    b.classic.visible = false;
+    w.warmPending = true; // (drawn once before it is seen: scene.mjs warmShaders)
+  };
+  w.macaws = birds; // (for the checks)
+  for (const b of birds) dress(b);
+  if (!w.headless && !birds[0].mac) loadMacaws()?.then?.((t) => t && birds.forEach(dress));
   w.updaters.push((time, dt, world) => {
     const calm = world.reducedMotion?.matches;
     for (const b of birds) {
@@ -1522,9 +1537,15 @@ export function parrots(ctx) {
         z = Math.sin(a) * b.radius;
       b.g.position.set(x, b.alt + Math.sin(time * 0.6 + b.phase) * 1.2, z);
       b.g.rotation.set(0, -a + (b.speed > 0 ? 0 : Math.PI), (b.speed > 0 ? -1 : 1) * 0.3);
-      const flap = calm ? 0.2 : Math.sin(time * 9 + b.phase) * 0.6;
-      b.wings[0].rotation.z = flap;
-      b.wings[1].rotation.z = -flap;
+      if (b.mac) {
+        // (flapping most of the way round, gliding now and then; calm: gliding)
+        const glide = calm || Math.sin(time * 0.35 + b.phase * 1.7) > 0.45 ? 1 : 0;
+        flyMacaw(b.mac, dt, glide, 0.9 + (b.phase % 0.3));
+      } else {
+        const flap = calm ? 0.2 : Math.sin(time * 9 + b.phase) * 0.6;
+        b.wings[0].rotation.z = flap;
+        b.wings[1].rotation.z = -flap;
+      }
       b.g.visible = (world.incidentLight ?? 1) > 0.5;
     }
   });

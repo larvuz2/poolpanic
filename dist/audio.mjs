@@ -22,6 +22,7 @@ import {
   VOCALS,
   VOCAL_GAP,
   impulse,
+  INCIDENT_SOUNDS,
 } from "./sound-mix.mjs";
 
 // The menu's recordings (ElevenLabs Music and Sound Effects, 20 October 2026; see assets/audio/README.md).
@@ -1036,6 +1037,16 @@ export class PoolAudio {
         return true;
       case "door-close": // a changing room's door swinging shut behind the last one through (the app, from sim.doors)
         return play("door-close");
+      case "incident": {
+        // the incident itself, heard as it begins (sound-mix.mjs INCIDENT_SOUNDS); its sting is music, played apart
+        let any = false;
+        for (const [key, opts] of INCIDENT_SOUNDS[e.kind] || []) any = !!play(key, opts) || any;
+        return any;
+      }
+      case "carl-charge": // Carl's signature: the war whoop on his run-up…
+        return play("carl-whoop");
+      case "carl-jump": // …a falling bomb's whistle while he is in the air (0.8 s), then the cannonball's boom
+        return play("bomb-whistle", { rate: 1.5 });
       case "massage-lie": // flopping onto the padded table, and a contented hum
         if (!play("flop")) return false;
         this.tone(262, t + 0.18, 0.4, 0.06, "triangle", 247);

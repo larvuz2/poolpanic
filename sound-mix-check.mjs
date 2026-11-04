@@ -29,7 +29,9 @@ import {
   VOCALS,
   VOCAL_KINDS,
   impulse,
+  INCIDENT_SOUNDS,
 } from "./dist/sound-mix.mjs";
+import { INCIDENT_ORDER } from "./dist/week.mjs";
 import { SFX } from "./dist/audio-files.mjs";
 import { VENUES as PLACES } from "./dist/spatial.mjs";
 import { COACHES } from "./dist/crew.mjs";
@@ -62,6 +64,33 @@ import { COACHES } from "./dist/crew.mjs";
   for (const r of Object.values(VOCALS)) assert.ok(r.chance > 0 && r.chance <= 1 && r.cooldown > 0);
   assert.ok(SFX["cramp-panic"] && SFX["amb-swimmers"] && SFX["door-close"]);
   for (const s of ["water", "skate"]) assert.ok(SFX["step-" + s]);
+}
+
+// 1b) Every incident heard as it begins: the roaming ones (the blackout has its power going down, and its flicker is the
+// original synthesised one, the creator's), each sound made; Carl's signature through his whole incident.
+{
+  for (const kind of INCIDENT_ORDER.filter((k) => k !== "outage"))
+    assert.ok(INCIDENT_SOUNDS[kind]?.length, kind + ": a sound as it begins");
+  assert.ok(INCIDENT_SOUNDS.cramp && INCIDENT_SOUNDS.spill && INCIDENT_SOUNDS.pee);
+  for (const list of Object.values(INCIDENT_SOUNDS))
+    for (const [key] of list) assert.ok(SFX[key], key + ": made");
+  assert.deepEqual(
+    INCIDENT_SOUNDS.dog.map(([k]) => k),
+    ["dog-bark", "dog-bark"],
+    "the dog comes in barking",
+  );
+  const audioSrc = readFileSync("dist/audio.mjs", "utf8");
+  assert.match(
+    audioSrc,
+    /case "carl-charge":[^\n]*\n\s*return play\("carl-whoop"\);/,
+    "Carl's whoop on the run-up",
+  );
+  assert.match(
+    audioSrc,
+    /case "carl-jump":[^\n]*\n\s*return play\("bomb-whistle"/,
+    "the bomb's whistle in the air",
+  );
+  assert.equal(INCIDENT_SOUNDS.carl[0][0], "carl-laugh", "his laugh as he turns up");
 }
 
 // 2) Snapshots and ducking.

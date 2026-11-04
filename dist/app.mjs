@@ -111,6 +111,8 @@ import { installCoop } from "./coop-ui.mjs";
 import { CoopGuest, Predictor } from "./net.mjs";
 import { coachInfo } from "./crew.mjs";
 import { snapshotFor } from "./sound-mix.mjs";
+import { loadDog } from "./scene/dog-model.mjs";
+import { loadMacaws } from "./scene/macaws.mjs";
 import { pendingInvite } from "./steam-net.mjs";
 import { COACH_TUNING } from "./spatial.mjs";
 import { playCinematic } from "./cinematic.mjs";
@@ -1882,7 +1884,8 @@ const VENUE_LOADS = {
   onsen: ["Mountain Hot Springs", loadOnsenClub],
   wave: ["Wave Pool", loadWaveClub],
   senior: ["Senior Aqua Fit", loadSeniorClub],
-  river: ["Lazy River", loadRiverClub],
+  // (its macaws, scene/macaws.mjs, come with it)
+  river: ["Lazy River", () => Promise.all([loadRiverClub(), loadMacaws()]).then(([m]) => m)],
   cruise: ["Cruise Ship", loadCruiseClub],
   roof: ["Rooftop Pool", loadRoofClub],
   dive: ["Jumping Pool", loadDiveClub],
@@ -5065,6 +5068,10 @@ try {
   // them as before so every test plays the same characters.
   const waitForSwimmers = testing || playHunt || !!huntStep;
   const swimmersLoading = activeSwimmerChoice() === "models" ? loadSwimmerModels() : null;
+  // The loose dog behind the menu too (4 November 2026), so a shift's warm-up (scene.mjs warmShaders) finds him in and nothing
+  // is loaded or compiled when he turns up mid-shift. (Karen is not loaded for the menu: the first shift's warm-up fetches her,
+  // incident-view.mjs warmCast, and draws her once she is in, long before she can come.)
+  if (!tuning.has("nomodels")) loadDog();
   if (swimmersLoading && waitForSwimmers) fetching.push(swimmersLoading);
   // The Community Pool as the Harbourside (scene/harbourside.mjs): a few MB, behind the menu like the swimmers; the classic pool
   // stands in until it is in (and for ?nomodels, the crash hunt's switch for every model). START waits for it with the swimmers.

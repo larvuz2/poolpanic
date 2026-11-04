@@ -927,6 +927,7 @@ export class PoolWorld extends SceneKit {
     for (const id of [...this.people.keys()]) this.removePerson(id);
     clearWheelchairs(this);
     this.incidentView.clearVisitors();
+    this.warmPending = true; // (the first frame of the shift compiles what its incidents will show: warmShaders)
     this.introPlan = null; // the coach walks in again
     this.coachMoments = null; // and nothing has startled him yet
   }
@@ -2377,8 +2378,66 @@ export class PoolWorld extends SceneKit {
       { passive: false },
     );
   }
+  // The shift's warm-up (4 November 2026, the creator: "every time the dog enters… the game lags for a second"). The first time
+  // a material is drawn, the graphics card compiles its shader, which stops the page for a moment: up to a second for the dog,
+  // the blackout, Karen and Carl's splash target, measured. So the first frame of a shift draws everything at once, unseen:
+  // every hidden thing shown, nothing left out for being off screen, and one of everything an incident brings (warmCast), then
+  // the frame is drawn again as it really is before the page shows it. The shaders are kept (a material is never thrown away),
+  // so nothing compiles mid-shift.
+  warmShaders() {
+    const t0 = performance.now(),
+      before = this.renderer.info.programs?.length ?? 0;
+    const cast = this.incidentView?.warmCast?.() || [];
+    const ahead = new THREE.Vector3();
+    this.camera.getWorldDirection(ahead);
+    ahead.multiplyScalar(8).add(this.camera.position);
+    cast.forEach((g, i) => {
+      g.position.set(ahead.x + (i - cast.length / 2) * 0.8, 0, ahead.z);
+      this.scene.add(g);
+    });
+    const shown = [],
+      culled = [];
+    this.scene.traverse((o) => {
+      if (o.visible === false) {
+        shown.push(o);
+        o.visible = true;
+      }
+      if (o.frustumCulled && (o.isMesh || o.isSprite || o.isPoints || o.isLine)) {
+        culled.push(o);
+        o.frustumCulled = false;
+      }
+    });
+    const shadows = this.renderer.shadowMap || {};
+    shadows.needsUpdate = true;
+    try {
+      this.renderer.render(this.scene, this.camera);
+    } finally {
+      for (const o of shown) o.visible = false;
+      for (const o of culled) o.frustumCulled = true;
+      for (const g of cast) {
+        g.removeFromParent();
+        dropSwimmerModel(g);
+      }
+      shadows.needsUpdate = true;
+    }
+    this.warmed = {
+      ms: Math.round(performance.now() - t0),
+      programs: (this.renderer.info.programs?.length ?? 0) - before,
+      cast: cast.length,
+    };
+    (this.warmLog ||= []).push(this.warmed);
+    if (this.warmLog.length > 6) this.warmLog.shift();
+  }
   render() {
     this.sharpenTextures();
+    if (this.warmPending) {
+      this.warmPending = false;
+      try {
+        this.warmShaders();
+      } catch (error) {
+        console.error("The warm-up failed; the shift goes on.", error);
+      }
+    }
     // (the Look tuner's values, dev mode only: look-tuner.mjs, scene/look.mjs; what it leans on for this frame is put back after)
     const undo = lookBefore(this, this.lookSource?.(this.venue?.id));
     this.renderer.render(this.scene, this.camera);

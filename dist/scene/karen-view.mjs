@@ -13,14 +13,30 @@ export const KAREN_MODEL_URL = new URL("../assets/models/karen.glb", import.meta
 export const KAREN_CLIPS = ["Idle", "Walk", "Complain", "Point", "Defeated"];
 const MODEL_SCALE = 0.97; // her sunglasses and hair put her just over the coach's head
 
-let loading = null;
+let loading = null,
+  loaded = null;
 // One download for the whole session; null when it fails (the stand-in then stays).
 export function loadKaren() {
-  loading ||= new GLTFLoader().loadAsync(KAREN_MODEL_URL).catch((err) => {
-    console.warn("Karen's model did not load; keeping the stand-in.", err?.message || err);
-    return null;
-  });
+  loading ||= new GLTFLoader()
+    .loadAsync(KAREN_MODEL_URL)
+    .then((gltf) => (loaded = gltf))
+    .catch((err) => {
+      console.warn("Karen's model did not load; keeping the stand-in.", err?.message || err);
+      return null;
+    });
   return loading;
+}
+// Her model as it is drawn, when it is in (for the shift's warm-up, scene.mjs warmShaders): a copy to show once; else null.
+export function karenWarmCopy() {
+  if (!loaded) return null;
+  const model = cloneSkinned(loaded.scene);
+  model.scale.setScalar(MODEL_SCALE);
+  model.traverse((o) => o.isMesh && (o.castShadow = true));
+  return model;
+}
+// Every shouted word's picture, for the warm-up: a sprite of each, as she draws them.
+export function scribbleWarmCast(scribbles) {
+  return WORDS.map((word) => new THREE.Sprite(scribbles.material(word)));
 }
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
