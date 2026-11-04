@@ -94,6 +94,18 @@ img, video { max-width: 100%; display: block; }
 
 /* screenshots */
 .shots { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+.posters { display: grid; gap: 22px; }
+.poster { display: grid; gap: 12px; }
+.poster .hero img { border-radius: 8px; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.poster .pair { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; align-items: start; }
+.poster .pair img { border-radius: 8px; width: 100%; }
+.poster figcaption { font-size: 13px; color: var(--soft); margin-top: 4px; }
+.poster h3 { font-size: 22px; margin: 4px 0 0; }
+.poster .meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.poster p { margin: 0; color: var(--soft); max-width: 70ch; }
+.marina { display: grid; grid-template-columns: minmax(0, 220px) 1fr; gap: 18px; align-items: center; }
+.marina img { border-radius: 8px; width: 100%; background: #fff; }
+@media (max-width: 640px) { .poster .pair, .marina { grid-template-columns: 1fr; } }
 .shot { position: relative; }
 .shot img { border-radius: 8px; aspect-ratio: 16 / 9; object-fit: cover; width: 100%; }
 .shot .n { position: absolute; top: 8px; left: 8px; background: var(--pop); color: var(--pop-ink); font: 800 18px/1 "Barlow Condensed", sans-serif; border-radius: 6px; padding: 4px 8px; }
@@ -188,7 +200,7 @@ footer { margin-top: 60px; color: var(--soft); font-size: 13.5px; border-top: 1p
 
 <nav class="toc" aria-label="Sections">
   <div class="wrap">
-    <a href="#summary">Summary</a><a href="#capsules">Capsules</a><a href="#screenshots">Screenshots</a><a href="#page">The page</a><a href="#copy">Copy</a><a href="#brand">Brand book</a><a href="#strategy">Strategy</a><a href="#research">Research</a>
+    <a href="#summary">Summary</a><a href="#capsules">Capsules</a><a href="#screenshots">Screenshots</a><a href="#posters">Posters</a><a href="#page">The page</a><a href="#copy">Copy</a><a href="#brand">Brand book</a><a href="#strategy">Strategy</a><a href="#research">Research</a>
   </div>
 </nav>
 
@@ -200,6 +212,7 @@ footer { margin-top: 60px; color: var(--soft); font-size: 13.5px; border-top: 1p
     <div class="card"><div class="big num">5</div><h3>Capsule proposals</h3><p>Each at main (1232×706), header (920×430) and small (462×174) size, with how it reads at 120×45. Recommended: <b>1, Panic Face</b>.</p></div>
     <div class="card"><div class="big num">19</div><h3>Screenshots, in order</h3><p>1920×1080, no interface, all suitable for all ages. The first four (the ones Steam shows on hover): Carl, three coaches in co-op, the rolling cruise ship and the whole cast.</p></div>
     <div class="card"><div class="big num">10</div><h3>Section clips</h3><p>1170 wide, 260 to 300 high, 4 to 8 seconds, looping. A GIF and an MP4 of each; every GIF under Steam's 5 MB.</p></div>
+    <div class="card"><div class="big num">3</div><h3>Cast posters</h3><p>Every character's real model in one picture, Waters and Marina in the middle: a party, the chaos, and both at once (hero, group and 4:5 portrait), plus the cast stacked on a gradient in three options.</p></div>
     <div class="card"><div class="big num">Jun '27</div><h3>Next Fest, recommended</h3><p>Coming Soon page live this month; a demo in spring; Steam Next Fest in June 2027 with wishlists already built; release after it.</p></div>
   </div>
 </section>
@@ -214,6 +227,20 @@ footer { margin-top: 60px; color: var(--soft); font-size: 13.5px; border-top: 1p
   <div class="sechead"><span class="label">Screenshots</span><h2>Nineteen moments that hook</h2>
     <p class="lede">Each one staged in the real game: the shift set up, the moment forced (Carl in the air, a rogue swell at 15°, a monkey in the spring), the simulation frozen and the camera placed by hand, the interface hidden. Steam asks for gameplay only; these are. Order matters: the first four show on hover across the store.</p></div>
   <div class="grid shots" id="shots"></div>
+</section>
+
+<section id="posters">
+  <div class="sechead"><span class="label">Posters</span><h2>The whole cast, all at once</h2>
+    <p class="lede">Every character's real model in one picture, Coach Waters and Marina in the middle: the six coaches, Carl, the leopard man, the fish kid, Marco, Valentina, Karen, the dog, the snow monkey, the macaws, the DJ and the bartender, the four seniors (one in her wheelchair), the five swimmers and the two grumpy officials. Staged in the game at three venues and frozen in clips of their own; the coaches wear the game's own expressions. Three moods: everyone celebrating, everything going wrong, and both at once. Each comes as a hero shot, a group shot and a 4:5 portrait for social posts. For marketing, not the store's screenshot slots (Steam wants gameplay there).</p></div>
+  <div class="posters" id="posters"></div>
+  <div class="sechead" style="margin-top:34px"><h2>Stacked, on a gradient</h2>
+    <p class="lede">The same models with no venue: the whole cast on rising rows, packed so the middle is all characters and the blue-to-white gradient shows only round the edges. Coach Waters stressed in front with a happy Marina beside him, the leopard man in front, Karen shouting at them, Marco cross and checking his watch, Carl mid-cannonball over everyone, the fish leaping out of the kid's bucket. Karen's shout, Marco's anger mark and Waters' sweat are drawn on top in the brand's type and colours.</p></div>
+  <div class="posters" id="stacks"></div>
+  <article class="card marina" style="margin-top:22px">
+    <img src="posters/marina-design.jpg" alt="Marina's character design, front view in a T-pose: curly bun, floral headscarf, floral top, denim shorts" loading="lazy">
+    <div><h3 style="margin-top:0">Marina, in 3D for the first time</h3>
+      <p>She had only pictures until now. Her design was drawn with GPT Image 2.5 from her story picture and Coach Rivers' model as references (no mouth, like the coaches), made 3D with Meshy 7 and rigged on Coach Waters' skeleton, so she plays every one of his clips. She stays out of the game itself: Marina never appears on the deck. Her model is kept with the poster tools, not in the game's files.</p></div>
+  </article>
 </section>
 
 <section id="page">
@@ -433,7 +460,7 @@ const TIMELINE = [
 const SHORT = [{"id": "A", "label": "The fantasy", "text": "You are Coach Waters, the only lifeguard at 14 ridiculous pools. Sort swimmers into lanes, chase the dog off the deck, talk Karen down and fish out what nobody wants to name, all to fill the Date Fund for Sunday with Marina. Solo or online co-op for up to 3."}, {"id": "B", "label": "The incident list", "text": "A comedy pool-management game where everything goes wrong at once: cannonballs, cramps, a dog on the deck, a power cut, Karen. Keep 14 pools afloat for six shifts a week and save up for Sunday's date with Marina. No two shifts alike. Online co-op for up to 3."}, {"id": "C", "label": "The deadpan one-liner", "text": "It's a lovely day at the pool, and you are the only lifeguard. Run 14 chaotic venues, from a rolling cruise ship to a hot spring full of snow monkeys, survive the week and make it to your Sunday date with Marina. Solo or online co-op for up to 3 coaches."}];
 const TAGS = ["Management", "Casual", "Funny", "Simulation", "Online Co-Op", "Co-op", "Singleplayer", "Time Management", "Cute", "Colorful", "Cartoony", "Stylized", "3D", "Family Friendly", "Comedy", "Strategy", "Arcade", "Replay Value", "Romance", "Multiplayer"];
 const BBCODE = "[img]{STEAM_APP_IMAGE}/extras/clip-hero.gif[/img]\n\n[b]Pool Panic[/b] is a comedy management game about the worst job in the world: being the only lifeguard on duty. Solo, or with [b]up to two friends online[/b]. The swimmers want their lanes, the deck wants mopping, and something, somewhere, is about to go terribly wrong.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-shift.gif[/img]\n[h2]One pool. One coach. Zero chill.[/h2]\nEvery guest has a skill and a temper. Send them to the right lane, hand out fins, haul out the cramps with the life ring and mop the wet spots before someone slips. Easy to pick up. Very hard to keep up with.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-lineup.gif[/img]\n[h2]Every kind of swimmer[/h2]\nNervous beginners, weekend splashers and pros who want the fast lane. Kids who won't stop running. Seniors who arrive in wheelchairs and leave doing lengths. VIPs in crowns and capes who expect the best of everything, Marco \"the Missile\", who expects the record, and a man called Carl. Put each one where they belong.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-incidents.gif[/img]\n[h2]Everything goes wrong. Usually at once.[/h2]\n[list]\n[*][b]Cannonball Carl[/b] has seen your nice clean lanes.\n[*][b]A dog[/b] is loose on the deck, and he has the fins.\n[*][b]Karen[/b] would like to speak to the manager. You are the manager.\n[*][b]The lights go out[/b] in the middle of a busy shift.\n[*][b]Cramps, splashes, slippery spots[/b] and the brown thing in lane three that nobody wants to name.\n[/list]\n[img]{STEAM_APP_IMAGE}/extras/clip-panic.gif[/img]\nEvery incident gives you a warning, a few seconds to stop it, and a very funny way to fail if you don't.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-coop.gif[/img]\n[h2]Better with friends: up to 3 coaches online[/h2]\nBring [b]two friends[/b] over Steam, each a coach of your own, six to pick from. One takes the lanes, one chases the dog, one talks Karen down. Every job you do together goes faster (Karen takes 8 seconds alone, 3 with three of you), and a crew gets more guests, more tips and bigger chaos.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-venues.gif[/img]\n[h2]14 pools. 14 kinds of trouble.[/h2]\nClimb from the local community pool to a jungle lazy river, a wave pool, an infinity pool 185 metres above the city, a cruise ship that [i]will not stop rolling[/i], hot springs full of snow monkeys and a country club's 6-metre diving tower. Each one plays by its own rules.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-dive.gif[/img]\n[h2]Gravity always wins[/h2]\nAt the Jumping Pool every dive flies under real gravity, with its own launch, spin and entry. The right board for the right diver is a clean entry. A beginner on the 6-metre platform is a belly flop the whole club hears.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-marina.gif[/img]\n[h2]Six shifts to Sunday[/h2]\nCoach Waters has a date with Marina, and a jar to fill first. Work six shifts, Monday to Saturday, and save your pay in the [b]Date Fund[/b]. Fill it and Sunday is yours. Come up short and the run is over. Every week gets harder, all the way to the Grand Gala.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-vip.gif[/img]\n[h2]Never the same shift twice[/h2]\nIncidents are dealt fresh every shift. VIPs drop in, Marco wants his lane, and every week draws a new set of pools.\n\n[h2]Features[/h2]\n[list]\n[*]Online co-op for up to 3 players, six coaches to pick from\n[*]14 venues, each with its own rules, music and big moment\n[*]A cast of swimmers, VIPs, stars and troublemakers\n[*]A run of four weeks with a story, an ending and endless play after\n[*]Free play for every pool you've opened, from Easy to Expert\n[/list]\n";
-const AVAIL = new Set(["brand/alt-coach-waters.png", "brand/alt-pool-patrol.png", "brand/logo.webp", "caps/c1-panic-header.jpg", "caps/c1-panic-main.jpg", "caps/c1-panic-small-120.png", "caps/c1-panic-small-184.png", "caps/c1-panic-small.png", "caps/c2-cannonball-header.jpg", "caps/c2-cannonball-main.jpg", "caps/c2-cannonball-small-120.png", "caps/c2-cannonball-small-184.png", "caps/c2-cannonball-small.png", "caps/c3-diorama-header.jpg", "caps/c3-diorama-main.jpg", "caps/c3-diorama-small-120.png", "caps/c3-diorama-small-184.png", "caps/c3-diorama-small.png", "caps/c4-date-header.jpg", "caps/c4-date-main.jpg", "caps/c4-date-small-120.png", "caps/c4-date-small-184.png", "caps/c4-date-small.png", "caps/c5-crew-header.jpg", "caps/c5-crew-main.jpg", "caps/c5-crew-small-120.png", "caps/c5-crew-small-184.png", "caps/c5-crew-small.png", "clips/clip-coop.mp4", "clips/clip-dive.mp4", "clips/clip-hero.mp4", "clips/clip-incidents.mp4", "clips/clip-lineup.mp4", "clips/clip-marina.mp4", "clips/clip-never.mp4", "clips/clip-panic.mp4", "clips/clip-shift.mp4", "clips/clip-venues.mp4", "clips/clip-vip.mp4", "index.html", "shots/01.jpg", "shots/02.jpg", "shots/03.jpg", "shots/04.jpg", "shots/05.jpg", "shots/06.jpg", "shots/07.jpg", "shots/08.jpg", "shots/09.jpg", "shots/10.jpg", "shots/11.jpg", "shots/12.jpg", "shots/13.jpg", "shots/14.jpg", "shots/15.jpg", "shots/16.jpg", "shots/17.jpg", "shots/18.jpg", "shots/19.jpg", "shots/20.jpg", "shots/21.jpg"]);
+const AVAIL = new Set(["brand/alt-coach-waters.png", "brand/alt-pool-patrol.png", "brand/logo.webp", "caps/c1-panic-header.jpg", "caps/c1-panic-main.jpg", "caps/c1-panic-small-120.png", "caps/c1-panic-small-184.png", "caps/c1-panic-small.png", "caps/c2-cannonball-header.jpg", "caps/c2-cannonball-main.jpg", "caps/c2-cannonball-small-120.png", "caps/c2-cannonball-small-184.png", "caps/c2-cannonball-small.png", "caps/c3-diorama-header.jpg", "caps/c3-diorama-main.jpg", "caps/c3-diorama-small-120.png", "caps/c3-diorama-small-184.png", "caps/c3-diorama-small.png", "caps/c4-date-header.jpg", "caps/c4-date-main.jpg", "caps/c4-date-small-120.png", "caps/c4-date-small-184.png", "caps/c4-date-small.png", "caps/c5-crew-header.jpg", "caps/c5-crew-main.jpg", "caps/c5-crew-small-120.png", "caps/c5-crew-small-184.png", "caps/c5-crew-small.png", "clips/clip-coop.mp4", "clips/clip-dive.mp4", "clips/clip-hero.mp4", "clips/clip-incidents.mp4", "clips/clip-lineup.mp4", "clips/clip-marina.mp4", "clips/clip-panic.mp4", "clips/clip-shift.mp4", "clips/clip-venues.mp4", "clips/clip-vip.mp4", "index.html", "posters/gala-party-group.jpg", "posters/gala-party-hero.jpg", "posters/gala-party-portrait.jpg", "posters/harbour-chaos-group.jpg", "posters/harbour-chaos-hero.jpg", "posters/harbour-chaos-portrait.jpg", "posters/marina-design.jpg", "posters/splash-mixed-group.jpg", "posters/splash-mixed-hero.jpg", "posters/splash-mixed-portrait.jpg", "posters/stack-1-clean.jpg", "posters/stack-1.jpg", "posters/stack-2-clean.jpg", "posters/stack-2.jpg", "posters/stack-3a.jpg", "posters/stack-3b.jpg", "shots/01.jpg", "shots/02.jpg", "shots/03.jpg", "shots/04.jpg", "shots/05.jpg", "shots/06.jpg", "shots/07.jpg", "shots/09.jpg", "shots/10.jpg", "shots/11.jpg", "shots/13.jpg", "shots/14.jpg", "shots/15.jpg", "shots/16.jpg", "shots/17.jpg", "shots/18.jpg", "shots/19.jpg", "shots/20.jpg", "shots/21.jpg"]);
 const pending = (label, ratio) => `<div class="pending" style="aspect-ratio:${ratio}"><span>${label}<br><small>rendering, back soon</small></span></div>`;
 
 const $ = (s) => document.querySelector(s);
@@ -463,6 +490,34 @@ $("#shots").append(...SHOTS.map((s, i) => {
   const pic = AVAIL.has(`shots/${s.f}.jpg`) ? `<img src="shots/${s.f}.jpg" alt="Screenshot ${i + 1}: ${s.t}, ${s.v}" loading="lazy">` : pending(s.t, "16 / 9");
   c.innerHTML = `<div style="position:relative">${pic}<span class="n num">${i + 1}</span></div>
     <h3>${s.t}</h3><p>${s.d}</p><div class="meta"><span class="chip">${s.v}</span><span class="chip">${s.why}</span><span class="chip ok">All ages</span></div>`;
+  return c;
+}));
+
+const POSTERS = [
+  { id: "gala-party", t: "The party", v: "Grand Gala Arena", d: "The season finale: the whole cast celebrating in front of the GRAND GALA marquee, the coaches dancing with the swimmers' own moves and the game's relieved faces. Karen still has something to say." },
+  { id: "harbour-chaos", t: "The chaos", v: "Harbourside Community Pool", d: "Everything at once: Coach Waters freaking out, Rivers and Brooks startled, Storm hauling, Marsh panicking, Fontaine slipping, Carl mid-cannonball over everyone and the fish kid tipping his bucket. Marina, beside him, is having a lovely time." },
+  { id: "splash-mixed", t: "Both at once", v: "Splash Park", d: "Waters and Marina cheering in the middle while the coaches on the left fall apart and those on the right dance; half the guests party, half panic, and Carl is airborne again." },
+];
+$("#posters").append(...POSTERS.map((p) => {
+  const c = el("article", { class: "card poster" });
+  const img = (k, alt) => AVAIL.has(`posters/${p.id}-${k}.jpg`) ? `<img src="posters/${p.id}-${k}.jpg" alt="${alt}" loading="lazy">` : pending(p.t, k === "portrait" ? "4 / 5" : "16 / 9");
+  c.innerHTML = `<figure class="hero">${img("hero", `${p.t}: hero shot at the ${p.v}`)}<figcaption>Hero · 1920×1080</figcaption></figure>
+    <div class="pair"><figure>${img("group", `${p.t}: group shot at the ${p.v}`)}<figcaption>Group · 1920×1080</figcaption></figure>
+    <figure>${img("portrait", `${p.t}: portrait at the ${p.v}`)}<figcaption>Portrait · 1440×1800</figcaption></figure></div>
+    <h3>${p.t}</h3><p>${p.d}</p><div class="meta"><span class="chip">${p.v}</span></div>`;
+  return c;
+}));
+
+const STACKS = [
+  { f: "stack-1", t: "Option 1: the bleachers", d: "Four tidy rows rising behind the front line, a vertical gradient from deep blue to white. Rendered in the game's engine (three.js), every model as it plays." },
+  { f: "stack-2", t: "Option 2: the pyramid", d: "The rows narrow to a peak with Carl at the top, a glow of white from the middle into blue. Rendered in the game's engine, a lower camera." },
+  { f: "stack-3a", t: "Option 3: option 1, refined", d: "Option 1 passed through GPT Image 2.5 to load the textures: the same picture, characters, poses and burst, with richer materials (fabric, fur, feathers, glossy caps) in the same art style." },
+  { f: "stack-3b", t: "Option 3: option 2, refined", d: "Option 2 through the same pass: nothing moved, only the surfaces and the light refined." },
+];
+$("#stacks").append(...STACKS.map((p) => {
+  const c = el("article", { class: "card poster" });
+  const pic = AVAIL.has(`posters/${p.f}.jpg`) ? `<img src="posters/${p.f}.jpg" alt="${p.t}" loading="lazy">` : pending(p.t, "16 / 9");
+  c.innerHTML = `<figure class="hero">${pic}<figcaption>1920×1080${p.f.startsWith("stack-3") ? " · GPT Image 2.5 pass" : " · real-time render"}</figcaption></figure><h3>${p.t}</h3><p>${p.d}</p>`;
   return c;
 }));
 
