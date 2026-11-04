@@ -1,7 +1,7 @@
 # The Steam page kit (4 November 2026)
 
-Everything for Pool Panic's Steam store page, ready to upload once the Steamworks account and app exist: five capsule proposals, ten
-staged screenshots, seven ultra-wide clips for the About section, the short and long descriptions, tags, a brand book and a launch plan.
+Everything for Pool Panic's Steam store page, ready to upload once the Steamworks account and app exist: five capsule proposals, fourteen
+staged screenshots, nine ultra-wide clips for the About section, the short and long descriptions, tags, a brand book and a launch plan.
 `index.html` is the review page (open it in a browser: every picture, clip and text below in one place). No trailer yet, on purpose (the
 creator: "we'll do that later").
 
@@ -10,10 +10,10 @@ creator: "we'll do that later").
 | Folder | What | Steam's spec |
 | --- | --- | --- |
 | `caps/` | Five capsule proposals, each as `-main` (1232×706), `-header` (920×430), `-small` (462×174), and the small one at 184×69 and 120×45 to judge legibility | Store Presence > Graphical Assets; only art, the title and an official subtitle on a capsule |
-| `shots/` | Ten screenshots, `01`–`10` in the proposed order, 1920×1080, no interface | 16:9, ≥ 1920×1080, gameplay only, at least 4 marked all ages (all ten are) |
-| `clips/` | Seven About-section clips, 1170×260, as GIF and MP4 | ≤ 5 MB each, ≤ 15 MB for the page, ≤ 12 s; GIFs become looping video |
+| `shots/` | Fourteen screenshots (`01`–`14`, numbered as they were made; the order to upload is below), 1920×1080, no interface | 16:9, ≥ 1920×1080, gameplay only, at least 4 marked all ages (all are) |
+| `clips/` | Nine About-section clips, 1170×260 (the dive 1170×300), as GIF and MP4 | ≤ 5 MB each, ≤ 15 MB for the page, ≤ 12 s; GIFs become looping video |
 | `store/` | `short.txt` (three short descriptions, ≤ 300 characters), `about.bbcode` (the About section, ready to paste), `tags.txt` (20 tags) | |
-| `brand/` | The logo as the game ships it | |
+| `brand/` | The logo as the game ships it, and two alternate-name logos in its style (`alt-coach-waters.png`, `alt-pool-patrol.png`), references only: the game is still Pool Panic | |
 | `tools/` | How every picture was made, to make more: `photo.cjs` (stage a moment in the real game and photograph it, or film it frame by frame), `shots/*.json` and `gifs/*.json` (one file a moment), `mk.sh` (frames to GIF/MP4/WEBM), `compose.py` + `concepts.json` (capsule art + the real logo at Steam's sizes), `queue.sh` (two renders at a time) | |
 
 ## The picks
@@ -21,15 +21,17 @@ creator: "we'll do that later").
 - **Capsule: 1, Panic Face** (Coach Waters' panicked face, the dog, Carl and the fish kid behind him). 2, Cannonball! is the runner-up. 4, Date
   Night tells the story (good for the library hero or a seasonal capsule); 5, Co-op Crew suits a co-op push (Next Fest, a co-op update).
 - **Short description: A** ("You are Coach Waters, the only lifeguard at 14 ridiculous pools…", 258 characters).
-- **Screenshot order:** Carl's cannonball, the dog with the fins, the cruise ship's rogue swell, three coaches (the first four show on hover
-  across the store), then Karen, the rooftop selfie, the monster wave, the monkey in the hot spring, the diver off the 6 m board, the Gala's
-  power cut.
+- **Screenshot order (files):** 01 Carl's cannonball, 13 three coaches closing in on the dog, 06 the cruise ship's rogue swell, 11 the whole
+  cast in a row (the first four show on hover across the store), then 02 the dog with the fins, 12 the VIP lineup, 14 three coaches on the
+  rolling deck, 03 Karen, 05 the rooftop selfie, 07 the monster wave, 10 three coaches sprinting, 08 the monkey in the hot spring, 09 the
+  diver off the 6 m board, 04 the Gala's power cut.
+- **Clip order in the About section:** hero (Carl), shift, lineup, incidents (the dog), co-op, venues (the cruise ship), dive, Marina, never.
 
 ## How the pictures were made
 
 Every screenshot and clip is the real game (`dist/`) in Chromium, software-rendered under Xvfb: `photo.cjs` starts a free-play shift, runs a
 shot's `setup` (spawn swimmers, trigger an incident), fast-forwards the simulation until its `until` is true, freezes it, places the people
-and the camera by hand (`after`, `cameras`), hides the interface and the coach's rings, and photographs. A clip (`gif`) installs Playwright's
+and the camera by hand (`after`, `cameras`), hides the interface and the coach's rings, and photographs. The lineups (`tools/lib.js`, pasted into a shot's `after`) clear the deck, stand the cast in a row and pin each one's animation to a clip of its own. A clip (`gif`) installs Playwright's
 clock before the page loads, pauses it, and steps it `step` ms a frame, so every frame is the same slice of game time however slow the
 renderer is. The capsule art is GPT Image 2.5 (fal, `openai/gpt-image-2.5/flare/edit`) with the game's own character pictures as references
 (Coach Waters, Carl, Karen, the dog, Marina, Coaches Rivers and Storm); `compose.py` lays the real logo on top. Nothing was checked on a

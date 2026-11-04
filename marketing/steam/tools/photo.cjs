@@ -107,7 +107,7 @@ const shot = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
       dir = g.dir;
     fs.mkdirSync(dir, { recursive: true });
     await p.waitForTimeout(1500);
-    if (shot.freeze) await run("s.tick = s.__tick; return true");
+    if (shot.freeze && !g.frozen) await run("s.tick = s.__tick; return true");
     if (g.start) console.log("start:", JSON.stringify(await run(g.start)));
     await p.clock.pauseAt(Math.max(Date.now(), await p.evaluate(() => Date.now())) + 5000);
     await p.clock.runFor(100);
