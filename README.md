@@ -42,8 +42,8 @@ What follows from that for anyone working on the game:
 - **Know what only the creator can do.** The Steamworks account, the app fee, the app and depot ids, the store page and prices, and rights to the generated art are all theirs (`desktop/steam/checklist.md` has the whole road).
 
 **The Steam page kit (4 November 2026)** is in [`marketing/steam/`](marketing/steam/README.md): five capsule proposals at Steam's sizes
-(GPT Image 2.5 art from the game's own characters, Carl rendered from `carl.glb`, the real logo laid on top), ten 1920×1080 screenshots
-staged in the real game (an incident forced, the simulation frozen, the camera placed, the interface hidden), seven 1170×260 looping
+(GPT Image 2.5 art from the game's own characters, Carl rendered from `carl.glb`, the real logo laid on top), seventeen 1920×1080 screenshots
+staged in the real game (an incident forced, the simulation frozen, the camera placed, the interface hidden), ten 1170×260 looping
 clips for the About section (GIF and MP4, each under Steam's 5 MB), three short descriptions, the About section in Steam's BBCode, 20
 tags, a brand book (logo use, colours, type, voice, rules for pictures and clips) and a launch plan (Coming Soon page now, a demo in
 spring, the June 2027 Next Fest, launch after it). Its `index.html` is the review page; `tools/photo.cjs` stages and films more moments
