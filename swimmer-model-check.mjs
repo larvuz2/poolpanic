@@ -397,7 +397,7 @@ for (const [id, g] of world.people) {
   );
 }
 {
-  // Fins stay a swimmer's own, a VIP keeps the crown and sash, a daredevil the star and cape.
+  // Fins stay a swimmer's own, a VIP keeps the crown (no sash since 4 November 2026), a daredevil the star and cape.
   const [first] = world.people.values();
   assert.ok(first.userData.root.children.includes(first.userData.f), "the fins are still there to show");
   const vip = character(world, { type: "intermediate", vip: true, skin: 2, id: 99 });
@@ -405,21 +405,21 @@ for (const [id, g] of world.people) {
     attachSwimmerModel(vip, { type: "intermediate", vip: true, skin: 2 }),
     "a VIP is a character too",
   );
-  assert.ok(vip.userData.crown.visible && vip.userData.sash.visible, "with the crown and sash");
+  assert.ok(vip.userData.crown.visible, "with the crown");
+  assert.equal(vip.userData.sash, null, "and no sash");
   {
-    // They ride on the body: a hop that lifts the hips lifts the crown, the sash and the face with it.
+    // They ride on the body: a hop that lifts the hips lifts the crown and the face with it.
     const m = vip.userData.mounts;
     assert.equal(m.head.parent.name, "Head", "the crown is on the head bone");
-    assert.equal(m.chest.parent.name, "Spine", "the sash on the chest bone");
+    assert.equal(m.chest.parent.name, "Spine", "the chest mount on the chest bone");
     assert.equal(vip.userData.crown.parent, m.head);
-    assert.equal(vip.userData.sash.parent, m.chest);
     const worldY = (o) => o.getWorldPosition(new THREE.Vector3()).y;
     vip.updateMatrixWorld(true);
-    const before = [vip.userData.crown, vip.userData.sash, vip.userData.soreEyes].map(worldY);
+    const before = [vip.userData.crown, vip.userData.soreEyes].map(worldY);
     vip.userData.model.getObjectByName("Hips").position.y += 0.3;
     vip.updateMatrixWorld(true);
-    const after = [vip.userData.crown, vip.userData.sash, vip.userData.soreEyes].map(worldY);
-    for (const [i, name] of ["crown", "sash", "sore eyes"].entries())
+    const after = [vip.userData.crown, vip.userData.soreEyes].map(worldY);
+    for (const [i, name] of ["crown", "sore eyes"].entries())
       assert.ok(
         after[i] - before[i] > 0.25,
         `the ${name} went up with the hips (${(after[i] - before[i]).toFixed(2)} m)`,
@@ -434,6 +434,7 @@ for (const [id, g] of world.people) {
   const dare = character(world, { type: "daredevil", skin: 1, id: 98 });
   attachSwimmerModel(dare, { type: "daredevil", skin: 1 });
   assert.ok(dare.userData.star.visible && dare.userData.cape.visible, "a daredevil keeps the star and cape");
+  assert.equal(dare.userData.cape.parent, dare.userData.mounts.chest, "the cape on the chest mount");
   const carl = character(world, { type: "advanced", carl: true, skin: 0, id: 97 });
   assert.equal(attachSwimmerModel(carl, { type: "advanced", carl: true, skin: 0 }), null, "Carl stays Carl");
   assert.equal(
@@ -447,7 +448,6 @@ for (const [id, g] of world.people) {
     vip.userData.root,
     "a dropped model gives the crown back to the swimmer",
   );
-  assert.equal(vip.userData.sash.parent, vip.userData.root);
   assert.ok(!vip.userData.mounts, "and the mounts go");
 }
 

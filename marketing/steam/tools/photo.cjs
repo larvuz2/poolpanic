@@ -63,6 +63,7 @@ const shot = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
     const r = await run(shot.after);
     console.log("after:", JSON.stringify(r));
     if (r && r.focus) focus = r.focus;
+    if (r && r.cams) shot.cameras = r.cams;
   }
   if (shot.hud === false)
     await run(

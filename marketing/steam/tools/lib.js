@@ -9,7 +9,7 @@ CAST.forEach((c, i) => {
   if (c.figure) p.figure = c.figure;
   if (c.skin !== undefined) p.skin = c.skin;
   if (c.vip) p.vip = true;
-  Object.assign(p, { status: 'queue', path: [], x: X, z: Z0 + i * STEP, angle: Math.PI / 2 + (c.turn || 0), actualSpeed: 0, h: 100, crampAt: Infinity });
+  Object.assign(p, { status: 'queue', path: [], x: X, z: Z0 + i * STEP, angle: (typeof FACE === 'number' ? FACE : Math.PI / 2) + (c.turn || 0), actualSpeed: 0, h: 100, crampAt: Infinity });
   placed.push([p.id, c]);
 });
 s.coach.x = X + 30; s.coach.z = 40;
