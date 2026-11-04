@@ -1,5 +1,28 @@
 import { AUDIO_FILES, SFX, sfxUrl } from "./audio-files.mjs";
 import { DiscoMusic } from "./music.mjs";
+import {
+  BUSES,
+  SNAPSHOTS,
+  SNAPSHOT_FADE,
+  DUCKS,
+  DUCK_ATTACK,
+  DUCK_RELEASE,
+  dbToGain,
+  limitFor,
+  VOICE_CAP,
+  placement,
+  ROOMS,
+  venueSound,
+  swimmersLevel,
+  stepSurface,
+  stride,
+  stepGain,
+  RUN_SPEED,
+  voiceOf,
+  VOCALS,
+  VOCAL_GAP,
+  impulse,
+} from "./sound-mix.mjs";
 
 // The menu's recordings (ElevenLabs Music and Sound Effects, 20 October 2026; see assets/audio/README.md).
 export const MENU_AUDIO = {
@@ -51,12 +74,28 @@ export class PoolAudio {
     this.dest = null;
     this.menu = null; // the menu's recorded music (startMenu)
     this.menuToken = 0;
+    // The mix (sound-mix.mjs): the voices playing, the last start of each sound, the loops, the snapshot, the coaches' state.
+    // `listen(x, z)` (set by the app) says where a place on the deck is for the ear: { sx, distance } or null.
+    // `who(e)` (set by the app) says which coach an event is about: { index, look, local, x, z } or null.
+    this.voices = [];
+    this.lastStart = {};
+    this.loops = new Map();
+    this.loopBufs = {};
+    this.ducks = {};
+    this.snap = null;
+    this.room = null;
+    this.route = null;
+    this.listen = null;
+    this.who = null;
+    this.coachState = [];
   }
   masterLevel() {
     return this.enabled ? 0.36 * this.volume.master : 0;
   }
+  // Where a sound made now goes: the song's scheduler's bus, else the place on the deck the event being played is at (`route`,
+  // effect), else the one-shots' bus.
   out() {
-    return this.dest || this.fxBus || this.master;
+    return this.dest || this.route || this.buses?.sfx || this.fxBus || this.master;
   }
   // Settings' sliders: heard at once.
   setVolumes({ master = this.volume.master, music = this.volume.music, effects = this.volume.effects } = {}) {
@@ -66,6 +105,7 @@ export class PoolAudio {
     this.master.gain.setTargetAtTime(this.masterLevel(), t, 0.03);
     this.musicBus.gain.setTargetAtTime(music, t, 0.03);
     this.fxBus.gain.setTargetAtTime(effects, t, 0.03);
+    this.uiBus?.gain.setTargetAtTime(effects * BUSES.ui, t, 0.03);
   }
   init() {
     if (this.ctx) {
@@ -75,18 +115,63 @@ export class PoolAudio {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     this.ctx = new AC();
-    this.master = this.ctx.createGain();
-    this.master.gain.value = this.masterLevel();
-    // Two mixes under the master, for Settings' sliders: the music (the shifts' songs, the menu's) and the effects.
-    this.musicBus = this.ctx.createGain();
-    this.musicBus.gain.value = this.volume.music;
-    this.musicBus.connect(this.master);
-    this.fxBus = this.ctx.createGain();
-    this.fxBus.gain.value = this.volume.effects;
-    this.fxBus.connect(this.master);
-    const compressor = this.ctx.createDynamicsCompressor();
+    const ctx = this.ctx,
+      gain = (value, to) => {
+        const g = ctx.createGain();
+        g.gain.value = value;
+        if (to) g.connect(to);
+        return g;
+      };
+    // The bus tree (sound-mix.mjs, 4 November 2026):
+    //   master → the bus compressor (the game's own, as it always was) → a limiter → the speakers
+    //   the game's mix → a low-pass (the snapshots': paused is heard as through a door) → master
+    //     music (Settings' music slider) → its snapshot level → its ducker → the game's mix
+    //     effects (Settings' effects slider) → the game's mix
+    //       one-shots, footsteps, voices (each its own level), and the ambience → its ducker → effects
+    //       the reverb: a send from the one-shots, footsteps and voices → the venue's room → effects
+    //   the interface (the menu's buttons; Settings' effects slider) → master, never muffled or ducked
+    this.master = gain(this.masterLevel());
+    const compressor = ctx.createDynamicsCompressor(),
+      limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -2;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.002;
+    limiter.release.value = 0.12;
     this.master.connect(compressor);
-    compressor.connect(this.ctx.destination);
+    compressor.connect(limiter);
+    limiter.connect(ctx.destination);
+    this.lowpass = ctx.createBiquadFilter();
+    this.lowpass.type = "lowpass";
+    this.lowpass.frequency.value = 20000;
+    this.lowpass.Q.value = 0.5;
+    this.lowpass.connect(this.master);
+    this.awayGain = gain(1, this.lowpass); // (the page hidden: the shift's sound waits silent, away)
+    this.game = gain(1, this.awayGain);
+    this.musicDuck = gain(1, this.game);
+    this.musicSnap = gain(1, this.musicDuck);
+    this.musicBus = gain(this.volume.music, this.musicSnap);
+    this.fxBus = gain(this.volume.effects, this.game);
+    this.uiBus = gain(this.volume.effects * BUSES.ui, this.master);
+    this.ambDuck = gain(1, this.fxBus);
+    this.buses = {
+      sfx: gain(BUSES.sfx, this.fxBus),
+      foley: gain(BUSES.foley, this.fxBus),
+      voice: gain(BUSES.voice, this.fxBus),
+      amb: gain(BUSES.amb, this.ambDuck),
+    };
+    this.reverb = ctx.createConvolver();
+    this.reverbIn = gain(0, this.reverb);
+    this.reverb.connect(this.fxBus);
+    this.sends = {};
+    for (const [bus, share] of [
+      ["sfx", 1],
+      ["foley", 0.6],
+      ["voice", 0.8],
+    ])
+      this.buses[bus].connect((this.sends[bus] = gain(share, this.reverbIn)));
+    this.setRoom("outdoor");
+    this.snapshot("menu", 0);
     this.next = this.ctx.currentTime + 0.05;
     this.timer = setInterval(() => this.schedule(), 70);
     this.loadSfx();
@@ -100,6 +185,7 @@ export class PoolAudio {
     this.sfxLast = {};
     for (const [key, { takes }] of Object.entries(SFX)) {
       this.sfxTakes[key] = [];
+      if (key.startsWith("amb-")) continue; // (the ambience beds: one at a time, when their venue is played: loopBuffer)
       for (let n = 1; n <= takes; n++)
         this.buffer(new URL(sfxUrl(key, n), import.meta.url).href).then(
           (b) => b && this.sfxTakes[key].push(b),
@@ -108,9 +194,21 @@ export class PoolAudio {
   }
   // Plays one take of the recorded `key` at `t` (+`delay`), `gain` times its own level and `rate` times its speed (a little more or
   // less each time, so no two splashes are the same). False when it has none ready: the caller plays the synthesised one.
-  sfx(key, t = this.ctx?.currentTime || 0, { gain = 1, rate = 1, delay = 0 } = {}) {
+  // The mix's voice limits (sound-mix.mjs LIMITS): a second start of a sound within its `gap` is dropped (still true: the caller
+  // must not play its synthesised one instead), past its `max` at once the oldest of it is stolen, past VOICE_CAP in all the
+  // oldest footstep (else the oldest anything). `bus`: where it goes (else `out()`). Returns the voice.
+  sfx(key, t = this.ctx?.currentTime || 0, { gain = 1, rate = 1, delay = 0, bus = null } = {}) {
     const takes = this.sfxTakes?.[key];
     if (!this.ctx || !this.enabled || !takes?.length) return false;
+    const limit = limitFor(key),
+      at = t + delay,
+      last = this.lastStart[key];
+    if (last != null && Math.abs(at - last) < limit.gap) return true;
+    this.lastStart[key] = at;
+    const same = this.voices.filter((v) => v.key === key);
+    if (same.length >= limit.max) this.steal(same[0]);
+    if (this.voices.length >= VOICE_CAP)
+      this.steal(this.voices.find((v) => v.key.startsWith("step-")) || this.voices[0]);
     let i = Math.floor(Math.random() * takes.length);
     if (takes.length > 1 && i === this.sfxLast[key]) i = (i + 1) % takes.length;
     this.sfxLast[key] = i;
@@ -120,10 +218,255 @@ export class PoolAudio {
     s.playbackRate.value = rate * (0.94 + Math.random() * 0.12);
     g.gain.value = SFX[key].gain * gain;
     s.connect(g);
-    g.connect(this.out());
-    s.onended = () => release(s, g);
-    s.start(t + delay);
-    return true;
+    g.connect(bus || this.out());
+    const voice = { key, s, g, at, length: takes[i].duration / s.playbackRate.value };
+    this.voices.push(voice);
+    s.onended = () => {
+      const k = this.voices.indexOf(voice);
+      if (k >= 0) this.voices.splice(k, 1);
+      release(s, g);
+    };
+    s.start(at);
+    return voice;
+  }
+  // A voice let go of early: faded out in a few milliseconds (no click).
+  steal(voice) {
+    if (!voice) return;
+    const k = this.voices.indexOf(voice);
+    if (k >= 0) this.voices.splice(k, 1);
+    const t = this.ctx.currentTime;
+    try {
+      voice.g.gain.setTargetAtTime(0, t, 0.01);
+      voice.s.stop(t + 0.06);
+    } catch {}
+  }
+  // ---- the mix (sound-mix.mjs) ----------------------------------------------------------------------------------------------
+  // A param moved smoothly from where it is now (a change mid-ramp does not jump).
+  glide(param, value, seconds) {
+    const t = this.ctx.currentTime;
+    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(t);
+    else {
+      param.cancelScheduledValues(t);
+      param.setValueAtTime(param.value, t);
+    }
+    if (seconds <= 0) param.setValueAtTime(value, t);
+    else param.setTargetAtTime(value, t, seconds / 3);
+  }
+  // The page hidden or back: the loops and everything of the shift silent while it is away.
+  away(hidden) {
+    if (this.ctx) this.glide(this.awayGain.gain, hidden ? 0 : 1, hidden ? 0.05 : 0.6);
+  }
+  // A snapshot (SNAPSHOTS): each group's level and the game's low-pass, blended in over its fade.
+  snapshot(name, fade = SNAPSHOT_FADE[name] ?? 0.5) {
+    if (!this.ctx || this.snap === name || !SNAPSHOTS[name]) return;
+    this.snap = name;
+    const m = SNAPSHOTS[name];
+    this.glide(this.musicSnap.gain, m.music, fade);
+    for (const bus of ["sfx", "amb", "foley", "voice"])
+      this.glide(this.buses[bus].gain, BUSES[bus] * m[bus], fade);
+    this.glide(this.lowpass.frequency, m.lowpass, fade);
+  }
+  // Sidechain ducking: the music and the ambience dip by [music dB, ambience dB] and come back after `hold` (the deeper of two
+  // ducks at once, held to the later end).
+  duck([music, amb, hold]) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    for (const [node, db, k] of [
+      [this.musicDuck, music, "music"],
+      [this.ambDuck, amb, "amb"],
+    ]) {
+      const d = (this.ducks[k] ||= { db: 0, until: 0 }),
+        on = t < d.until;
+      d.db = on ? Math.min(d.db, db) : db;
+      d.until = Math.max(on ? d.until : 0, t + hold);
+      this.glide(node.gain, dbToGain(d.db), DUCK_ATTACK);
+      node.gain.setTargetAtTime(1, d.until, DUCK_RELEASE / 3);
+    }
+  }
+  // A place on the deck, for the ear: a little chain (pan, distance level, distance dullness) into `bus`, let go of after
+  // `life` seconds. Null when the place is where the ear is anyway (no chain needed) or nobody has said where the ear is.
+  placeAt(x, z, bus = this.buses?.sfx, life = 7) {
+    const at = this.listen?.(x, z);
+    if (!at || !this.ctx) return null;
+    const p = placement(at.sx, at.distance);
+    if (Math.abs(p.pan) < 0.04 && p.gain > 0.98) return null;
+    const ctx = this.ctx,
+      g = ctx.createGain(),
+      f = ctx.createBiquadFilter(),
+      pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    g.gain.value = p.gain;
+    f.type = "lowpass";
+    f.frequency.value = p.lowpass;
+    f.Q.value = 0.5;
+    if (pan) {
+      pan.pan.value = p.pan;
+      pan.connect(g);
+    }
+    g.connect(f);
+    f.connect(bus);
+    setTimeout(() => release(...(pan ? [pan] : []), g, f), life * 1000);
+    return pan || g;
+  }
+  // The venue's room (ROOMS), made once per room and kept.
+  setRoom(name) {
+    if (!this.ctx || this.room === name || !ROOMS[name]) return;
+    this.room = name;
+    this.rooms ||= {};
+    this.reverb.buffer = this.rooms[name] ||= impulse(this.ctx, ROOMS[name]);
+    this.glide(this.reverbIn.gain, ROOMS[name].send, 0.3);
+  }
+  // A loop's sound: the ambience beds are fetched when first wanted (and the last venue's bed let go of); the others are among
+  // the sounds loaded at the start. Null until it is in.
+  loopBuffer(key) {
+    if (!key.startsWith("amb-")) {
+      const takes = this.sfxTakes?.[key];
+      return takes?.length ? takes[Math.floor(Math.random() * takes.length)] : null;
+    }
+    const have = this.loopBufs[key];
+    if (have) return have === "failed" ? null : have === "loading" ? null : have;
+    this.loopBufs[key] = "loading";
+    const url = new URL(sfxUrl(key, 1), import.meta.url).href;
+    this.buffer(url).then((b) => {
+      this.loopBufs[key] = b || "failed";
+    });
+    return null;
+  }
+  forgetBed(key) {
+    if (!key || key === "amb-swimmers") return;
+    delete this.loopBufs[key];
+    this.buffers.delete(new URL(sfxUrl(key, 1), import.meta.url).href);
+  }
+  // A loop driven by a parameter (FMOD's event with a parameter): `id` keeps one running, its sound `key` at `level` (0 to 1,
+  // times its own gain), faded to new levels; another key crossfades; level 0 fades it out and stops it.
+  loop(id, key, level, { fade = 1.5, bus = this.buses?.amb, pan = 0 } = {}) {
+    if (!this.ctx) return;
+    const L = this.loops.get(id);
+    if (L && L.key === key && level > 0.001) {
+      if (Math.abs(L.level - level) > 0.01) {
+        L.level = level;
+        this.glide(L.g.gain, SFX[key].gain * level, fade);
+      }
+      if (L.pan && Math.abs(L.pan.pan.value - pan) > 0.02) this.glide(L.pan.pan, pan, 0.25);
+      return;
+    }
+    if (L) {
+      this.loops.delete(id);
+      this.glide(L.g.gain, 0, fade);
+      setTimeout(
+        () => {
+          try {
+            L.s.stop();
+          } catch {}
+          release(L.s, L.g, L.pan);
+        },
+        fade * 1000 + 200,
+      );
+      if (L.key !== key && id === "bed") this.forgetBed(L.key);
+    }
+    if (!key || level <= 0.001 || !this.enabled) return;
+    const buf = this.loopBuffer(key);
+    if (!buf) return; // (in a moment: the next frame asks again)
+    const ctx = this.ctx,
+      s = ctx.createBufferSource(),
+      g = ctx.createGain(),
+      p = ctx.createStereoPanner ? ctx.createStereoPanner() : null,
+      [from, to] = loopPoints(buf);
+    s.buffer = buf;
+    s.loop = true;
+    s.loopStart = from;
+    s.loopEnd = to;
+    g.gain.value = 0;
+    s.connect(g);
+    if (p) {
+      p.pan.value = pan;
+      g.connect(p);
+      p.connect(bus);
+    } else g.connect(bus);
+    s.start(ctx.currentTime, from + Math.random() * (to - from));
+    this.glide(g.gain, SFX[key].gain * level, fade);
+    this.loops.set(id, { key, level, s, g, pan: p });
+  }
+  // Once a frame, from the app: the snapshot for the game's mode, the venue's room and ambience bed, the swimmers' layer by how
+  // many are in the water, and a stranded swimmer's struggle (the cramp, a wipeout: the rescue's victims waiting for a ring),
+  // placed where they are.
+  frame({ snapshot, venue = null, swimmers = 0, distress = null }) {
+    if (!this.ctx || !this.enabled) return;
+    this.snapshot(snapshot);
+    const v = venue ? venueSound(venue) : null;
+    if (v) this.setRoom(v.room);
+    this.venueId = venue;
+    this.loop("bed", v ? "amb-" + v.bed : null, v ? v.bedLevel : 0, { fade: 2.5 });
+    this.loop("swimmers", v?.swimmers ? "amb-swimmers" : null, v?.swimmers ? swimmersLevel(swimmers) : 0, {
+      fade: 2,
+    });
+    const at = distress && this.listen?.(distress.x, distress.z);
+    this.loop("distress", distress ? "cramp-panic" : null, distress ? 1 : 0, {
+      fade: 0.4,
+      bus: this.buses.sfx,
+      pan: at ? placement(at.sx, at.distance).pan : 0,
+    });
+  }
+  // Once a frame for each coach (the scene, render side): a footstep every stride on what is under them (stepSurface), and a
+  // sound of theirs when one of their trouble clips starts (Startle, Haul, FreakOut).
+  coachFrame(index, c, { local = true, clip = null, look = "waters" } = {}) {
+    if (!this.ctx || !this.enabled) return;
+    const st = (this.coachState[index] ||= { walked: 0, x: c.x, z: c.z, clip: null, mouth: 0, said: {} });
+    const moved = Math.hypot(c.x - st.x, c.z - st.z);
+    st.x = c.x;
+    st.z = c.z;
+    const surface = this.snap === "shift" || this.snap === "replay" ? stepSurface(this.venueId, c) : null,
+      speed = Math.hypot(c.vx || 0, c.vz || 0);
+    if (!surface || moved > 3) st.walked = 0.7 * stride(surface || "tile", speed);
+    else {
+      st.walked += moved;
+      const length = stride(surface, speed);
+      if (st.walked >= length) {
+        st.walked = Math.min(st.walked - length, length);
+        this.footstep(surface, speed, local, c);
+      }
+    }
+    if (clip !== st.clip) {
+      st.clip = clip;
+      if (clip && VOCALS["clip:" + clip]) this.vocal("clip:" + clip, index, look, local, c);
+    }
+  }
+  footstep(surface, speed, local, at) {
+    const run = speed > RUN_SPEED;
+    this.sfx("step-" + surface, this.ctx.currentTime, {
+      gain: stepGain(speed, local),
+      rate: run ? 1.04 : 0.96,
+      bus: (!local && this.placeAt(at.x, at.z, this.buses.foley, 2)) || this.buses.foley,
+    });
+  }
+  // A coach's effort (never a word): by chance, not too soon after the same one, one sound at a time from one mouth, in the
+  // coach's own voice (VOICES); the music leans back a little under it.
+  vocal(what, index, look, local, at) {
+    const rule = VOCALS[what];
+    if (!rule || !this.ctx) return;
+    const t = this.ctx.currentTime,
+      st = (this.coachState[index] ||= { walked: 0, x: at.x, z: at.z, clip: null, mouth: 0, said: {} });
+    if (t < st.mouth || t < (st.said[rule.kind] || 0) || Math.random() > rule.chance) return;
+    const voice = voiceOf(look),
+      bus = (!local && at.x != null && this.placeAt(at.x, at.z, this.buses.voice, 3)) || this.buses.voice;
+    const v = this.sfx(`vo-${voice.set}-${rule.kind}`, t, { rate: voice.pitch, gain: local ? 1 : 0.75, bus });
+    if (!v || v === true) return;
+    let length = v.length;
+    if (rule.then && Math.random() < rule.then.chance) {
+      const next = this.sfx(`vo-${voice.set}-${rule.then.kind}`, t, {
+        delay: v.length * 0.8,
+        rate: voice.pitch,
+        gain: local ? 1 : 0.75,
+        bus,
+      });
+      if (next && next !== true) length = v.length * 0.8 + next.length;
+    }
+    st.mouth = t + Math.max(VOCAL_GAP, length * 0.85);
+    st.said[rule.kind] = t + rule.cooldown;
+    this.duck(DUCKS.voice);
+  }
+  vocalFor(type, e) {
+    const w = this.who?.(e);
+    if (w) this.vocal(type, w.index, w.look, w.local, w);
   }
   tone(freq, time, duration, vol = 0.15, type = "sine", endFreq = null) {
     if (!this.ctx || !this.enabled) return;
@@ -301,9 +644,21 @@ export class PoolAudio {
       this.next += 60 / (this.panic ? 154 : 108 + this.urgency * 18 + (this.heat >= 4 ? 6 : 0)) / 4;
     }
   }
+  // A moment of the game, heard: the music and the ambience make room for it (DUCKS), the coach it happened to may make a
+  // sound (VOCALS), and what it makes is placed where it happened (`route`), then its recording, else its synthesised sound.
   effect(type, e = {}) {
     if (!this.ctx || !this.enabled) return;
     const t = this.ctx.currentTime;
+    if (DUCKS[type]) this.duck(DUCKS[type]);
+    if (VOCALS[type]) this.vocalFor(type, e);
+    this.route = e.x != null && e.z != null ? this.placeAt(e.x, e.z) : null;
+    try {
+      this.effectAt(type, e, t);
+    } finally {
+      this.route = null;
+    }
+  }
+  effectAt(type, e, t) {
     if (this.recorded(type, e, t)) return;
     if (this.waveEffect(type, e, t)) return;
     if (this.roofEffect(type, e, t)) return;
@@ -646,14 +1001,9 @@ export class PoolAudio {
         return play("air-horn");
       case "monster-warning":
         return play("siren");
-      case "outage-flicker":
-        return play("flicker");
+      // (the flicker and the power coming back stay synthesised: the creator, 4 November 2026, "leave the original")
       case "blackout":
         return play("power-down");
-      case "power-restored":
-        if (!play("power-up")) return false;
-        [523, 784, 1047].forEach((f, i) => this.tone(f, t + 0.45 + i * 0.08, 0.18, 0.1, "triangle"));
-        return true;
       // ---- animals ----
       case "dog-notice":
         return play("dog-bark");
@@ -684,6 +1034,8 @@ export class PoolAudio {
         this.tone(784, t + 0.08, 0.17, 0.11, "sine");
         this.tone(1047, t + 0.17, 0.23, 0.09, "sine");
         return true;
+      case "door-close": // a changing room's door swinging shut behind the last one through (the app, from sim.doors)
+        return play("door-close");
       case "massage-lie": // flopping onto the padded table, and a contented hum
         if (!play("flop")) return false;
         this.tone(262, t + 0.18, 0.4, 0.06, "triangle", 247);
@@ -946,6 +1298,7 @@ export class PoolAudio {
   // The first sighting gets a longer tail while the lesson is on screen.
   sting(kind, first = false) {
     if (!this.ctx || !this.enabled) return;
+    this.duck(DUCKS.sting);
     const t = this.ctx.currentTime,
       danger = [
         "cramp",
@@ -1228,7 +1581,7 @@ export class PoolAudio {
         source.playbackRate.value = kind === "hover" ? 0.96 + Math.random() * 0.08 : 1;
         g.gain.value = kind === "hover" ? 0.45 : 0.8;
         source.connect(g);
-        g.connect(this.fxBus);
+        g.connect(this.uiBus);
         source.onended = () => release(source, g);
         source.start();
       },

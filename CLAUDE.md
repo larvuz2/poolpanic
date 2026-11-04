@@ -284,6 +284,12 @@ the app and depot ids, the store page, the price, written proof that the AI tool
 - **Real-world sounds are recordings, musical cues are synthesised** (3 November 2026, README "Recorded sound effects"): a water,
   weather, animal, crowd or object sound goes in `tools/sfx/sounds.mjs` (ElevenLabs Sound Effects v3 on fal, `tools/sfx/make.mjs`)
   and is played from `PoolAudio.recorded` with its synthesised version kept as the fallback; its level matched to what it replaces.
+  (The lights' flicker and the power coming back stay synthesised, the creator's.)
+- **The mix is FMOD-style, in `dist/sound-mix.mjs`** (4 November 2026, README "Sound engineering"): buses, snapshots, ducking,
+  voice limits, placement on the deck, a room per venue, loops driven by parameters (the ambience bed, the swimmers, a stranded
+  swimmer's struggle), footsteps by surface, the coaches' efforts. A new venue gets a row in its `VENUES` (room, bed, floor); a new
+  coach a voice in `VOICES`. **The coaches never speak**: efforts, yelps, screams and sighs only, every take checked with
+  speech-to-text before it goes in.
 - Fonts are bundled (`dist/assets/fonts/`). The game must not need the network once its files have loaded.
 - Generated art (Meshy, fal, image models) is committed under `dist/assets/`, never linked: the CDN links expire.
 

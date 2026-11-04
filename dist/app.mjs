@@ -110,6 +110,7 @@ import { freePlayShift, freeLevel, POOLS } from "./week.mjs";
 import { installCoop } from "./coop-ui.mjs";
 import { CoopGuest, Predictor } from "./net.mjs";
 import { coachInfo } from "./crew.mjs";
+import { snapshotFor } from "./sound-mix.mjs";
 import { pendingInvite } from "./steam-net.mjs";
 import { COACH_TUNING } from "./spatial.mjs";
 import { playCinematic } from "./cinematic.mjs";
@@ -4052,6 +4053,55 @@ function skipHighlight(e) {
   e.stopPropagation();
   stopHighlight();
 }
+// ---- the sound of the shift (sound-mix.mjs, 4 November 2026) ------------------------------------------------------------------
+// Where a place on the deck is for the ear (across the screen, and how far from the player's own coach), which coach an event
+// is about, and each coach's footsteps and voice (the scene calls `onCoach` for each, every frame).
+function hearWorld() {
+  audio.listen = (x, z) => {
+    if (!sim?.coach || mode === "menu") return null;
+    const at = world.project(x, 0, z),
+      { w } = world.viewSize(),
+      me = sim.coaches?.[sim.actor ?? 0] || sim.coach;
+    return { sx: (at.x / (w || 1)) * 2 - 1, distance: Math.hypot(x - me.x, z - me.z) };
+  };
+  audio.who = (e) => {
+    const crew = sim?.coaches;
+    if (!crew?.length) return null;
+    let i = e.by ?? null;
+    if (i == null && crew.length > 1 && e.x != null) {
+      let best = Infinity;
+      crew.forEach((c, k) => {
+        const d = Math.hypot(c.x - e.x, c.z - e.z);
+        if (d < best) [best, i] = [d, k];
+      });
+    }
+    i ??= sim.actor ?? 0;
+    const c = crew[i];
+    return c && { index: i, look: c.look || "waters", local: i === (sim.actor ?? 0), x: c.x, z: c.z };
+  };
+  world.onCoach = (i, c, o) => audio.coachFrame(i, c, o);
+}
+// Once a frame: the mix's snapshot for what is on screen, the venue's ambience, the swimmers in the water, a swimmer stranded
+// with a cramp (where they are), and a changing room's door swinging shut once its last guest is through (sim.doors).
+const doorWas = {};
+function soundFrame() {
+  const live = mode === "playing" || mode === "countdown" || mode === "replay",
+    venue = mode !== "menu" && sim?.venue ? sim.venue : null;
+  let swimmers = 0,
+    distress = null;
+  if (live && venue) {
+    for (const p of sim.people) if (p.status === "swim") swimmers++;
+    const v = sim.rescue && sim.strandedVictims?.()[0];
+    if (v) distress = { x: v.x, z: v.z };
+    for (const side of [-1, 1]) {
+      const r = sim.doors?.[side] || 0;
+      if (doorWas[side] >= 0.12 && r < 0.12 && venue.arrival?.at)
+        audio.effect("door-close", venue.arrival.at(side, "door"));
+      doorWas[side] = r;
+    }
+  }
+  audio.frame({ snapshot: snapshotFor(mode), venue: venue?.id ?? null, swimmers, distress });
+}
 function replayFrame(dt) {
   const c = clip;
   if (!c) return;
@@ -4590,6 +4640,7 @@ function frame(t) {
     if (!tuning.has("nosync") && !tuning.has("norender")) stage("render", () => world.render());
     if (!tuning.has("nosync")) stage("tags", updateBubbles);
   }
+  stage("sound", soundFrame);
   if (mode === "replay") return; // (the highlight: no HUD, no tags, no log of its own)
   stage("context", updateContext);
   stage("alert", updateAlert);
@@ -4968,6 +5019,7 @@ function bind() {
       button.addEventListener(name, () => sim.setHold?.(false));
   }
   document.addEventListener("visibilitychange", () => {
+    audio.away(document.hidden);
     if (document.hidden) {
       audio.playing = false;
       audio.menuHush(true);
@@ -5056,6 +5108,7 @@ try {
       ),
     );
   world = new PoolWorld($("world"), pick);
+  hearWorld();
   sim = makeDemo();
   bind();
   // The Look tuner (look-tuner.mjs): F9 or Settings > Developer, in dev mode; with dev mode off the game draws its own look.

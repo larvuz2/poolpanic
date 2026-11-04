@@ -1731,6 +1731,8 @@ export class PoolWorld extends SceneKit {
         dropCoachModel(cg);
       }
     }
+    // The coach's sounds (render side: audio.coachFrame, the app's): his footsteps, and his voice as a trouble clip starts.
+    this.onCoach?.(index, c, { local, clip: rig?.current ?? null, look: cu.look || c.look || "waters" });
   }
 
   syncRescue(sim, time) {
