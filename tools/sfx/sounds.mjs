@@ -419,4 +419,62 @@ export const SOUNDS = [
     loop: true,
     text: `${what}, continuous ambience, no music`,
   })),
+  // ---- the incidents' own sounds as they begin (4 November 2026, the creator: "every time we have an incident, add a sound
+  // effect: the dog, the barks. The cannonball, we need a signature sound for Carl") ----
+  {
+    key: "carl-laugh",
+    takes: 2,
+    seconds: 1.8,
+    gain: 0.4,
+    text: "a big jolly round man's booming belly laugh, a deep mischievous ho ho ho, a single non-verbal laugh, no words, no music, close and dry",
+  },
+  {
+    key: "carl-whoop",
+    takes: 3,
+    seconds: 1.6,
+    gain: 0.4,
+    text: "a big jolly man's wild triumphant war whoop as he charges, a long rising yeee-haaa yell, non-verbal, no words, no music, close and dry",
+  },
+  {
+    key: "bomb-whistle",
+    takes: 2,
+    seconds: 1.4,
+    gain: 0.35,
+    text: `a cartoon falling bomb whistle, one long descending whistle tone, ${QUIET}`,
+  },
+  {
+    key: "karen-gasp",
+    takes: 2,
+    seconds: 1.2,
+    gain: 0.4,
+    text: "an outraged middle-aged woman's loud indignant gasp and huff, a single non-verbal sound, no words, no music, close and dry",
+  },
+  {
+    key: "kid-giggle",
+    takes: 3,
+    seconds: 1.3,
+    gain: 0.4,
+    text: "a mischievous little boy's cheeky giggle, a short naughty snicker, non-verbal, no words, no music, close and dry",
+  },
+  {
+    key: "fish-flop",
+    takes: 2,
+    seconds: 1,
+    gain: 0.4,
+    text: `a wet fish flopping and slapping about on a tiled floor, ${QUIET}`,
+  },
+  {
+    key: "crowd-eww",
+    takes: 2,
+    seconds: 1.5,
+    gain: 0.4,
+    text: "a crowd at a swimming pool reacting in disgust together, a long grossed-out ewww, no music",
+  },
+  {
+    key: "crowd-rush",
+    takes: 2,
+    seconds: 2.5,
+    gain: 0.4,
+    text: "a noisy excited group of people bursting in all at once at a swimming pool, chattering and laughing, footsteps, no music",
+  },
 ];

@@ -290,6 +290,11 @@ the app and depot ids, the store page, the price, written proof that the AI tool
   swimmer's struggle), footsteps by surface, the coaches' efforts. A new venue gets a row in its `VENUES` (room, bed, floor); a new
   coach a voice in `VOICES`. **The coaches never speak**: efforts, yelps, screams and sighs only, every take checked with
   speech-to-text before it goes in.
+- **Nothing compiles mid-shift** (4 November 2026, the creator: the dog's arrival "lags for a second"): the first frame of a shift
+  draws everything once, unseen (`warmShaders` in scene.mjs), with one of every incident's visitors (`warmCast` in
+  incident-view.mjs). A new incident's character or effect goes into `warmCast`, and a model it uses loads before the shift (behind
+  the menu, or in the venue's `VENUE_LOADS`). The dog (`dog.glb`) and the river's macaws are models with their own skeletons
+  (`tools/blender/dog_rig.py`, `bird_rig.py`), designed with Coach Waters as the style reference (README "The dog and the macaws").
 - Fonts are bundled (`dist/assets/fonts/`). The game must not need the network once its files have loaded.
 - Generated art (Meshy, fal, image models) is committed under `dist/assets/`, never linked: the CDN links expire.
 

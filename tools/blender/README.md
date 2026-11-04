@@ -337,6 +337,30 @@ style reference, a T-pose), one Meshy 7 mesh, and these steps:
 - `render_grid.py` renders many frames of many clips from several views in one Blender session (`--floor`, `--water H`), for
   contact sheets.
 
+## A dog and a bird of their own (4 November 2026)
+
+The loose dog and the Lazy River's macaws are not on the Coach's skeleton: a dog needs a tail and ears that swing, a bird its
+wings. Each was designed with `gpt-image-2.5` edit and Coach Waters' picture as the style reference, made by Meshy 7, then:
+
+    tools/blender/run.sh tools/blender/game_export.py -- meshy.glb body.glb --height 1.0          (the dog)
+    tools/blender/run.sh tools/blender/decimate.py -- body.glb body12.glb 12000
+    tools/blender/run.sh tools/blender/dog_rig.py -- body12.glb dog.glb
+
+    tools/blender/run.sh tools/blender/game_export.py -- meshy.glb body.glb --keep-origin --tex 512   (each macaw)
+    tools/blender/run.sh tools/blender/decimate.py -- body.glb body8.glb 8000
+    tools/blender/run.sh tools/blender/bird_rig.py -- body8.glb macaw.glb [--span 1.5]
+
+- `dog_rig.py` measures the mesh (the four feet under the belly, the head above the chest, the tail behind the hips, the ears at
+  the head's sides), builds 23 bones there, weights every vertex by where it is (a leg by height along it, the tail by how far
+  along, the back by how far forward, welded and smoothed, two bones at most) and keys Idle, Walk, Run, Sniff, Swim, Shake and Leap.
+  The legs' and the back's bones are rolled so a turn about their own X axis swings them forward and back (a leg pointing down
+  rolled to face forward, a back bone to face up). A Sit was tried and dropped: the folded back leg smeared along the floor.
+- `bird_rig.py` takes the bird as Meshy makes one from a picture of it flying at the viewer (upright, wings out, the tail hanging),
+  lays it level (a quarter turn forward) and turns the head back up about the neck so it looks ahead, scales it to `--span` metres
+  wingtip to wingtip, and gives it eight bones (two on each wing) and two loops, Fly and Glide. Its wings' bones are rolled mirror
+  images, so the same turn raises both.
+- Check them with `render_grid.py` (it needs `libegl1` in a fresh container: `apt-get install -y libegl1`).
+
 ## Rigging notes
 
 - The mesh should stand on the floor in a T-pose or A-pose facing the front (glTF +Z, Blender -Y), which is what

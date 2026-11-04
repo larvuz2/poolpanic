@@ -220,3 +220,28 @@ export function impulse(ctx, room, random = Math.random) {
   }
   return buffer;
 }
+
+// ---- every incident heard as it begins ----------------------------------------------------------------------------------
+// (4 November 2026, the creator: "every time we have an incident, add a sound effect: the dog, the barks. The cannonball, we
+// need a signature sound for Carl.") Each incident's sting is music (audio.sting); this is the thing itself, heard where it
+// happens, as it starts: [recording, { delay, gain, rate }]. The incidents whose own first event already makes its sound (the
+// blackout's power going down, the monkey's chatter, the selfie's shutter, a fall in, the storm's thunder, the monster wave's
+// siren) are not here. Carl's signature runs through his whole incident: his belly laugh as he turns up, a war whoop on the
+// run-up (carl-charge), a falling bomb's whistle in the air (carl-jump), the boom and the wall of water (cannonball).
+export const INCIDENT_SOUNDS = {
+  dog: [["dog-bark"], ["dog-bark", { delay: 0.55, rate: 1.05 }]],
+  carl: [["carl-laugh", { delay: 0.2 }]],
+  karen: [["karen-gasp"]],
+  fish: [["kid-giggle"]],
+  "fish-loose": [["fish-flop"]],
+  cramp: [["whistle", { delay: 0.15 }]],
+  spill: [["crowd-eww", { delay: 0.3 }]],
+  pee: [["crowd-eww", { delay: 0.3, gain: 0.8 }]],
+  closure: [["whistle"]],
+  rush: [["crowd-rush"]],
+  team: [["crowd-rush"]],
+  class: [["crowd-rush", { gain: 0.7 }]],
+  "line-cut": [["groan", { gain: 0.8 }]],
+  dizzy: [["ooh"]],
+  wet: [["plop", { rate: 1.4, gain: 0.7 }]],
+};

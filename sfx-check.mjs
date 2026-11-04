@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
 import { SFX, sfxUrl } from "./dist/audio-files.mjs";
 import { SOUNDS } from "./tools/sfx/sounds.mjs";
-import { VENUES, VOCAL_KINDS, VOICES } from "./dist/sound-mix.mjs";
+import { VENUES, VOCAL_KINDS, VOICES, INCIDENT_SOUNDS } from "./dist/sound-mix.mjs";
 
 const audio = readFileSync("dist/audio.mjs", "utf8");
 // (the footsteps, the coaches' voices and the ambience beds are named from the mix's tables: sound-mix.mjs)
@@ -14,6 +14,7 @@ const played = new Set([
   "step-water",
   "step-skate",
   "amb-swimmers",
+  ...Object.values(INCIDENT_SOUNDS).flatMap((list) => list.map(([key]) => key)),
   ...VOCAL_KINDS.flatMap((kind) =>
     [...new Set(Object.values(VOICES).map((v) => v.set))].map((set) => `vo-${set}-${kind}`),
   ),

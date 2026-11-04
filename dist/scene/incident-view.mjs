@@ -5,9 +5,20 @@ import { THREE, COLORS } from "./kit.mjs";
 import { character, dogObject } from "./actors.mjs";
 import { CARL_TUNING } from "../incidents/carl.mjs";
 import { attachSwimmerModel, dropSwimmerModel } from "./swimmer-models.mjs";
+import { loadDog, dogReady, attachDogModel, dropDogModel, dogClip, playDog } from "./dog-model.mjs";
 import { swimModel } from "./fish-model.mjs";
 import { figurePose } from "./figure-pose.mjs";
-import { karenObject, poseKaren, annoyPose, calmPose, Scribbles, KAREN_RADIUS } from "./karen-view.mjs";
+import {
+  karenObject,
+  poseKaren,
+  annoyPose,
+  calmPose,
+  Scribbles,
+  KAREN_RADIUS,
+  loadKaren,
+  karenWarmCopy,
+  scribbleWarmCast,
+} from "./karen-view.mjs";
 import { guidanceState } from "../guidance.mjs";
 import {
   fishObject,
@@ -294,16 +305,61 @@ export class IncidentView {
           ? () => annoyPose(g.userData, v.karenAnnoyed > 0, time, reduced)
           : null;
       if (v.kind === "kid") this.poseKid(sim, v, g, time, dt, annoy);
-      else if (v.kind === "dog") this.poseDog(sim, v, g, time);
+      else if (v.kind === "dog") this.poseDog(sim, v, g, time, dt);
       else if (v.kind === "carl") this.poseCarl(sim, v, g, time, dt, annoy);
       else if (v.kind === "karen") poseKaren(sim, v, g, time, dt, reduced);
       if (annoy && !g.userData.rig) annoy();
     }
     for (const [id, g] of this.visitors) if (!alive.has(id)) this.dropVisitor(id, g);
   }
+  // One of everything an incident brings onto the deck, made now and shown once before the shift is seen (scene.mjs
+  // warmShaders), so the first dog, Karen, Carl or fish kid of a shift does not stop the game while the graphics card compiles
+  // what it is drawn with (4 November 2026: the dog came in with a half-second freeze, Karen and Carl too). A model still
+  // loading asks for another warm-up when it arrives.
+  warmCast() {
+    const w = this.w,
+      cast = [],
+      again = () => (w.warmPending = true);
+    const tryAdd = (make) => {
+      try {
+        const g = make();
+        if (g) cast.push(g);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    tryAdd(() => {
+      const g = dogObject(w);
+      if (!w.headless && !attachDogModel(g)) loadDog().then((t) => t && again());
+      return g;
+    });
+    for (const kind of ["carl", "kid"])
+      tryAdd(() => {
+        const v = { id: -1, kind, type: kind, carl: kind === "carl", skin: 1, x: 0, z: 0, angle: 0 };
+        const g = character(w, v);
+        attachSwimmerModel(g, kind === "kid" ? { ...v, figure: "kid" } : v);
+        return g;
+      });
+    tryAdd(() => character(w, { type: "karen", skin: 0 }));
+    if (!w.headless) {
+      const karen = karenWarmCopy();
+      if (karen) cast.push(karen);
+      else loadKaren().then((gltf) => gltf && again());
+    }
+    tryAdd(() => {
+      const g = new THREE.Group();
+      for (const s of scribbleWarmCast(this.scribbles)) g.add(s);
+      g.add(new THREE.Mesh(this.puddleGeo, this.puddleMat), new THREE.Mesh(this.dizzyGeo, this.dizzyMat));
+      g.add(w.decal(w.glowMap, 0.9, 0.9, 0xfff1b0, 0.7, true));
+      return g;
+    });
+    for (const extra of w.warmExtras || []) tryAdd(extra);
+    return cast;
+  }
   dropVisitor(id, g) {
     this.w.clickables = this.w.clickables.filter((x) => x !== g.userData.hit);
     dropSwimmerModel(g); // (a cannonball man's model gives its skeleton back; nothing for the others)
+    dropDogModel(g);
     g.removeFromParent();
     this.visitors.delete(id);
   }
@@ -425,7 +481,7 @@ export class IncidentView {
     }
   }
 
-  poseDog(sim, v, g, time) {
+  poseDog(sim, v, g, time, dt = 0.016) {
     const u = g.userData,
       w = this.w,
       d = sim.dog,
@@ -439,8 +495,21 @@ export class IncidentView {
     else if (v.status === "climb") y = Math.sin(v.leapT * Math.PI) * 0.6 - 0.55 * (1 - v.leapT);
     else if (inWater) y = -0.55;
     else if (!w.venue.isDeck(v.x, v.z, sim.level, 0.05)) y = reduced ? 0 : 0.5; // hop over furniture
+    // (the model, as soon as it is in: the shift's warm-up has drawn it already, so it costs nothing new here)
+    if (!u.dogModel && dogReady() && !w.headless) attachDogModel(g);
+    const speed = u.lastAt ? Math.hypot(v.x - u.lastAt.x, v.z - u.lastAt.z) / Math.max(dt, 1e-3) : 0;
+    u.lastAt = { x: v.x, z: v.z };
     g.position.set(v.x, y, v.z);
     g.rotation.set(0, v.angle || 0, 0);
+    if (u.dogModel) {
+      const [clip, rate] = dogClip(v.status, Math.min(speed, 12), inWater, moving);
+      playDog(u, clip, reduced && clip === "Shake" ? 0.4 : rate, dt);
+      if (v.status === "shake" && !reduced && Math.random() < 0.6) w.splash(v.x, 0.6, v.z, 2, true);
+      if (inWater && !reduced && Math.random() < 0.15) w.splash(v.x, -0.15, v.z, 2, true);
+      u.shadow.visible = !inWater && y < 0.1;
+      this.dogCarry(u, d);
+      return;
+    }
     const tempo = time * (moving ? 19 : 7);
     u.root.rotation.set(0, 0, 0);
     u.root.position.set(0, moving && !reduced ? Math.abs(Math.sin(tempo)) * 0.08 : 0, 0);
@@ -462,6 +531,11 @@ export class IncidentView {
     }
     if (inWater && !reduced && Math.random() < 0.15) w.splash(v.x, -0.15, v.z, 2, true);
     u.shadow.visible = !inWater && y < 0.1;
+    this.dogCarry(u, d);
+  }
+  // What the dog has in his mouth: the fins or the goggles he stole.
+  dogCarry(u, d) {
+    const w = this.w;
     const carry = d?.carry?.type || null;
     if (u.carryKind !== carry) {
       u.mouth.clear();

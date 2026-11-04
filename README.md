@@ -2289,6 +2289,17 @@ yelp, the gasp and the panic at a cramp, the struggle starting and stopping, the
 the menu with no loops), and `sound-mix-check.mjs` runs the engine on a stand-in audio context; how it sounds is for the
 creator's ears. Checks: `sound-mix-check.mjs`, `sfx-check.mjs`.
 
+**Every incident heard as it begins (4 November 2026).** The creator: "every time we have an incident, add a sound effect: the dog,
+the barks. The cannonball, we need a signature sound for Carl." Each incident's sting is music; now the thing itself is heard too,
+where it happens, as it starts (`INCIDENT_SOUNDS` in sound-mix.mjs, played on the `incident` event): the dog comes in barking twice,
+the fish kid giggles, Karen gasps in outrage, a lost fish flops on the tiles, the lifeguard's whistle blows for a cramp and a lane
+closure, the crowd goes "ewww" at a poo or a wee, a rush, a team or a class bursts in chattering, the queue groans at a line-cutter,
+a dizzy bather gets an "oooh", a wet spot plops. The ones whose own first event already made a sound (the blackout, the monkey, the
+selfie, a fall in, the storm, the monster wave) are left as they were. **Carl's signature** runs through his whole incident: a
+booming belly laugh as he turns up, a war whoop on the run-up (`carl-charge`), a falling bomb's whistle while he is in the air
+(`carl-jump`, in place of the rising synthesised tone), then the cannonball's boom and wall of water. Ten new takes (ElevenLabs on
+fal), the voices among them run through speech-to-text: every one an interjection ("Ho, ho, ho", "Yee-haw!", "Hehehe"), no words.
+
 Support keyboard and touch, native clickable swimmer tags, readable skill labels, help, pause, and responsive HUD/control placement. Keep tags below the measured scoreboard edge. Do not let menus or controls obscure the coach on short or portrait displays.
 
 Respect reduced motion: use steady selection cues, remove dash streaks/lean and repeated rescue bobbing, suppress panic jumping, and use a static back-on-deck slip pose. Preserve gameplay meaning and collision separation even when decorative animation is reduced.
@@ -2326,6 +2337,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/scene/sky.mjs`, `daylight.mjs` | The Coach Cam's open-air world: sky dome, clouds, hills, sea, lighthouse, wildlife, rain and lightning, and the shared time-of-day scale that colours it all |
 | `dist/scene/hall*.mjs`, `crowd.mjs`, `geom.mjs` | The indoor halls (roof profiles, trusses, windows, skylights, flags, bunting, pendants), instanced spectators, and shared geometry helpers (GPU-flutter flags and garlands) |
 | `dist/scene/karen-view.mjs` | Karen on screen: the rigged GLB with its mixer (and a stand-in), the red scribbles, the annoyed pose everyone strikes near her and the coach's calming pose |
+| `dist/scene/dog-model.mjs`, `dist/scene/macaws.mjs` | The loose dog's model (`loadDog`, `attachDogModel` on the classic dog, `dogClip` for what he does, `playDog`) and the Lazy River's macaws (`loadMacaws`, `macawModel`, `flyMacaw` between the wingbeat and the glide) |
 | `dist/scene/coach-cam.mjs` | Coach Cam: first-person camera, look and field-of-view limits, spring-driven hands, held items, crosshair picking |
 | `dist/scene/coach-model.mjs` | Coach Waters: loads the Meshy character (`dist/assets/coach-panic.glb`), picks his clip from what the coach is doing (Run for every movement, IdleScan and an occasional IdleScratch standing, Walk for the walk in), plans the walk in, and swaps him in for the classic coach |
 | `dist/scene/swimmer-models.mjs` | The five generic swimmers (`dist/assets/swimmer-*.glb`) Marco the Missile (`models/marco.glb`, the Aquatic Centre's star VIP) and Valentina (`models/valentina.glb`, the Aqua Disco's instructor), the two cannonball men (`carl.glb`, `leopard-man.glb`): which one a guest is, the clip they play (Walk and Run by foot speed, the swim, IdleScan and IdleScratch, Panic, the three dances, and the men's Cannonball), the classic poses copied onto the model's bones, what rides on the head and chest, and the swap for the classic swimmers |
@@ -2444,6 +2456,50 @@ Two scripted runs make a crash easy to hunt on the device itself. Both play leve
 **A second iPad report (October 3, 2026), not understood yet.** The game "broke" when opened in Safari on an iPad, with no report to read, and it has not been reproduced: there is no WebKit where the game is developed, only Chromium. What was checked instead: the merged build (Karen, the character models, the fish) plays 26 incident cases in Chromium without a page error, in the overview and the Coach Cam, in all four venues; the graphics and script memory it uses (the models add about 35 MB of textures and geometry) is far below what an iPad allows; and the source uses nothing newer than iPadOS 15.4 supports. Two changes were made on suspicion and cost nothing: the fonts are bundled (the Google Fonts `@import` could hold up the first paint when the network was slow or out), and `nomodels` was added to the hunt so it can rule the character models in or out. To find the cause the game needs a report from the device: **Copy report** in the crash dialog if it appears, else the **Copy results** of `?bisect` (open the game's address with `?bisect` on the end and let it run; it reloads itself between tests and carries on after a crash), and the iPad's iPadOS version.
 
 **A third iPad report (October 4, 2026), not understood yet: the page dies after an incident.** The creator was playing (they did not note the level) and, after a cramp, took the life ring, jumped in, gave it to the swimmer and, when the swimmer got out of the pool, the app crashed; they said it crashes a lot after incidents. It has not been reproduced. What was checked instead, in Chromium (software WebGL): the whole rescue (the cramp, the ring from the wall, the dive, the swim, the handoff, the swimmer climbing out, walking to the bench and resting, the ring back on the deck, the swimmer going back in) played by a script through the game's own frame loop, in the overview and in the Coach Cam, without a page error, an error in the log, a stall or a frozen page; with the GPU really drawing every sixth frame, what the renderer holds stayed flat from the shift's first seconds to the end (27 programs, 239 geometries, 48 textures, the scene's nodes back to where they began once the particles had gone), so a rescue leaks nothing; and every event, particle and effect it sets off shares its geometry and materials. One real bug did turn up in that flow and is fixed: the coach climbs out of the water on the very side the swimmer walks to the bench by, and when he stood in the way a collision pushed the swimmer into the margin of the pool's keep-out box, where the guard against stepping into the water threw them 4.5 m back to the end of the pool, again and again, so they never reached the bench (`moveAlong` in `dist/sim.mjs`; `rescue-check.mjs` holds the coach in the way for the whole walk on levels 3 and 12). The fix is only for that swimmer on purpose: every other walker who is pushed into the same margin is still sent to the end of the pool as before, because changing that moves the whole game's balance (level 10's bot scores shift by thousands of points) and belongs to a tuning pass of its own. It is not a crash, though. So the cause is likelier on the device (memory or the GPU) than in the logic, and what was built is what finds it next time: the shift's diary and the scene's counts in the crash log, and **Send report** (see Crash log). After the next crash, open the game once more and tap Send (the dialog opens by itself at launch), then read out the device code the dialog shows.
+
+### The shift's warm-up (4 November 2026)
+
+The creator: "every time the dog enters, we see a small glitch, like the game lags for a second… I don't know if it's only that
+incident or other incidents… now that we're going to have the dog's model, we have to make doubly sure the game is smooth." It was
+not only the dog. Measured in Chromium (the longest frame in the six seconds after each incident was started, against 3 to 7 ms
+before it): the dog 528 ms, the blackout 742, Carl 765, Karen 1,067; the fish kid none. Each was one new shader the graphics card
+had to compile the first time something was drawn (`renderer.info.programs` grew by exactly one at each: the dog's shadow, the
+splash target Carl aims at, the sprites of Karen's shouted words), and Karen's model was also fetched only when she first came.
+
+Now the first frame of a shift draws everything once, unseen (`warmShaders` in scene.mjs, asked for by `resetActors`): every
+hidden thing shown, nothing left out for being off screen, the shadows drawn, and one of everything an incident brings onto the
+deck (`warmCast` in incident-view.mjs: the dog with his model, Carl and the fish kid with theirs, Karen's model, her words, a
+puddle, a dizzy star, a glow), then the frame is drawn again as it really is before the page shows it. The game never throws a
+material away, so the shaders stay compiled; the dog loads behind the menu (app.mjs), the macaws with the river, Karen (never
+for the menu) with the first shift's warm-up, and a model that arrives later asks for another warm-up. After: the dog 3 ms, Carl 11, the blackout 11, Karen 14 (with the dog's model,
+10 to 21 ms), not one shader compiled mid-shift. The cost is paid once, at the start of the shift: about 1.2 s for nine shaders on
+this machine's software drawing, far less on a graphics card, and about 20 ms for each shift after. A new incident's visitor or
+effect goes into `warmCast`. Not measured on the creator's machines. Check: `animals-check.mjs`.
+
+### The dog and the macaws (4 November 2026)
+
+The creator: "in the lazy river, we see some macaws flying, but they're blocky. Let's make the 3D model, rig them, and animate
+them… the same as the other models. Also, the dog… ask GPT 2.5 and maybe add a reference character… add Coach Waters so it's in
+the same world as the dog, and we rig it and animate it." Both were designed with GPT Image 2.5 (`openai/gpt-image-2.5/flare/edit`)
+with Coach Waters' picture as the reference for the style (the same glossy toy-like 3D cartoon, the same big eyes), made into meshes
+with Meshy 7 on fal, and rigged and animated in Blender by scripts of their own (tools/blender/README.md, "A dog and a bird of their
+own"):
+
+- **The loose dog** (`dist/assets/models/dog.glb`, 12k triangles, 1 MB; `dist/scene/dog-model.mjs`): a golden mutt with a cream
+  chest, floppy brown ears and a red collar with a yellow tag, the colours of the classic dog he replaces. His own skeleton (23
+  bones: the back, the neck and head, an ear each side, a tail of three, three on each leg) and his clips: Idle (looking about, tail
+  wagging), Walk, Run (a trot), Sniff, Swim (paddling, head up), Shake and Leap. What he does picks the clip (`dogClip`: zooming,
+  stealing and leaving run, following the coach walks, waiting by him wags, sniffing, swimming, shaking, leaping in and climbing
+  out), the legs kept up with the floor by his speed; the fins or goggles he steals ride in his mouth on his head bone. The classic
+  dog of balls plays while he loads and with `?nomodels`.
+- **The Lazy River's macaws** (`macaw-scarlet.glb`, `macaw-bluegold.glb`, 8k triangles and 0.7 MB each; `dist/scene/macaws.mjs`): a
+  scarlet macaw and a blue-and-gold one (two scarlet and a blue-and-gold circle the jungle), laid level for flight, eight bones, a
+  wingbeat (Fly: the downstroke quicker, the outer wing trailing the inner) and a glide they ease into now and then. They load with
+  the river; the classic birds fly while they are not in.
+
+Checked: contact sheets of every clip from the side and a three-quarter view (the dog's Sit was dropped: his folded back leg tore
+along the floor), and in Chromium the dog playing his clips through an incident at the Community Pool and the three macaws flying
+over the river. Check: `animals-check.mjs`.
 
 ### Performance (3 November 2026)
 
