@@ -1,7 +1,7 @@
 # The Steam page kit (4 November 2026)
 
 Everything for Pool Panic's Steam store page, ready to upload once the Steamworks account and app exist: five capsule proposals, nineteen
-staged screenshots, ten ultra-wide clips for the About section, the short and long descriptions, tags, a brand book and a launch plan.
+staged screenshots, ten ultra-wide clips for the About section, three posters of the whole cast, the short and long descriptions, tags, a brand book and a launch plan.
 `index.html` is the review page (open it in a browser: every picture, clip and text below in one place). No trailer yet, on purpose (the
 creator: "we'll do that later").
 
@@ -12,9 +12,10 @@ creator: "we'll do that later").
 | `caps/` | Five capsule proposals, each as `-main` (1232×706), `-header` (920×430), `-small` (462×174), and the small one at 184×69 and 120×45 to judge legibility | Store Presence > Graphical Assets; only art, the title and an official subtitle on a capsule |
 | `shots/` | Nineteen screenshots (`01`–`21`, numbered as they were made, no `08` or `12`; the order to upload is below), 1920×1080, no interface | 16:9, ≥ 1920×1080, gameplay only, at least 4 marked all ages (all are) |
 | `clips/` | Ten About-section clips, 1170×260 (the dive 1170×300), as GIF and MP4 | ≤ 5 MB each, ≤ 15 MB for the page, ≤ 12 s; GIFs become looping video |
+| `posters/` | Three posters of the whole cast (the party at the Grand Gala Arena, the chaos at the Harbourside, both at once at Splash Park), each as `-hero` and `-group` (1920×1080) and `-portrait` (1440×1800, 4:5 for social posts); `marina-design.jpg` | Marketing, not the screenshot slots (Steam wants gameplay there) |
 | `store/` | `short.txt` (three short descriptions, ≤ 300 characters), `about.bbcode` (the About section, ready to paste), `tags.txt` (20 tags) | |
 | `brand/` | The logo as the game ships it, and two alternate-name logos in its style (`alt-coach-waters.png`, `alt-pool-patrol.png`), references only: the game is still Pool Panic | |
-| `tools/` | How every picture was made, to make more: `photo.cjs` (stage a moment in the real game and photograph it, or film it frame by frame), `shots/*.json` and `gifs/*.json` (one file a moment), `mk.sh` (frames to GIF/MP4/WEBM), `compose.py` + `concepts.json` (capsule art + the real logo at Steam's sizes), `queue.sh` (two renders at a time) | |
+| `tools/` | How every picture was made, to make more: `photo.cjs` (stage a moment in the real game and photograph it, or film it frame by frame), `shots/*.json` and `gifs/*.json` (one file a moment), `mk.sh` (frames to GIF/MP4/WEBM), `compose.py` + `concepts.json` (capsule art + the real logo at Steam's sizes), `queue.sh` (two renders at a time), `poster/` (the cast posters: `make.py`, `poster-lib.js`, Marina's model) | |
 
 ## The picks
 
@@ -42,6 +43,26 @@ real Steam page, and the colours were judged on this machine's screen only.
 
 To make another: serve the game (`npm start`, port 8000), then from this folder `POOL_URL=http://localhost:8000 node tools/photo.cjs
 tools/shots/s01.json` (under `xvfb-run -a` on a machine without a screen; the paths in a shot's `out` are relative to where it runs).
+
+## The posters
+
+Every character's real model in one picture, staged in the game like the screenshots (`tools/poster/`): `poster-lib.js`
+loads each character's file straight into a venue (the game's people and coaches cleared), stands it at its place in
+`SPOT` (`make.py`: local x to the camera's right, z toward it, the same in every poster), freezes it in one frame of a
+clip (a clip may come from another file, since every biped shares Coach Waters' skeleton: the coaches dance with a
+swimmer's moves) and sets a coach's face to one of the game's expressions (`CoachFace`). The pool's starting blocks
+are part of each venue's merged model, so a clipping box cuts them away (`CUT`, the venue's meshes only) and a patch
+of the floor's own colour covers where they stood. Three casts in `make.py`: `HAPPY`, `CHAOS` and `MIXED`. To make
+one again, from `tools/` with the game served: `python3 poster/make.py gala-party` (or `harbour-chaos`,
+`splash-mixed`, and `-p` for the portrait), then `POOL_URL=http://localhost:8000 node photo.cjs
+poster/shots/gala-party.json`. Each writes a picture per camera; the picks are camera 0 (group), 2 (hero) and the
+portraits' 0, 1, 0.
+
+**Marina** had no model (she only appears in pictures, never on the deck): her design is GPT Image 2.5 from her story
+picture and Coach Rivers' rest pose as references (`tools/poster/marina-design.png`, no mouth like the coaches), made
+3D with Meshy 7 (`fal-ai/meshy/v7/image-to-3d`, T-pose, 14k triangles) and rigged like the coaches
+(`game_export.py --height 1.66`, `rig_from_template.py`, `retarget_clips.py`, `ground_clips.py`):
+`tools/poster/marina.glb`, served to the page by `photo.cjs`'s `routes`, kept out of `dist/`.
 
 ## The brand book (short)
 

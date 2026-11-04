@@ -15,6 +15,9 @@ const shot = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
   p.on("pageerror", (e) => errs.push(e.message));
   p.on("console", (m) => m.type() === "log" && m.text().startsWith("SHOT") && console.log(m.text()));
   if (shot.gif) await p.clock.install();
+  // files the game does not have (the poster's Marina): served from disk at a path of their own
+  for (const [url, file] of Object.entries(shot.routes || {}))
+    await p.route("**" + url, (r) => r.fulfill({ path: file, contentType: "model/gltf-binary" }));
   await p.goto((process.env.POOL_URL || "http://localhost:8011") + "/?debug&dev=1" + (shot.query || ""));
   await p.waitForFunction(() => document.getElementById("loading")?.hidden, null, { timeout: 120000 });
   await p.mouse.click(W / 2, H / 2);
