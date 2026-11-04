@@ -202,6 +202,21 @@ seconds each (the same input always gives the same GLB), and the same rig is wha
   swimmers and Marco (`transplant_clips.py --only ColdHug`, hip travel x0.76 to x1.15), grounded (`ground_clips.py --only
   ColdHug`, lifts of -1.1 to +0.8 cm). Marco's file is copied to Anim Bench's `tools/viewer/models/marco.glb` too: the game's
   Marco must be Anim Bench's (`swimmer-model-check.mjs`). The fastest bone turns about 20 degrees a frame.
+- **Selfie and SelfieWobble** (`selfie_clip()`, `selfie_wobble_clip()`, `--character selfie`, 4 November 2026) are the Rooftop
+  Pool's guest up on the infinity edge (the creator: "it doesn't look like a selfie"). **Selfie** (72 frames, 3 s, a loop): the
+  right wrist held out at arm's length in front of the face and a little up (0.22 out, 0.86 forward, 0.16 up of the reach, then
+  0.30, 0.80, 0.26), the elbow down and out, the head looking at it (`look` 0.85, `look_wrist` R); the left hand on the hip
+  with the hip popped to that side (frames 0 to 24), then swung up and out over 14 frames ("yay!", 0.72 out, 0.22 forward,
+  0.58 up, frames 38 to 58), and back over 14 (8 frames turned the shoulder 46 degrees in one); a snap in each pose (frames 16 and 52: the shoulders up, a dip of 1.2 cm, the phone pushed out 6 per cent),
+  which is when the game flashes the phone. **SelfieWobble** (48 frames, 2 s, a loop): the knees bent (hips 5 to 7 cm down), the
+  body rocking back over the drop and forward again twice a loop (the back 16 degrees), the left arm windmilling out at the side,
+  the right still up with the phone and jerking higher at each lurch back, the head snapping round, one foot then the other
+  lifting 6 cm. Made on a scratch copy of the Coach **from before his face** (`git show 320775c:dist/assets/coach-panic.glb`:
+  his file now has 18 face bones the guests do not, and `transplant_clips.py` refuses clips keyed on bones the target lacks),
+  transplanted into the five generic swimmers (`transplant_clips.py --only Selfie,SelfieWobble`), grounded (`ground_clips.py
+  --only Selfie,SelfieWobble`, lifts of -1.4 to +1.2 cm). No phone in the files: the game puts one in the right hand
+  (`phoneObject` in `dist/scene/roof-view.mjs`, turned so it stands upright with the screen square to the face, measured in the
+  game).
 - **IceSkate and IceSlide** (`ice_skate_clip()`, `ice_slide_clip()`, `--character coach`, 18 October 2026) are Coach Waters' on the
   Mountain Hot Springs' icy deck ("running on ice… low-friction movements, slippery locomotion, momentum drifting"). Made on a
   scratch copy of the Coach and put into `coach-panic.glb` with `transplant_clips.py --only IceSkate,IceSlide --scale 1` (his other

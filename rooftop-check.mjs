@@ -514,6 +514,24 @@ const guest = (s, plan = ["pool"], spec = {}) => {
     w.water.material.uniforms.uRipples.value.some((r) => r.z > 0),
     "ripples round the guest in the water",
   );
+  // The selfie (4 November 2026): wading to the edge they move like anyone in the water, no phone; once they stand up on the
+  // edge the phone is out, with its lit screen and its flash.
+  Object.assign(p, {
+    problem: "selfie",
+    selfie: { stage: "wading", z: p.z, t: 0, limit: 99 },
+    workTarget: 999,
+  });
+  frames(2);
+  const phone = gp.userData.held?.phone;
+  assert.ok(phone && !phone.visible, "no phone in the water");
+  Object.assign(p.selfie, { stage: "posing", t: 0.5 });
+  Object.assign(p, { x: ROOF.halfX - 0.05, onEdge: true });
+  frames(2);
+  assert.ok(phone.visible, "the phone out on the edge");
+  assert.ok(phone.userData.screen && phone.userData.flash, "a lit screen and a flash");
+  Object.assign(p, { problem: null, selfie: null, onEdge: false, x: ROOF.halfX - 1.5 });
+  frames(1);
+  assert.ok(!phone.visible, "put away when it is over");
   const other = new PoolWorld({ clientWidth: 1440, clientHeight: 900 }, () => {}, {
     headless: true,
     venue: VENUES.club,
@@ -522,5 +540,5 @@ const guest = (s, plan = ["pool"], spec = {}) => {
 }
 
 console.log(
-  "Rooftop Pool checks passed: two lifts facing each other from the ends (every other pool's doors where they were), an infinity edge with its gutter and nothing past it, fourteen beds with two cabanas, walks round the furniture, the coach wading in the shallow water (slowly, no jumps, never into the gutter); guests from both lifts to the water or a sunbed, chatting in groups, a VIP in a cabana, everyone seated by the coach at the lift; margaritas ordered, a tray from the bar, served by the edge or at a sunbed, tips, tipsy after two; messy sunbeds, a guest waiting for one, tidied; the selfie on the edge talked down, overboard into the gutter, hauled back or storming off; the DJ's drops on the bar lines, announced, slopping water onto the deck and tipping anyone on the edge over; closing time; a poo, the fish and Carl; the same seed the same shift; whole shifts played by the bot; in the week with more VIPs and no Marco; the house set built round the drops; stings, saves, props and pictures; and on screen the city far below, guests chest-deep and on sunbeds, ripples.",
+  "Rooftop Pool checks passed: two lifts facing each other from the ends (every other pool's doors where they were), an infinity edge with its gutter and nothing past it, fourteen beds with two cabanas, walks round the furniture, the coach wading in the shallow water (slowly, no jumps, never into the gutter); guests from both lifts to the water or a sunbed, chatting in groups, a VIP in a cabana, everyone seated by the coach at the lift; margaritas ordered, a tray from the bar, served by the edge or at a sunbed, tips, tipsy after two; messy sunbeds, a guest waiting for one, tidied; the selfie on the edge talked down, overboard into the gutter, hauled back or storming off; the DJ's drops on the bar lines, announced, slopping water onto the deck and tipping anyone on the edge over; closing time; a poo, the fish and Carl; the same seed the same shift; whole shifts played by the bot; in the week with more VIPs and no Marco; the house set built round the drops; stings, saves, props and pictures; and on screen the city far below, guests chest-deep and on sunbeds, ripples, the selfie's phone out only on the edge.",
 );

@@ -606,6 +606,91 @@ def cold_hug_clip():
     return {"frames": frames, "breath_frames": 16, "breath": 1.4, **keys}
 
 
+def selfie_clip():
+    """Selfie (the Rooftop Pool, 4 November 2026, the creator: "it doesn't look like a selfie"): a guest up on the infinity edge,
+    facing the pool with the city behind, taking selfies. The right hand holds the phone out at arm's length in front of the face
+    and a little up (the game puts the phone in that hand, its screen to the face), the head tipped to look at it; the left
+    hand goes to the hip with the hip popped out, then the free arm is thrown up and out ("yay!"), then back. A snap in each pose: the
+    shoulders come up, the body dips and the phone arm pushes out a touch. 72 frames (3 s at 24 fps), a loop; the snaps on
+    frames 16 and 52, which is when the game flashes the phone."""
+    frames = 72
+    tau = 2 * math.pi
+    phone_a = (0.22, -0.86, 0.16)  # out, forward, up: arm's length in front of the face, a little up
+    phone_b = (0.30, -0.80, 0.26)  # a little higher and wider for the second pose
+    hip = {"space": "chest", "tgt": (0.10, 0.04, -0.72), "pole": (1.0, 0.5, 0.0), "twist": 0}  # the hand on the hip
+    yay = {"space": "chest", "tgt": (0.72, -0.22, 0.58), "pole": (0.6, 0.6, -0.6), "twist": 0}  # the free arm up and out: "yay!"
+
+    def pose(f):
+        """0 in the first pose (hand on the hip), 1 in the second (the free arm up and out), eased between."""
+        def ease(u):
+            u = max(0.0, min(1.0, u))
+            return u * u * (3 - 2 * u)
+
+        return ease((f - 24) / 14) - ease((f - 58) / 14)
+
+    def snap(f):
+        """1 at a snap (frames 16 and 52), falling off over three frames either side."""
+        return max(0.0, 1 - min(abs(f - 16), abs(f - 52)) / 3.0)
+
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "shrug", "look", "armL", "armR", "footL", "footR")}
+    for f in range(frames + 1):
+        p, s = pose(f), snap(f)
+        sway = math.sin(tau * f / frames)  # a little life between the poses
+        side = 1 - 2 * p  # the hip pops to the left in the first pose (+x is the character's left), the right in the second
+        keys["hips"].append((f, (0.035 * side, 0.0, -0.012 - 0.012 * s)))
+        keys["hips_turn"].append((f, (-8.0 + 3.0 * sway, 0.0, -4.0 * side)))
+        keys["spine"].append((f, (-10.0 + 2.0 * sway, -6.0 + 3.0 * s, 6.0 * side)))
+        keys["head"].append((f, (-12.0, -4.0, 10.0 * side)))
+        keys["look"].append((f, 0.85))
+        keys["shrug"].append((f, 0.15 + 0.35 * s))
+        tgt = tuple(phone_a[i] + (phone_b[i] - phone_a[i]) * p for i in range(3))
+        tgt = (tgt[0], tgt[1] - 0.06 * s, tgt[2] + 0.01 * sway)  # the phone pushed out a touch at a snap
+        keys["armR"].append((f, {"space": "chest", "tgt": tgt, "pole": (0.75, 0.35, -0.65), "twist": 0}))
+        keys["armL"].append((f, hip if p < 0.5 else yay))
+        keys["footL"].append((f, (0.0, -0.035, 0.0)))
+        keys["footR"].append((f, (0.02, -0.035, 0.0)))
+    # the left arm: keyed at the two poses only, so it swings between them (the solver eases from key to key)
+    keys["armL"] = [(0, hip), (24, hip), (38, yay), (58, yay), (72, hip)]
+    return {"frames": frames, "look_wrist": "R", **keys}
+
+
+def selfie_wobble_clip():
+    """SelfieWobble (the Rooftop Pool, 4 November 2026): the same guest a few seconds later, losing the balance on the edge
+    and still not letting go of the phone. The knees bent, the body rocking back over the drop and forward again; the left arm
+    windmilling out at the side; the right arm still up with the phone, jerking up higher at every lurch back; the head
+    snapping round to look behind and back; one foot then the other lifting off the edge. 48 frames (2 s at 24 fps), a loop:
+    two lurches back, the game tips the whole body further back over the drop as the time runs out."""
+    frames = 48
+    tau = 2 * math.pi
+    keys = {name: [] for name in ("hips", "hips_turn", "spine", "head", "shrug", "look", "armL", "armR", "footL", "footR")}
+
+    def lift(f, at):
+        u = (f - at) / 10.0
+        return 0.06 * math.sin(math.pi * u) if 0 <= u <= 1 else 0.0
+
+    for f in range(frames + 1):
+        w = tau * (f % frames) / frames
+        back = math.sin(2 * w)  # + : lurching back over the drop
+        roll = math.sin(w + 0.8)
+        keys["hips"].append((f, (0.03 * roll, -0.03 * back, -0.07 + 0.02 * abs(back))))
+        keys["hips_turn"].append((f, (8.0 * roll, -6.0 * back, 6.0 * roll)))
+        keys["spine"].append((f, (-6.0 * roll, -4.0 - 12.0 * back, -10.0 * roll)))
+        keys["head"].append((f, (-35.0 * math.sin(w), -16.0 * max(0.0, back) + 8.0 * max(0.0, -back), 12.0 * roll)))
+        keys["look"].append((f, 0.25 + 0.25 * max(0.0, -back)))
+        keys["shrug"].append((f, 0.5 + 0.3 * max(0.0, back)))
+        a = 2 * w  # the windmill: the left wrist goes round a circle out at the side, twice a loop
+        keys["armL"].append(
+            (f, {"space": "chest", "tgt": (0.80, -0.10 + 0.30 * math.sin(a), 0.18 + 0.32 * math.cos(a)), "pole": (0.3, 0.9, -0.2), "twist": 0})
+        )
+        up = max(0.0, back)
+        keys["armR"].append(
+            (f, {"space": "chest", "tgt": (0.40 + 0.10 * up, -0.50 + 0.15 * up, 0.55 + 0.25 * up), "pole": (0.75, 0.35, -0.65), "twist": 0})
+        )
+        keys["footL"].append((f, (0.0, 0.02, lift(f % frames, 6))))
+        keys["footR"].append((f, (0.0, 0.02, lift(f % frames, 30))))
+    return {"frames": frames, "breath": 0.0, "look_wrist": "R", **keys}
+
+
 def ice_skate_clip():
     """IceSkate (the Mountain Hot Springs' icy deck, 18 October 2026, the creator: "running on ice: ice sliding, low-friction
     movements, slippery locomotion, momentum drifting"): Coach Waters running on the ice, made in place like every clip (the
@@ -1016,6 +1101,12 @@ CLIPS = {
     # to every guest who waits there (transplant_clips.py).
     "cold": {
         "ColdHug": cold_hug_clip(),
+    },
+    # The Rooftop Pool's selfie on the infinity edge (4 November 2026): made on a scratch copy of the Coach and moved to the five
+    # generic swimmers, the rooftop's guests (transplant_clips.py).
+    "selfie": {
+        "Selfie": selfie_clip(),
+        "SelfieWobble": selfie_wobble_clip(),
     },
     "marco": {
         # Impatient, waiting to be given a lane: a long look at his watch, a sigh, looking around for whoever is coming, the

@@ -52,6 +52,10 @@ export const CLIPS = {
   // The hot springs (18 October 2026): waiting in the snow, cold through, arms crossed tight and hugging themselves, shivering
   // (the five swimmers and Marco).
   cold: "ColdHug",
+  // The Rooftop Pool's selfie on the infinity edge (4 November 2026, the five generic swimmers): the phone held out at arm's
+  // length, a hand on the hip then by the cheek, a snap in each pose (3 s); and losing the balance, still holding the phone up.
+  selfie: "Selfie",
+  selfieWobble: "SelfieWobble",
 };
 const DANCES = new Set(["danceRight", "danceLeft", "danceBoth", "dj", "shake"]);
 // A model must have these; one without Panic hops with the classic swimmer's poses instead, one without Swim swims with
@@ -498,6 +502,7 @@ export class SwimmerRig {
       stand = null, // seconds into getting up out of the wheelchair (StandUp; sitting down plays it backwards)
       tube = null, // the Lazy River: {float: true} lying back in a tube, {board: seconds} into TubeBoard (scene/river-view.mjs)
       cold = false, // the hot springs: cold through, waiting in the snow (ColdHug when standing)
+      selfie = null, // the Rooftop Pool: up on the edge taking selfies, 0 posing (Selfie), 1 losing the balance (SelfieWobble)
     } = {},
   ) {
     let want;
@@ -553,6 +558,8 @@ export class SwimmerRig {
     const boarding = tube?.board !== undefined && tube?.board !== null && !!this.actions.tubeBoard;
     if (tube?.float && this.actions.tubeFloat) want = "tubeFloat";
     if (boarding) want = "tubeBoard";
+    const selfieClip = selfie === null ? null : selfie >= 1 ? "selfieWobble" : "selfie";
+    if (selfieClip && this.actions[selfieClip] && !swim) want = selfieClip;
     // (The first stroke after the splash takes a moment to take over from the tuck.)
     this.to(
       want,

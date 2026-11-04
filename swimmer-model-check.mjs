@@ -197,6 +197,8 @@ function fakeRig(look = SWIMMERS[1]) {
     carryWalk: action("carryWalk"),
     carryRun: action("carryRun"),
     dump: action("dump"),
+    selfie: action("selfie"),
+    selfieWobble: action("selfieWobble"),
   };
   const mixer = {
     advanced: 0,
@@ -701,6 +703,35 @@ assert.deepEqual(
     "the game's Valentina is Anim Bench's",
   );
 }
+{
+  // The Rooftop Pool's selfie (4 November 2026): Selfie and SelfieWobble are in the five generic swimmers' files (the rooftop's
+  // guests), and the rig plays them only when asked (up on the edge), never in the water.
+  const glbClips = (file) => {
+    const bytes = readFileSync("dist/assets/" + file);
+    return JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString("utf8")).animations.map(
+      (a) => a.name,
+    );
+  };
+  for (const file of SWIMMERS.map((l) => l.file))
+    for (const clip of ["Selfie", "SelfieWobble"])
+      assert.ok(glbClips(file).includes(clip), `${file} has ${clip}`);
+  assert.equal(CLIPS.selfie, "Selfie");
+  assert.equal(CLIPS.selfieWobble, "SelfieWobble");
+  const { rig } = fakeRig();
+  run(rig, 40, { speed: 1.4 });
+  assert.equal(rig.current, "walk", "wading to the edge is the plain walk");
+  run(rig, 30, { selfie: 0 });
+  assert.equal(rig.current, "selfie", "up on the edge: the selfie");
+  run(rig, 30, { selfie: 1 });
+  assert.equal(rig.current, "selfieWobble", "losing the balance");
+  run(rig, 30, { selfie: 0, swim: true });
+  assert.equal(rig.current, "swim", "never in the water");
+  const plain = fakeRig();
+  delete plain.rig.actions.selfie;
+  delete plain.rig.actions.selfieWobble;
+  run(plain.rig, 30, { selfie: 0 });
+  assert.equal(plain.rig.current, "idle", "a model without the clips stands");
+}
 for (const look of FIGURES.filter((f) => ["carl", "leopard"].includes(f.id))) {
   assert.ok(look.run > look.walk * 2 && look.walk > 0.5, `${look.id}: a run covers more ground than a walk`);
   assert.ok(look.eyes[0] > 1.2 && look.eyes[1] > 0.1, `${look.id}: the eye line is on the head`);
@@ -1150,5 +1181,5 @@ assert.equal(lookFor({ figure: "carl" }), null, "so none is drawn");
 }
 
 console.log(
-  "Swimmer model checks passed: the models always (a classic choice never saved), five looks given out evenly, the clip rules and their paces, the poses laid over the clips, VIPs, daredevils and Carl, the swap in the scene, a model that breaks is dropped, and the cannonball men: the Cannonball clip followed through the incident, the swim in the water, and the crowd's panic.",
+  "Swimmer model checks passed: the models always (a classic choice never saved), five looks given out evenly, the clip rules and their paces, the poses laid over the clips, the rooftop's selfie clips, VIPs, daredevils and Carl, the swap in the scene, a model that breaks is dropped, and the cannonball men: the Cannonball clip followed through the incident, the swim in the water, and the crowd's panic.",
 );

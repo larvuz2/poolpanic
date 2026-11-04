@@ -79,16 +79,65 @@ function glassObject() {
   wrap.add(g);
   return wrap;
 }
+// The selfie phone (4 November 2026): big enough to read from the game's camera, in a hot-pink case, its screen lit (the guest's
+// own face on it, more or less) toward the face, and a flash that pops at each snap (`userData.flash`, scene/roof-view.mjs).
+// Made standing up along y with the screen facing +z, then turned so the screen faces back along the hand toward the face.
+let flashTexture = null;
 function phoneObject() {
-  const m = new THREE.Mesh(
-    new THREE.BoxGeometry(0.075, 0.15, 0.012),
-    new THREE.MeshStandardMaterial({ color: 0x15151a, roughness: 0.3, metalness: 0.5 }),
+  const phone = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.1, 0.19, 0.018),
+    new THREE.MeshStandardMaterial({ color: 0xff3d8b, roughness: 0.45 }),
   );
-  m.position.set(0, -0.05, 0.08);
-  const g = new THREE.Group();
-  g.add(m);
-  return g;
+  const screen = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.084, 0.168),
+    new THREE.MeshBasicMaterial({ color: 0x9fe6ff }),
+  );
+  screen.position.z = 0.0095;
+  const lens = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012, 0.012, 0.006, 12),
+    new THREE.MeshStandardMaterial({ color: 0x15151a, roughness: 0.2, metalness: 0.6 }),
+  );
+  lens.rotation.x = Math.PI / 2;
+  lens.position.set(-0.026, 0.07, -0.011);
+  phone.add(body, screen, lens);
+  if (!flashTexture && typeof document !== "undefined") {
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const x = c.getContext("2d"),
+      grad = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, "rgba(255,255,255,1)");
+    grad.addColorStop(0.25, "rgba(255,255,240,0.8)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    x.fillStyle = grad;
+    x.fillRect(0, 0, 64, 64);
+    flashTexture = new THREE.CanvasTexture(c);
+  }
+  if (flashTexture) {
+    const flash = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: flashTexture,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        transparent: true,
+      }),
+    );
+    flash.position.set(0, 0.06, 0.03);
+    flash.visible = false;
+    phone.add(flash);
+    phone.userData.flash = flash;
+  }
+  phone.userData.screen = screen;
+  // In the hand: across the palm by the fingers, the screen toward the wrist (and so the face, the arm held out).
+  phone.position.set(0, 0.09, 0.02);
+  phone.rotation.set(PHONE_TURN[0], PHONE_TURN[1], PHONE_TURN[2]);
+  const wrap = new THREE.Group();
+  wrap.add(phone);
+  wrap.userData = phone.userData;
+  return wrap;
 }
+const PHONE_TURN = [Math.PI / 2, Math.PI / 6, (-5 * Math.PI) / 6]; // (measured: upright, the screen square to the face)
+
 // A speech bubble (three dots) over a chatting guest's head.
 let bubbleTexture = null;
 function bubble(w, g) {
@@ -128,6 +177,27 @@ function bubble(w, g) {
   return s;
 }
 
+// The flash at each snap of the Selfie clip (frames 16 and 52 of its 72, tools/blender/character_clips.py), or every 1.5 s on
+// the classic figure; no snaps once they are losing the balance.
+const SNAPS = [16 / 24, 52 / 24];
+function snapFlash(phone, u, dread, time) {
+  const flash = phone.userData.flash;
+  if (!flash) return;
+  const action = u.rig?.actions?.selfie;
+  let since = Infinity;
+  if (dread <= 0.55) {
+    if (action) {
+      if (u.rig.current === "selfie")
+        for (const at of SNAPS) if (action.time >= at) since = Math.min(since, action.time - at);
+    } else since = time % 1.5;
+  }
+  const k = since < 0.18 ? 1 - since / 0.18 : 0;
+  flash.visible = k > 0;
+  flash.scale.setScalar(0.2 + 0.9 * k);
+  flash.material.opacity = k;
+  phone.userData.screen?.material.color.setHex(k > 0 ? 0xffffff : 0x9fe6ff);
+}
+
 // The Rooftop Pool's part of a guest's frame. True when it has posed them (the rest of the world sync is skipped).
 export function roofPose(w, sim, p, g, time, dt) {
   const u = g.userData,
@@ -135,7 +205,8 @@ export function roofPose(w, sim, p, g, time, dt) {
   const glass = held(w, g, "glass", glassObject),
     phone = held(w, g, "phone", phoneObject);
   if (glass) glass.visible = (p.sipping || 0) > 0;
-  if (phone) phone.visible = p.problem === "selfie";
+  // (The phone comes out only once the guest is up on the edge: wading there, they move like anyone in the water.)
+  if (phone) phone.visible = p.problem === "selfie" && p.selfie?.stage === "posing";
   if (u.bubble) u.bubble.visible = false;
   const inWater =
     p.status === "swim" ||
@@ -189,25 +260,32 @@ export function roofPose(w, sim, p, g, time, dt) {
     const moving = (p.actualSpeed || 0) > 0.15 && !waitingInWater(sim, p);
     rig = { speed: moving ? Math.max(0.9, p.actualSpeed * 1.6) : 0, puppet: u.puppet, classic: u };
     if (s && (s.stage === "climbing" || s.stage === "posing")) {
-      // Up on the knife edge, facing the pool, phone up, leaning back over the drop.
+      // Up on the knife edge, facing the pool with the city behind. Climbing up is the body rising out of the water; only once
+      // the guest stands on the edge does the selfie start (the creator, 4 November 2026): the phone out, the Selfie clip, then
+      // SelfieWobble as the time runs out, and the whole body tipping back over the drop.
       const climb = s.stage === "climbing" ? clamp(s.t / CHILL.climbUp, 0, 1) : 1,
         dread = s.stage === "posing" ? clamp(s.t / s.limit, 0, 1) : 0;
       g.position.y = floorAt(p.x) + (WATER + 0.02 - floorAt(p.x)) * climb;
       facing = -Math.PI / 2;
       g.rotation.set(0, facing, 0);
-      const lean = (0.08 + 0.3 * dread + Math.sin(time * (2.5 + dread * 4)) * (0.04 + 0.1 * dread)) * motion;
-      g.rotateOnWorldAxis(Z_AXIS, -lean);
-      u.arms[0].rotation.set(0, 0, 2.6);
-      u.arms[1].rotation.set(0, 0, -0.5 - Math.sin(time * 7) * 0.4 * dread);
-      u.puppet.arms = true;
-      rig = { speed: 0, puppet: u.puppet, classic: u };
+      if (s.stage === "posing") {
+        const clip = !!u.rig?.actions?.selfie;
+        const lean =
+          (clip
+            ? 0.03 + 0.2 * dread + Math.sin(time * (2.5 + dread * 4)) * 0.06 * dread
+            : 0.08 + 0.3 * dread + Math.sin(time * (2.5 + dread * 4)) * (0.04 + 0.1 * dread)) * motion;
+        g.rotateOnWorldAxis(Z_AXIS, -lean);
+        rig = { speed: 0, selfie: dread > 0.55 ? 1 : 0, puppet: u.puppet, classic: u };
+        if (!clip) {
+          // The classic figure (no model): the phone arm up, the other flailing.
+          u.arms[0].rotation.set(0, 0, 2.6);
+          u.arms[1].rotation.set(0, 0, -0.5 - Math.sin(time * 7) * 0.4 * dread);
+          u.puppet.arms = true;
+        }
+        if (phone) snapFlash(phone, u, dread, time);
+      } else rig = { speed: 0, puppet: u.puppet, classic: u };
     } else {
       g.rotation.set(0, facing, 0);
-      if (s) {
-        // Wading to the edge with the phone already up.
-        u.arms[0].rotation.set(0, 0, 2.6);
-        u.puppet.arms = true;
-      }
       // Tipsy: a sway.
       if (p.tipsy && motion) g.rotateOnWorldAxis(Z_AXIS, Math.sin(time * 1.9 + (u.phase || 0)) * 0.07);
       // On the drop the whole pool dances.
