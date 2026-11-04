@@ -139,9 +139,9 @@ export const SOUNDS = [
   {
     key: "dog-bark",
     takes: 3,
-    seconds: 0.9,
+    seconds: 1.2,
     gain: 0.55,
-    text: `a small excited terrier barking two or three times, ${QUIET}`,
+    text: `a big friendly labrador giving two natural deep woofs, relaxed, not aggressive, a real dog recorded outdoors, ${QUIET}`,
   },
   {
     key: "dog-growl",
@@ -292,20 +292,6 @@ export const SOUNDS = [
     text: `a power failure, electrical hum dying away and big lights clunking off, ${QUIET}`,
   },
   {
-    key: "power-up",
-    takes: 1,
-    seconds: 1.6,
-    gain: 0.45,
-    text: `a breaker switched back on, a clunk and fluorescent lights buzzing back to life, ${QUIET}`,
-  },
-  {
-    key: "flicker",
-    takes: 1,
-    seconds: 1,
-    gain: 0.35,
-    text: `loud fluorescent tube lights flickering on and off with sharp electrical buzzing and clicking, ${QUIET}`,
-  },
-  {
     key: "flop",
     takes: 1,
     seconds: 0.6,
@@ -333,4 +319,104 @@ export const SOUNDS = [
     gain: 0.35,
     text: `a quick whoosh of a body falling through the air, ${QUIET}`,
   },
+  {
+    key: "door-close",
+    takes: 2,
+    seconds: 1,
+    gain: 0.4,
+    text: `a heavy swinging changing room door swinging shut on its closer, a soft thud and a latch click, ${QUIET}`,
+  },
+  // ---- the cramp: a swimmer in trouble, a loop that plays while they are stranded (the distress parameter) ----
+  {
+    key: "cramp-panic",
+    takes: 2,
+    seconds: 6,
+    gain: 0.5,
+    loop: true,
+    text: "a swimmer struggling in a swimming pool with a cramp, frantic thrashing and splashing, short panicked gasps for air between the splashes, breathing sounds only, no words, no speech, no talking, no music",
+  },
+  // ---- footsteps (the coaches'): a few seconds of steps on each surface, cut into single steps (`slice`) ----
+  ...[
+    ["tile", "rubber-soled trainers walking on wet swimming pool tiles, soft squeaky slaps"],
+    ["wood", "trainers walking on a wooden boardwalk deck, hollow wooden footsteps"],
+    ["stone", "trainers walking on a dry stone terrace, crisp gritty footsteps"],
+    ["sand", "bare feet walking on soft dry beach sand, crunchy footsteps"],
+    ["snow", "boots walking on fresh crunchy snow, crisp snow crunches"],
+    ["water", "a man wading through knee-deep water in a pool, sloshing steps"],
+    ["skate", "a person skating on ice, the scrape of each skate stride on ice"],
+  ].map(([surface, what]) => ({
+    key: "step-" + surface,
+    takes: 8,
+    seconds: 6,
+    gain: 0.3,
+    slice: { raws: 2, length: surface === "water" || surface === "skate" ? 0.5 : 0.3 },
+    text: `single footsteps one at a time, evenly spaced, slow pace, ${what}, ${QUIET}`,
+  })),
+  // ---- the coaches' voices: efforts, never words (a man's for Coach Waters and the others at their own pitch, a woman's for
+  // Coach Rivers) ----
+  ...[
+    ["hup", 3, 0.6, "a short effort grunt as they jump, a quick hup"],
+    ["huff", 2, 0.6, "a sharp exhale of effort as they burst into a sprint, a short huff"],
+    ["yelp", 3, 0.8, "a surprised yelp as their foot slips on a wet floor, a high whoa"],
+    ["scream", 2, 1.6, "a comic falling scream as they topple into a swimming pool, a long falling aaaah"],
+    ["strain", 2, 1.4, "straining hard to pull something heavy, a long clenched effort grunt"],
+    ["gasp", 3, 0.7, "a sharp alarmed gasp of shock"],
+    [
+      "panic",
+      2,
+      1.8,
+      "hyperventilating in a panic, rapid shallow huffing breaths with a high nervous whine, breathing only",
+    ],
+    ["oof", 3, 0.6, "an oof as the wind is knocked out of them, a short winded grunt"],
+    ["phew", 2, 1.1, "a long relieved sigh, a breathy phew"],
+    ["argh", 2, 1, "a frustrated groan through gritted teeth, an annoyed argh"],
+  ].flatMap(([kind, takes, seconds, what]) =>
+    [
+      ["m", "a cartoonish middle-aged man,"],
+      ["f", "a cartoonish young woman,"],
+    ].map(([voice, who]) => ({
+      key: `vo-${voice}-${kind}`,
+      takes,
+      seconds,
+      gain: 0.4,
+      text: `${who} ${what}, a single non-verbal vocal sound, no words, no speech, no music, close and dry`,
+    })),
+  ),
+  // ---- the venues' ambience beds: seamless loops, one at a time (dist/audio.mjs AMBIENCE), and the swimmers' layer ----
+  ...[
+    [
+      "hall",
+      "inside an echoing indoor swimming pool hall, gentle water lapping, a ventilation hum, far off muffled chatter",
+    ],
+    [
+      "outdoor",
+      "a sunny outdoor swimming pool in a Mediterranean garden, cicadas, birdsong, a light breeze in the trees",
+    ],
+    ["beach", "a tropical beach, gentle surf rolling in, a warm breeze in palm leaves, a distant seabird"],
+    ["seaside", "a seaside promenade on a summer day, gulls calling, small waves on the shore, a breeze"],
+    ["arena", "the murmur of a big crowd waiting inside a grand indoor arena, a hall full of quiet chatter"],
+    ["club", "a nightclub crowd chattering and laughing over a party, glasses clinking, no music"],
+    [
+      "conservatory",
+      "inside a quiet Victorian glasshouse, a small fountain trickling, birds singing outside the glass",
+    ],
+    ["jungle", "a tropical jungle, exotic birds and insects, a distant waterfall rushing"],
+    [
+      "city",
+      "a rooftop high above a big city, a steady wind, the far hum of traffic below, a distant siren now and then",
+    ],
+    ["sea", "the open deck of a ship at sea, wind, waves washing against the hull, gulls"],
+    ["snow", "a quiet snowy mountainside, a soft cold wind, a hot spring bubbling and trickling nearby"],
+    [
+      "swimmers",
+      "a busy public swimming pool, many people swimming laps, rhythmic splashing strokes and kicking, water lapping",
+    ],
+  ].map(([place, what]) => ({
+    key: "amb-" + place,
+    takes: 1,
+    seconds: 20,
+    gain: 0.3,
+    loop: true,
+    text: `${what}, continuous ambience, no music`,
+  })),
 ];

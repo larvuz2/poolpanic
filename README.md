@@ -2201,7 +2201,7 @@ Replay keeps the booking; Next shift asks again. Booked runs count toward the le
 
 ## Audio, accessibility, and feedback
 
-Music is intended from the menu onward, subject to browser audio permissions: the desktop app plays at once; in a browser the first click or key unlocks Web Audio (the menu says so while it waits). The shifts' music and the effects are procedural; the menu's music and its buttons' sounds are recorded (ElevenLabs, `dist/assets/audio/`). Music and effects are two mixes under the master, with Settings' sliders. Selection, countdown, doors, jumping, landing, dash, service, rescue, and sanitation provide synchronized cues. Panic changes the musical arrangement. Muting must work across those states.
+Music is intended from the menu onward, subject to browser audio permissions: the desktop app plays at once; in a browser the first click or key unlocks Web Audio (the menu says so while it waits). The shifts' music and the effects are procedural; the menu's music and its buttons' sounds are recorded (ElevenLabs, `dist/assets/audio/`). Music and effects are two mixes under the master, with Settings' sliders (and since 4 November 2026 a whole mix under them: "Sound engineering" below). Selection, countdown, doors, jumping, landing, dash, service, rescue, and sanitation provide synchronized cues. Panic changes the musical arrangement. Muting must work across those states.
 
 **Recorded sound effects (3 November 2026).** The creator: "the splashing of the water whenever a swimmer dives in: it's very
 mechanical now. We need a more natural splash… find other sound effects that will improve if we make them with some API using
@@ -2215,8 +2215,10 @@ takes, trims their leading silence, makes them mono, fades their ends, brings th
   Rooftop's edge), the plop into a tube, stepping into a hot spring, the Wave Pool's crest and its machine (a bigger wave louder
   and slower, so deeper), the slosh over the coping, a bather going under, the skimmer net.
 - **Weather, machines and the sea**: thunder, the ship's timbers creaking, its bell and foghorn, the Wave Pool's air horn and the
-  monster wave's siren, the blackout, the power coming back, the lights flickering.
-- **Animals**: the dog's bark, growl and shake; the snow monkeys' chatter and screech.
+  monster wave's siren, the blackout. (The power coming back and the lights flickering were recorded too, and went back to their
+  synthesised sounds on 4 November 2026: the creator, "leave the original".)
+- **Animals**: the dog's bark (made again on 4 November 2026, the creator: "a more natural barking, a little bit more neutral or
+  deep": a big friendly dog's two deep woofs), growl and shake; the snow monkeys' chatter and screech.
 - **Crowds**: the cheer and the big roar for a save, laughter at a flop, a groan at a bored jump.
 - **People and things**: the whistle (and Karen's red card), the race's starting beep, bumps and slips, the changing rooms' door,
   glasses clinking, the tray, the service bell, the selfie's shutter, towels, loungers scraping and knocked into line, flopping
@@ -2232,6 +2234,60 @@ chimes, the fanfares, the stings, the songs) stay synthesised. **Not verified by
 (length, loudness, how much is silence, how bright and how noisy; two near-silent takes were made again) and by playing every
 replaced effect through the game's own code; the "Pool Panic Sound Swap" page puts each old sound beside its new takes, with a
 way to mark the takes to drop. Check: `sfx-check.mjs`.
+
+**Sound engineering (4 November 2026).** The creator: "we need to give more life to the main character, to the coach Waters, and
+to the coaches: some struggling noises, screaming, never talking, never dialogue, just sound effects. When I walk or when I run…
+doors opening and closing… Take the best practices out of FMOD… and implement in our game the same sound mechanics, sound
+systems, and sound engineering". The game has no middleware; what FMOD gives a sound designer is built on its own Web Audio, as
+tables in `dist/sound-mix.mjs` that `PoolAudio` (dist/audio.mjs) reads:
+
+- **A bus tree.** Under the master: the music (Settings' music slider), and the effects (the effects slider) in groups, the
+  one-shots, the ambience, the footsteps and the voices, each with its own level (`BUSES`); the interface (the menu's buttons)
+  beside them, never muffled or ducked. The game's own bus compressor is kept as it was, and a **limiter** (−2 dB, 20:1, 2 ms)
+  follows it, so a pile-up never clips.
+- **Snapshots** (`SNAPSHOTS`, `snapshotFor`): the mix of each moment, blended in. The menu has no venue's ambience, footsteps or
+  voices; a shift has everything; **paused** is heard as through a door (the game's mix through a 700 Hz low-pass, quieter, no
+  footsteps or voices); the results keep a little of the venue's air; the highlight replay lowers the music. The page hidden: the
+  shift's sound waits silent (`away`).
+- **Sidechain ducking** (`DUCKS`): the music and the ambience dip under the moments that must be heard (a cramp, a poo, the
+  blackout, thunder, the monster wave, a coach falling in, the big moment, the race, the end of the shift, every incident's sting)
+  and come back after a hold; a coach's effort leans the music back a little, like dialogue ducking.
+- **Voice limits** (`LIMITS`, `VOICE_CAP`): so many of one sound at once (five splashes, one dog, one roar), a gap between two
+  starts (twenty swimmers in on one tick are a few splashes, not a wall), the oldest stolen with a fast fade; 32 voices in all,
+  footsteps giving way first.
+- **Placed on the deck** (`placement`): an event that happens somewhere (they all carry a place) is panned to where it is across
+  the screen (never hard to one side) and softer and duller the further it is from the player's coach. The app says where the ear
+  is (`audio.listen`).
+- **A room per venue** (`ROOMS`, `impulse`): a reverb sent from the one-shots, footsteps and voices, its room made from noise
+  dying away: the Community Pool and the Aquatic Centre a tiled hall, the Grand Gala Arena a big one, Senior Aqua Fit glass, the
+  Aqua Disco a club, the Lazy River's cave, the outdoor venues only a short slap.
+- **Parameters driving loops**: each venue's **ambience bed** (`VENUES`: a 20-second seamless loop made with ElevenLabs' loop mode,
+  fetched when the venue is played and let go of after, crossfaded: the hall, a Mediterranean garden, a beach, the seaside, a
+  crowd waiting in the arena, a club, the glasshouse, the jungle, the city below the roof, the sea, the snowy mountain); **the
+  swimmers' layer**, strokes and splashing whose level follows how many are in the water (none in an empty pool, all of it by a
+  dozen: `swimmersLevel`), in the pools people swim in; and **a swimmer's struggle** (`cramp-panic`: thrashing and gasping, never a
+  word) for as long as someone with a cramp, a wipeout or a knock under waits in the water for a ring (`sim.strandedVictims`),
+  placed where they are, stopping with the rescue.
+- **Footsteps** (`stepSurface`, `stride`): every coach, every stride, on what is under them: tiles, a wooden deck, stone, sand,
+  snow, wading water (the rooftop's pool, a hot spring), skates on the hot springs' ice; none swimming, in the air, sliding or
+  slipping. Running strides are longer and heavier than walking ones; another coach's steps are quieter and placed where they are.
+  Each sound is eight single steps cut from a few seconds of walking (`slice` in tools/sfx/make.mjs).
+- **The coaches' voices** (`VOICES`, `VOCALS`): never a word. A hup as he jumps, a huff into a dash, a yelp as he slips, a scream
+  falling into the river, a strain at a heavy job (his Haul clip), a gasp when an incident starts (Startle), panicked breathing
+  when he freaks out (FreakOut), a phew after a save, an argh at a poo or a broken streak, and after the slip's yelp an oof as he hits the floor. Each by chance and not
+  too soon again, one at a time from one mouth. Coach Rivers has a woman's voice; the men their own pitch (Brooks older and lower,
+  Storm the deepest, Fontaine a touch higher, Marsh gruff). Every take was run through speech-to-text (Whisper on fal) and the
+  ones that said words ("Oh, my God") made again.
+- **Doors**: a guest's door opening (as before) and now swinging shut behind the last one through (`door-close`, from
+  `sim.doors`).
+
+The new recordings are 118 takes (with the old ones, 206 takes, about 3 MB; the ambience beds, 1.4 MB of it, load one at a time).
+Their levels were set from their measured loudness against the calibrated ones (footsteps a little under a splash, voices at a
+cheer's level, the beds well under). **Not verified by ear here**: in Chromium a shift played with every part of it counted (the
+bed and the room per venue, footsteps on tiles, sand, stone, wading and ice, the door closing after each arrival, the hup, the
+yelp, the gasp and the panic at a cramp, the struggle starting and stopping, the swimmers' layer, the duck, the paused low-pass,
+the menu with no loops), and `sound-mix-check.mjs` runs the engine on a stand-in audio context; how it sounds is for the
+creator's ears. Checks: `sound-mix-check.mjs`, `sfx-check.mjs`.
 
 Support keyboard and touch, native clickable swimmer tags, readable skill labels, help, pause, and responsive HUD/control placement. Keep tags below the measured scoreboard edge. Do not let menus or controls obscure the coach on short or portrait displays.
 
@@ -2285,6 +2341,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/map-art.mjs` | The map's layout and isometric SVG art, as strings. No DOM |
 | `dist/map.mjs` | The map's DOM layer: buttons, tags, coach, clouds and reveal, driven by the campaign state |
 | `dist/audio.mjs`, `dist/audio-files.mjs` | Procedural music and effects; the list of recorded sounds that replace placeholders (Karen's voice) |
+| `dist/sound-mix.mjs` | The mix's tables: buses, snapshots, ducking, voice limits, placement, each venue's room, ambience bed and floor, footsteps, the coaches' voices ("Sound engineering") |
 | `dist/scene/kids.mjs`, `dist/scene/wet-view.mjs`, `dist/scene/prop-models.mjs` | The Kids Pool's builder (the park, the fence and gate, the slide, the floating toys); the wet spots and the mop bucket on screen; small props as models (the mop, its bucket, the duck, the swim ring, and Senior Aqua Fit's wheelchair, hoist, armchair, monstera, tea trolley, gramophone and lounger: Tripo meshes shrunk by `tools/glb_shrink.py`, with a stand-in until they load) |
 | `dist/scene/wave.mjs`, `dist/scene/wave-view.mjs` | The Wave Pool's builder (the beach and the mosaic in one bed, the basin walls, the water moved by the simulation's crests, the wave house with its chambers, mural, sign, LED board and lighthouse beacons, the beach dressing, the tube hut, the Surf Shack and surf rack, the walls and the surf gate; the water as the lane for picking); the bathers on screen (`wavePose`: standing, treading, in a tube, woozy, under; `syncLostTubes`) |
 | `dist/scene/dive.mjs`, `dist/scene/dive-view.mjs` | The Jumping Pool's builder (the lawn, the deep pool, the two stations: the springboards, platforms, stairs and plates; the hot tub and the spa corner; the hedges, trees, sunbeds, clubhouse and gates; a highlight and a click target for each height and the tub) and its cast (`divePose`: the line, the stairs, the edge, the flight with its spin, the entry, the tub; the landing rings, the springboard's bend, the steam) |
