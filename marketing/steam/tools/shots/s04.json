@@ -1,0 +1,5 @@
+{ "venue": "arena", "out": "shots/s04.jpg", "hud": false, "settle": 6000,
+  "setup": "s.level = Math.max(3, s.level); fill(3); return s.triggerChaos('outage');",
+  "until": "s.outage && s.outage.stage === 'dark'", "untilMs": 200000, "wait": 1500, "freeze": true,
+  "after": "const PL = s.venue.pool; const c = s.coach; c.x = -PL.halfX - 1.2; c.z = 1.5; c.carry = 'flashlight'; s.flashlight.state = 'coach'; c.angle = Math.PI / 2 + 0.3; c.vx = 0; c.vz = 0; w.incidentView.flash = 0.85; return { focus: [c.x, 0, c.z] };",
+  "cameras": [ {"rel":true,"pos":[-5,3.2,6],"at":[3.5,0.6,-1.5],"fov":46}, {"rel":true,"pos":[-7,7,4],"at":[5,0,-1],"fov":46}, {"rel":true,"pos":[-3.2,1.7,-3.2],"at":[2,1.2,1.2],"fov":50} ] }

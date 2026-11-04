@@ -41,6 +41,14 @@ What follows from that for anyone working on the game:
 - **Stay a browser game too.** The same `dist/` runs in a browser (the free demo, the itch.io page, a friend's iPad) and in the desktop app. Nothing in the simulation or the scenes may depend on Steam; the Steam calls live behind `dist/platform.mjs` and do nothing without it.
 - **Know what only the creator can do.** The Steamworks account, the app fee, the app and depot ids, the store page and prices, and rights to the generated art are all theirs (`desktop/steam/checklist.md` has the whole road).
 
+**The Steam page kit (4 November 2026)** is in [`marketing/steam/`](marketing/steam/README.md): five capsule proposals at Steam's sizes
+(GPT Image 2.5 art from the game's own characters, Carl rendered from `carl.glb`, the real logo laid on top), seventeen 1920×1080 screenshots
+staged in the real game (an incident forced, the simulation frozen, the camera placed, the interface hidden), ten 1170×260 looping
+clips for the About section (GIF and MP4, each under Steam's 5 MB), three short descriptions, the About section in Steam's BBCode, 20
+tags, a brand book (logo use, colours, type, voice, rules for pictures and clips) and a launch plan (Coming Soon page now, a demo in
+spring, the June 2027 Next Fest, launch after it). Its `index.html` is the review page; `tools/photo.cjs` stages and films more moments
+(one JSON a moment). Stage 4 can start on it as soon as the Steamworks app exists. No trailer yet, on purpose.
+
 ## Project locations and repository relationship
 
 - Hosted game: https://pool-panic.larvuz.chatgpt.site

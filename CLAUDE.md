@@ -313,6 +313,7 @@ the app and depot ids, the store page, the price, written proof that the AI tool
 | Every incident, how a shift picks them, the level table, the director proposal | `docs/incidents.md` |
 | The week: chapters, the director, cards, wishes, pay, the shop, Marina's scenes | `dist/week.mjs`, `dist/week-ui.mjs`, `dist/marina.mjs`, README "The week" |
 | The road to a Steam release, the build and upload, the achievements list | `desktop/README.md`, `desktop/steam/` |
+| The Steam store page: capsules, screenshots, clips, copy, brand book, launch plan (and the tool that stages them) | `marketing/steam/` |
 | The character pipeline (Blender rigs, clips, grounding) | `tools/blender/README.md`, `tools/viewer/` (Anim Bench) |
 | The Godot test (one venue in Godot, a feel and look test) | `godot/README.md`, `godot/docs/` |
 | A crash on a device | the README's "Crash log", `dist/crashlog.mjs`, `dist/trace.mjs` (the shift's diary), `?bisect`, `docs/crash-watch.md` |

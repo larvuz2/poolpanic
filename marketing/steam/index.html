@@ -1,0 +1,534 @@
+<title>Pool Panic Steam Kit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap">
+<style>
+:root {
+  --bg: #fff8e3;
+  --panel: #ffffff;
+  --sunk: #f3ead0;
+  --fg: #0b2a3a;
+  --soft: #45606b;
+  --line: #e2d6b5;
+  --accent: #0b5f8a;
+  --pop: #fdd106;
+  --pop-ink: #022763;
+  --alert: #d8432a;
+  --ok: #1d7a55;
+  --chip: #e6f3f6;
+  --chip-ink: #0b4b63;
+  --steam: #1b2838;
+  --steam-fg: #c7d5e0;
+  --steam-h: #ffffff;
+  --shadow: 0 1px 2px rgba(11, 42, 58, .08), 0 8px 24px rgba(11, 42, 58, .06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #071f2a; --panel: #0c2c3a; --sunk: #092634; --fg: #eaf4f2; --soft: #9dbcc2; --line: #1d4656;
+    --accent: #6fd0f5; --pop: #fdd106; --pop-ink: #022763; --alert: #ff7a5c; --ok: #5fd39b; --chip: #123b4b; --chip-ink: #bfe9f4;
+    --steam: #1b2838; --steam-fg: #c7d5e0; --steam-h: #ffffff; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #071f2a; --panel: #0c2c3a; --sunk: #092634; --fg: #eaf4f2; --soft: #9dbcc2; --line: #1d4656;
+  --accent: #6fd0f5; --pop: #fdd106; --pop-ink: #022763; --alert: #ff7a5c; --ok: #5fd39b; --chip: #123b4b; --chip-ink: #bfe9f4;
+  --steam: #1b2838; --steam-fg: #c7d5e0; --steam-h: #ffffff; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 16px/1.6 "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 0 80px; }
+h1, h2, h3, .cond { font-family: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif; text-wrap: balance; }
+h2 { font-size: clamp(30px, 4.4vw, 46px); font-weight: 800; line-height: 1; margin: 0 0 8px; letter-spacing: .005em; text-transform: uppercase; }
+h3 { font-size: 22px; font-weight: 700; margin: 0 0 6px; letter-spacing: .01em; }
+p { margin: 0 0 12px; max-width: 70ch; }
+a { color: var(--accent); }
+.lede { color: var(--soft); font-size: 17px; max-width: 72ch; }
+.label { font: 700 12px/1 "DM Sans", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--soft); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* masthead */
+.mast { background: linear-gradient(180deg, #0a5b86 0%, #0d7fb0 55%, #19b1f8 100%); color: #fff; overflow: hidden; position: relative; }
+.mast .wrap { padding-block: 34px 30px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 28px; align-items: center; }
+.mast img.logo { width: min(100%, 420px); filter: drop-shadow(0 8px 18px rgba(2, 39, 99, .45)); }
+.mast h1 { font-size: clamp(26px, 3.4vw, 38px); font-weight: 800; text-transform: uppercase; margin: 14px 0 6px; line-height: 1.05; color: #fff; }
+.mast p { color: #e3f5ff; }
+.mast .hero { border-radius: 10px; box-shadow: 0 18px 50px rgba(2, 39, 99, .45); width: 100%; display: block; }
+.mast .facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.mast .facts span { background: rgba(2, 39, 99, .35); border: 1px solid rgba(255, 255, 255, .25); color: #fff; border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 500; }
+@media (max-width: 820px) { .mast .wrap { grid-template-columns: 1fr; } }
+
+nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+nav.toc .wrap { padding-block: 10px; display: flex; gap: 6px 18px; flex-wrap: wrap; }
+nav.toc a { font: 700 15px/1.2 "Barlow Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--fg); text-decoration: none; }
+nav.toc a:hover { color: var(--accent); }
+
+section { padding-top: 56px; scroll-margin-top: 50px; }
+.sechead { display: grid; gap: 4px; margin-bottom: 22px; border-top: 4px solid var(--pop); padding-top: 14px; }
+.grid { display: grid; gap: 18px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 18px; min-width: 0; }
+.chip { display: inline-block; background: var(--chip); color: var(--chip-ink); border-radius: 999px; padding: 2px 10px; font-size: 12.5px; font-weight: 600; }
+.chip.rec { background: var(--pop); color: var(--pop-ink); }
+.chip.ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+figure { margin: 0; }
+figcaption { color: var(--soft); font-size: 14px; margin-top: 8px; }
+img, video { max-width: 100%; display: block; }
+
+/* summary */
+.sum { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.sum .card h3 { font-size: 20px; }
+.sum .card p { font-size: 15px; margin: 0; color: var(--soft); }
+.sum .big { font: 800 40px/1 "Barlow Condensed", sans-serif; color: var(--accent); }
+
+/* capsules */
+.capsule { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.capsule .main img { border-radius: 8px; }
+.capsule .side { display: grid; gap: 12px; }
+.capsule .smalls { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
+.capsule .smalls figure { display: grid; gap: 4px; }
+.capsule .smalls img { image-rendering: auto; border-radius: 3px; }
+.capsule h3 { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.capsule .why { font-size: 15px; color: var(--soft); margin: 0; }
+@media (max-width: 820px) { .capsule { grid-template-columns: 1fr; } }
+
+/* screenshots */
+.shots { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+.shot { position: relative; }
+.shot img { border-radius: 8px; aspect-ratio: 16 / 9; object-fit: cover; width: 100%; }
+.shot .n { position: absolute; top: 8px; left: 8px; background: var(--pop); color: var(--pop-ink); font: 800 18px/1 "Barlow Condensed", sans-serif; border-radius: 6px; padding: 4px 8px; }
+.shot h3 { font-size: 19px; margin-top: 10px; }
+.shot p { font-size: 14.5px; color: var(--soft); margin: 0; }
+.shot .meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+/* the store-page mock */
+.steam { background: var(--steam); color: var(--steam-fg); border-radius: 12px; padding: 22px; display: grid; gap: 18px; }
+.steam .col { max-width: 780px; margin: 0 auto; width: 100%; min-width: 0; }
+.steam .about h2 { font: 400 15px/1.2 "Motiva Sans", "DM Sans", sans-serif; text-transform: uppercase; letter-spacing: .03em; color: var(--steam-h); border-bottom: 1px solid #3c4d63; padding-bottom: 4px; margin: 24px 0 8px; }
+.steam .about p, .steam .about li { font-size: 14px; line-height: 1.55; color: #acb2b8; max-width: none; }
+.steam .about b { color: #d6dde3; }
+.steam .about ul { padding-left: 20px; margin: 0 0 10px; }
+.steam video.clip { aspect-ratio: auto; }
+.steam video, .steam .clip { width: 100%; border-radius: 2px; margin: 10px 0 4px; aspect-ratio: 1170 / 260; object-fit: cover; background: #0e1620; }
+.steam .top { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 14px; }
+.steam .top .short { font-size: 13px; line-height: 1.5; color: #c6d4df; }
+.steam .top .tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+.steam .top .tags span { background: rgba(103, 193, 245, .2); color: #67c1f5; font-size: 11px; padding: 2px 7px; border-radius: 2px; }
+.steam .strip { display: flex; gap: 4px; overflow-x: auto; }
+.steam .strip img { width: 116px; height: 65px; object-fit: cover; flex: none; border-radius: 1px; }
+@media (max-width: 700px) { .steam .top { grid-template-columns: 1fr; } .steam { padding: 12px; } }
+
+/* copy */
+.shorts { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.short-text { font-size: 16px; line-height: 1.55; margin: 8px 0 12px; }
+.bar { height: 6px; background: var(--sunk); border-radius: 99px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+button.copy { font: 700 13px/1 "DM Sans", sans-serif; border: 1px solid var(--line); background: var(--sunk); color: var(--fg); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+button.copy:hover { border-color: var(--accent); }
+pre.code { background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; padding: 14px; overflow-x: auto; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; max-height: 460px; overflow-y: auto; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* brand */
+.swatches { grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; }
+.sw { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--panel); }
+.sw .c { height: 74px; }
+.sw .t { padding: 8px 10px; font-size: 13px; line-height: 1.35; }
+.sw .t b { display: block; font-size: 14px; }
+.sw .t code { font-size: 12.5px; color: var(--soft); }
+.type { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.type .sample1 { font: 800 54px/0.95 "Barlow Condensed", sans-serif; text-transform: uppercase; }
+.type .sample2 { font: 400 19px/1.5 "DM Sans", sans-serif; }
+@media (max-width: 700px) { .type { grid-template-columns: 1fr; } }
+.logoplay { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+.logoplay div { border-radius: 10px; padding: 18px; display: grid; place-items: center; min-height: 150px; position: relative; }
+.logoplay img { width: 80%; }
+.logoplay .tag { position: absolute; bottom: 8px; left: 10px; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+.dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 18px; }
+.dos ul { margin: 0; padding-left: 18px; }
+.dos li { margin-bottom: 6px; }
+.voice td, .voice th { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 15px; }
+.voice th { font: 700 13px/1.2 "DM Sans", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--soft); }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+
+/* strategy */
+.timeline { display: grid; gap: 0; position: relative; }
+.timeline .step { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 18px; padding: 14px 0; border-bottom: 1px dashed var(--line); }
+.timeline .when { font: 800 20px/1.1 "Barlow Condensed", sans-serif; text-transform: uppercase; color: var(--accent); }
+.timeline .what h3 { font-size: 20px; }
+.timeline .what p { font-size: 15px; margin: 0; color: var(--soft); }
+.timeline .who { display: inline-block; margin-top: 6px; }
+@media (max-width: 600px) { .timeline .step { grid-template-columns: 1fr; gap: 4px; } }
+.kpis { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.kpis .card { padding: 14px; }
+.kpis .v { font: 800 34px/1 "Barlow Condensed", sans-serif; color: var(--fg); }
+.kpis .k { font-size: 13.5px; color: var(--soft); margin-top: 4px; }
+.note { border-left: 4px solid var(--alert); background: color-mix(in srgb, var(--alert) 8%, var(--panel)); padding: 12px 14px; border-radius: 0 10px 10px 0; font-size: 15px; }
+.note b { color: var(--alert); }
+.src { font-size: 13.5px; color: var(--soft); }
+.src li { margin-bottom: 4px; word-break: break-word; }
+.pending { display: grid; place-items: center; text-align: center; background: repeating-linear-gradient(135deg, var(--sunk) 0 12px, var(--panel) 12px 24px); border: 1px dashed var(--line); border-radius: 8px; color: var(--soft); font: 700 18px/1.2 "Barlow Condensed", sans-serif; text-transform: uppercase; width: 100%; margin: 10px 0 4px; }
+.pending small { font: 500 13px/1.4 "DM Sans", sans-serif; text-transform: none; }
+.steam .pending { background: repeating-linear-gradient(135deg, #16202d 0 12px, #1e2a3a 12px 24px); border-color: #3c4d63; color: #8f98a0; }
+footer { margin-top: 60px; color: var(--soft); font-size: 13.5px; border-top: 1px solid var(--line); padding-top: 14px; }
+</style>
+
+<header class="mast">
+  <div class="wrap">
+    <div>
+      <img class="logo" src="brand/logo.webp" alt="Pool Panic logo: yellow bubbly letters with a navy outline and a cyan splash">
+      <h1>The Steam page kit</h1>
+      <p>Everything for the store page in one place: five capsule proposals, ten staged screenshots, seven ultra-wide clips for the About section, the short and long descriptions, tags, a brand book and a launch plan. Every screenshot and clip is the real game, staged and frozen in its own engine.</p>
+      <div class="facts"><span>4 November 2026</span><span>Draft for the creator's choices</span><span>No trailer yet (later, on purpose)</span></div>
+    </div>
+    <img class="hero" src="caps/c1-panic-main.jpg" alt="Capsule proposal 1: Coach Waters panicking with the pool in chaos behind him">
+  </div>
+</header>
+
+<nav class="toc" aria-label="Sections">
+  <div class="wrap">
+    <a href="#summary">Summary</a><a href="#capsules">Capsules</a><a href="#screenshots">Screenshots</a><a href="#page">The page</a><a href="#copy">Copy</a><a href="#brand">Brand book</a><a href="#strategy">Strategy</a><a href="#research">Research</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<section id="summary">
+  <div class="sechead"><span class="label">In short</span><h2>What to decide</h2></div>
+  <div class="grid sum">
+    <div class="card"><div class="big num">5</div><h3>Capsule proposals</h3><p>Each at main (1232×706), header (920×430) and small (462×174) size, with how it reads at 120×45. Recommended: <b>1, Panic Face</b>.</p></div>
+    <div class="card"><div class="big num">17</div><h3>Screenshots, in order</h3><p>1920×1080, no interface, all suitable for all ages. The first four (the ones Steam shows on hover): Carl, three coaches in co-op, the rolling cruise ship and the whole cast.</p></div>
+    <div class="card"><div class="big num">10</div><h3>Section clips</h3><p>1170 wide, 260 to 300 high, 4 to 8 seconds, looping. A GIF and an MP4 of each; every GIF under Steam's 5 MB.</p></div>
+    <div class="card"><div class="big num">Jun '27</div><h3>Next Fest, recommended</h3><p>Coming Soon page live this month; a demo in spring; Steam Next Fest in June 2027 with wishlists already built; release after it.</p></div>
+  </div>
+</section>
+
+<section id="capsules">
+  <div class="sechead"><span class="label">Store capsules</span><h2>Five capsule proposals</h2>
+    <p class="lede">Art made with GPT Image 2.5 from our own characters as references, then the real logo laid on top (never redrawn). Steam allows only the art, the title and an official subtitle on a capsule, so there is no other text. The small capsule is almost all logo, as Valve asks.</p></div>
+  <div class="grid" id="caps"></div>
+</section>
+
+<section id="screenshots">
+  <div class="sechead"><span class="label">Screenshots</span><h2>Seventeen moments that hook</h2>
+    <p class="lede">Each one staged in the real game: the shift set up, the moment forced (Carl in the air, a rogue swell at 15°, a monkey in the spring), the simulation frozen and the camera placed by hand, the interface hidden. Steam asks for gameplay only; these are. Order matters: the first four show on hover across the store.</p></div>
+  <div class="grid shots" id="shots"></div>
+</section>
+
+<section id="page">
+  <div class="sechead"><span class="label">Preview</span><h2>How the page reads</h2>
+    <p class="lede">A mock of the store page's top and its About section at Steam's real 780-pixel column, with the clips playing where they would. The section headings are Steam's own text headings; the clips do the showing.</p></div>
+  <div class="steam">
+    <div class="col top">
+      <img src="shots/01.jpg" alt="Screenshot 1 as the page's first media" style="width:100%;border-radius:2px">
+      <div>
+        <img src="caps/c1-panic-header.jpg" alt="Header capsule" style="width:100%;border-radius:2px">
+        <p class="short" id="mock-short"></p>
+        <div class="tags" id="mock-tags"></div>
+      </div>
+    </div>
+    <div class="col strip" id="mock-strip"></div>
+    <div class="col about" id="mock-about"></div>
+  </div>
+</section>
+
+<section id="copy">
+  <div class="sechead"><span class="label">Copy</span><h2>Short description, About, tags</h2>
+    <p class="lede">The short description sits beside the screenshots, where people actually read; Steam caps it at 300 characters. Three versions, all under the cap. The About section is ready to paste (Steam's BBCode), about 350 words, in the range of the comparable hits (120 to 360).</p></div>
+  <div class="grid shorts" id="shorts"></div>
+  <div class="card" style="margin-top:18px">
+    <div class="row"><h3>About this game (BBCode, ready to paste)</h3><button class="copy" data-copy="bbcode">Copy BBCode</button></div>
+    <p class="src">Upload the clips to the page's "extras" first; the <code>{STEAM_APP_IMAGE}/extras/</code> paths then resolve. Steam turns GIFs into looping video; MP4/WEBM uploads are smaller and also accepted.</p>
+    <pre class="code" id="bbcode"></pre>
+  </div>
+  <div class="card" style="margin-top:18px">
+    <div class="row"><h3>Tags (20, in order of weight)</h3><button class="copy" data-copy="tagtext">Copy tags</button></div>
+    <div class="tags" id="tags" style="margin-top:8px"></div>
+    <pre class="code" id="tagtext" hidden></pre>
+  </div>
+</section>
+
+<section id="brand">
+  <div class="sechead"><span class="label">Brand book</span><h2>One look, everywhere</h2>
+    <p class="lede">Pool Panic already has a look: the bubbly yellow logo, the game's deep-pool interface, the glossy toy-like characters. This makes it a rule, so the store page, capsules, clips, social posts and the trailer all feel like the same game.</p></div>
+
+  <h3>The logo</h3>
+  <div class="logoplay" style="margin-bottom:18px">
+    <div style="background:#19b1f8"><img src="brand/logo.webp" alt="Logo on splash cyan"><span class="tag" style="background:#022763;color:#fff">On sky / water: yes</span></div>
+    <div style="background:#092b38"><img src="brand/logo.webp" alt="Logo on deep pool"><span class="tag" style="background:#fdd106;color:#022763">On deep pool: yes</span></div>
+    <div style="background:#fff4cf"><img src="brand/logo.webp" alt="Logo on cream"><span class="tag" style="background:#022763;color:#fff">On cream: yes</span></div>
+    <div style="background:#19b1f8;overflow:hidden"><img src="brand/logo.webp" alt="The logo stretched sideways, which is not allowed" style="transform:scale(1.25,0.75)"><span class="tag" style="background:#d8432a;color:#fff">Stretched: never</span></div>
+  </div>
+  <div class="dos card" style="margin-bottom:18px">
+    <div><h3>Do</h3><ul>
+      <li>Use the file as it is (<code>dist/assets/brand/logo.webp</code>), with its navy outline and splash.</li>
+      <li>Give it room: clear space of at least the height of the "O" all round.</li>
+      <li>Put it over sky, water or the deep-pool navy, with a soft navy shadow when the art is busy.</li>
+      <li>At small sizes (the 462×174 capsule and below), let it fill the frame.</li>
+    </ul></div>
+    <div><h3>Don't</h3><ul>
+      <li>Redraw, retype, recolour, stretch or rotate it.</li>
+      <li>Set it over a face, or over busy detail without its shadow.</li>
+      <li>Add a subtitle, laurels or "Wishlist now" on a capsule (Steam's rules forbid it).</li>
+      <li>Upscale the 640-pixel file for the library logo: ask for a master at 2560 wide or vector (see the strategy's list).</li>
+    </ul></div>
+  </div>
+
+  <h3>Alternate names (references only)</h3>
+  <p class="src" style="margin-bottom:10px">Two other names drawn in the same style as the Pool Panic logo, for comparison. The game is still called Pool Panic, and nothing else in this kit uses these.</p>
+  <div class="logoplay" id="altlogos" style="margin-bottom:22px"></div>
+
+  <h3>Colour</h3>
+  <p class="src" style="margin-bottom:10px">The first five are sampled from the logo and Coach Waters; the rest are the game's own interface tokens (<code>dist/style.css</code>).</p>
+  <div class="grid swatches" id="swatches" style="margin-bottom:22px"></div>
+
+  <h3>Type</h3>
+  <div class="type card" style="margin-bottom:22px">
+    <div><div class="label" style="margin-bottom:8px">Headlines · Barlow Condensed 800, upper case</div><div class="sample1">Everything goes wrong. Usually at once.</div></div>
+    <div><div class="label" style="margin-bottom:8px">Text · DM Sans 400 / 700</div><div class="sample2">Every guest has a skill and a temper. Send them to the right lane, hand out fins and mop the wet spots before someone slips.</div><p class="src" style="margin-top:10px">Both are bundled with the game (<code>dist/assets/fonts/</code>, Open Font License), so the store art, the clips and the game use the same letters.</p></div>
+  </div>
+
+  <h3>Voice</h3>
+  <div class="card tablewrap" style="margin-bottom:22px">
+    <table class="voice">
+      <tr><th>We are</th><th>We are not</th><th>Sounds like</th></tr>
+      <tr><td>Deadpan about chaos: the joke is stated flatly.</td><td>Shouting, "EPIC", "ULTIMATE", emoji walls.</td><td>"Karen would like to speak to the manager. You are the manager."</td></tr>
+      <tr><td>Warm about Coach Waters and Marina.</td><td>Cynical or mean about the guests.</td><td>"Coach Waters has a date with Marina, and a jar to fill first."</td></tr>
+      <tr><td>Specific: real names, real numbers (185 metres, 6-metre tower, lane three).</td><td>Vague ("lots of content", "many features").</td><td>"An infinity pool 185 metres above the city."</td></tr>
+      <tr><td>Short sentences. British spelling, as in the game.</td><td>Paragraphs of mechanics.</td><td>"Easy to pick up. Very hard to keep up with."</td></tr>
+    </table>
+    <p class="src" style="margin-top:10px">The coaches never speak in the game; the marketing never puts words in their mouths either (no speech bubbles for Coach Waters).</p>
+  </div>
+
+  <h3>Rules for pictures and clips</h3>
+  <div class="dos card">
+    <div><h3>Screenshots</h3><ul>
+      <li>1920×1080, gameplay only, no interface, one joke per picture.</li>
+      <li>A person in trouble and the coach on the way: the "uh-oh" second, not the aftermath.</li>
+      <li>Never two from the same venue in the first four.</li>
+      <li>Keep at least four suitable for all ages (no poo, no vomit): all ten are.</li>
+    </ul></div>
+    <div><h3>Clips</h3><ul>
+      <li>1170×260 for the About section: wide and low, so the eye keeps scrolling.</li>
+      <li>4 to 7 seconds, looping, no text baked in (it can't be translated).</li>
+      <li>Under 5 MB each, 15 MB for the whole page; MP4 when a GIF is too big.</li>
+      <li>For social: the same moments cut 9:16, 5 to 10 seconds, original sound.</li>
+    </ul></div>
+    <div><h3>Key art</h3><ul>
+      <li>One colour family (pool blue and sun) with Coach Waters' red cap as the hot spot.</li>
+      <li>Our characters only, drawn from their models; no generic "AI look" faces.</li>
+      <li>Leave the logo its sky: compose the art with the space in it.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="strategy">
+  <div class="sechead"><span class="label">Strategy</span><h2>From Coming Soon to launch</h2>
+    <p class="lede">The short version: put the page up now and start collecting wishlists, ship a demo in spring, enter Steam Next Fest in June 2027 with a following already built (a game gets one Next Fest, ever), and launch after it. The dates are proposals; the store itself waits on what only the creator can do.</p></div>
+
+  <div class="grid kpis" style="margin-bottom:20px">
+    <div class="card"><div class="v num">10,000</div><div class="k">wishlists at launch: the floor</div></div>
+    <div class="card"><div class="v num">25,000+</div><div class="k">the goal; first-month sales run about 0.22 per wishlist now</div></div>
+    <div class="card"><div class="v num">$14.99</div><div class="k">suggested price, 15% off at launch (cap 40%)</div></div>
+    <div class="card"><div class="v">EN + 简体</div><div class="k">store page languages first (Simplified Chinese is a third of Steam)</div></div>
+  </div>
+
+  <div class="card timeline" id="timeline"></div>
+
+  <div class="note" style="margin-top:18px"><b>Only the creator can do:</b> the Steamworks account and the $100 app fee, the app id, the price, the release date, written proof that every AI tool used allows commercial use (Meshy, Tripo, fal's models, ElevenLabs), and the AI disclosure on the content survey. Nothing here can go live before that.</div>
+
+  <div class="dos" style="margin-top:18px">
+    <div class="card"><h3>Demo</h3><p>One week of the run with co-op on: the Community Pool and two venues, the first five incidents, Marina's first wish. Live about three weeks before Next Fest (the top 25 in October 2026 had demos up 19 days before). Never shadow-drop it.</p></div>
+    <div class="card"><h3>Creators</h3><p>Fit over volume: streamers who play Overcooked, PlateUp! and Two Point. Keys through Keymailer. Every incident's fail is a ready 5 to 10 second clip, and the shift's highlight replay can be cut vertically.</p></div>
+    <div class="card"><h3>Festivals</h3><p>Third-party festivals favour management and cosy games; apply to every one that fits. Skip Couch Co-Op Fest (it needs local co-op) and Shop Keeper Fest (a shop game's festival).</p></div>
+    <div class="card"><h3>AI disclosure</h3><p>Steam shows it on the page. Disclose plainly, and keep the capsule, clips and screenshots free of the generic AI look: our own models in our own engine, as here. In October 2026, 8% of Next Fest's top 25 disclosed AI against 35% of the rest.</p></div>
+  </div>
+</section>
+
+<section id="research">
+  <div class="sechead"><span class="label">Research</span><h2>What the best pages do</h2>
+    <p class="lede">Read from Steam's documentation and from the pages of fifteen comparable games (Overcooked! 2, Two Point Hospital, PlateUp!, Moving Out, Untitled Goose Game, Lethal Company, Content Warning, PEAK, R.E.P.O., Schedule I, Supermarket Simulator and others) on 4 November 2026.</p></div>
+  <div class="dos">
+    <div class="card"><h3>Capsules</h3><ul><li>The logo must read at 120×45: big, two short words, thick outline. Pool Panic's does.</li><li>Comedy management sells on faces with big expressions (Two Point) and one clear joke (Goose Game).</li><li>Text other than the title on a capsule breaks the rules and loses featuring.</li></ul></div>
+    <div class="card"><h3>Short description</h3><ul><li>Say who you are and the funny verb ("…you are a horrible goose").</li><li>Put the player count in it (R.E.P.O. "up to 6 players").</li><li>Median 232 characters; ours are 254 to 259.</li></ul></div>
+    <div class="card"><h3>About section</h3><ul><li>The least-read part of the page: short, and mostly looping clips.</li><li>Breakout pages run 120 to 360 words, one clip per idea, jokey headers.</li><li>Wide, low strips as section breaks (PEAK, PlateUp!); make them 1170 wide.</li></ul></div>
+    <div class="card"><h3>Launch</h3><ul><li>Popular Upcoming now needs about 100,000 wishlists: build the base elsewhere.</li><li>Next Fest is crowded (7,240 games in October 2026): arrive with followers.</li><li>Friendslop hits price at $8 to $10; content-rich comedy management at $20 to $30.</li></ul></div>
+  </div>
+  <ul class="src" style="margin-top:18px">
+    <li>Steamworks: store assets, library assets, capsule rules, description, tags, Coming Soon, discounts, Next Fest (partner.steamgames.com/doc/store/…, /marketing/…)</li>
+    <li>Chris Zukowski, howtomarketagame.com: Coming Soon timing (Mar 2025), Personal Calendar (Jun 2026), wishlist inflation (13 Oct 2026), October 2026 Next Fest, demos, festivals</li>
+    <li>steampageanalyzer.com: short descriptions, About-section anatomy, localisation</li>
+    <li>Game Developer: improving the About section (Joe Henson); creator outreach</li>
+    <li>presskit.gg field guides: capsule art, descriptions</li>
+  </ul>
+  <footer>Made in this session from the game's own builds. Screenshots and clips: the real game in Chromium with software rendering, staged by script (<code>marketing/steam/tools/photo.cjs</code>), not hand-painted. Capsule art: GPT Image 2.5 from the game's characters, the real logo on top. Nothing here has been seen on a real Steam page yet.</footer>
+</section>
+</main>
+
+<script>
+const CAPS = [
+  { id: "c1-panic", name: "Panic Face", rec: true, why: "Coach Waters' face is the whole pitch: one expression, readable at any size, with the dog, Carl and the fish kid behind him. Two Point's lesson: a big comic face sells comedy management at a glance." },
+  { id: "c2-cannonball", name: "Cannonball!", why: "One joke, Goose-Game style: Carl dropping straight at you, the coach below with the ring. The most dynamic, and the strongest at thumbnail size after 1." },
+  { id: "c3-diorama", name: "Chaos Diorama", why: "The whole game in one look: every incident on one pool deck. Reads as 'management game' best, but it is the busiest at small sizes (the Supermarket Simulator problem)." },
+  { id: "c4-date", name: "Date Night", why: "The only one that tells the story: the chaos of the week against Marina waiting on Sunday, the Date Fund jar on the wave between them. Good for the library hero or a seasonal capsule." },
+  { id: "c5-crew", name: "Co-op Crew", why: "Three coaches charging in, the Overcooked promise. Best for a co-op push (Next Fest, a co-op update), weaker as the first impression of a single-player-first game." },
+];
+const SHOTS = [
+  { f: "01", t: "Cannonball Carl", v: "Community Pool", d: "Carl mid-air over the lanes, the coach sprinting too late. The game's signature joke, first.", why: "Hook: the comedy" },
+  { f: "13", t: "Three coaches, one dog", v: "Splash Park", d: "Online co-op: Waters, Rivers and Storm closing in on the dog with the fins from both sides.", why: "Hook: co-op" },
+  { f: "06", t: "A rogue swell", v: "Cruise Ship", d: "The Lido Deck heeling 15°: loungers sliding, guests skating downhill, the pool sloshing over its end.", why: "Hook: a venue like no other" },
+  { f: "11", t: "Every kind of swimmer", v: "Splash Park", d: "The whole cast in a row, each in a pose of their own: the fish kid, Valentina, Carl, Marco, the leopard man and the five swimmers.", why: "Hook: the cast" },
+  { f: "15", t: "Stop that dog!", v: "Splash Park", d: "The dog running straight at you with the fins, Coach Waters flat out behind him.", why: "Incident" },
+  { f: "16", t: "The rescue dive", v: "Splash Park", d: "Coach Waters in mid-air with the life ring, going in for a swimmer with a cramp.", why: "Incident" },
+  { f: "17", t: "Everybody out!", v: "Community Pool", d: "Something brown in lane three: the whole pool scrambles out and panics on the deck.", why: "Incident" },
+  { f: "12", t: "The VIPs", v: "Grand Gala Arena", d: "Crowns and sashes: the VIP guests on the Gala's deck, each striking a pose.", why: "The cast" },
+  { f: "14", t: "All hands on a rolling deck", v: "Cruise Ship", d: "Three coaches skating across the Lido Deck in a rogue swell.", why: "Co-op + physics" },
+  { f: "03", t: "Karen", v: "Aquatic Centre", d: "Karen would like a word, in the middle of championship day.", why: "Incident" },
+  { f: "05", t: "The selfie", v: "Rooftop Pool", d: "A tipsy guest posing on the infinity edge, 185 metres up, the coach wading over.", why: "Venue + incident" },
+  { f: "07", t: "The monster set", v: "Wave Pool", d: "The siren, then a monster wave breaking over the bathers.", why: "Big moment" },
+  { f: "10", t: "Three coaches", v: "Community Pool", d: "Waters, Rivers and Storm sprinting the deck: online co-op for up to three.", why: "Co-op" },
+  { f: "08", t: "A monkey in the spring", v: "Mountain Hot Springs", d: "A snow monkey has got into the hot spring and the bathers are panicking.", why: "Venue + incident" },
+  { f: "09", t: "Wrong board", v: "Jumping Pool", d: "A diver off the 6-metre platform, spinning out of control.", why: "Venue + physics" },
+  { f: "04", t: "The lights go out", v: "Grand Gala Arena", d: "A power cut at the season finale; the coach with the torch, lightning in the dome.", why: "Incident, the finale" },
+  { f: "02", t: "The dog took the fins", v: "Splash Park", d: "A dog loose on the deck with the fins in his mouth, the coach on his heels.", why: "Incident" },
+];
+const CLIPS = [
+  { id: "hero", alt: "Cannonball Carl's run-up and splash at the Community Pool" },
+  { id: "shift", alt: "A busy lane shift, the camera along the lanes" },
+  { id: "lineup", alt: "The cast in a row, each in a pose of their own" },
+  { id: "incidents", alt: "The dog loose on the deck, the coach chasing him" },
+  { id: "panic", alt: "Something in the pool: everyone scrambles out and panics" },
+  { id: "coop", alt: "Three coaches running the deck together" },
+  { id: "venues", alt: "The cruise ship's pool deck heeling over in a swell" },
+  { id: "dive", alt: "Divers going off the three boards one after another, some clean, some not" },
+  { id: "marina", alt: "Marina, the Date Fund jar and their dates" },
+  { id: "never", alt: "The lights going out at the Grand Gala Arena" },
+];
+const SWATCHES = [
+  ["Panic Yellow", "#fdd106", "The logo's letters. The brand's one loud colour."],
+  ["Lifeguard Navy", "#022763", "The logo's outline; text on yellow."],
+  ["Splash Cyan", "#19b1f8", "The logo's splash; sky and water."],
+  ["Sunburn", "#b54c05", "The logo's shading; warm accents."],
+  ["Cap Red", "#c62828", "Coach Waters' cap. The hot spot in key art."],
+  ["Deep Pool", "#092b38", "The interface's ground; dark backgrounds."],
+  ["Ink", "#103b48", "Panels in the interface."],
+  ["Lane Teal", "#15717b", "Secondary panels, buttons."],
+  ["Mint", "#a9e6db", "Highlights on dark."],
+  ["Cream", "#fff4cf", "Light backgrounds, text on dark."],
+  ["Alert", "#ff5a3c", "Incidents, warnings. Sparingly."],
+  ["Pool Water", "#3fc6d8", "The water itself: backgrounds for clips and posts."],
+];
+const TIMELINE = [
+  ["Nov 2026", "Steamworks and the Coming Soon page", "Pay the app fee, get the app id, upload this kit, submit the page for review (it needs a few business days). Store page in English and Simplified Chinese. The page starts collecting wishlists the day it goes up.", "The creator"],
+  ["Dec 2026", "First clips out", "Two short vertical clips a week from the incidents (5 to 10 s, original sound) on TikTok, Shorts and Reels, each pointing at the page. The Winter Sale (17 Dec – 4 Jan) brings the most browsing of the year.", "Both"],
+  ["Jan – Mar 2027", "Build the base", "A trailer (later, as planned). Third-party festivals that fit. A Discord for playtesters. Creator outreach starts small. Target: 5,000 wishlists by March.", "Both"],
+  ["25 Apr 2027", "Register for June Next Fest", "Registration closes 25 April; the trailer for Valve's Next Fest video by 3 May; the demo in for review by 10 May.", "The creator"],
+  ["late May 2027", "Public demo", "One week of the run with co-op, live about three weeks before the fest. Creators get keys and the demo together.", "Both"],
+  ["14 – 21 Jun 2027", "Steam Next Fest", "Livestream on the page, play the demo with players, collect the wave. Target: 15,000 wishlists by the end of the fest.", "Both"],
+  ["Sep 2027", "Launch", "After the Summer Sale (24 Jun – 8 Jul) and the post-fest polish. $14.99 with 15% off for the first week. Target: 25,000 wishlists on the day.", "The creator"],
+];
+const SHORT = [{"id": "A", "label": "The fantasy", "text": "You are Coach Waters, the only lifeguard at 14 ridiculous pools. Sort swimmers into lanes, chase the dog off the deck, talk Karen down and fish out what nobody wants to name, all to fill the Date Fund for Sunday with Marina. Solo or online co-op for up to 3."}, {"id": "B", "label": "The incident list", "text": "A comedy pool-management game where everything goes wrong at once: cannonballs, cramps, a dog on the deck, a power cut, Karen. Keep 14 pools afloat for six shifts a week and save up for Sunday's date with Marina. No two shifts alike. Online co-op for up to 3."}, {"id": "C", "label": "The deadpan one-liner", "text": "It's a lovely day at the pool, and you are the only lifeguard. Run 14 chaotic venues, from a rolling cruise ship to a hot spring full of snow monkeys, survive the week and make it to your Sunday date with Marina. Solo or online co-op for up to 3 coaches."}];
+const TAGS = ["Management", "Casual", "Funny", "Simulation", "Online Co-Op", "Co-op", "Singleplayer", "Time Management", "Cute", "Colorful", "Cartoony", "Stylized", "3D", "Family Friendly", "Comedy", "Strategy", "Arcade", "Replay Value", "Romance", "Multiplayer"];
+const BBCODE = "[img]{STEAM_APP_IMAGE}/extras/clip-hero.gif[/img]\n\n[b]Pool Panic[/b] is a comedy management game about the worst job in the world: being the only lifeguard on duty. Solo, or with [b]up to two friends online[/b]. The swimmers want their lanes, the deck wants mopping, and something, somewhere, is about to go terribly wrong.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-shift.gif[/img]\n[h2]One pool. One coach. Zero chill.[/h2]\nEvery guest has a skill and a temper. Send them to the right lane, hand out fins, haul out the cramps with the life ring and mop the wet spots before someone slips. Easy to pick up. Very hard to keep up with.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-lineup.gif[/img]\n[h2]Every kind of swimmer[/h2]\nNervous beginners, weekend splashers and pros who want the fast lane. Kids who won't stop running. Seniors who arrive in wheelchairs and leave doing lengths. VIPs in crowns and capes who expect the best of everything, Marco \"the Missile\", who expects the record, and a man called Carl. Put each one where they belong.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-incidents.gif[/img]\n[h2]Everything goes wrong. Usually at once.[/h2]\n[list]\n[*][b]Cannonball Carl[/b] has seen your nice clean lanes.\n[*][b]A dog[/b] is loose on the deck, and he has the fins.\n[*][b]Karen[/b] would like to speak to the manager. You are the manager.\n[*][b]The lights go out[/b] in the middle of a busy shift.\n[*][b]Cramps, splashes, slippery spots[/b] and the brown thing in lane three that nobody wants to name.\n[/list]\n[img]{STEAM_APP_IMAGE}/extras/clip-panic.gif[/img]\nEvery incident gives you a warning, a few seconds to stop it, and a very funny way to fail if you don't.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-coop.gif[/img]\n[h2]Better with friends: up to 3 coaches online[/h2]\nBring [b]two friends[/b] over Steam, each a coach of your own, six to pick from. One takes the lanes, one chases the dog, one talks Karen down. Every job you do together goes faster (Karen takes 8 seconds alone, 3 with three of you), and a crew gets more guests, more tips and bigger chaos.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-venues.gif[/img]\n[h2]14 pools. 14 kinds of trouble.[/h2]\nClimb from the local community pool to a jungle lazy river, a wave pool, an infinity pool 185 metres above the city, a cruise ship that [i]will not stop rolling[/i], hot springs full of snow monkeys and a country club's 6-metre diving tower. Each one plays by its own rules.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-dive.gif[/img]\n[h2]Gravity always wins[/h2]\nAt the Jumping Pool every dive flies under real gravity, with its own launch, spin and entry. The right board for the right diver is a clean entry. A beginner on the 6-metre platform is a belly flop the whole club hears.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-marina.gif[/img]\n[h2]Six shifts to Sunday[/h2]\nCoach Waters has a date with Marina, and a jar to fill first. Work six shifts, Monday to Saturday, and save your pay in the [b]Date Fund[/b]. Fill it and Sunday is yours. Come up short and the run is over. Every week gets harder, all the way to the Grand Gala.\n\n[img]{STEAM_APP_IMAGE}/extras/clip-never.gif[/img]\n[h2]Never the same shift twice[/h2]\nIncidents are dealt fresh every shift. VIPs drop in, Marco wants his lane, and every week draws a new set of pools.\n\n[h2]Features[/h2]\n[list]\n[*]Online co-op for up to 3 players, six coaches to pick from\n[*]14 venues, each with its own rules, music and big moment\n[*]A cast of swimmers, VIPs, stars and troublemakers\n[*]A run of four weeks with a story, an ending and endless play after\n[*]Free play for every pool you've opened, from Easy to Expert\n[/list]\n";
+const AVAIL = new Set(["brand/alt-coach-waters.png", "brand/alt-pool-patrol.png", "brand/logo.webp", "caps/c1-panic-header.jpg", "caps/c1-panic-main.jpg", "caps/c1-panic-small-120.png", "caps/c1-panic-small-184.png", "caps/c1-panic-small.png", "caps/c2-cannonball-header.jpg", "caps/c2-cannonball-main.jpg", "caps/c2-cannonball-small-120.png", "caps/c2-cannonball-small-184.png", "caps/c2-cannonball-small.png", "caps/c3-diorama-header.jpg", "caps/c3-diorama-main.jpg", "caps/c3-diorama-small-120.png", "caps/c3-diorama-small-184.png", "caps/c3-diorama-small.png", "caps/c4-date-header.jpg", "caps/c4-date-main.jpg", "caps/c4-date-small-120.png", "caps/c4-date-small-184.png", "caps/c4-date-small.png", "caps/c5-crew-header.jpg", "caps/c5-crew-main.jpg", "caps/c5-crew-small-120.png", "caps/c5-crew-small-184.png", "caps/c5-crew-small.png", "clips/clip-coop.mp4", "clips/clip-dive.mp4", "clips/clip-hero.mp4", "clips/clip-incidents.mp4", "clips/clip-lineup.mp4", "clips/clip-marina.mp4", "clips/clip-never.mp4", "clips/clip-panic.mp4", "clips/clip-shift.mp4", "clips/clip-venues.mp4", "index.html", "shots/01.jpg", "shots/02.jpg", "shots/03.jpg", "shots/04.jpg", "shots/05.jpg", "shots/06.jpg", "shots/07.jpg", "shots/08.jpg", "shots/09.jpg", "shots/10.jpg", "shots/11.jpg", "shots/12.jpg", "shots/13.jpg", "shots/14.jpg", "shots/15.jpg", "shots/16.jpg", "shots/17.jpg"]);
+const pending = (label, ratio) => `<div class="pending" style="aspect-ratio:${ratio}"><span>${label}<br><small>rendering, back soon</small></span></div>`;
+
+const $ = (s) => document.querySelector(s);
+const el = (tag, attrs = {}, html = "") => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (html) e.innerHTML = html; return e; };
+
+$("#caps").append(...CAPS.map((c, i) => {
+  const card = el("article", { class: "card capsule" });
+  card.innerHTML = `
+    <div class="side">
+      <figure class="main"><img src="caps/${c.id}-main.jpg" alt="Capsule ${i + 1}, ${c.name}, main capsule 1232 by 706" loading="lazy"><figcaption>Main capsule · 1232×706</figcaption></figure>
+      <div class="smalls">
+        <figure><img src="caps/${c.id}-small.png" alt="${c.name}, small capsule 462 by 174" width="231" loading="lazy"><figcaption>Small · 462×174</figcaption></figure>
+        <figure><img src="caps/${c.id}-small-184.png" alt="${c.name} at 184 by 69" width="184" height="69" loading="lazy"><figcaption>184×69</figcaption></figure>
+        <figure><img src="caps/${c.id}-small-120.png" alt="${c.name} at 120 by 45" width="120" height="45" loading="lazy"><figcaption>120×45</figcaption></figure>
+      </div>
+    </div>
+    <div class="side">
+      <h3><span class="cond">${i + 1}. ${c.name}</span>${c.rec ? '<span class="chip rec">Recommended</span>' : ""}</h3>
+      <p class="why">${c.why}</p>
+      <figure><img src="caps/${c.id}-header.jpg" alt="${c.name}, header capsule 920 by 430" loading="lazy"><figcaption>Header · 920×430</figcaption></figure>
+    </div>`;
+  return card;
+}));
+
+$("#shots").append(...SHOTS.map((s, i) => {
+  const c = el("article", { class: "card shot" });
+  const pic = AVAIL.has(`shots/${s.f}.jpg`) ? `<img src="shots/${s.f}.jpg" alt="Screenshot ${i + 1}: ${s.t}, ${s.v}" loading="lazy">` : pending(s.t, "16 / 9");
+  c.innerHTML = `<div style="position:relative">${pic}<span class="n num">${i + 1}</span></div>
+    <h3>${s.t}</h3><p>${s.d}</p><div class="meta"><span class="chip">${s.v}</span><span class="chip">${s.why}</span><span class="chip ok">All ages</span></div>`;
+  return c;
+}));
+
+$("#mock-short").textContent = SHORT[0].text;
+$("#mock-tags").append(...TAGS.slice(0, 8).map((t) => el("span", {}, t)));
+$("#mock-strip").append(...SHOTS.filter((s) => AVAIL.has(`shots/${s.f}.jpg`)).map((s, i) => el("img", { src: `shots/${s.f}.jpg`, alt: `Thumbnail ${i + 1}`, loading: "lazy" })));
+
+// The About section, from the BBCode itself (so the preview is what will be pasted).
+function bb(text) {
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  let h = esc(text)
+    .replace(/\[img\]\{STEAM_APP_IMAGE\}\/extras\/clip-([a-z]+)\.gif\[\/img\]/g, (m, id) => {
+      const c = CLIPS.find((x) => x.id === id);
+      if (!AVAIL.has(`clips/clip-${id}.mp4`)) return pending(c ? c.alt : id, "1170 / 260");
+      return `<video class="clip" src="clips/clip-${id}.mp4" autoplay muted loop playsinline aria-label="${c ? c.alt : id}"></video>`;
+    })
+    .replace(/\[h2\](.*?)\[\/h2\]/g, "<h2>$1</h2>")
+    .replace(/\[b\](.*?)\[\/b\]/g, "<b>$1</b>")
+    .replace(/\[i\](.*?)\[\/i\]/g, "<i>$1</i>")
+    .replace(/\[list\]/g, "<ul>").replace(/\[\/list\]/g, "</ul>")
+    .replace(/\[\*\](.*)/g, "<li>$1</li>");
+  return h.split(/\n{2,}/).map((p) => (/^\s*<(h2|ul|video)/.test(p) || /<\/ul>\s*$/.test(p) ? p : `<p>${p}</p>`)).join("\n");
+}
+$("#mock-about").innerHTML = '<h2 style="margin-top:0">About this game</h2>' + bb(BBCODE);
+
+$("#shorts").append(...SHORT.map((s) => {
+  const c = el("article", { class: "card" });
+  const n = s.text.length;
+  c.innerHTML = `<div class="row"><h3>${s.id}. ${s.label}</h3>${s.id === "A" ? '<span class="chip rec">Recommended</span>' : ""}</div>
+    <p class="short-text"></p>
+    <div class="bar" aria-hidden="true"><i style="width:${(n / 300) * 100}%"></i></div>
+    <div class="row" style="margin-top:8px"><span class="src num">${n} / 300 characters</span><button class="copy">Copy</button></div>`;
+  c.querySelector(".short-text").textContent = s.text;
+  c.querySelector("button").addEventListener("click", (e) => copy(s.text, e.target));
+  return c;
+}));
+$("#bbcode").textContent = BBCODE;
+$("#tags").append(...TAGS.map((t) => el("span", { class: "chip" }, t)));
+$("#tagtext").textContent = TAGS.join(", ");
+
+const ALTS = [["coach-waters", "Coach Waters"], ["pool-patrol", "Pool Patrol"]];
+$("#altlogos").append(...ALTS.flatMap(([id, name]) => [["#19b1f8", "on sky"], ["#092b38", "on deep pool"]].map(([bg, where]) => {
+  const d = el("div", { style: `background:${bg}` });
+  d.innerHTML = AVAIL.has(`brand/alt-${id}.png`)
+    ? `<img src="brand/alt-${id}.png" alt="${name} logo, ${where}"><span class="tag" style="background:#fff4cf;color:#022763">${name} · ${where}</span>`
+    : pending(name, "16 / 9");
+  return d;
+})));
+$("#swatches").append(...SWATCHES.map(([n, hex, use]) => {
+  const d = el("div", { class: "sw" });
+  d.innerHTML = `<div class="c" style="background:${hex}"></div><div class="t"><b>${n}</b><code>${hex}</code><br>${use}</div>`;
+  return d;
+}));
+$("#timeline").append(...TIMELINE.map(([when, h, p, who]) => {
+  const d = el("div", { class: "step" });
+  d.innerHTML = `<div class="when">${when}</div><div class="what"><h3>${h}</h3><p>${p}</p><span class="chip who">${who}</span></div>`;
+  return d;
+}));
+
+function copy(text, btn) {
+  const done = () => { const t = btn.textContent; btn.textContent = "Copied"; setTimeout(() => (btn.textContent = t), 1400); };
+  try {
+    navigator.clipboard.writeText(text).then(done, () => select(text));
+  } catch { select(text); }
+}
+function select(text) {
+  const pre = $("#bbcode");
+  const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+document.querySelectorAll("button.copy[data-copy]").forEach((b) => b.addEventListener("click", () => copy($("#" + b.dataset.copy).textContent, b)));
+</script>

@@ -1,0 +1,6 @@
+{"venue": "arena", "out": "gifs/never.jpg", "hud": false, "size": [1170, 260], "settle": 6000,
+ "setup": "s.level = Math.max(3, s.level); fill(3); return s.triggerChaos('outage');",
+ "until": "s.outage && s.outage.stage === 'dark'", "untilMs": 200000, "wait": 500, "freeze": true,
+ "after": "const PL = s.venue.pool; const c = s.coach; c.x = -PL.halfX - 1.2; c.z = 5; c.carry = 'flashlight'; s.flashlight.state = 'coach'; c.angle = Math.PI; return true;",
+ "camera": {"pos": [-16, 3.5, 6], "at": [0, 0.5, -1], "fov": 26},
+ "gif": {"dir": "gifs/never", "frames": 66, "step": 66, "every": "s.setMovement(0.1, -1); if (i % 22 === 6) w.incidentView.flash = 0.9;"}}
