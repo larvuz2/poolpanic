@@ -284,7 +284,12 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   water wades to the near edge, one on a sunbed waits there; the coach takes a **tray of three** from the bar (E at the bar, the
   BAR button or B) and hands them out (E by the guest: +30, a VIP +60, mood up); one kept waiting grows cross. Two make a guest
   **tipsy** 🥴. **The selfie at the edge** 📸 (from level 2): a guest (a tipsy one above all) wades to the infinity edge, climbs
-  up and leans out with a phone; the coach (who **can wade** in this shallow pool, at half speed, no dash, `wadeable` in
+  up and leans out with a phone (4 November 2026, the creator: "it doesn't look like a selfie"): wading there they move like
+  anyone in the water, no phone; only once they stand up on the edge does the selfie start, the **Selfie** clip (the phone in a
+  hot-pink case held out at arm's length in front of the face, its lit screen to them, the free hand on the popped hip, then
+  thrown up and out, a flash at each snap) and, past half their time, **SelfieWobble** (the knees going, the free arm
+  windmilling, the phone still up), the whole body tipping back over the drop as the time runs out (`roofPose` in
+  `dist/scene/roof-view.mjs`; the classic figure keeps its arm angles); the coach (who **can wade** in this shallow pool, at half speed, no dash, `wadeable` in
   `dist/coach.mjs`) has a few seconds to talk them down (E, +60, or +35 on the way there). Too late, and **over they go**: −150,
   waist-deep in the catch gutter, waving, and the coach must **haul them back** (E, +40) before, after 18 s, they storm out by the
   service stairs. **The DJ's drop**: every 14 to 20 bars (2 s a bar, the music's own) the set builds to a drop, announced four bars
