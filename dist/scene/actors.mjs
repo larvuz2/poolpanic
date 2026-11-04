@@ -86,7 +86,7 @@ export function character(w, p) {
     starGroup = null,
     capeGroup = null;
   if (isVip) {
-    // A golden crown and a crimson sash: you cannot miss a VIP.
+    // A golden crown: you cannot miss a VIP. (No sash since 4 November 2026, the creator's.)
     crown = new THREE.Group();
     root.add(crown);
     const gold = w.mat(0xf6c445, { roughness: 0.3, metalness: 0.5 });
@@ -96,10 +96,6 @@ export function character(w, p) {
       w.cyl(0, 0.06, 0.17, gold, Math.cos(a) * 0.19, head.position.y + 0.46, Math.sin(a) * 0.19, crown, 6);
     }
     w.ball(0.05, 0xe0513f, 0, head.position.y + 0.42, 0.26, crown);
-    sashGroup = new THREE.Group();
-    root.add(sashGroup);
-    const sash = w.box(0.13, 0.98, 0.07, 0xc23a4a, 0.05, 0.82, 0.31, 0.02, sashGroup);
-    sash.rotation.z = -0.62;
   }
   if (isDaredevil) {
     starGroup = new THREE.Group();
