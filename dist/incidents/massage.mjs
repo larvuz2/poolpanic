@@ -38,12 +38,19 @@ const T = MASSAGE_TUNING;
 // reach across: spatial.mjs.
 export const TABLE = { half: 1.0, width: 0.3, top: 0.58, stand: 0.43, obstacle: 0.1 };
 // Where the coaches stand to work, in order of preference: the front side by the back, the far side by the back, the front side
-// by the legs. `along`: metres from the middle toward the head end, `side`: +1 the front, -1 the back.
+// by the legs, the far side by the legs (a fourth, so three coaches on one side need not all walk round). `along`: metres from the middle toward the head end, `side`: +1 the front, -1 the back. The two on the front stand
+// 0.95 m apart (5 November 2026, the creator: two coaches leaning in side by side crossed over), wider than two coaches' shoulders
+// with their arms on the guest's back.
 export const SPOTS = [
-  { side: 1, along: 0.2 },
+  { side: 1, along: 0.5 },
   { side: -1, along: 0.2 },
-  { side: 1, along: -0.55 },
+  { side: 1, along: -0.45 },
+  { side: -1, along: -0.75 },
 ];
+// How a coach gets to their place: never through the table, nor through a coach already working at it (the creator, the same
+// day: one walked straight through the table and stuck in it). Round the nearer end of the table when the place is on the other
+// side, and along a lane behind the coaches working on the same side when one is in the way.
+export const APPROACH = { lane: 0.75, end: 0.5, near: 0.06 };
 
 // The table's axes: `a` along it toward the head end, `n` across it toward its front side.
 export function tableFrame(fixture) {
@@ -365,13 +372,152 @@ function spotFor(sim, m, f, i) {
       bestD = Infinity;
     SPOTS.forEach((s, k) => {
       if (taken.has(k)) return;
-      const d = distance(c, tablePoint(f, s.along, s.side * TABLE.stand)) + k * 0.3; // (the front a little preferred)
+      const d = walkTo(f, c, s) + k * 0.3; // (the front a little preferred)
       if (d < bestD) [best, bestD] = [k, d];
     });
     m.spots[i] = best;
   }
   const s = SPOTS[m.spots[i]];
   return { ...tablePoint(f, s.along, s.side * TABLE.stand), side: s.side };
+}
+
+// How far a coach walks to a place (`SPOTS` entry): straight on their own side, round the nearer end of the table to the other.
+function walkTo(f, c, s) {
+  const me = inFrame(f, c),
+    mine = Math.sign(me.across) || s.side;
+  if (mine === s.side) return Math.hypot(me.along - s.along, me.across - s.side * TABLE.stand);
+  const lane = TABLE.stand + APPROACH.lane,
+    corner = Math.sign(me.along || 1) * (TABLE.half + APPROACH.end);
+  return (
+    Math.abs(lane - Math.abs(me.across)) +
+    Math.abs(corner - me.along) +
+    2 * lane +
+    Math.abs(corner - s.along) +
+    APPROACH.lane
+  );
+}
+// A point in the table's own frame: `along` toward the head end, `across` toward the front.
+function inFrame(f, p) {
+  const { a, n } = tableFrame(f),
+    dx = p.x - f.x,
+    dz = p.z - f.z;
+  return { along: dx * a.x + dz * a.z, across: dx * n.x + dz * n.z };
+}
+// The next point on coach `i`'s way to their place (`spot`). A few ways there are tried, shortest first: straight; out to the lane
+// behind their side and along it; round either end of the table; round both (when a coach already working is in the way on a
+// side too narrow to pass behind them). A way counts if it stays on the deck, keeps a body clear of the table and passes no
+// coach already at their place. Worked out afresh every tick from where everyone is, so it needs no memory (and replays the
+// same); with no way at all, straight there, and the deck's own pushing sorts it out.
+export function stepTowards(sim, m, f, i, spot) {
+  const c = sim.coaches[i],
+    me = inFrame(f, c),
+    to = inFrame(f, spot),
+    side = Math.sign(to.across) || 1,
+    mine = Math.abs(me.across) < 0.05 ? side : Math.sign(me.across),
+    lanes = lanesOf(sim, f),
+    end = TABLE.half + APPROACH.end,
+    lane = (s) => s * lanes[s > 0 ? 1 : 0],
+    settled = m.helpers
+      .filter((j) => {
+        const s = SPOTS[m.spots[j]];
+        return j !== i && s && distance(sim.coaches[j], tablePoint(f, s.along, s.side * TABLE.stand)) < 0.08;
+      })
+      .map((j) => inFrame(f, sim.coaches[j]));
+  // (and those who pressed E before this one, still on their way: the later one walks round them)
+  for (const j of m.helpers)
+    if (m.helpers.indexOf(j) < m.helpers.indexOf(i)) settled.push(inFrame(f, sim.coaches[j]));
+  const ways = [[to], [{ along: me.along, across: lane(side) }, { along: to.along, across: lane(side) }, to]];
+  for (const e of [1, -1]) {
+    const out = { along: me.along, across: lane(mine) },
+      c1 = { along: e * end, across: lane(mine) },
+      c2 = { along: e * end, across: lane(-mine) },
+      c3 = { along: -e * end, across: lane(-mine) },
+      c4 = { along: -e * end, across: lane(mine) };
+    if (mine !== side) ways.push([c1, c2, to], [out, c1, c2, to]);
+    else ways.push([out, c1, c2, c3, c4, to], [c1, c2, c3, c4, to]);
+  }
+  // the shortest open way; failing that, one that only needs a nudge past a coach or off the deck's edge (the deck's pushing
+  // sorts those out); never one through the table: with none at all, the coach waits where they are
+  // (every way also without its first stops: a coach just past a corner carries on rather than stepping back to it)
+  for (const w of [...ways]) for (let k = 1; k < w.length; k++) ways.push(w.slice(k));
+  let best = null;
+  for (const strict of [2, 1, 0]) {
+    let bestLen = Infinity;
+    for (const w of ways) {
+      let from = me,
+        len = 0,
+        ok = true;
+      for (const q of w) {
+        if (!wayClear(sim, f, from, q, strict >= 2 ? settled : [], strict >= 1, me)) {
+          ok = false;
+          break;
+        }
+        len += Math.hypot(q.along - from.along, q.across - from.across);
+        from = q;
+      }
+      if (ok && len < bestLen) [best, bestLen] = [w, len];
+    }
+    if (best) break;
+  }
+  if (!best) return { x: c.x, z: c.z };
+  const first = best.find((q) => Math.hypot(q.along - me.along, q.across - me.across) > APPROACH.near) || to;
+  return first === to ? spot : tablePoint(f, first.along, first.across);
+}
+// How far out a coach can walk past the workers on each side of a table ([back, front]): the lane, or less where the deck ends
+// (the Sunset Lagoon's front, against the boardwalk's rail). Worked out once per table.
+const LANES = new WeakMap();
+function lanesOf(sim, f) {
+  let l = LANES.get(f);
+  if (l) return l;
+  const end = TABLE.half + APPROACH.end,
+    deck = (along, across) => sim.venue.isDeck(...Object.values(tablePoint(f, along, across)), sim.level);
+  l = [-1, 1].map((s) => {
+    for (const d of [APPROACH.lane, 0.6, 0.45, 0.3]) {
+      const off = TABLE.stand + d;
+      let ok = true;
+      for (let a = -end; a <= end + 1e-6 && ok; a += 0.25) ok = deck(a, s * off) && deck(a, s * (off + 0.15));
+      if (ok) return off;
+    }
+    return TABLE.stand + 0.3;
+  });
+  LANES.set(f, l);
+  return l;
+}
+// Whether a straight walk from `p` to `q` (in the table's frame) is open: on the deck, a body clear of the table (its top padded
+// by half a coach at the ends and a little at the sides, the places themselves just outside) and of every coach already at their
+// place (`settled`). `leaving`: the walk starts where the coach is now, which may itself be a little off (where they pressed E).
+const BODY = { ends: 0.25, sides: 0.1, apart: 0.7 };
+function wayClear(sim, f, p, q, settled, onDeck, me) {
+  const len = Math.hypot(q.along - p.along, q.across - p.across),
+    steps = Math.max(1, Math.ceil(len / 0.1)),
+    // (a coach already closer than that to a worker, or a little off the deck, may still walk away from them)
+    room = settled.map((o) =>
+      Math.min(BODY.apart, Math.hypot(o.along - me.along, o.across - me.across) - 0.02),
+    ),
+    // (only a coach already somewhere awkward, off the deck or against the table, is let off the first steps of the walk out)
+    stuck =
+      (Math.abs(me.along) < TABLE.half + BODY.ends && Math.abs(me.across) < TABLE.width + BODY.sides) ||
+      !sim.venue.isDeck(...Object.values(tablePoint(f, me.along, me.across)), sim.level),
+    near = (along, across) => stuck && Math.hypot(along - me.along, across - me.across) < 0.3;
+  for (let k = 0; k <= steps; k++) {
+    const t = k / steps,
+      along = p.along + (q.along - p.along) * t,
+      across = p.across + (q.across - p.across) * t;
+    if (
+      Math.abs(along) < TABLE.half + BODY.ends &&
+      Math.abs(across) < TABLE.width + BODY.sides &&
+      !near(along, across)
+    )
+      return false;
+    if (settled.some((o, k) => Math.hypot(o.along - along, o.across - across) < room[k])) return false;
+    if (
+      onDeck &&
+      !near(along, across) &&
+      !sim.venue.isDeck(...Object.values(tablePoint(f, along, across)), sim.level)
+    )
+      return false;
+  }
+  return true;
 }
 
 // A coach presses E at the table (run as that coach: the actor). With the key down: they massage while it is held. Clicked or
@@ -397,7 +543,13 @@ function work(sim, m, p, f, dt) {
     if (!c) return false;
     const moving = !!(c.input?.x || c.input?.z),
       holding = c.holding || (c.massageLatched && !moving),
-      on = c.massaging && holding && inReach(sim, f, c) && playing;
+      // (on their way to their place, round the table, a coach may be a little further off than an arm's reach)
+      onWay =
+        m.spots[i] !== undefined &&
+        !c.swimming &&
+        !c.waterTransition &&
+        fromTable(f, c) <= T.reach + APPROACH.lane,
+      on = c.massaging && holding && (inReach(sim, f, c) || onWay) && playing;
     if (!on) {
       c.massaging = c.massageLatched = false;
       delete m.spots[i];
@@ -408,11 +560,12 @@ function work(sim, m, p, f, dt) {
     for (const i of m.helpers) {
       const c = sim.coaches[i],
         spot = spotFor(sim, m, f, i),
-        d = distance(c, spot),
+        goal = stepTowards(sim, m, f, i, spot),
+        d = distance(c, goal),
         step = Math.min(d, T.glide * dt);
       if (d > 1e-4) {
-        c.x += ((spot.x - c.x) / d) * step;
-        c.z += ((spot.z - c.z) / d) * step;
+        c.x += ((goal.x - c.x) / d) * step;
+        c.z += ((goal.z - c.z) / d) * step;
       }
       c.vx = c.vz = 0;
       const { n } = tableFrame(f);

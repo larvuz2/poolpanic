@@ -602,7 +602,7 @@ for i in range(nx + 1):
 for i in range(nx):
     for j in range(nz):
         a = i * (nz + 1) + j
-        gf.append([a, a + nz + 1, a + nz + 2, a + 1])
+        gf.append([a, a + 1, a + nz + 2, a + nz + 1])  # (facing the sky: built facing down until 5 November 2026)
 sand = mesh_from("Beach", gv, gf, M["sand"])
 for p in sand.data.polygons:
     p.use_smooth = True

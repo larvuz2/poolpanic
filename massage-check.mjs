@@ -12,6 +12,8 @@ import {
   tablePoint,
   tableApproach,
   tableRoute,
+  tableFrame,
+  tablesOf,
 } from "./dist/incidents/massage.mjs";
 import { STINGS, SAVES } from "./dist/moments.mjs";
 import { directShift, stream, INCIDENT_ORDER, INCIDENTS, VENUE_INCIDENTS } from "./dist/week.mjs";
@@ -320,6 +322,105 @@ function toTable(s, i = 0, across = 1) {
   assert.equal(run(), run(), "deterministic");
 }
 
+// ---------------------------------------------------------------------------------------------------------
+// The walk to the table (5 November 2026, the creator: a coach stood in the table, and two leaning in side by side crossed over).
+// At every venue with a table and the Jumping Pool's beds, crews of two and three pressing E from either side or the ends: no coach
+// ever walks through the table, nor off the deck; each ends at a place of their own, every two at least 0.85 m apart.
+{
+  const times = T.times;
+  T.times = [60, 60, 60]; // (long sessions, so every coach gets all the way to their place)
+  const frame = (f, c) => {
+    const { a, n } = tableFrame(f),
+      dx = c.x - f.x,
+      dz = c.z - f.z;
+    return { along: dx * a.x + dz * a.z, across: dx * n.x + dz * n.z };
+  };
+  const places = (f) => SPOTS.map((k) => tablePoint(f, k.along, k.side * TABLE.stand));
+  let runs = 0;
+  for (const venue of Object.keys(VENUES).filter((v) => tablesOf(VENUES[v]).length))
+    for (const crew of [
+      ["waters", "rivers", "storm"],
+      ["brooks", "marsh"],
+    ])
+      for (const start of [
+        [
+          [-0.6, -1],
+          [0, -1],
+          [0.6, -1],
+        ],
+        [
+          [-0.6, 1],
+          [0, 1],
+          [0.6, 1],
+        ],
+        [
+          [1.6, 0],
+          [-1.6, 0],
+          [1.6, 0.6],
+        ],
+        [
+          [0.9, -1],
+          [-0.9, 1],
+          [0, -1],
+        ],
+      ]) {
+        const s = new PoolSimulation(4, 5, { crew, venue });
+        s.chaosPlan = [];
+        s.start();
+        tick(s, 600);
+        assert.ok(s.triggerChaos("massage"), venue + ": the massage starts");
+        for (let k = 0; k < 3600 && !s.massages.some((m) => m.stage === "lying"); k++) {
+          assignAll(s);
+          tick(s);
+        }
+        const m = s.massages.find((m) => m.stage === "lying");
+        assert.ok(m, venue + ": a guest lies down");
+        const f = tablesOf(s.venue)[m.table];
+        s.coaches.forEach((c, i) => {
+          const [along, side] = start[i];
+          Object.assign(c, tablePoint(f, along, side * (TABLE.stand + 0.55)), { vx: 0, vz: 0 });
+        });
+        for (let i = 0; i < s.coaches.length; i++)
+          s.as(i, () => {
+            s.setHold(true);
+            const offers = [];
+            Massage.interactions(s, offers);
+            offers.find((o) => o.kind === "massage")?.run();
+          });
+        for (let k = 0; k < 360; k++) {
+          tick(s);
+          for (const c of s.coaches) {
+            const q = frame(f, c);
+            assert.ok(
+              !(Math.abs(q.along) < TABLE.half + 0.15 && Math.abs(q.across) < TABLE.width + 0.05),
+              `${venue}: a coach walked into the table (${q.along.toFixed(2)}, ${q.across.toFixed(2)})`,
+            );
+            if (k > 20)
+              assert.ok(s.venue.isDeck(c.x, c.z, s.level, 0), `${venue}: a coach walked off the deck`);
+          }
+        }
+        assert.ok(
+          s.coaches.every((c) => c.massaging),
+          venue + ": every coach still on the job",
+        );
+        const spots = places(f);
+        for (const c of s.coaches)
+          assert.ok(
+            spots.some((q) => dist(q, c) < 0.02),
+            `${venue}: ${crew.join("+")} a coach got to a place at the table`,
+          );
+        for (let i = 0; i < s.coaches.length; i++)
+          for (let j = i + 1; j < s.coaches.length; j++)
+            assert.ok(
+              dist(s.coaches[i], s.coaches[j]) >= 0.85,
+              `${venue}: two coaches too close at the table`,
+            );
+        runs++;
+      }
+  T.times = times;
+  assert.ok(runs >= 40, "every table, crew and start was walked");
+}
+
 console.log(
-  "Massage checks passed: a table at four venues (the Sunset Lagoon, the Aquatic Centre, Senior Aqua Fit, the Grand Gala Arena) and two beds at the Jumping Pool where nothing else is, the director drawing it only there (about a shift in three), the next swimmer out lying down on it, the patience running only while nobody is on it, hold E to fill the wheel (8 s, 5 for two, 3 for three, each coach at a place of their own, their faces on the wheel), the bliss and its points, the storm-off and its cost, no table no massage, no child, the same twice.",
+  "Massage checks passed: a table at four venues (the Sunset Lagoon, the Aquatic Centre, Senior Aqua Fit, the Grand Gala Arena) and two beds at the Jumping Pool where nothing else is, the director drawing it only there (about a shift in three), the next swimmer out lying down on it, the patience running only while nobody is on it, hold E to fill the wheel (8 s, 5 for two, 3 for three, each coach at a place of their own, walked to round the table and never through it or a coach, every two 0.85 m apart, their faces on the wheel), the bliss and its points, the storm-off and its cost, no table no massage, no child, the same twice.",
 );

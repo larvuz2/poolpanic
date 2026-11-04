@@ -13,7 +13,7 @@ import { PoolWorld } from "./dist/scene.mjs";
 import { PoolSimulation } from "./dist/sim.mjs";
 import { VENUES } from "./dist/spatial.mjs";
 import { dayLook } from "./dist/scene/daylight.mjs";
-import { primeLagoonClub, lagoonClubReady, lagoonClubPictures } from "./dist/scene/lagoonclub.mjs";
+import { primeLagoonClub, lagoonClubReady, lagoonClubPictures, faceUp } from "./dist/scene/lagoonclub.mjs";
 import { hourLamps } from "./dist/scene/dressed.mjs";
 
 const runtime = process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES;
@@ -86,6 +86,34 @@ gltf.scene.traverse((o) => {
   }
 });
 assert.ok(triangles < 200000, `${triangles} triangles (budget 200k)`);
+// The beach faces the sky (5 November 2026: built facing down, it was drawn only from below and the deck saw the sky's cream through
+// it): the game turns it, and every triangle then faces up.
+{
+  const beach = gltf.scene.getObjectByName("S_tile_sand");
+  assert.ok(beach, "the beach is its own mesh");
+  const beachUp = (m) => {
+    const p = m.geometry.attributes.position,
+      i = m.geometry.index,
+      a = new THREE.Vector3(),
+      b = new THREE.Vector3(),
+      c = new THREE.Vector3();
+    let up = 0;
+    for (let t = 0; t < i.count; t += 3) {
+      a.fromBufferAttribute(p, i.getX(t));
+      b.fromBufferAttribute(p, i.getX(t + 1));
+      c.fromBufferAttribute(p, i.getX(t + 2));
+      if (b.sub(a).cross(c.sub(a)).y > 0) up++;
+    }
+    return up / (i.count / 3);
+  };
+  faceUp(beach);
+  assert.ok(beachUp(beach) > 0.99, "every triangle of the beach faces the sky");
+  let ny = 0;
+  const n = beach.geometry.attributes.normal;
+  for (let k = 0; k < n.count; k++) ny += n.getY(k);
+  assert.ok(ny / n.count > 0.9, "and so do its normals");
+  assert.equal(faceUp(beach), false, "turned once only");
+}
 for (const name of ["Door_A", "Door_B", "Fins_1", "Fins_2", "Fins_3"])
   assert.ok(gltf.scene.getObjectByName(name), name + " is its own node");
 assert.equal(info.anchors.LifeRing.length, 3, "a board for each of the three rings");
@@ -191,5 +219,5 @@ assert.ok(
 assert.ok(classes.size <= 30, classes.size + " material classes");
 
 console.log(
-  `Sunset Lagoon checks passed: the model (${(glbBytes / 1e6).toFixed(1)} MB, ${Math.round(triangles / 1000)}k triangles, ${classes.size} materials, ${kinds.Torch} torches, ${kinds.Paper} lanterns, a bonfire) and its pictures (${(pictureBytes / 1e6).toFixed(2)} MB); the classic lagoon till it is in; the same hit boxes and labels; the fins, rings and doors at work; lamps and horizon following the hour, the storm and the power; ${drawn(world)} draw calls against ${drawn(classic)}.`,
+  `Sunset Lagoon checks passed: the model (${(glbBytes / 1e6).toFixed(1)} MB, ${Math.round(triangles / 1000)}k triangles, ${classes.size} materials, ${kinds.Torch} torches, ${kinds.Paper} lanterns, a bonfire) and its pictures (${(pictureBytes / 1e6).toFixed(2)} MB); the beach facing the sky; the classic lagoon till it is in; the same hit boxes and labels; the fins, rings and doors at work; lamps and horizon following the hour, the storm and the power; ${drawn(world)} draw calls against ${drawn(classic)}.`,
 );
