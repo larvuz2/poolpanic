@@ -1108,7 +1108,10 @@ only, its assets made by `tools/venues/lagoon/` with the shared kit. A Polynesia
   the game's treats, a thatched roof with its fringe, bottles, tiki mugs, pineapples, coconuts, the chalk menu); a palapa over the
   loungers, cocktails in coconuts; the floor plan's three deck palms growing through openings in the boardwalk. The massage table's
   spot is kept clear.
-- **The beach**: wide steps down from the open end to the sand (no lawn: sand with low dunes, beach grass, sea-grape bushes); palms
+- **The beach**: wide steps down from the open end to the sand (no lawn: sand with low dunes, beach grass, sea-grape bushes;
+  since 5 November 2026 its sand has ripples you can see, damp hollows, shells, pebbles and seaweed, and it faces the sky: it was
+  built facing down, so from the deck the sky's own cream showed through it, "plain white", the creator; `faceUp` in
+  lagoonclub.mjs turns a model built before then, and the pool's caustics stay in the pool's box, off the beach and the hedges); palms
   and sea-almond trees all round, rising over the thatch; a signpost of painted arrows, torches along the path, a sandcastle, a
   bonfire with log seats (`Light_Bonfire`), a volleyball court, a rowboat and an outrigger canoe drawn up, the surf school's shack
   with its boards, kayaks and striped umbrellas on the sea side; a painted tropical coast (palm groves, bungalows on stilts, volcanic
@@ -2036,8 +2039,15 @@ cutting salad animation!! … add this massage table in some venues !! not all!!
 - **The recovery.** A coach in reach of the table (within 0.95 m of its edge) holds E until the wheel fills: **8 seconds alone, 5
   with two coaches, 3 with three**, Karen's times and Karen's wheel (`dist/teamwork.mjs`: each coach on it fills it faster, their
   faces on it, a second ring and a pop as each joins, "ba-dum!"). Each coach steps to **a place of their own at the table** (`SPOTS`:
-  the front side by the back, facing the camera; the far side; the front by the legs; the free one nearest them when they join),
-  faces across it and works the back with both hands in turn: the **Massage** clip (below). Let go or step away and the wheel
+  the front side by the back, facing the camera; the far side by the back; the front by the legs; the far side by the legs; the one
+  nearest them by the walk when they join), faces across it and works the back with both hands in turn: the **Massage** clip (below).
+  **Never through the table, never through a coach** (5 November 2026, the creator: Coach Storm stood in the table in a picture, and
+  two coaches leaning in side by side crossed over): the two places on a side are 0.95 m apart, wider than two coaches' shoulders
+  with their arms on the guest; a coach walks there by the shortest open way (`stepTowards`: straight, out to a lane behind their
+  side and along it, round one end of the table or round both), one that stays on the deck, keeps a body clear of the table and
+  passes no coach already at their place, the one who pressed E first having the right of way; the lanes are as wide as the deck
+  allows (`lanesOf`: the Sunset Lagoon's front strip is narrow, against its rail). Worked out afresh each tick from where everyone
+  is, so it replays the same and co-op stays in step. Let go or step away and the wheel
   drains in 1.6 s; the patience then runs again. Relaxed: +120 (+80 more for a VIP), the BLISS! stamp, a sigh and a chime, sparkles,
   and they float off home.
 - **The comic failure.** Patience gone: up off the table in a huff and off home, **−100** (−200 for a VIP), 60 happiness gone, the
@@ -2058,7 +2068,9 @@ cutting salad animation!! … add this massage table in some venues !! not all!!
   walk there from both ends of the pool on the deck; the director (only there, about one shift in three, never a surprise); the whole
   of it with one coach (the sting, the loud alert, the patience a second a second and held while a coach is on it, the wheel's pace,
   the coach's place, the drain, the bliss and its points, home); the storm-off and a VIP's cost; two and three coaches (5 s, 3 s,
-  each at a place of their own, their faces); no table no massage, no child; the same twice. The coach bot (`check-bot.mjs`) goes to
+  each at a place of their own, their faces); the walk to the table at every venue that has one, crews of two and three pressing E
+  from either side or the ends: never into the table, never off the deck, each at their own place, every two at least 0.85 m apart;
+  no table no massage, no child; the same twice. The coach bot (`check-bot.mjs`) goes to
   the table and holds E. Seen in Chromium with software drawing (the table, a guest lying on it, a coach massaging: pictures sent to
   the creator); not yet on the creator's machines.
 

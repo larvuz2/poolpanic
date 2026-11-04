@@ -112,28 +112,40 @@ def weave(size=512):
     tile_set("weave", col, height, 3.0)
 
 
-# ---- beach sand: fine grain, soft wind ripples, a few shells and darker damp patches ------------------------------------------
+# ---- beach sand: grain you can see, wind ripples with shadowed troughs, dry and damp patches, shells, pebbles and bits of
+# seaweed (5 November 2026, the creator: from the deck the beach "looks like plain white"; the first one varied by a few percent)
 def sand(size=1024):
     ys, xs = np.mgrid[0:size, 0:size].astype(np.float32) / size
     grain = noise(size, 512, 641, 1)
-    grain2 = noise(size, 128, 642, 2)
+    grain2 = noise(size, 160, 642, 2)
     warp = noise(size, 4, 643, 3)
-    ripple = np.sin((ys * 22 + warp * 3.0 + xs * 2) * math.pi * 2) * 0.5 + 0.5
-    ripple = ripple ** 1.5
+    # ripples: a sharp crest and a long shadowed lee side, bending with the wind
+    phase = (ys * 18 + warp * 3.5 + xs * 2.5) % 1.0
+    ripple = np.where(phase < 0.7, phase / 0.7, (1 - phase) / 0.3)
+    ripple = ripple**1.6
     patch = noise(size, 3, 644, 4)
-    base = hexrgb("#ead0a0")
-    col = base * (0.92 + 0.08 * grain[..., None] + 0.05 * grain2[..., None])
-    col = col * (0.95 + 0.07 * ripple[..., None])
-    damp = np.clip((patch - 0.62) / 0.2, 0, 1)
-    col = col * (1 - 0.12 * damp[..., None])
-    # shells and pebbles: small bright flecks, a few darker
-    fl = noise(size, 256, 645, 1)
-    shell = np.clip((fl - 0.86) / 0.04, 0, 1) * (noise(size, 32, 646, 2) > 0.55)
-    col = col * (1 - shell[..., None]) + hexrgb("#fbf3e6") * shell[..., None]
-    peb = np.clip((noise(size, 192, 647, 1) - 0.88) / 0.04, 0, 1) * (noise(size, 16, 648, 2) > 0.6)
-    col = col * (1 - 0.5 * peb[..., None]) + hexrgb("#9a8a72") * 0.5 * peb[..., None]
-    height = ripple * 0.6 + grain * 0.25 + shell * 0.3 + peb * 0.3
-    tile_set("sand", col, height, 2.0)
+    tone = noise(size, 6, 649, 3)
+    dry, mid, damp_c = hexrgb("#efd9ad"), hexrgb("#dcbd86"), hexrgb("#b8996a")
+    t = np.clip(tone * 1.4 - 0.2, 0, 1)[..., None]
+    base = dry * (1 - t) + mid * t
+    col = base * (0.8 + 0.2 * grain[..., None] + 0.08 * grain2[..., None])
+    col = col * (0.84 + 0.2 * ripple[..., None])
+    # the damp hollows: darker, a little smoother
+    damp = np.clip((patch - 0.58) / 0.16, 0, 1)[..., None]
+    col = col * (1 - damp * 0.35) + damp_c * damp * 0.35
+    # dark grains (a speckle of mineral sand)
+    speck = np.clip((noise(size, 384, 650, 1) - 0.8) / 0.08, 0, 1)
+    col = col * (1 - 0.35 * speck[..., None]) + hexrgb("#7d6a52") * 0.35 * speck[..., None]
+    # shells: bright flecks; pebbles: grey-brown; seaweed: dark green-brown curls
+    fl = noise(size, 200, 645, 1)
+    shell = np.clip((fl - 0.83) / 0.04, 0, 1) * (noise(size, 24, 646, 2) > 0.5)
+    col = col * (1 - shell[..., None]) + hexrgb("#fdf6ea") * shell[..., None]
+    peb = np.clip((noise(size, 150, 647, 1) - 0.85) / 0.04, 0, 1) * (noise(size, 14, 648, 2) > 0.55)
+    col = col * (1 - 0.75 * peb[..., None]) + hexrgb("#8f8270") * 0.75 * peb[..., None]
+    weed = np.clip((noise(size, 90, 651, 2) - 0.86) / 0.03, 0, 1) * (noise(size, 6, 652, 2) > 0.62)
+    col = col * (1 - 0.7 * weed[..., None]) + hexrgb("#4f4a2c") * 0.7 * weed[..., None]
+    height = ripple * 0.75 + grain * 0.3 + shell * 0.35 + peb * 0.5 + weed * 0.2 - damp[..., 0] * 0.15
+    tile_set("sand", col, height, 3.2)
 
 
 # ---- teak: oiled boards along x, 1 m a repeat (Splash Park's) ---------------------------------------------------------------------

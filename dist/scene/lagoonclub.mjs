@@ -64,8 +64,36 @@ export function buildLagoonClub(w, venue) {
       ropes: [0xfff1d6, 0x2aa7a0, 0xee6a4a],
     },
   );
-  const root = dressModel(w, L, { look: w.look, name: "lagoonclub", deckSet: "boardwalk", hour: true });
+  // (the caustics stay in the pool's box: the beach and the hedges lie below the water's level too, 5 November 2026)
+  const P = venue.pool,
+    box = [-P.halfX - 0.05, P.halfX + 0.05, -P.halfZ - 0.05, P.halfZ + 0.05];
+  const root = dressModel(w, L, {
+    look: w.look,
+    name: "lagoonclub",
+    deckSet: "boardwalk",
+    hour: true,
+    caustics: box,
+  });
+  faceUp(root.getObjectByName("S_tile_sand"));
   liveParts(w, venue, root, info);
+}
+
+// The beach was built facing down (5 November 2026: the creator saw "plain white" past the rail, the sky's own colour through a
+// beach drawn only from below): turned to face the sky, its triangles' order and its normals, if it still faces down
+// (tools/venues/lagoon/shell.py builds it facing up since).
+export function faceUp(mesh) {
+  const g = mesh?.geometry,
+    n = g?.attributes.normal;
+  if (!g || !n || !g.index) return false;
+  let y = 0;
+  for (let i = 0; i < n.count; i++) y += n.getY(i);
+  if (y >= 0) return false;
+  const idx = g.index.array;
+  for (let t = 0; t < idx.length; t += 3) [idx[t + 1], idx[t + 2]] = [idx[t + 2], idx[t + 1]];
+  g.index.needsUpdate = true;
+  for (let i = 0; i < n.count; i++) n.setXYZ(i, -n.getX(i), -n.getY(i), -n.getZ(i));
+  n.needsUpdate = true;
+  return true;
 }
 
 // What the game moves or asks for (as Splash Park's: the same floor plan): the stations' hit boxes and labels, the rings, the
