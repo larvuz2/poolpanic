@@ -15,7 +15,7 @@ F = {
     "macaw1": "models/macaw-scarlet.glb", "macaw2": "models/macaw-bluegold.glb", "granny": "seniors/senior-granny.glb",
     "grandpa": "seniors/senior-grandpa.glb", "tallgran": "seniors/senior-tallgran.glb", "stout": "seniors/senior-stout.glb",
     "boy": "swimmer-boy.glb", "tallman": "swimmer-tall-man.glb", "woman": "swimmer-woman.glb",
-    "heavy": "swimmer-heavy-man.glb", "tallwoman": "swimmer-tall-woman.glb",
+    "heavy": "swimmer-heavy-man.glb", "tallwoman": "swimmer-tall-woman.glb", "fish": "fish.glb",
 }
 
 # Where everyone stands (local x to the camera's right, z toward the camera), the same in every poster.
@@ -33,14 +33,19 @@ SPOT = {
 }
 
 
-def cast(poses, squeeze=1.0):
+def cast(poses, squeeze=1.0, spots=None):
     out = []
     for cid, pose in poses.items():
-        x, z = SPOT[cid]
+        tier = 0
+        if spots:
+            x, z, tier = spots[cid]
+        else:
+            x, z = SPOT[cid]
         x *= squeeze
         c = {"id": cid, "f": F[cid], "x": x, "z": z}
         c.update(pose)
         c["x"] += c.pop("dx", 0); c["z"] += c.pop("dz", 0)
+        c["y"] = c.get("y", 0) + tier
         out.append(c)
     return out
 
@@ -154,10 +159,79 @@ for base, pose, venue in [("gala-party", HAPPY, "arena"), ("harbour-chaos", CHAO
     ])
 
 
+# The stacked posters (the cast on rising rows like bleachers, no venue, a gradient behind): one mood for all, the coaches in
+# trouble round a happy Marina, Karen shouting, Marco cross, Carl mid-cannonball over them, the fish leaping from the bucket.
+STACK = {
+    "waters": dict(clip="FreakOut", t=0.4, face="panic"),
+    "marina": dict(clip="Panic", t=0.35, turn=-0.3),
+    "leopard": dict(clip="Panic", t=0.3, turn=0.25),
+    "dog": dict(clip="Leap", t=0.5, turn=0.5),
+    "kid": dict(clip="CarryIdle", t=0.2, turn=-0.35),
+    "fish": dict(s=0.62, ground=False, y=0, rx=-0.5, rz=0.6, turn=-1.9),
+    "monkey": dict(clip="MonkeyHop", t=0.4, turn=-0.6),
+    "karen": dict(clip="Complain", t=0.4, turn=0.75),
+    "rivers": dict(clip="Startle", t=0.35, face="alarm", turn=0.2),
+    "storm": dict(clip="FreakOut", t=0.75, face="panic", turn=0.15),
+    "marco": dict(clip="WaitWatch", t=0.5, turn=-0.1),
+    "brooks": dict(clip="Startle", t=0.5, face="alarm", turn=-0.2),
+    "fontaine": dict(clip="IceSlide", t=0.45, face="dizzy", turn=-0.25),
+    "marsh": dict(clip="FreakOut", t=0.1, face="panic", turn=-0.3),
+    "granny": dict(clip="Sit", t=0.2, chair=True, turn=0.35),
+    "valentina": dict(clip="DanceBoth", t=0.15, turn=0.25),
+    "tallman": dict(clip="Panic", t=0.15, turn=0.15),
+    "woman": D("DanceLeft", 0.35, turn=0.1),
+    "heavy": dict(clip="Panic", t=0.6, turn=-0.1),
+    "dj": dict(clip="DanceLeft", t=0.8, turn=-0.2),
+    "bartender": dict(clip="Shake", t=0.3, turn=-0.3),
+    "stout": D("DanceRight", 0.6, turn=-0.4),
+    "judge": dict(clip="IdleScan", src=SW, t=0.5, turn=0.25),
+    "tallwoman": D("DanceRight", 0.55, turn=0.15),
+    "grandpa": D("DanceBoth", 0.9),
+    "boy": dict(clip="Panic", t=0.7),
+    "tallgran": D("DanceLeft", 0.15, turn=-0.15),
+    "starter": dict(clip="IdleScan", src=SW, t=0.1, turn=-0.25),
+    "carl": dict(clip="Cannonball", t=0.55, ground=False, y=2.75),
+    "macaw1": dict(clip="Fly", t=0.3, y=3.2, ground=False, turn=1.2),
+    "macaw2": dict(clip="Fly", t=0.7, y=3.35, ground=False, turn=-1.4),
+}
+# A: tidy bleachers, four rows rising 0.5 m each, Carl over the top
+BLEACH = {
+    "karen": (-2.5, 1.65, 0), "leopard": (-1.5, 1.6, 0), "waters": (-0.42, 1.75, 0), "marina": (0.5, 1.7, 0),
+    "kid": (1.45, 1.6, 0), "fish": (1.62, 1.95, 1.05), "dog": (2.45, 1.65, 0), "monkey": (0.98, 2.35, 0),
+    "granny": (-2.95, 0.9, 0.5), "rivers": (-1.98, 0.95, 0.5), "storm": (-1.0, 0.95, 0.5), "marco": (0.02, 0.95, 0.5),
+    "brooks": (0.98, 0.95, 0.5), "fontaine": (1.95, 0.95, 0.5), "marsh": (2.9, 0.9, 0.5),
+    "valentina": (-3.15, 0.2, 1.0), "tallman": (-2.25, 0.2, 1.0), "woman": (-1.35, 0.2, 1.0), "heavy": (-0.45, 0.2, 1.0),
+    "dj": (0.45, 0.2, 1.0), "bartender": (1.35, 0.2, 1.0), "stout": (2.25, 0.2, 1.0), "tallwoman": (3.15, 0.2, 1.0),
+    "judge": (-2.5, -0.5, 1.5), "grandpa": (-1.5, -0.5, 1.5), "boy": (-0.5, -0.5, 1.5), "tallgran": (0.5, -0.5, 1.5),
+    "starter": (1.5, -0.5, 1.5), "carl": (-0.55, -0.9, -0.2), "macaw1": (-3.1, -0.6, -0.3), "macaw2": (3.15, -0.6, -0.4),
+}
+# B: a pyramid rising to Carl at the top, Karen in front shouting at Waters
+MOUND = {
+    "karen": (-2.4, 2.35, 0), "leopard": (-1.42, 2.3, 0), "waters": (-0.4, 2.45, 0), "marina": (0.45, 2.4, 0),
+    "kid": (1.4, 2.3, 0), "fish": (1.58, 2.6, 1.05), "dog": (2.35, 2.3, 0), "monkey": (0.95, 3.0, 0),
+    "granny": (-2.7, 1.6, 0.5), "rivers": (-1.8, 1.65, 0.5), "storm": (-0.9, 1.65, 0.5), "marco": (0.0, 1.65, 0.5),
+    "brooks": (0.9, 1.65, 0.5), "fontaine": (1.8, 1.65, 0.5), "marsh": (2.7, 1.6, 0.5),
+    "valentina": (-2.25, 0.95, 1.0), "tallman": (-1.35, 0.95, 1.0), "woman": (-0.45, 0.95, 1.0), "heavy": (0.45, 0.95, 1.0),
+    "dj": (1.35, 0.95, 1.0), "bartender": (2.25, 0.95, 1.0),
+    "judge": (-1.8, 0.25, 1.5), "tallwoman": (-0.9, 0.25, 1.5), "boy": (0.0, 0.25, 1.5), "stout": (0.9, 0.25, 1.5),
+    "starter": (1.8, 0.25, 1.5),
+    "grandpa": (-0.5, -0.45, 2.0), "tallgran": (0.5, -0.45, 2.0),
+    "carl": (0.05, -0.85, 0.75), "macaw1": (-2.4, -0.4, 0.2), "macaw2": (2.5, -0.4, 0.1),
+}
+VARIANTS["stack-a"] = dict(venue="club", C=[0, -11.6], A=0, poses=STACK, spots=BLEACH, studio={"bg": "linear"}, cams=[
+    {"pos": [0, 2.3, 1.2], "at": [0, 1.85, -11.6], "fov": 23},
+    {"pos": [0, 3.2, 1.6], "at": [0, 1.75, -11.6], "fov": 23.5},
+])
+VARIANTS["stack-b"] = dict(venue="club", C=[0, -11.6], A=0, poses=STACK, spots=MOUND, studio={"bg": "radial"}, cams=[
+    {"pos": [0, 2.6, 1.5], "at": [0, 2.1, -11.6], "fov": 25.5},
+    {"pos": [0, 1.9, 0.6], "at": [0, 2.25, -11.6], "fov": 27.5},
+])
+
+
 def write(name):
     v = VARIANTS[name]
-    after = "const CAST = %s; const C = %s; const A = %s; const CLEAR = %s; const CUT = %s; const FLOOR = 0;\n%s" % (
-        json.dumps(cast(v["poses"], v.get("squeeze", 1.0))), json.dumps(v["C"]), v["A"], json.dumps(v.get("clear", [])), json.dumps(v.get("cut")), LIB)
+    after = "const CAST = %s; const C = %s; const A = %s; const CLEAR = %s; const CUT = %s; const FLOOR = 0; const STUDIO = %s;\n%s" % (
+        json.dumps(cast(v["poses"], v.get("squeeze", 1.0), v.get("spots"))), json.dumps(v["C"]), v["A"], json.dumps(v.get("clear", [])), json.dumps(v.get("cut")), json.dumps(v.get("studio")), LIB)
     shot = {"venue": v["venue"], "out": "poster/out/%s.jpg" % name, "hud": False, "freeze": True,
             "settle": v.get("settle", 6000), "routes": {"/poster/marina.glb": MARINA}, "after": after,
             "cameras": v["cams"], "render": 3000, "size": v.get("size", [1920, 1080])}

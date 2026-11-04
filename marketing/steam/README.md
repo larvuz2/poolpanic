@@ -12,7 +12,7 @@ creator: "we'll do that later").
 | `caps/` | Five capsule proposals, each as `-main` (1232×706), `-header` (920×430), `-small` (462×174), and the small one at 184×69 and 120×45 to judge legibility | Store Presence > Graphical Assets; only art, the title and an official subtitle on a capsule |
 | `shots/` | Nineteen screenshots (`01`–`21`, numbered as they were made, no `08` or `12`; the order to upload is below), 1920×1080, no interface | 16:9, ≥ 1920×1080, gameplay only, at least 4 marked all ages (all are) |
 | `clips/` | Ten About-section clips, 1170×260 (the dive 1170×300), as GIF and MP4 | ≤ 5 MB each, ≤ 15 MB for the page, ≤ 12 s; GIFs become looping video |
-| `posters/` | Three posters of the whole cast (the party at the Grand Gala Arena, the chaos at the Harbourside, both at once at Splash Park), each as `-hero` and `-group` (1920×1080) and `-portrait` (1440×1800, 4:5 for social posts); `marina-design.jpg` | Marketing, not the screenshot slots (Steam wants gameplay there) |
+| `posters/` | Three posters of the whole cast (the party at the Grand Gala Arena, the chaos at the Harbourside, both at once at Splash Park), each as `-hero` and `-group` (1920×1080) and `-portrait` (1440×1800, 4:5 for social posts); the cast stacked on a gradient in three options (`stack-1` the bleachers, `stack-2` the pyramid, `stack-3a`/`3b` the two through GPT Image 2.5; `-clean` without the comic marks); `marina-design.jpg` | Marketing, not the screenshot slots (Steam wants gameplay there) |
 | `store/` | `short.txt` (three short descriptions, ≤ 300 characters), `about.bbcode` (the About section, ready to paste), `tags.txt` (20 tags) | |
 | `brand/` | The logo as the game ships it, and two alternate-name logos in its style (`alt-coach-waters.png`, `alt-pool-patrol.png`), references only: the game is still Pool Panic | |
 | `tools/` | How every picture was made, to make more: `photo.cjs` (stage a moment in the real game and photograph it, or film it frame by frame), `shots/*.json` and `gifs/*.json` (one file a moment), `mk.sh` (frames to GIF/MP4/WEBM), `compose.py` + `concepts.json` (capsule art + the real logo at Steam's sizes), `queue.sh` (two renders at a time), `poster/` (the cast posters: `make.py`, `poster-lib.js`, Marina's model) | |
@@ -57,6 +57,15 @@ one again, from `tools/` with the game served: `python3 poster/make.py gala-part
 `splash-mixed`, and `-p` for the portrait), then `POOL_URL=http://localhost:8000 node photo.cjs
 poster/shots/gala-party.json`. Each writes a picture per camera; the picks are camera 0 (group), 2 (hero) and the
 portraits' 0, 1, 0.
+
+**Stacked on a gradient** (`stack-a`, `stack-b` in `make.py`): no venue at all. `STUDIO` puts the cast and three
+lights of its own (a hemisphere, a key with shadows, a fill and a rim) on layer 1, which is all the camera sees, and
+paints a gradient behind them (vertical, or a glow from the middle: `bg`). Each character stands on its row's height
+(`BLEACH`, `MOUND`: x, z and the row's height), a long lens stacking the rows. Karen's shout, Marco's anger mark and
+Waters' sweat are drawn on top by `poster/overlay.cjs` (the heads' places from `poster/project.py`, which projects the
+scene's points with the poster's camera), in Barlow Condensed 900, Panic Yellow and Lifeguard Navy. Option 3 is options
+1 and 2 through GPT Image 2.5 (`openai/gpt-image-2.5/flare/edit`, `poster/refine-prompt.json`): the same picture, only
+the textures and light refined in the same style; checked by eye that nobody moved and the coaches kept no mouths.
 
 **Marina** had no model (she only appears in pictures, never on the deck): her design is GPT Image 2.5 from her story
 picture and Coach Rivers' rest pose as references (`tools/poster/marina-design.png`, no mouth like the coaches), made

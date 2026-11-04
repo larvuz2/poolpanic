@@ -150,6 +150,8 @@ for (const c of CAST) {
   holder.position.set(x, 0, z);
   holder.rotation.y = A + (c.turn || 0);
   if (c.s) holder.scale.setScalar(c.s);
+  if (c.rx) model.rotation.x = c.rx;
+  if (c.rz) model.rotation.z = c.rz;
   // the pose
   const src = c.src ? await load(c.src) : g;
   const clip = src.animations.find((a) => a.name === c.clip) || g.animations.find((a) => a.name === c.clip);
@@ -186,13 +188,53 @@ for (const c of CAST) {
     const outer = new THREE.Group();
     outer.add(inner);
     const ang = A + (c.turn || 0);
-    outer.position.set(x - Math.sin(ang) * 0.16, fy, z - Math.cos(ang) * 0.16);
+    outer.position.set(x - Math.sin(ang) * 0.16, fy + (c.y || 0), z - Math.cos(ang) * 0.16);
     outer.rotation.y = ang;
     outer.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
     root.add(outer);
   }
   const hb = new THREE.Box3().setFromObject(model, true);
   report.push([c.id || c.f, +x.toFixed(2), +z.toFixed(2), +hb.min.y.toFixed(2), +hb.max.y.toFixed(2), clip ? c.clip : 'NO CLIP ' + c.clip, face ? face.ok : '-']);
+}
+// A studio of their own (the stacked posters): the venue unseen (the camera sees layer 1 only, where the cast and its own
+// lights are), a gradient behind them.
+if (typeof STUDIO !== 'undefined' && STUDIO) {
+  const L = (o) => { o.layers.set(1); root.add(o); return o; };
+  L(new THREE.HemisphereLight(0xf4f8ff, 0xffe2c4, STUDIO.hemi ?? 1.4));
+  const key = L(new THREE.DirectionalLight(0xfff3e2, STUDIO.key ?? 2.6));
+  const [cx, cz] = C;
+  key.position.set(cx - 5, 9, cz + 9);
+  key.target.position.set(cx, 1.8, cz);
+  root.add(key.target);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  Object.assign(key.shadow.camera, { left: -7, right: 7, top: 7, bottom: -3, near: 1, far: 40 });
+  key.shadow.camera.updateProjectionMatrix();
+  key.shadow.bias = -0.0004;
+  key.shadow.normalBias = 0.02;
+  const fill = L(new THREE.DirectionalLight(0xdbe9ff, STUDIO.fill ?? 0.9));
+  fill.position.set(cx + 6, 3, cz + 8); fill.target.position.set(cx, 1.5, cz); root.add(fill.target);
+  const rim = L(new THREE.DirectionalLight(0xbfe6ff, STUDIO.rim ?? 1.6));
+  rim.position.set(cx + 2, 6, cz - 10); rim.target.position.set(cx, 1.5, cz); root.add(rim.target);
+  root.traverse((o) => o.layers.set(1));
+  w.camera.layers.set(1);
+  // the background: a vertical gradient or a glow from the middle
+  const cv = document.createElement('canvas');
+  cv.width = 1024; cv.height = 1024;
+  const g = cv.getContext('2d');
+  let grad;
+  if (STUDIO.bg === 'radial') {
+    grad = g.createRadialGradient(512, 600, 40, 512, 560, 760);
+    grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.35, '#e6f6ff'); grad.addColorStop(0.7, '#3fb4ff'); grad.addColorStop(1, '#0a5fd8');
+  } else {
+    grad = g.createLinearGradient(0, 0, 0, 1024);
+    grad.addColorStop(0, '#0657d6'); grad.addColorStop(0.45, '#19a8f8'); grad.addColorStop(0.8, '#bfe8ff'); grad.addColorStop(1, '#ffffff');
+  }
+  g.fillStyle = grad; g.fillRect(0, 0, 1024, 1024);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  Object.defineProperty(w.scene, 'background', { get: () => tex, set: () => {}, configurable: true });
+  Object.defineProperty(w.scene, 'fog', { get: () => null, set: () => {}, configurable: true });
 }
 await new Promise((r) => setTimeout(r, 800));
 return { patches: patches.map((p) => [+p.a.toFixed(2), +p.b.toFixed(2), +p.y.toFixed(3), p.mat?.name || '?', '#' + p.color?.getHexString(), p.err || '']), floors, probe: probe.slice(0, 40), report, hidden: hidden.length, hiddenNames: [...new Set(hidden)].slice(0, 12) };
