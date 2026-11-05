@@ -3261,6 +3261,25 @@ function updateUI() {
   $("relief").hidden = !holding("relief") && !sim.people.some((p) => p.problem === "eyes");
   $("clean").hidden = !sim.clutter.length;
   $("mop").hidden = !wet && !holding("mop");
+  // Only what the coach needs now (5 November 2026, the creator: "we don't need to see that chlorine always there. We just need to
+  // see it when we have a problem… in hands, empty hands, there's no need for that… too much UI"). The Water Check and the
+  // chlorine come when the water is a problem: cloudy enough that the guests mind it (from 35, sim.mjs; shown from 30), too much
+  // chlorine (sore eyes), a cleanup, or the coach with the chlorine. The fins (the tubes, the tray) when a guest asks for them
+  // (every guest at the Wave Pool wants a tube). The hand only when it holds something; the panel only with something in it.
+  const waterTrouble =
+    sim.contamination > 30 || sim.chlorine > 75 || !!sim.cleanup || sim.closed > 0 || holding("chlorine");
+  const gearWanted =
+    holding("fins") ||
+    holding("tray") ||
+    !!sim.venue.waves ||
+    sim.people.some((q) => q.status !== "gone" && (q.problem === "fins" || q.problem === "drink"));
+  $("water-check").hidden = !waterTrouble;
+  $("chlorine").hidden = !waterTrouble;
+  $("fins").hidden = !gearWanted;
+  $("coach-state").hidden = !sim.coach.carry && !sim.coach.job;
+  $("care-actions").hidden = ["chlorine", "relief", "fins", "clean", "mop"].every((id) => $(id).hidden);
+  $("care-panel").hidden =
+    mode === "menu" || ["water-check", "care-actions", "coach-state"].every((id) => $(id).hidden);
   $("assist").disabled = mode !== "playing";
   $("assist").querySelector(".interact-label").textContent = sim.nearestInteraction()?.label || "Interact";
   const p = sim.get(sim.selected),
@@ -3427,7 +3446,13 @@ function updateUI() {
         !sim.rescue &&
         !splash &&
         !closed &&
-        ((p?.status === "queue" && p.type !== "daredevil") || sim.coach.carry === "chlorine" || moveHere),
+        ((p?.status === "queue" && p.type !== "daredevil") ||
+          sim.coach.carry === "chlorine" ||
+          moveHere ||
+          // (the zones and springs take the longest-waiting guest with nobody selected: sim.assign)
+          ((sim.venue.class || sim.venue.onsen) &&
+            p?.status !== "swim" &&
+            sim.people.some((q) => q.status === "queue" && !(q.finsFirst && !q.hasFins)))),
     );
     b.classList.toggle("splash-zone", splash);
     b.classList.toggle("lane-closed", closed);
@@ -3567,6 +3592,20 @@ function updateUI() {
                   : sim.clutter.length
                     ? "PICK UP DROPPED GEAR · E"
                     : "WASD MOVE · SHIFT DASH · SPACE JUMP");
+  // The status box only when it has something to say (5 November 2026, "too much UI"): an incident, a job in hand or its next
+  // step. Its calm lines and the keys' reminder are left out (the keys stay in the first lesson, and in Help).
+  const calmStatus = [
+      "A good day for a dip.",
+      "Keep calm. Mostly calm.",
+      "Someone needs a little love.",
+      "Now we’re in the swim of it.",
+      "The deck is getting crowded.",
+      "Looking good, coach.",
+    ].includes($("pool-status").textContent),
+    calmHint = ["● ● ●", "PICK UP DROPPED GEAR · E", "WASD MOVE · SHIFT DASH · SPACE JUMP"].includes(
+      $("hint").textContent,
+    );
+  $("pool-status-box").hidden = calmStatus && calmHint && sim.config.tutorial !== 1;
   // The happy streak's badge (Phase 3): the count, its tier and multiplier, what the next tier needs, and the guest who puts it at
   // risk; for a moment after it breaks, what broke it.
   const tier = streakTier(sim.streak),
@@ -3753,6 +3792,10 @@ function updateContext() {
                 ? "Carrying " + carryName(c)
                 : "COACH";
   prompt.querySelector("kbd").hidden = !near;
+  // (Over the coach from above only when it says something: E and what it does, a job, a swim, a slip. Never just COACH, nor what
+  // the hand panel already says: 5 November 2026, "too much UI".)
+  if (!firstPerson)
+    prompt.hidden = !near && !c.busy && !c.swimming && !c.waterTransition && !c.slipTime && !(c.y > 0.08);
 }
 function clearBubbles() {
   for (const b of bubbles.values()) b.remove();
@@ -3797,6 +3840,7 @@ function scoreboardBottom() {
     boardFoot = { at: now, y: document.querySelector(".scoreboard").getBoundingClientRect().bottom };
   return boardFoot.y;
 }
+const STATION_LABEL_NEAR = 6;
 function updateBubbles() {
   // `notags` (the played hunt): no tag, bubble or label is drawn over the pool at all.
   if (tuning.has("notags")) {
@@ -3805,7 +3849,9 @@ function updateBubbles() {
     return;
   }
   const ids = new Set(),
-    tagTop = scoreboardBottom() + 12;
+    tagTop = scoreboardBottom() + 12,
+    // (the pools where where a guest goes is no choice of who they are: every guest to the same thing)
+    tagFree = !!(sim.venue.class || sim.venue.waves || sim.venue.kids || sim.venue.onsen || sim.venue.river);
   for (const p of sim.people) {
     if (
       p.status === "gone" ||
@@ -3838,26 +3884,51 @@ function updateBubbles() {
             : 2 + (p.y || 0),
       p.z,
     );
+    const rescuing =
+        (sim.rescue?.victims || []).includes(p.id) &&
+        !p.rescueRecover &&
+        ["swim", "switch"].includes(p.status),
+      own = sim.personTag?.(p) || null,
+      jumpWait = p.status === "trampoline" && p.jumpStage === "waiting",
+      asking = !!p.ask && p.status === "swim" && !p.problem && !p.stomachWarning;
+    // A tag only where it helps (5 November 2026, the creator: "for levels like the Aqua Disco… we have no lanes, so remove the
+    // tags that are on top because all of them are going to the same activity. Same for the Lazy River and the Wave Pool"). Where
+    // the coach chooses where a guest goes by who they are (the lanes, the boards, the trampoline, the rooftop's seats) a waiting
+    // guest keeps their tag; elsewhere a guest has one only while they need the coach: a problem, a meter running, a wheel, a
+    // rescue, a sore mood, or selected. (At the Lazy River a waiting guest keeps the icon alone, ⚡ or 🌴, for the way round.)
+    const needsCoach =
+        // (every guest at the Lazy River wants a tube: no reason for a tag of its own)
+        (!!p.problem && !(sim.venue.river && p.problem === "fins")) ||
+        !!p.stomachWarning ||
+        asking ||
+        jumpWait ||
+        rescuing ||
+        own?.ring !== undefined ||
+        own?.patience !== undefined ||
+        p.status === "injured" ||
+        p.annoyedTime > 0 ||
+        p.h < 45 ||
+        p.id === sim.selected ||
+        p.id === guidanceState(sim).swimmerId,
+      wanted = needsCoach || !tagFree || (sim.venue.river && p.status === "queue");
     // (Only what changed is written: a tag is updated every frame and most frames change nothing in it. 16 October 2026.)
     putProp(
       b,
       "hidden",
-      !screen.visible ||
+      !wanted ||
+        !screen.visible ||
         (world.viewMode === "coach" && Math.hypot(p.x - sim.coach.x, p.z - sim.coach.z) > 16),
     );
     putProp(b, "disabled", mode !== "playing" || !["queue", "swim", "injured"].includes(p.status));
     putAttr(b, "aria-label", "Select " + p.name + ", " + roofLook(p).label);
     putAttr(b, "aria-pressed", String(p.id === sim.selected));
-    const rescuing =
-      (sim.rescue?.victims || []).includes(p.id) && !p.rescueRecover && ["swim", "switch"].includes(p.status);
     b.classList.toggle("rescue-victim", rescuing);
     putProp(b.querySelector(".rescue-marker"), "hidden", !rescuing);
     b.classList.toggle("stomach-warning", !!p.stomachWarning);
     b.classList.toggle("injured", p.status === "injured");
     // An incident's wheel on the guest's own tag (the massage table: the hold-E wheel with the coaches' faces on it, as on
     // Karen's, incidents/massage.mjs) and its patience as the countdown bar.
-    const own = sim.personTag?.(p) || null,
-      ring = b.querySelector(".ring");
+    const ring = b.querySelector(".ring");
     putProp(ring, "hidden", own?.ring === undefined);
     if (own?.ring !== undefined) {
       ring.style.setProperty("--fill", Math.round(own.ring * 360) + "deg");
@@ -3867,9 +3938,7 @@ function updateBubbles() {
     }
     b.classList.toggle("massage-edgy", !!own?.edgy);
     // One countdown bar: stomach trouble, a daredevil losing patience on the tower, or a guest on the massage table.
-    const jumpWait = p.status === "trampoline" && p.jumpStage === "waiting",
-      waiting = own?.patience !== undefined,
-      asking = !!p.ask && p.status === "swim" && !p.problem && !p.stomachWarning,
+    const waiting = own?.patience !== undefined,
       stomach = b.querySelector(".stomach-meter");
     putProp(stomach, "hidden", !p.stomachWarning && !jumpWait && !asking && !waiting);
     stomach.classList.toggle("jump-meter", jumpWait || waiting);
@@ -3899,15 +3968,16 @@ function updateBubbles() {
     // tags that stand out are the ones that need the coach. Still clickable, to move them to another lane.
     b.classList.toggle(
       "quiet",
-      p.status === "swim" &&
-        !p.problem &&
-        !p.stomachWarning &&
-        !p.ask &&
-        !rescuing &&
-        p.id !== sim.selected &&
-        p.h >= 55 &&
-        !p.vip &&
-        !p.star,
+      (sim.venue.river && p.status === "queue" && !needsCoach) ||
+        (p.status === "swim" &&
+          !p.problem &&
+          !p.stomachWarning &&
+          !p.ask &&
+          !rescuing &&
+          p.id !== sim.selected &&
+          p.h >= 55 &&
+          !p.vip &&
+          !p.star),
     );
     put(b.querySelector(".type-icon"), roofLook(p).icon);
     put(b.querySelector(".type-label"), roofLook(p).label);
@@ -3972,8 +4042,10 @@ function updateBubbles() {
       screen = world.project(data.x, data.y, data.z);
     stationLabels[i].style.left = screen.x + "px";
     stationLabels[i].style.top = screen.y + "px";
+    // (A station's name on the floor only near the coach, 6 m: the deck is not a map of labels. 5 November 2026, "too much UI".)
     stationLabels[i].hidden =
       mode === "menu" ||
+      Math.hypot(data.x - sim.coach.x, data.z - sim.coach.z) > STATION_LABEL_NEAR ||
       sim.level < (data.minLevel || 1) ||
       (data.when ? !data.when(sim) : false) ||
       !screen.visible;

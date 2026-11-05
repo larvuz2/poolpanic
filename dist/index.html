@@ -184,15 +184,17 @@
           <button id="start" class="primary">START <span>▶</span></button>
         </div>
       </section>
-      <aside class="care-panel">
-        <div class="panel-heading">
-          <span>WATER CHECK</span><span id="water-label" class="quality">SPARKLING</span>
+      <aside id="care-panel" class="care-panel">
+        <div id="water-check" class="water-check">
+          <div class="panel-heading">
+            <span>WATER CHECK</span><span id="water-label" class="quality">SPARKLING</span>
+          </div>
+          <div class="water-row"><span>Water clarity</span><strong id="clarity">100%</strong></div>
+          <div class="water-meter"><i id="water-fill"></i></div>
+          <div class="chemical-row"><span>Chlorine</span><span id="chlorine-label">Balanced</span></div>
+          <div class="chemical-track"><i id="chlorine-dot"></i><span></span></div>
         </div>
-        <div class="water-row"><span>Water clarity</span><strong id="clarity">100%</strong></div>
-        <div class="water-meter"><i id="water-fill"></i></div>
-        <div class="chemical-row"><span>Chlorine</span><span id="chlorine-label">Balanced</span></div>
-        <div class="chemical-track"><i id="chlorine-dot"></i><span></span></div>
-        <div class="care-actions">
+        <div id="care-actions" class="care-actions">
           <button id="chlorine" title="Walk to chlorine · E to pick up, E by the pool to pour">
             <span>🧪</span>Chlorine<kbd>C</kbd></button
           ><button id="relief" title="Walk to eye relief · E to pick up">
@@ -205,7 +207,7 @@
             <span>🧽</span>Mop <b id="wet-count" hidden>0</b><kbd>Q</kbd>
           </button>
         </div>
-        <div class="coach-state">
+        <div id="coach-state" class="coach-state">
           <span class="coach-dot"></span>
           <div><small>IN HAND</small><strong id="carry">Empty hands</strong></div>
           <button
@@ -219,7 +221,7 @@
         </div>
       </aside>
       <footer class="bottom-bar">
-        <div class="pool-status">
+        <div id="pool-status-box" class="pool-status">
           <span class="status-light"></span>
           <div>
             <strong id="pool-status">A good day for a dip.</strong
@@ -227,7 +229,7 @@
           </div>
         </div>
         <div id="lane-controls" class="lane-controls"></div>
-        <button id="assist" class="assist-btn" title="Interact with nearby equipment or swimmer · E">
+        <button id="assist" class="assist-btn" title="Interact with nearby equipment or swimmer · E" hidden>
           <span>✋</span><span class="interact-label">Interact</span><kbd>E</kbd>
         </button>
       </footer>
