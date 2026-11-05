@@ -244,4 +244,5 @@ export const INCIDENT_SOUNDS = {
   "line-cut": [["groan", { gain: 0.8 }]],
   dizzy: [["ooh"]],
   wet: [["plop", { rate: 1.4, gain: 0.7 }]],
+  influencer: [["shutter"], ["shutter", { delay: 0.55, rate: 1.05 }]],
 };

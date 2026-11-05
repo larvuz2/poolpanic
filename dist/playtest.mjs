@@ -51,6 +51,7 @@ export const INCIDENT_KINDS = {
   carl: "cannonball man",
   karen: "Karen",
   massage: "massage",
+  influencer: "influencer",
   flicker: "power cut",
   crash: "trampoline crash",
   rush: "rush",

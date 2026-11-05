@@ -2079,6 +2079,36 @@ cutting salad animation!! … add this massage table in some venues !! not all!!
   the table and holds E. Seen in Chromium with software drawing (the table, a guest lying on it, a coach massaging: pictures sent to
   the creator); not yet on the creator's machines.
 
+### The influencer: filming in the middle of the deck
+
+The creator, 5 November 2026, after the rooftop's selfie was fixed: "make this incident appear in other venues as well… like wave
+venue, the aqua disco, the lazy river, the gala! they just stand there in the middle of deck and swimmers or coach can stumble… so
+coach has to go and press E, like Karen same progress bar and then they leave!! … not always its random as well pool of incidents!"
+(`dist/incidents/influencer.mjs`).
+
+- **Where.** The **Wave Pool**, the **Aqua Disco**, the **Lazy River** and the **Grand Gala Arena**: each venue has three or four
+  spots on its deck (`selfieSpots` in `dist/spatial.mjs`), picked from where the coach bots' guests walked most in three
+  played shifts (a heat map of guests arriving, entering and climbing out), each open deck 0.6 m round and clear of the doors.
+- **When.** Like the massage, a venue incident (`VENUE_INCIDENTS` in `dist/week.mjs`): the director draws it at random there, a fair
+  mix with the others (about one shift in three with two incident slots, never every shift), never as the surprise and never
+  anywhere else. The playtest panel's 🤳 Influencer starts it.
+- **The warning.** A guest with a handle (@SplashQueen, @PoolBoi, @SelfieSam…) comes out of a door with a phone and walks to one of
+  the spots (the sting: INFLUENCER ON THE DECK!, two shutter clicks). There they film themselves: one of the five guest models with
+  the rooftop's **Selfie** clip and pink phone, flashing at each snap. Every 16 to 26 s they stroll to another spot for a better angle.
+- **The failure.** Anyone who walks into them **trips** (0.6 m, middle to middle): a guest goes down as on a wet spot, once each,
+  cross, −25; a coach on foot walking into them (faster than 0.8 m/s, closer than 0.5 m) goes down for 1.1 s, −15, and not again
+  until he has stepped a metre away. Jumping over them is safe; standing still beside them is too.
+- **The recovery.** A coach within 1.8 m **holds E**: Karen's wheel and times, **8 seconds alone, 5 with two coaches, 3 with
+  three** (`dist/teamwork.mjs`), the coach planted with his palms out, talking them down (`coach.calming`, with `calmWho` saying
+  whose: Karen's or the influencer's); while someone is on them they stop and listen. Full: they put the phone away (+90, +40 more if
+  nobody tripped), sigh and leave by a door. Let go and the wheel drains.
+- **Checks.** `influencer-check.mjs`: the four venues and their spots; the director (only there, about one shift in three, never a
+  surprise); the sting, save and sound; at every venue a guest walking through trips once and it costs points, a coach walking in
+  goes down and not again while he stands there, held E moves them on, they leave; let go and it drains; the clean bonus; a better
+  angle when left alone; two and three coaches; seeded; the bot (`check-bot.mjs`) moves them on in whole shifts at all four venues;
+  on screen the phone up while they pose. Seen in Chromium with software drawing at all four venues (the pictures and a clip of the
+  coach tripping and moving one on were sent to the creator); not yet on the creator's machines.
+
 ## Incident moments: stings, the loud alert, and payoffs
 
 Chaos only feels funny when the player can read it, so every problem announces itself the same way, one thing at a time points to where to go next, and every save pays off.

@@ -70,6 +70,13 @@ export const STINGS = {
     how: "Karen marches at you complaining, and everyone she passes gets annoyed and loses points. Reach her and HOLD E until the ring fills; let go and it drains.",
     tone: "warning",
   },
+  influencer: {
+    icon: "🤳",
+    title: "INFLUENCER ON THE DECK!",
+    verb: "Walk up to {name} · hold E to move them on",
+    how: "{name} is filming in the middle of the deck, and anyone who walks into them trips, you too. Walk up (don't run into them) and HOLD E until the wheel fills; with a friend on it too, it goes faster.",
+    tone: "warning",
+  },
   massage: {
     icon: "💆",
     title: "MASSAGE TIME!",
@@ -257,6 +264,7 @@ export const SAVES = {
   "red-card": { stamp: "RED CARD!", tier: 2 },
   karen: { stamp: "CALMED DOWN!", tier: 2 },
   massage: { stamp: "BLISS!", tier: 2 },
+  influencer: { stamp: "PHONE DOWN!", tier: 2 },
   breaker: { stamp: "SAVE!", tier: 2 },
   lights: { stamp: "LIGHTS ON!", tier: 1 },
   landing: { stamp: "STUCK IT!", tier: 1 },

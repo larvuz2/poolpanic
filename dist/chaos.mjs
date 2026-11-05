@@ -8,6 +8,7 @@ import { LooseDog } from "./incidents/dog.mjs";
 import { CannonballCarl } from "./incidents/carl.mjs";
 import { PowerOutage } from "./incidents/outage.mjs";
 import { Karen, annoyable } from "./incidents/karen.mjs";
+import { Influencer } from "./incidents/influencer.mjs";
 import { Massage } from "./incidents/massage.mjs";
 import { planTwists, startTwist } from "./incidents/twist.mjs";
 import { WetSpots, useMop } from "./incidents/wet.mjs";
@@ -40,6 +41,7 @@ export const SYSTEMS = [
   LooseDog,
   Trampoline,
   Karen,
+  Influencer,
   Massage,
   WaveMachine,
   RooftopParty,
@@ -686,6 +688,8 @@ export class ChaosController extends RescueController {
     const option = this.interactionNear(v, 0.6);
     if (option) return option.run();
     if (v.kind === "karen") return this.guideTo(v, "Run up to Karen and HOLD E until she calms down!");
+    if (v.kind === "influencer")
+      return this.guideTo(v, "Walk up to " + v.name + " and HOLD E to move them on.");
     if (v.kind === "dog") {
       if (this.coach.carry !== "treats")
         return this.guideTo(this.venue.fixtures.treats, "Grab the dog treats to lure the dog out.");

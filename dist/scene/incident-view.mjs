@@ -5,6 +5,7 @@ import { THREE, COLORS } from "./kit.mjs";
 import { character, dogObject } from "./actors.mjs";
 import { CARL_TUNING } from "../incidents/carl.mjs";
 import { attachSwimmerModel, dropSwimmerModel } from "./swimmer-models.mjs";
+import { held, phoneObject, snapFlash } from "./roof-view.mjs";
 import { loadDog, dogReady, attachDogModel, dropDogModel, dogClip, playDog } from "./dog-model.mjs";
 import { swimModel } from "./fish-model.mjs";
 import { figurePose } from "./figure-pose.mjs";
@@ -281,13 +282,18 @@ export class IncidentView {
             ? dogObject(this.w)
             : v.kind === "karen"
               ? karenObject(this.w, v)
-              : character(this.w, v);
+              : v.kind === "influencer"
+                ? character(this.w, influencerLook(v))
+                : character(this.w, v);
         g.userData.visitorKind = v.kind;
         // The cannonball man is a model (Carl or the leopard man, swimmer-models.mjs) when it is loaded, and so is the fish kid
         // (with his bucket); else the classic ones.
-        if (v.kind === "carl" || v.kind === "kid")
+        if (v.kind === "carl" || v.kind === "kid" || v.kind === "influencer")
           try {
-            attachSwimmerModel(g, v.kind === "kid" ? { ...v, figure: "kid" } : v);
+            attachSwimmerModel(
+              g,
+              v.kind === "kid" ? { ...v, figure: "kid" } : v.kind === "influencer" ? influencerLook(v) : v,
+            );
           } catch (error) {
             console.error(error);
             dropSwimmerModel(g);
@@ -308,6 +314,7 @@ export class IncidentView {
       else if (v.kind === "dog") this.poseDog(sim, v, g, time, dt);
       else if (v.kind === "carl") this.poseCarl(sim, v, g, time, dt, annoy);
       else if (v.kind === "karen") poseKaren(sim, v, g, time, dt, reduced);
+      else if (v.kind === "influencer") poseInfluencer(this.w, v, g, time, dt, reduced);
       if (annoy && !g.userData.rig) annoy();
     }
     for (const [id, g] of this.visitors) if (!alive.has(id)) this.dropVisitor(id, g);
@@ -341,6 +348,15 @@ export class IncidentView {
         return g;
       });
     tryAdd(() => character(w, { type: "karen", skin: 0 }));
+    // (the influencer: a guest's model with the phone and its flash, scene/roof-view.mjs)
+    tryAdd(() => {
+      const v = { id: -1, kind: "influencer", status: "posing", skin: 2, x: 0, z: 0, angle: 0 };
+      const g = character(w, influencerLook(v));
+      attachSwimmerModel(g, influencerLook(v));
+      const phone = held(w, g, "phone", phoneObject);
+      if (phone?.userData.flash) phone.userData.flash.visible = true;
+      return g;
+    });
     if (!w.headless) {
       const karen = karenWarmCopy();
       if (karen) cast.push(karen);
@@ -936,4 +952,38 @@ export class IncidentView {
     }
     return null;
   }
+}
+
+// ---- the influencer (incidents/influencer.mjs) ---------------------------------------------------------------------------------
+// A guest of the pool to look at: one of the five generic swimmers (by their `skin`), not a visitor's classic figure.
+function influencerLook(v) {
+  return { ...v, visitor: false, type: "intermediate", figure: undefined };
+}
+// Filming on the deck: the rooftop's Selfie clip and its pink phone (scene/roof-view.mjs) while they pose, flashing at each snap;
+// strolling to a better angle with the phone still out; the phone put away once they are moved on. The classic figure holds its
+// phone arm up instead.
+function poseInfluencer(w, v, g, time, dt, reduced) {
+  const u = g.userData,
+    walking = ["entering", "strolling", "leaving"].includes(v.status) && !(v.hold > 0),
+    posing = v.status === "posing",
+    filming = posing || v.status === "strolling" || v.status === "entering";
+  g.position.set(v.x, 0, v.z);
+  g.rotation.set(0, (posing ? (v.face ?? v.angle) : v.angle) || 0, 0);
+  u.root.position.set(0, 0, 0);
+  u.root.rotation.set(0, 0, 0);
+  const phone = held(w, g, "phone", phoneObject);
+  if (phone) {
+    phone.visible = filming;
+    if (posing) snapFlash(phone, u, 0, time);
+    else if (phone.userData.flash) phone.userData.flash.visible = false;
+  }
+  if (u.rig) {
+    u.puppet.arms = u.puppet.legs = false;
+    u.rig.update(dt, { speed: walking ? 1.4 : 0, selfie: posing ? 0 : null, puppet: u.puppet, classic: u });
+    return;
+  }
+  const tempo = time * 9;
+  u.legs.forEach((l, i) => (l.rotation.x = walking && !reduced ? Math.sin(tempo + i * Math.PI) * 0.55 : 0));
+  u.arms[0].rotation.set(filming ? -1.4 : 0, 0, filming ? 0.3 : 0);
+  u.arms[1].rotation.set(0, 0, posing ? -0.9 + (reduced ? 0 : Math.sin(time * 3) * 0.1) : 0);
 }

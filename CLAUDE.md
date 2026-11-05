@@ -170,7 +170,11 @@ Senior Aqua Fit, the Grand Gala Arena: `fixtures.massage`; and two beds side by 
 session per bed; the director draws it only there, `VENUE_INCIDENTS`, not one of the
 five in `INCIDENT_ORDER`); the next swimmer out lies on it face down and their patience runs out (−100) unless a coach holds E at
 the table (8/5/3 s, many hands, each coach at a place of their own); every coach has a **Massage** clip (hands pressing in turn,
-like chopping a salad), each made for the table's height (`--massage-lift`), Coach Brooks on a little step. A crew of two or three gets more guests, tips and incidents and higher
+like chopping a salad), each made for the table's height (`--massage-lift`), Coach Brooks on a little step. **The influencer**
+(5 November 2026, `dist/incidents/influencer.mjs`, README "The influencer"): the rooftop's selfie brought to other pools, a venue
+incident like the massage, drawn at random at the Wave Pool, the Aqua Disco, the Lazy River and the Grand Gala Arena only
+(`selfieSpots`): a guest stands filming on the deck's busiest walk (the Selfie clip, the pink phone), guests and coaches who walk
+into them trip, and a coach holds E (Karen's wheel, 8/5/3 s, many hands) until they put the phone away and leave. A crew of two or three gets more guests, tips and incidents and higher
    star targets (`CREW`, measured with crews of bots, `CrewBot`). The network is `dist/net.mjs`: the host plays the seeded shift and
    shares every player's input stamped with its tick; each guest plays the same shift in step (hashes catch a drift). **Anything that
    changes the simulation must stay deterministic and go through an input method** (in `INPUTS`, replay.mjs), or co-op drifts;

@@ -636,6 +636,13 @@ export const ARENA = makeVenue({
   ...RESORT_SPEC,
   id: "arena",
   name: "Grand Gala Arena",
+  // Where the influencer stands to film (incidents/influencer.mjs): on the guests' busiest walks across the deck.
+  selfieSpots: [
+    { x: 7.5, z: -13 },
+    { x: -9, z: -10 },
+    { x: 9, z: -10 },
+    { x: -6.5, z: -12 },
+  ],
   indoor: true,
   lighting: "gala",
   fixtures: { ...RESORT_SPEC.fixtures, massage: MASSAGE_TABLE },
@@ -672,6 +679,12 @@ export const AQUATIC = makeVenue({
 export const DISCO = makeVenue({
   id: "disco",
   name: "Aqua Disco",
+  selfieSpots: [
+    { x: -7.5, z: 0 },
+    { x: 7.5, z: -5.5 },
+    { x: 0.5, z: -10 },
+    { x: -8, z: -14.5 },
+  ],
   indoor: true,
   lighting: "disco",
   class: true,
@@ -862,6 +875,12 @@ export const SENIOR = makeVenue({
 export const RIVER = makeVenue({
   id: "river",
   name: "Lazy River",
+  selfieSpots: [
+    { x: -3.4, z: -8.8 },
+    { x: 1.4, z: -12.6 },
+    { x: -8, z: -13.5 },
+    { x: -4.5, z: -12.8 },
+  ],
   indoor: false,
   scenery: "jungle",
   sunAzimuth: 2.5,
@@ -956,6 +975,11 @@ const WAVE_SAND_SPOTS = [-8.2, -7.0, -5.8, -4.6, -3.4, -2.2, 6.6, 7.8, 8.8].flat
 export const WAVE = makeVenue({
   id: "wave",
   name: "Wave Pool",
+  selfieSpots: [
+    { x: -8.5, z: -10.5 },
+    { x: -8.5, z: -2 },
+    { x: -8.5, z: 4 },
+  ],
   indoor: false,
   scenery: "surf",
   sunAzimuth: 2.3,

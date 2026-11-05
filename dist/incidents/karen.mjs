@@ -107,7 +107,7 @@ export const Karen = {
     if (!k) return;
     const v = sim.visitor(k.id);
     if (!v) {
-      for (const c of sim.coaches) c.calming = c.calmLatched = false;
+      for (const c of sim.coaches) if (c.calmWho !== "influencer") c.calming = c.calmLatched = false;
       sim.karen = null;
       return;
     }
@@ -278,6 +278,7 @@ function rant(sim, k, v, dt) {
 function beginCalm(sim, k) {
   const c = sim.coach;
   c.calming = true;
+  c.calmWho = "karen";
   c.calmLatched = !c.holding;
   k.calming = true;
   const before = k.helpers.length;
@@ -298,8 +299,8 @@ function calm(sim, k, v, dt) {
     if (!c) return false;
     const moving = !!(c.input?.x || c.input?.z),
       holding = c.holding || (c.calmLatched && !moving),
-      on = c.calming && holding && inReach(sim, v, c) && playing;
-    if (!on) c.calming = c.calmLatched = false;
+      on = c.calming && c.calmWho !== "influencer" && holding && inReach(sim, v, c) && playing;
+    if (!on && c.calmWho !== "influencer") c.calming = c.calmLatched = false;
     return on;
   });
   k.calming = k.helpers.length > 0;

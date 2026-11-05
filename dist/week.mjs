@@ -56,6 +56,16 @@ export const VENUE_INCIDENTS = {
     weight: 3,
     where: (venue) => !!VENUES[venue]?.fixtures?.massage,
   },
+  // The influencer filming in the middle of the deck (5 November 2026, incidents/influencer.mjs): the Wave Pool, the Aqua Disco,
+  // the Lazy River and the Grand Gala Arena, the venues with spots for them (`selfieSpots`, spatial.mjs); drawn at random like
+  // any other incident there, never every shift.
+  influencer: {
+    icon: "🤳",
+    name: "Influencer",
+    cost: 2,
+    weight: 3,
+    where: (venue) => !!VENUES[venue]?.selfieSpots?.length,
+  },
 };
 // The roaming incidents a pool leaves out (its venue's `skips`, spatial.mjs): the director never draws them there, nor springs
 // them as its surprise.

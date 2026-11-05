@@ -33,6 +33,7 @@ const INCIDENTS = {
   blackout: [6, "🔦 BLACKOUT!"],
   karen: [5, "😡 KAREN!"],
   massage: [4, "💆 MASSAGE TIME!"],
+  influencer: [4, "🤳 INFLUENCER ON THE DECK!"],
   dog: [5, "🐶 LOOSE DOG!"],
   cramp: [5, "🛟 TO THE RESCUE!"],
   monster: [6, "🌊 MONSTER WAVE!"],
