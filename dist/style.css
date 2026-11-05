@@ -7213,3 +7213,283 @@ body.menu .look-vignette {
 body.look-tuning:not(.menu) #game #world {
   right: min(340px, 92vw);
 }
+
+/* ---- The HUD the Overcooked way (5 November 2026, the creator) ------------------------------------------------------------
+   The shift's Splash Coins on a plaque at the bottom left, the time left on one at the bottom right, nothing over the top of the
+   pool: no scoreboard and no ⚙ in a shift (the pause button rides on the clock; Esc). The venue, the pass mark and the star
+   targets are in the pause menu. Each plaque is a slanted navy banner with its icon (GPT Image 2.5, assets/hud/) over its end. */
+.hud-plaque {
+  position: absolute;
+  bottom: var(--edge);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.hud-coins {
+  left: var(--edge);
+}
+.hud-clock {
+  right: var(--edge);
+}
+body.menu .hud-plaque,
+body.replaying .hud-plaque {
+  display: none;
+}
+body:not(.menu) .top-actions #settings,
+body:not(.menu) .top-actions #fund-pill {
+  display: none;
+}
+.plaque-icon {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  width: 78px;
+  height: 78px;
+  filter: drop-shadow(0 4px 0 #061f29b0);
+}
+.plaque-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  height: 58px;
+  min-width: 148px;
+  background: linear-gradient(#1d5b6c, #113e4b);
+  border: 2px solid #8fc7bb;
+  border-bottom: 5px solid var(--deep);
+  color: #fff;
+  transform: skewX(-9deg);
+  box-shadow: 0 3px 0 #061f2966;
+  transition: box-shadow 0.25s;
+}
+.plaque-body > * {
+  transform: skewX(9deg);
+}
+.hud-coins .plaque-body {
+  margin-left: -34px;
+  padding: 0 22px 0 42px;
+  border-radius: 6px 14px 14px 6px;
+}
+.hud-clock .plaque-body {
+  margin-right: -34px;
+  padding: 0 42px 0 22px;
+  border-radius: 14px 6px 6px 14px;
+  align-items: flex-end;
+}
+.plaque-body strong {
+  font: 900 40px/0.9 var(--display);
+  letter-spacing: 0.5px;
+  text-shadow: 0 3px 0 var(--deep);
+}
+.plaque-body small {
+  font: 800 11px/1 var(--display);
+  letter-spacing: 1.6px;
+  color: #ffd76a;
+}
+.hud-coins.streak .plaque-body small {
+  color: #ffb36b;
+}
+/* A gain or a loss: the plaque glows faintly for a moment, green or red, and the change rises from it. */
+.hud-coins.gain .plaque-body {
+  animation: coin-glow-gain 0.7s ease-out;
+}
+.hud-coins.loss .plaque-body {
+  animation: coin-glow-loss 0.7s ease-out;
+}
+@keyframes coin-glow-gain {
+  20% {
+    box-shadow:
+      0 3px 0 #061f2966,
+      0 0 0 3px #7fe39a55;
+  }
+}
+@keyframes coin-glow-loss {
+  20% {
+    box-shadow:
+      0 3px 0 #061f2966,
+      0 0 0 3px #ff7a6a55;
+  }
+}
+.coin-pops {
+  position: absolute;
+  left: 92px;
+  bottom: 54px;
+  width: 0;
+  height: 0;
+}
+.coin-pop {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  font: 800 18px/1 var(--display);
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  text-shadow: 0 2px 0 var(--deep);
+  animation: coin-pop 1.15s ease-out forwards;
+}
+.coin-pop.good {
+  color: #9af0a8;
+}
+.coin-pop.bad {
+  color: #ff9a8c;
+}
+@keyframes coin-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  15% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-28px);
+  }
+}
+.clock-bar {
+  width: 120px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--deep);
+  border: 1px solid #0c3341;
+  overflow: hidden;
+}
+.clock-bar i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  margin-left: auto;
+  border-radius: 3px;
+  background: #6fd8c4;
+  transition: background 0.3s;
+}
+.hud-clock.danger .clock-bar i {
+  background: #ee5a43;
+}
+.hud-clock.danger strong {
+  color: #ffb3a6;
+}
+.hud-clock.held .clock-bar i {
+  background: #f2b84b;
+}
+.pause-btn {
+  position: absolute;
+  top: -16px;
+  right: -6px;
+  z-index: 3;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 2px solid #8fc7bb;
+  border-radius: 50%;
+  background: #153f4c;
+  color: var(--cream);
+  font: 900 11px/1 var(--display);
+  letter-spacing: -1px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.pause-btn:hover,
+.pause-btn:focus-visible {
+  background: #1f5b6b;
+}
+/* The rest of the bottom makes room: the status box over the coins, the water panel over the clock, the column of messages
+   above both. */
+.hud-rail {
+  bottom: 165px;
+}
+.bottom-bar .pool-status {
+  position: absolute;
+  left: 0;
+  bottom: 88px;
+}
+.care-panel {
+  bottom: calc(var(--edge) + 90px);
+}
+/* In the pause menu: the venue and the coins it takes to pass and to earn each star. */
+.pause-shift {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #0d34407a;
+  border: 1px solid #5e968f66;
+  text-align: left;
+}
+.pause-venue b {
+  display: block;
+  font: 900 22px/1 var(--display);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.pause-venue small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+}
+.pause-goals {
+  display: grid;
+  gap: 3px;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.pause-now {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+.pause-now b {
+  font: 900 20px/1 var(--display);
+}
+.pause-goal {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+}
+.pause-goal span {
+  color: var(--yellow);
+  letter-spacing: 1px;
+  font-weight: 800;
+}
+.pause-goal i {
+  font-style: normal;
+  color: var(--muted);
+}
+.pause-goal.met b,
+.pause-goal.met i {
+  color: #9af0a8;
+}
+@media (max-width: 900px) {
+  .plaque-icon {
+    width: 62px;
+    height: 62px;
+  }
+  .plaque-body {
+    height: 48px;
+    min-width: 116px;
+  }
+  .plaque-body strong {
+    font-size: 32px;
+  }
+  .clock-bar {
+    width: 92px;
+  }
+  /* (the lane buttons fill the bottom row here: the plaques sit just over it, the water panel over the clock) */
+  .hud-plaque {
+    bottom: calc(var(--edge) + 84px);
+  }
+  .care-panel {
+    bottom: calc(var(--edge) + 160px);
+  }
+  .hud-rail {
+    bottom: calc(var(--edge) + 170px);
+  }
+}

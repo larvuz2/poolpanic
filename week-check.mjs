@@ -984,7 +984,9 @@ const table = [];
   assert.match(app, /new PoolSimulation\(week\.tier, runSeed, \{/);
   assert.match(app, /if \(sim\.config\.week && weekUi\) return finishWeek\(\);/);
   assert.match(app, /weekUi\?\.pending/);
-  assert.match(app, /TO PASS THE SHIFT/);
+  // (the pass mark is in the pause menu since 5 November 2026, with the star targets: no scoreboard over the pool)
+  assert.match(app, /pass = sim\.config\.week \? passMark\(sim\.config\) : 0/);
+  assert.match(app, /\{ label: "PASS", at: pass \}/);
   assert.match(
     app,
     /week: \{ config: weekShift\.config, perks: weekShift\.perks \}/,
