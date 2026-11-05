@@ -2098,6 +2098,14 @@ function startNow(bookingId = null, week = null) {
   weekUi?.hideMenu();
   sim.start({ countdown: true });
   mode = "countdown";
+  // The intro cinematic, before the countdown (scene/intro-cinematic.mjs): the shift waits until it is over or skipped. Not in
+  // co-op (the crew's machines start together), the Coach Cam, a replay, or when Settings has it off.
+  const cinematic =
+    settings.cinematics !== false &&
+    !coop &&
+    world.viewMode !== "coach" &&
+    !replayRun &&
+    !tuning.has("nocine");
   snagged = false;
   for (const k of Object.keys(failing)) failing[k] = 0;
   moments.reset();
@@ -2110,6 +2118,7 @@ function startNow(bookingId = null, week = null) {
   $("countdown").hidden = false;
   $("countdown-number").textContent = "3";
   $("countdown-shift").textContent = sim.config.name;
+  if (cinematic) startCinematic();
   $("queue-panel").hidden = true;
   queueKey = "";
   clearBubbles();
@@ -2411,6 +2420,53 @@ function fillPauseShift() {
       )
       .join("");
 }
+// The intro cinematic's page side: the letterbox, a name card for each shot (the coach, the venue and its shift, "here they
+// come…"), a white flash at every cut, the HUD hidden; any key or click skips it.
+function startCinematic() {
+  const venueName = (
+      POOLS[sim.config.pool]?.name ||
+      sim.config.place ||
+      sim.venue?.name ||
+      sim.config.name
+    ).toUpperCase(),
+    cards = [
+      ["COACH WATERS", "On duty"],
+      [
+        venueName,
+        [sim.config.name !== venueName ? sim.config.name : "", shiftTag()].filter(Boolean).join(" · "),
+      ],
+      ["HERE THEY COME…", ""],
+    ];
+  world.onCinematic = (index) => {
+    if (index < 0) {
+      document.body.classList.remove("cine-on");
+      $("cinematic").hidden = true;
+      $("countdown").hidden = mode !== "countdown";
+      crashlog.crumb("cinematic", "done");
+      return;
+    }
+    const [title, sub] = cards[index] || ["", ""];
+    $("cine-title").textContent = title;
+    $("cine-sub").textContent = sub;
+    for (const el of [$("cine-card"), $("cine-flash")]) {
+      el.classList.remove("on");
+      requestAnimationFrame(() => el.classList.add("on"));
+    }
+    $("cine-card").dataset.shot = index;
+  };
+  document.body.classList.add("cine-on");
+  $("cinematic").hidden = false;
+  $("countdown").hidden = true;
+  world.startCinematic(sim);
+}
+function skipCinematic(e) {
+  if (!world?.cinematic || mode !== "countdown") return;
+  e.preventDefault();
+  e.stopPropagation();
+  world.endCinematic();
+}
+document.addEventListener("keydown", skipCinematic, { capture: true });
+document.addEventListener("pointerdown", skipCinematic, { capture: true });
 function pause() {
   if (!["playing", "countdown"].includes(mode)) return;
   fillPauseShift();
@@ -3228,7 +3284,7 @@ function updateWavesButton(b) {
 function updateUI() {
   if (!sim) return;
   document.body.classList.toggle("pool-incident", !!sim.cleanup || !!sim.rescue);
-  $("countdown").hidden = mode !== "countdown";
+  $("countdown").hidden = mode !== "countdown" || !!world.cinematic;
   if (mode === "countdown") $("countdown-number").textContent = Math.max(1, Math.ceil(sim.countdown));
   // The two plaques at the bottom (5 November 2026, the creator: "like Overcooked… in the lower right corner… the time with a
   // progress bar and numeric… in the lower left… the points… green… when we add more points, very, very subtle. Or red"):
@@ -4734,7 +4790,8 @@ function frame(t) {
         );
       } else {
         // (the Look tuner's "Freeze the shift": nothing moves on while the look is judged)
-        accumulator = lookFreeze ? 0 : Math.min(0.12, accumulator + dt * speed);
+        // (and the intro cinematic: the shift waits for it, scene/intro-cinematic.mjs)
+        accumulator = lookFreeze || world.cinematic ? 0 : Math.min(0.12, accumulator + dt * speed);
         while (accumulator >= 1 / 60) {
           if (replayRun) feedReplay();
           sim.tick(1 / 60);

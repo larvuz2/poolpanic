@@ -19,6 +19,8 @@ export const SETTING_DEFAULTS = {
   // At most 60 frames a second (3 November 2026): a 120 Hz Mac or a 144 Hz monitor otherwise draws every frame twice as often,
   // twice the heat and the fan for a game that does not need it. Off: as many as the screen shows.
   cap60: true,
+  // The intro cinematic before each shift (5 November 2026, scene/intro-cinematic.mjs): on, and the player's to turn off.
+  cinematics: true,
   dev: DEV_DEFAULT, // dev mode: every pool and difficulty open in FREE PLAY (dev.mjs)
 };
 const LIMITS = {
@@ -40,7 +42,7 @@ export function normalizeSettings(saved = {}) {
           ? Math.min(LIMITS[key][1], Math.max(LIMITS[key][0], n))
           : fallback;
     } else if (key === "invertY") out[key] = v === true;
-    else if (key === "cap60") out[key] = typeof v === "boolean" ? v : fallback;
+    else if (key === "cap60" || key === "cinematics") out[key] = typeof v === "boolean" ? v : fallback;
     else if (key === "motion") out[key] = ["auto", "on", "off"].includes(v) ? v : fallback;
     else if (key === "dev") out[key] = typeof v === "boolean" ? v : fallback;
   }
@@ -158,6 +160,7 @@ export function installTitle({
     $("set-invert").checked = settings.invertY;
     $("set-coachcam").checked = !!settings.coachCam;
     $("set-cap60").checked = settings.cap60 !== false;
+    $("set-cinematics").checked = settings.cinematics !== false;
     $("set-motion").checked = motionReduced(settings, matchMedia("(prefers-reduced-motion: reduce)").matches);
     $("set-fullscreen").checked = isFullscreen();
     $("set-dev").checked = !!settings.dev;
@@ -183,6 +186,11 @@ export function installTitle({
   };
   $("set-cap60").onchange = () => {
     settings.cap60 = $("set-cap60").checked;
+    apply(settings);
+    saveSettings();
+  };
+  $("set-cinematics").onchange = () => {
+    settings.cinematics = $("set-cinematics").checked;
     apply(settings);
     saveSettings();
   };

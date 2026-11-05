@@ -7493,3 +7493,113 @@ body:not(.menu) .top-actions #fund-pill {
     bottom: calc(var(--edge) + 170px);
   }
 }
+
+/* ---- The intro cinematic (5 November 2026, scene/intro-cinematic.mjs) ------------------------------------------------------
+   Letterbox bars, a name card for each shot sliding in from the left, a white flash at every cut, the HUD out of the way. */
+body.cine-on #game > *:not(#world):not(#cinematic) {
+  visibility: hidden;
+}
+.cine-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+.cine-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 11vh;
+  background: #050d12;
+  animation: cine-bars 0.35s ease-out both;
+}
+.cine-bar.top {
+  top: 0;
+  transform-origin: top;
+}
+.cine-bar.bottom {
+  bottom: 0;
+  transform-origin: bottom;
+}
+@keyframes cine-bars {
+  from {
+    transform: scaleY(0);
+  }
+}
+.cine-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+}
+.cine-flash.on {
+  animation: cine-flash 0.28s ease-out;
+}
+@keyframes cine-flash {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.cine-card {
+  position: absolute;
+  left: calc(var(--edge) + 2vw);
+  bottom: calc(11vh + 3vh);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 26px 12px 18px;
+  background: linear-gradient(90deg, #ffdc52 0 8px, #0f3a47e8 8px);
+  border-radius: 4px 14px 14px 4px;
+  color: var(--cream);
+  transform: skewX(-9deg);
+  opacity: 0;
+}
+.cine-card > * {
+  transform: skewX(9deg);
+}
+.cine-card.on {
+  animation: cine-card 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.cine-card b {
+  font: 900 clamp(26px, 4.2vw, 54px) / 0.95 var(--display);
+  letter-spacing: 1px;
+  text-shadow: 0 3px 0 var(--deep);
+}
+.cine-card small {
+  font: 800 clamp(11px, 1.2vw, 15px) / 1 var(--display);
+  letter-spacing: 1.6px;
+  color: #ffd76a;
+  text-transform: uppercase;
+}
+.cine-card small:empty {
+  display: none;
+}
+.cine-card[data-shot="1"] b {
+  font-size: clamp(34px, 6vw, 80px);
+}
+@keyframes cine-card {
+  from {
+    opacity: 0;
+    transform: skewX(-9deg) translateX(-60px);
+  }
+  to {
+    opacity: 1;
+    transform: skewX(-9deg) translateX(0);
+  }
+}
+.cine-skip {
+  position: absolute;
+  right: calc(var(--edge) + 1vw);
+  bottom: calc(11vh / 2 - 7px);
+  font: 700 12px/1 var(--display);
+  letter-spacing: 1.4px;
+  color: #ffffff88;
+  text-transform: uppercase;
+}
+body.calm .cine-card.on,
+body.calm .cine-flash.on {
+  animation-duration: 0.01s;
+}
