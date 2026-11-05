@@ -1223,9 +1223,21 @@ export class PoolSimulation extends ChaosController {
       this.emit("toast", { text: "Pool is closed. Keep an eye on the waiting swimmers.", warning: true });
       return false;
     }
-    const p = this.get(this.selected);
+    let p = this.get(this.selected);
     if (this.coach.carry === "chlorine" && p?.status !== "queue" && p?.status !== "swim") {
       return this.deliverWater(lane);
+    }
+    // (Where every guest goes to the same thing, the Aqua Disco's zones and the springs, and they wear no tags to click (app.mjs
+    // updateBubbles), a place with nobody selected takes the guest who has waited longest: 5 November 2026. Not the Kids Pool,
+    // where the coach catches a kid first.)
+    if (p?.status !== "queue" && p?.status !== "swim" && (this.venue.class || this.venue.onsen)) {
+      const next = this.people
+        .filter((q) => q.status === "queue" && !(q.finsFirst && !q.hasFins) && q.type !== "daredevil")
+        .sort((a, b) => b.wait - a.wait || a.id - b.id)[0];
+      if (next) {
+        this.selected = next.id;
+        p = next;
+      }
     }
     if (p?.status === "swim" && this.venue.onsen) {
       this.emit("toast", { text: p.name + " is settled in their spring: they stay put." });

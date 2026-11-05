@@ -136,7 +136,8 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    `dist/tutorial.mjs`, since 5 November 2026 two: the first shift lanes only, the third at the Community Pool fins (the rack moved
    by the waiting line) then a cramp rescue, repeated until done, `lessonDue`; its fins marked with metres like the life ring, `near` in coach.mjs; a card and a two-levels-easier shift the first time each pool appears, `POOL_INTROS`; the lane choice judged
    at once, `laneVerdict`; one meaning per key, the numbers for places, Z waves, B bar; the old map off the main screen; a calmer
-   HUD; README "The first ten minutes") is **done**. **Phase 2, a run worth repeating** (the pools as a ladder opened across runs,
+   HUD, since 5 November 2026 less of it: the Water Check, the fins and the hand only when needed, no Interact button, tags only
+   where who goes where is a choice or a guest needs the coach; README "The first ten minutes") is **done**. **Phase 2, a run worth repeating** (the pools as a ladder opened across runs,
    three to start and one more with every date; what lasts in the coach's locker: the dates album, coach gear opened by stars, the
    best stars per pool; difficulty by week with every level smoothed; one money, perks out of the Date Fund; the Gala as week 4's
    finale and the story's ending with credits, then endless; the goals tuned with the coach bots; README "A run worth repeating") is

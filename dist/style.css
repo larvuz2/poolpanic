@@ -512,16 +512,24 @@ kbd {
   font-weight: 800;
 }
 /* Equipment sits in tactile inventory slots at the edge of the playfield. */
+/* Only what the coach needs now (5 November 2026): the Water Check when the water has a problem, a tool when it is wanted, the
+   hand when it holds something; the panel itself only with something in it (app.mjs updateUI). No Interact button: E. */
 .care-panel {
   position: absolute;
   right: var(--edge);
-  bottom: 122px;
+  bottom: var(--edge);
   width: 184px;
-  padding: 14px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   z-index: 3;
   color: var(--cream);
 }
-.care-panel > .panel-heading,
+.water-check {
+  position: relative;
+  padding: 14px 0 12px;
+}
+.water-check > .panel-heading,
 .water-row,
 .water-meter,
 .chemical-row,
@@ -529,11 +537,10 @@ kbd {
   margin-left: 12px;
   margin-right: 12px;
 }
-.care-panel:before {
+.water-check:before {
   content: "";
   position: absolute;
-  inset: 0 0 auto;
-  height: 148px;
+  inset: 0;
   border: 1px solid #74ada8;
   border-top: 3px solid #94cbb8;
   border-radius: 8px 8px 15px 15px;
@@ -606,7 +613,6 @@ kbd {
   display: flex;
   justify-content: flex-end;
   gap: 3px;
-  margin-top: 27px;
   margin-left: -50px; /* five buttons: wider than the panel, reaching left, its right edge on the panel's */
   width: 234px;
 }
@@ -657,7 +663,6 @@ kbd {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-top: 12px;
   padding: 8px 10px;
   background: #123c47e8;
   border: 1px solid #71a89e;
@@ -1615,16 +1620,6 @@ body.menu .coach-prompt {
   .care-actions {
     display: none;
   }
-  .care-panel:before {
-    height: 100%;
-  }
-  .coach-state {
-    margin: 18px 0 0;
-    border: 0;
-    border-top: 1px solid #67978f;
-    border-radius: 0;
-    background: none;
-  }
   .bottom-bar .assist-btn {
     display: none;
   }
@@ -1787,13 +1782,14 @@ body.touchpad-off .touch-controls {
     top: 194px;
     bottom: auto;
     right: 12px;
+  }
+  .water-check {
     padding-top: 10px;
   }
-  .care-panel:before {
-    height: 100%;
+  .water-check:before {
     border-radius: 8px 8px 12px 12px;
   }
-  .care-panel > .panel-heading {
+  .water-check > .panel-heading {
     display: none;
   }
   .care-panel .water-row {
@@ -2026,13 +2022,7 @@ body.touchpad-off .touch-controls {
     top: 107px;
     max-height: calc(100dvh - 227px);
   }
-  .care-panel {
-    bottom: 112px;
-  }
-  .care-panel:before {
-    height: 125px;
-  }
-  .care-panel {
+  .water-check {
     padding-top: 10px;
   }
   .water-row {
@@ -2075,9 +2065,6 @@ body.touchpad-off .touch-controls {
   }
   .care-actions {
     display: none;
-  }
-  .care-panel:before {
-    height: 100%;
   }
   .coach-state {
     background: none;
@@ -2214,14 +2201,13 @@ body.touchpad-off .touch-controls {
     bottom: auto;
     right: 12px;
     width: 148px;
+  }
+  .water-check {
     padding: 8px 0 10px;
   }
-  .care-panel > .panel-heading,
+  .water-check > .panel-heading,
   .care-panel .coach-state {
     display: none;
-  }
-  .care-panel:before {
-    height: 100%;
   }
   .care-panel .water-row {
     margin-top: 0;

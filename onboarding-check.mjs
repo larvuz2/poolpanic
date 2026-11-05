@@ -429,6 +429,49 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   assert.match(css, /\.bubble\.quiet \{/);
   assert.match(css, /\.pool-status > div \{\s*background: #fff4cfe8/);
   assert.ok(POOLS.club && POOL_IDS.length === Object.keys(POOL_INTROS).length);
+  // Less UI (5 November 2026): the Water Check and the chlorine only when the water is a problem, the fins when a guest asks, the
+  // hand only when it holds something, the panel only with something in it; no Interact button; the status box only with news;
+  // the floor's station names only near the coach; nothing over the coach when it has nothing to say.
+  assert.match(
+    app,
+    /const waterTrouble =\s*sim\.contamination > 30 \|\| sim\.chlorine > 75 \|\| !!sim\.cleanup \|\| sim\.closed > 0 \|\| holding\("chlorine"\)/,
+  );
+  assert.match(
+    app,
+    /\$\("water-check"\)\.hidden = !waterTrouble;\s*\$\("chlorine"\)\.hidden = !waterTrouble;/,
+  );
+  assert.match(app, /\$\("fins"\)\.hidden = !gearWanted/);
+  assert.match(app, /\$\("coach-state"\)\.hidden = !sim\.coach\.carry && !sim\.coach\.job/);
+  assert.match(app, /\["water-check", "care-actions", "coach-state"\]\.every\(\(id\) => \$\(id\)\.hidden\)/);
+  assert.match(html, /<button id="assist"[^>]*hidden>/);
+  assert.match(app, /\$\("pool-status-box"\)\.hidden = calmStatus && calmHint/);
+  assert.match(app, /data\.z - sim\.coach\.z\) > STATION_LABEL_NEAR/);
+  assert.match(app, /if \(!firstPerson\)\s*prompt\.hidden = !near && !c\.busy/);
+  // Tags only where they help: where every guest goes to the same thing, a guest has one only while they need the coach.
+  assert.match(
+    app,
+    /tagFree = !!\(sim\.venue\.class \|\| sim\.venue\.waves \|\| sim\.venue\.kids \|\| sim\.venue\.onsen \|\| sim\.venue\.river\)/,
+  );
+  assert.match(app, /wanted = needsCoach \|\| !tagFree \|\| \(sim\.venue\.river && p\.status === "queue"\)/);
+  // With no tags to click, a zone or a spring with nobody selected takes the guest who has waited longest; not the Kids Pool's
+  // POOL (a kid is caught first), and never a lane pool's lane (who goes where is the choice there).
+  for (const [venue, takes] of [
+    ["disco", true],
+    ["onsen", true],
+    ["club", false],
+  ]) {
+    const s = new PoolSimulation(5, 3, { venue });
+    s.schedule = [];
+    s.start();
+    const a = s.spawn({ type: venue === "onsen" ? "intermediate" : "aqua", sick: false }),
+      b = s.spawn({ type: venue === "onsen" ? "intermediate" : "aqua", sick: false });
+    Object.assign(a, { wait: 3, needsFins: false, finsFirst: false, problem: null });
+    Object.assign(b, { wait: 9, needsFins: false, finsFirst: false, problem: null });
+    s.selected = null;
+    assert.equal(s.assign(0), takes, venue);
+    if (takes)
+      assert.ok(b.status !== "queue" && a.status === "queue", venue + ": the one who waited longest");
+  }
 }
 
 // 7) The middle of the view is the pool's (21 October 2026): every message stands in the column on the left, where the guests'
