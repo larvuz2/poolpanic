@@ -2137,6 +2137,33 @@ cutting salad animation!! … add this massage table in some venues !! not all!!
   the table and holds E. Seen in Chromium with software drawing (the table, a guest lying on it, a coach massaging: pictures sent to
   the creator); not yet on the creator's machines.
 
+### The intro cinematic (every pool, 5 November 2026)
+
+The creator: "a system that I can turn off later in a toggle for game cinematics as intro… a close-up of the coach always, and
+then… one more one-shot of the environment cinematic, like with the camera moving at lower level, and then another one of the
+coach with a nervous animation… like the minigames in Mario Party… very, very brief… for every venue". `dist/scene/intro-cinematic.mjs`
+(the shots), `PoolWorld.startCinematic`, `updateCinematic`, `endCinematic` (scene.mjs) and `startCinematic` (app.mjs):
+
+- **Before every shift's countdown, 4.9 s, three shots in real time in the venue as it is:**
+  1. **The coach** (1.5 s, a 30° lens): a close-up of Coach Waters where he will walk in from (the walk-in's start, `planIntro`),
+     the camera easing in on his face from in front of him; card: COACH WATERS · On duty.
+  2. **The venue** (1.9 s, 46°): a low sweep round the pool's middle at about head height (1.45 to 1.9 m), kept inside the deck,
+     starting from the side the game's camera looks from; the coaches step out of it; card: the venue's name and the shift.
+  3. **Nervous** (1.5 s, 36°): the coach from low and close again: the Startle jolt, then the FreakOut, panic on his face (the
+     rig's own clips and expressions, cued by the cinematic, not by the shift); card: HERE THEY COME…
+- **The shift waits**: the simulation is held (the app ticks nothing) until it is over, then the countdown runs as before. Any key
+  or click skips it (and does nothing else). Letterbox bars, a white flash at each cut, a name card sliding in for each shot, the
+  HUD and the tags hidden; on the Cruise Ship the camera rides the deck as she rolls.
+- **Settings > Intro cinematics** turns it off (`cinematics` in the settings, on by default). Never in co-op (the crew's machines
+  start together), in the Coach Cam, in a replay, or with `?tune=nocine`.
+- Render only: the simulation never sees it, so replays and co-op are as before.
+
+Checked by `cinematic-check.mjs`: the three shots in order, every camera in all 14 venues real, the coach's shots in front of him
+and looking at his face, the sweep on the deck and low; the world's camera theirs while it runs and the overview's lens back after,
+by itself or skipped; the jolt and the freak-out cued; the simulation held; the skip, the switch and where it never plays. Filmed in
+Chromium with software drawing in all 14 venues (a frame of each shot of each). Not yet seen on the creator's machines; the Coach
+Cam, co-op and replays go straight to the countdown.
+
 ### Loose props: a deck that reacts (every pool, 5 November 2026)
 
 The creator: "if I walk and hit them, they should move… and react to the hit. Also like the furniture… a pot, if I run, it falls
@@ -2510,6 +2537,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/scene/wave.mjs`, `dist/scene/wave-view.mjs` | The Wave Pool's builder (the beach and the mosaic in one bed, the basin walls, the water moved by the simulation's crests, the wave house with its chambers, mural, sign, LED board and lighthouse beacons, the beach dressing, the tube hut, the Surf Shack and surf rack, the walls and the surf gate; the water as the lane for picking); the bathers on screen (`wavePose`: standing, treading, in a tube, woozy, under; `syncLostTubes`) |
 | `dist/scene/dive.mjs`, `dist/scene/dive-view.mjs` | The Jumping Pool's builder (the lawn, the deep pool, the two stations: the springboards, platforms, stairs and plates; the hot tub and the spa corner; the hedges, trees, sunbeds, clubhouse and gates; a highlight and a click target for each height and the tub) and its cast (`divePose`: the line, the stairs, the edge, the flight with its spin, the entry, the tub; the landing rings, the springboard's bend, the steam) |
 | `dist/scene/onsen.mjs`, `dist/scene/onsen-view.mjs` | The Mountain Hot Springs' builder (the snowfield and drifts, the icy terrace and its snow mask, the basins, the water shader, the rim stones and boulders, the bathhouse, the lanterns, the bamboo spout, the cedars and firs, the mountains, the steam and the snowfall, a highlight and a click target for each spring) and its cast (`onsenPose`: guests sitting to the shoulders, wading, panicking; the snow monkeys, `loadMonkey`, their clips and stand-in) |
+| `dist/scene/intro-cinematic.mjs` | The intro cinematic's shots ("The intro cinematic"): `SHOTS`, `planCinematic` (where each shot's camera goes for this venue and this coach), `cinematicAt` (the camera at a moment) |
 | `dist/scene/loose.mjs` | Loose props on screen only ("Loose props: a deck that reacts"): each venue's kit (`VENUE_KITS`) and where it stands (`homeSpots`), the props' looks, and `LooseProps`: balls that roll, boards and chairs that slide, pots and cones that rock or fall over, pushed by the coaches and the guests, bumping each other, a slope's pull (`tilt`), back in place each shift |
 | `dist/scene/cruise.mjs` | The Cruise Ship's builder (the sea shader and panorama, the hull with its balconies and lifeboats, the teak deck, the basin and its sloshing water, the ropes, the rails, the superstructure with the screen, the name, the bridge, the mast and flags and the funnel's smoke, the lobbies, the sliding loungers, the Lido Bar with its bartender, the hot tub, the loose chairs and balls); the roll each frame (`syncCruise`: the scene tipped, the sea and the sky turned back, the water's slosh, the ropes riding it); a guest in the pool treading water (`cruisePose`) |
 | `dist/scene/rooftop.mjs`, `dist/scene/roof-view.mjs`, `dist/scene/city.mjs` | The Rooftop Pool's builder (the teak deck and travertine, the cantilevered slab, the basin and its water shader, the infinity edge and the gutter's flow, the glass rail, the lifts and their sliding doors, the sunbeds, parasols and cabanas, the lounge and fire table, the SKY BAR, the DJ's stage with its LED wall and beams, palms and festoons); the guests on screen (`roofPose`: chest-deep, lying on a sunbed, a glass in hand, the poser on the edge, overboard in the gutter, dancing on the drop; chat bubbles; the towels; the DJ and the bartender, `buildRoofCast`); the city 185 m below (streets and traffic, instanced towers with generated facades, landmarks, the bay and bridge, the skyline) |
@@ -2848,6 +2876,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node karen-check.mjs` | Karen: on level 4's plan, through a locker door to the coach, follows and stays off the water, annoys each person once (they stop, resume after), hold-E ring fills and drains, planted coach, latched click-to-calm, +100/+50, leaves and the influence ends, swimmers generated identically, and on screen: scribbles, her circle, hands over ears, the coach's pat |
 | `node coachcam-check.mjs` | Coach Cam: facing follows the look, E prefers what is in view, view-relative movement, eye and water-level height with the body hidden, hand lag and settle, head bob (off with reduced motion), landing dip, items in hand, field of view, crosshair target |
 | `node fish-model-check.mjs` | The fish model: the file's shape (one mesh, matte, no skeleton, nose to +z and back to +y from its vertices), fish dressed when the model comes or when they are made, each with a wave of its own and one program, a model that does not load leaving the koi, and the fish of the incident seen in the pool only once the kid has tipped it out |
+| `node cinematic-check.mjs` | The intro cinematic: three shots in about five seconds in every venue (the coach's in front of him, the sweep low on the deck), the world's camera and the coach's acting while it runs, the overview's lens back after (by itself or skipped), the shift held, the skip and the Settings switch, never in co-op, the Coach Cam or a replay |
 | `node loose-check.mjs` | Loose props: a kit in every venue on free deck by the walls, apart, clear of the stations, the same places each time; a ball kicked away, a pot rocking at a walk and falling over at a run, a jump clearing a board, a guest strolling past toppling nothing, a new shift putting everything back, the cruise's chairs and balls sliding with the roll, the simulation untouched |
 | `node swimmer-model-check.mjs` | The swimmer models (stand-in skeletons): the choice and its switch, who gets which look, the clip rules (walk and run by foot speed with hysteresis, swim, scratch, panic) and each model's own ground speeds, the poses laid over the clips (arm and leg directions, easing), the swap in the scene and back, the Panic clip and its fallbacks, the VIP crown (and no sash) and daredevil star and cape riding on the head and chest bones, the type disc, queasy tint and a model that breaks being dropped; the cannonball men: the Cannonball clip followed through the incident, the swim in the water, and the crowd's panic (swimmers held upright in the water, the queue hopping) with the models and with the classic swimmers |
 

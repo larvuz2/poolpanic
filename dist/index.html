@@ -23,6 +23,15 @@
         <i class="alert-pointer"></i><b></b><span></span>
       </div>
       <div id="stamps" class="stamps" aria-hidden="true"></div>
+      <!-- The intro cinematic (5 November 2026): three short shots before the countdown, letterboxed, with name cards; any key or
+           click skips it (scene/intro-cinematic.mjs). -->
+      <div id="cinematic" class="cine-overlay" hidden>
+        <div class="cine-bar top"></div>
+        <div class="cine-bar bottom"></div>
+        <div id="cine-flash" class="cine-flash"></div>
+        <div id="cine-card" class="cine-card"><b id="cine-title"></b><small id="cine-sub"></small></div>
+        <small class="cine-skip">Any key or click to skip</small>
+      </div>
       <!-- The highlight replay (Phase 3): the shift's best clip, played again with no HUD. -->
       <div id="replay" class="replay" hidden>
         <div class="replay-bar top"></div>
@@ -314,6 +323,12 @@
           <label class="set-check"
             ><span>Reduce motion <small>(fewer shakes, flashes and replays)</small></span
             ><input type="checkbox" id="set-motion" /><i aria-hidden="true"></i
+          ></label>
+          <label class="set-check"
+            ><span
+              >Intro cinematics
+              <small>(a few seconds of the coach and the venue before each shift)</small></span
+            ><input type="checkbox" id="set-cinematics" /><i aria-hidden="true"></i
           ></label>
         </div>
         <div class="set-group">

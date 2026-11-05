@@ -200,7 +200,7 @@ import { lookBefore } from "./dist/scene/look.mjs";
   );
   assert.match(app, /e\.key === "F9" && devMode\(\)/);
   assert.match(app, /\.\.\.\(lookNoAA \? \["noaa"\] : \[\]\)/);
-  assert.match(app, /accumulator = lookFreeze \? 0 :/);
+  assert.match(app, /accumulator = lookFreeze (\|\| world\.cinematic )?\? 0 :/);
   assert.match(html, /id="set-look"/);
   assert.match(
     css,

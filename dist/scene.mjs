@@ -1,6 +1,7 @@
 // Presentation layer: builds a venue with Three.js and mirrors simulation state every frame. Rendering never
 // advances gameplay; cosmetic motion (bobbing, flapping, wagging) never feeds back into the simulation.
 import { LooseProps } from "./scene/loose.mjs";
+import { planCinematic, cinematicAt } from "./scene/intro-cinematic.mjs";
 import { buildMopStation } from "./scene/wet-view.mjs";
 import {
   buildMassageTable,
@@ -1139,6 +1140,7 @@ export class PoolWorld extends SceneKit {
     this.syncClutter(sim);
     this.updateEnvironment(sim, time, dt);
     this.loose?.update(sim, dt);
+    if (this.cinematic) this.updateCinematic(this.realDt ?? dt);
     this.incidentView.sync(sim, time, dt);
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
@@ -1588,7 +1590,8 @@ export class PoolWorld extends SceneKit {
       if (this.introPlan.length > 0)
         intro = { ...introAt(this.introPlan, sim.countdown), rate: this.introPlan.rate };
     }
-    cg.visible = !firstPerson;
+    // (the intro cinematic's sweep across the venue is the venue's alone: the coaches step out of it)
+    cg.visible = !firstPerson && this.cinematic?.kind !== "venue";
     // (a guest's own coach is drawn a little ahead of the shift, where the stick is taking him: net.mjs Predictor)
     const ahead = local && this.drawAhead ? this.drawAhead : null;
     cg.position.set(
@@ -1635,7 +1638,7 @@ export class PoolWorld extends SceneKit {
     if (local) {
       this.coachHalo.position.set(cg.position.x, 0.034, cg.position.z);
       this.coachHalo.scale.setScalar(c.dashTime > 0 ? 1.18 : 1);
-      this.coachHalo.visible = sim.status !== "ready" && !firstPerson;
+      this.coachHalo.visible = sim.status !== "ready" && !firstPerson && !this.cinematic;
       const nearby = sim.nearestInteraction(),
         marker = nearby || c.goal;
       this.actionHalo.visible = !!marker && sim.status === "playing";
@@ -1708,18 +1711,21 @@ export class PoolWorld extends SceneKit {
         const speed = Math.hypot(c.vx || 0, c.vz || 0);
         const heavy = !!c.busy && HEAVY_JOBS.has(c.busy.kind);
         const urgency = sim.status === "playing" ? sim.loudestAlert?.()?.urgency || 0 : 0;
-        const startle = !!moments.fresh;
+        // (the intro cinematic: he stands where he will walk in from, then jumps and freaks out on cue)
+        const cine = local && this.cinematic ? this.cinematic.coach : null;
+        const startle = !!moments.fresh || !!cine?.startle;
         moments.fresh = false;
+        if (cine) cine.startle = false;
         rig.update(dt, {
-          speed,
-          intro,
+          speed: cine ? 0 : speed,
+          intro: cine ? null : intro,
           prone: !!(c.swimming || c.waterTransition),
           ring: c.carry === "lifering",
           busy: !!c.busy,
           ice: c.onIce ? (c.sliding ? "slide" : "skate") : null,
           heavy,
           startle,
-          urgent: urgency >= 80,
+          urgent: cine ? !!cine.urgent : urgency >= 80,
           massage: massaging,
         });
         rig.face?.update(dt, {
@@ -1729,8 +1735,8 @@ export class PoolWorld extends SceneKit {
             struggling: heavy || (!!c.swimming && c.carry === "lifering" && !!sim.rescue),
             saved: since("save"),
             failed: since("fail"),
-            urgency,
-            moving: speed > 0.9 || !!c.swimming,
+            urgency: cine ? cine.urgency : urgency,
+            moving: !cine && (speed > 0.9 || !!c.swimming),
           }),
           still: this.reducedMotion?.matches,
         });
@@ -2114,6 +2120,58 @@ export class PoolWorld extends SceneKit {
       this.camera.position.y += Math.sin(this.clock * 47) * s * 0.5;
     }
     this.camera.updateMatrixWorld(true);
+  }
+  // The intro cinematic (scene/intro-cinematic.mjs): three short shots before the countdown, the coach standing where he will walk
+  // in from. Returns its length in seconds. The app holds the shift meanwhile (app.mjs) and ends it early on a key or a click.
+  startCinematic(sim) {
+    this.introPlan ||= planIntro(sim);
+    const c = sim.coach,
+      at =
+        this.introPlan.length > 0
+          ? introAt(this.introPlan, sim.countdown || this.introPlan.seconds)
+          : { x: c.x, z: c.z, angle: c.angle ?? Math.PI / 2 };
+    const side = this.viewDirection || { x: -0.65, z: 0 };
+    this.cinematic = {
+      t: 0,
+      plan: planCinematic(sim.venue, at, { x: side.x, z: side.z }),
+      shot: -1,
+      coach: {},
+    };
+    this.updateCinematic(0);
+    return this.cinematic.plan.total;
+  }
+  endCinematic() {
+    if (!this.cinematic) return;
+    this.cinematic = null;
+    this.resize(); // (the overview's own lens, framing and near plane back)
+    this.onCinematic?.(-1, null);
+  }
+  updateCinematic(dt) {
+    const k = this.cinematic;
+    k.t += dt;
+    const at = cinematicAt(k.plan, k.t, this.clock);
+    if (!at) return this.endCinematic();
+    if (at.index !== k.shot) {
+      k.shot = at.index;
+      // the coach acts each shot: still and sure of himself, then a jolt and the freak-out (syncCoach reads k.coach)
+      k.coach = at.kind === "nervous" ? { startle: true, urgent: true, urgency: 95 } : { urgency: 0 };
+      k.kind = at.kind;
+      this.onCinematic?.(at.index, at.kind);
+    }
+    const { w, h } = this.viewSize(),
+      cam = this.camera;
+    cam.clearViewOffset();
+    cam.aspect = w / h;
+    cam.near = 0.15;
+    cam.fov = at.fov;
+    cam.updateProjectionMatrix();
+    // (in the venue's frame: on the Cruise Ship the camera rides the deck as she rolls)
+    const pos = new THREE.Vector3(at.pos.x, at.pos.y, at.pos.z).applyMatrix4(this.scene.matrixWorld),
+      look = new THREE.Vector3(at.look.x, at.look.y, at.look.z).applyMatrix4(this.scene.matrixWorld);
+    cam.position.copy(pos);
+    cam.up.set(0, 1, 0);
+    cam.lookAt(look);
+    cam.updateMatrixWorld(true);
   }
   // Brief camera shake for big moments (skipped with reduced motion).
   kick(amount = 0.5) {
