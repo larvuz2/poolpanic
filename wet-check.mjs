@@ -120,7 +120,7 @@ assert.ok(INPUTS.includes("mop"), "the mop button is an input a replay plays bac
 // off it without falling again; jumping over one is safe.
 {
   const s = quiet();
-  const spot = addWetSpot(s, -9, -10.2);
+  const spot = addWetSpot(s, -9, -7.6);
   const c = s.coach;
   Object.assign(c, { x: spot.x - 2, z: spot.z, vx: 0, vz: 0 });
   s.events.length = 0;
@@ -154,7 +154,7 @@ assert.ok(INPUTS.includes("mop"), "the mop button is an input a replay plays bac
   assert.equal(s.score, quiet().score, "it costs time, not points");
   // Jumping over it.
   const j = quiet();
-  const wet = addWetSpot(j, -9, -10.2);
+  const wet = addWetSpot(j, -9, -7.6);
   Object.assign(j.coach, { x: wet.x - 3, z: wet.z, vx: 0, vz: 0 });
   for (let i = 0; i < 200 && j.coach.x < wet.x - wet.r - 0.7; i++) {
     j.setMovement(1, 0);
@@ -208,8 +208,8 @@ assert.ok(INPUTS.includes("mop"), "the mop button is an input a replay plays bac
 // 6) Spots close together are one spot; there are never more than a handful at once.
 {
   const s = quiet();
-  const a = addWetSpot(s, -9, -10.2),
-    b = addWetSpot(s, -8.6, -10.2);
+  const a = addWetSpot(s, -9, -7.6),
+    b = addWetSpot(s, -8.6, -7.6);
   assert.equal(a, b);
   assert.ok(a.r > T.radius);
   for (let i = 0; i < 30; i++) addWetSpot(s, -12 + (i % 6) * 2.4, -10.4 - Math.floor(i / 6) * 1.2);

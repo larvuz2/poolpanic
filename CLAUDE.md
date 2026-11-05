@@ -133,7 +133,8 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    **Phase 0** (fix what's broken: the booking bug, cramps spaced out, every pool's star targets recalibrated with cramps on, a
    30 s limit on held clocks, unique names, the results card at 720p, game-over wording, wishes and incidents met, signs only
    for met incidents, a short Help) is **done**. **Phase 1, the first ten minutes** (a guided first shift that teaches by doing,
-   `dist/tutorial.mjs`, its fins marked with metres like the life ring, `near` in coach.mjs; a card and a two-levels-easier shift the first time each pool appears, `POOL_INTROS`; the lane choice judged
+   `dist/tutorial.mjs`, since 5 November 2026 two: the first shift lanes only, the third at the Community Pool fins (the rack moved
+   by the waiting line) then a cramp rescue, repeated until done, `lessonDue`; its fins marked with metres like the life ring, `near` in coach.mjs; a card and a two-levels-easier shift the first time each pool appears, `POOL_INTROS`; the lane choice judged
    at once, `laneVerdict`; one meaning per key, the numbers for places, Z waves, B bar; the old map off the main screen; a calmer
    HUD; README "The first ten minutes") is **done**. **Phase 2, a run worth repeating** (the pools as a ladder opened across runs,
    three to start and one more with every date; what lasts in the coach's locker: the dates album, coach gear opened by stars, the

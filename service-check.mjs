@@ -62,7 +62,7 @@ for (const lane of [0, 2])
 }
 {
   const s = game();
-  at(s, -9.3, 7.8);
+  at(s, s.venue.stations.fins.x + 1, s.venue.stations.fins.z);
   assert.ok(s.fetch("fins"));
   assert.equal(s.finsAvailable, 2);
   assert.ok(s.interact(), "Second E drops even beside rack");
@@ -83,7 +83,7 @@ for (const lane of [0, 2])
   at(s, f.x + 0.7, f.z);
   assert.ok(s.pickup(f.id));
   assert.equal(s.clutter.length, 0);
-  at(s, -9.3, 7.8);
+  at(s, s.venue.stations.fins.x + 1, s.venue.stations.fins.z);
   assert.ok(s.returnItem());
   assert.equal(s.finsAvailable, 3, "Drop, trip, pickup and return conserve all three pairs");
 }

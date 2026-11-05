@@ -81,7 +81,7 @@ const at = (s, x, z) => {
   const original = { x: s.coach.x, z: s.coach.z };
   step(s, 1);
   assert.deepEqual({ x: s.coach.x, z: s.coach.z }, original, "A distant click must not start auto-walking");
-  at(s, -9.3, 7.8);
+  at(s, s.venue.stations.fins.x + 1, s.venue.stations.fins.z);
   assert.equal(s.nearestInteraction().kind, "fetch");
   assert.ok(s.interact());
   assert.equal(s.coach.carry, "fins");
@@ -89,6 +89,7 @@ const at = (s, x, z) => {
   assert.equal(s.fetch("chlorine"), false, "Only one carried item");
   const p = s.spawn({ type: "advanced" });
   Object.assign(p, { needsFins: true, sick: false });
+  at(s, -10.3, 7.8); // (away from the line: the rack stands by it)
   assert.equal(s.deliver(p.id), false, "No long-distance handoffs");
   assert.equal(p.hasFins, false);
   at(s, p.x, p.z + 0.9);
@@ -121,7 +122,7 @@ const at = (s, x, z) => {
     workTarget: 999,
     h: 100,
   });
-  at(s, -9.3, 7.8);
+  at(s, s.venue.stations.fins.x + 1, s.venue.stations.fins.z);
   assert.ok(s.fetch("fins"));
   at(s, -2.05, -10.15);
   assert.equal(s.deliver(p.id), false, "Swimmer must first arrive at the wall");

@@ -89,11 +89,8 @@ export const WetSpots = {
   },
   // A swimmer has just climbed out onto the deck at `where`: one in five drips a wet spot there.
   climbedOut(sim, p, where) {
-    // (the guided first shift: the first swimmer out always drips one, to teach the mop)
-    if (sim.config.tutorial && !sim.tutorialWet && sim.status === "playing") {
-      sim.tutorialWet = true;
-      return addWetSpot(sim, where.x, where.z);
-    }
+    // (the guided first shift is lanes and nothing else: no wet spots, 5 November 2026)
+    if (sim.config.tutorial === 1 || sim.config.tutorial === true) return null;
     if (wetRandom(sim) >= (sim.venue.wetChance ?? T.chance) || sim.status !== "playing") return null;
     return addWetSpot(sim, where.x, where.z);
   },

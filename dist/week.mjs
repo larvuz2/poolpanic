@@ -184,6 +184,19 @@ export const tierScale = (tier) => TIER_SCALE[Math.max(1, Math.min(TOP_TIER, Mat
 export const FIRST_SHIFT = { duration: 60, total: 7 };
 // The guided first shift (Phase 1, tutorial.mjs) is the gentle minute played a little longer, so its lessons fit.
 export const TUTORIAL_SECONDS = 90;
+// The second guided shift (5 November 2026, tutorial.mjs): fins, then a cramp, on the run's third shift, always at the Community
+// Pool, the pool of the first lesson, with no big moment; its incidents wait until the lessons are done. Not finished, it comes
+// back the next shift until it is (or its tips are skipped): `save.lesson2`.
+export const LESSON_STEP = 2;
+// (and 45 s longer than the day's shift, so the fins, the rescue and a little of the shift itself fit)
+export const LESSON_EXTRA = 45;
+export const LESSON_POOL = "club";
+export const lessonDue = (save) =>
+  !!save.tutorial &&
+  !save.lesson2 &&
+  !!save.week &&
+  stepOf(save.week) >= LESSON_STEP &&
+  !(save.week.chapter === FINALE_WEEK && save.week.shift === SHIFTS_PER_WEEK - 1);
 // VIPs (a big tip, short patience) in every shift (the creator, 16 October 2026: "always"): one in the gentle first minute, two from
 // the next, one more every three shifts (at most six).
 export const vipCount = (step) => (step <= 0 ? 1 : Math.min(6, 2 + Math.floor(step / 3)));
@@ -1416,6 +1429,7 @@ export function normalizeWeekSave(saved = {}) {
     // played or skipped (`tutorial`, Phase 1).
     seen,
     tutorial: !!s.tutorial,
+    lesson2: !!s.lesson2,
     ladder,
     album,
     stars,
@@ -1448,6 +1462,7 @@ export function finishShift(save, shift, summary, stats = {}) {
   if (Array.isArray(save.seen) && POOLS[shift.pool] && !save.seen.includes(shift.pool))
     save.seen.push(shift.pool);
   if (shift.config?.tutorial) save.tutorial = true;
+  if (shift.config?.tutorial === 2 && summary.lessons) save.lesson2 = true;
   // What lasts: the stars, and the best at this pool.
   const starsBefore = save.stars || 0;
   save.stars = starsBefore + stars;

@@ -2063,7 +2063,7 @@ function startNow(bookingId = null, week = null) {
           booking: activeBooking,
           config: { ...SHIFTS[level - 1], ...shiftGuests, ...man },
         });
-  tutor = sim.config.tutorial ? new Tutor() : null;
+  tutor = sim.config.tutorial ? new Tutor(sim.config.tutorial) : null;
   $("tutor").hidden = true;
   syncVenue(sim);
   world.resetActors();

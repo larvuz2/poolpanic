@@ -820,15 +820,28 @@ The diagnostic of 19 October found that nothing taught the game and the first ho
 
 - **The main screen** (since 20 October 2026 the Old Town Baths behind it: "The main menu", above) says what the game is: the week card (over a picture of the coach at his pool until 20 October; since 2 November 2026 `#menu-art` is only a plain backdrop if the 3D stage cannot load), one line on the
   job (*send swimmers to the right lanes, fetch the gear, fix the chaos*), START. The old level map shows only in free play.
-- **The guided first shift** (`dist/tutorial.mjs`). The first shift of a player's first run (`!save.tutorial`, Monday of week 1) is
-  the gentle minute stretched to 90 s (`TUTORIAL_SECONDS`) with `config.tutorial` on, and a yellow tip at the top of the column of messages on the left says the one
-  thing to do next, step by step: select the waiting swimmer, send them to a lane (1), carry fins to the guest who asks for them, send
-  that guest to a lane, mop the wet spot, then *That's the job, coach!* for six seconds. The fins have a marker with metres like the
-  life ring's in a rescue (the loud alert, `collectAlerts` in coach.mjs): *🦶 Fin rack · 9 m* while the guest waits, then the guest's
-  name and metres once the coach has a pair, shown from 1 m away (`near`; the other alerts from 4 m), and only in the tutorial. The simulation sets the stage only with the
-  flag on: the second guest asks for fins first, everyone waits 2.5 times longer, and the first swimmer to climb out drips a wet spot.
-  **Skip tips** stops them and marks the tutorial done; a finished tutorial is never shown again (`tutorial` in the week save). A
-  replay rebuilds the shift from its config, so a tutorial shift replays exactly.
+- **The guided shifts** (`dist/tutorial.mjs`; two since 5 November 2026, the creator: "let the first level only be assigning
+  swimmers into the swim lanes, and then we have a second level, the third or fourth, for fins… make sure that we can repeat the
+  same level… the fins closer to where the swimmers are coming out… and then also for a cramp. I think that's it for the
+  tutorial"). A yellow tip at the top of the column of messages on the left says the one thing to do next, step by step.
+  - **The first** (`config.tutorial` 1): the first shift of a player's first run (`!save.tutorial`, Monday of week 1), the gentle
+    minute stretched to 90 s (`TUTORIAL_SECONDS`). Lanes and nothing else: select the waiting swimmer, send them to a lane (1),
+    send a few more (*slow swimmers in one lane, fast ones in another*), then *That's the job, coach!* for six seconds. Nobody asks
+    for fins and nobody drips a wet spot (incidents/wet.mjs).
+  - **The second** (`config.tutorial` 2, `LESSON_STEP`, `lessonDue` in week.mjs): the run's third shift, always at the Community
+    Pool (`LESSON_POOL`, whatever the week drew for the day), 45 s longer than the day's shift (`LESSON_EXTRA`), with no big
+    moment. Its second guest asks for fins before they will swim, and waits on the rack's side of the line: the rack stands a few
+    steps from it, by the MEN's door (below), so the walk is short and plain. The fins have a marker with metres like the life ring's in a rescue (the loud
+    alert, `collectAlerts` in coach.mjs): *🦶 Fin rack* while the guest waits, then the guest's name once the coach has a pair,
+    shown from 1 m away (`near`; the other alerts from 4 m), and only in this lesson. Once that guest is sent, the swimmer longest
+    in the water cramps three seconds later (`tickLessons` in sim.mjs), and the tips walk through the rescue: a glowing ring from
+    the wall, the edge (the coach dives in), the swim, the climb out, and the ring back on its hook once the swimmer on the bench
+    lets go of it; then *You're a real lifeguard now!* The shift's incidents wait until all that is done (`lessonsDone`,
+    chaos.mjs), so week 1 still meets all five. Not finished by the whistle (`summary().lessons`), it comes back on the next
+    shift, at the Community Pool again, until it is (`lesson2` in the week save); never on the finale Saturday.
+  - In both, everyone waits 2.5 times longer and nobody falls ill or cramps unless the lesson says so. **Skip tips** stops them
+    and marks that lesson done (`tutorial` or `lesson2`); a finished lesson is never shown again. A replay rebuilds the shift
+    from its config, so a lesson replays exactly.
 - **A gig picker with one card is no choice**: a plain *Start the shift ▶* button.
 - **A pool's first visit** (`POOL_INTROS`, `FIRST_VISIT_EASE` in `dist/week.mjs`; `seen` in the week save, every pool played): the
   picker shows a card, *NEW POOL · its name · a little easier the first time*, with the pool's one rule and the one action to learn,
@@ -1027,6 +1040,12 @@ banners, trophies, posters, plants, the compass rose and anchor on the deck. The
   (`godot/tools/blender/props_doors.py`), and swings out onto the deck (`lockerDoors`); the classic pool has the same two doors.
   A guest reaches the line about 0.6 s later than from the locker rooms (5.5 s from the go). No venue paints footprints at its
   queue spots, now or later.
+- **The fin rack by the line** (5 November 2026, the creator: "accommodate the layout so the fins are closer to where the swimmers
+  are exiting or coming out from… an easy and fast walk"): `CLUB.stations.fins` and its hit box moved from the far side (x −10.3,
+  z 7.8) to the open deck between the MEN's door and the left-hand line (x −8.2, z −11.0), 3.6 m from its first place. The model's
+  rack is baked into its merged meshes, so `moveFinRack` (harbourside.mjs) moves its triangles there as it loads (those inside
+  `BAKED_RACK`, above the floor, shared vertices left alone) and the `Fins_1..3` nodes with them; its contact shadow moved in
+  `floor_ao.webp`. The classic pool's rack follows `stations.fins` by itself.
 
 **Splash Park dressed for real** (30–31 October 2026, `dist/scene/splashpark.mjs`; the creator: "do the same Harbourside treatment
 for the next venue! same details, amazing lighting, new props!… always considering performance and triangle count… work on only 1
@@ -2741,7 +2760,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node kids-check.mjs` | The Kids Pool: its floor plan (three open zones, a gate, no lockers, its toys and song, every station reachable), only kids each in a look of their own, kids running all over the deck (never into the water or a bench) on a stream of their own, one POOL button to the emptiest part, chaotic paddling inside the walls and out when their time is up, a packed pool past ten (room for the party while it is on), a kid's points by their mood and the bot waiting for room, no Marco, more wees, its star targets, and the bot through a shift |
 | `node progress-check.mjs` | A run worth repeating (Phase 2): the pool ladder (three to start, one more with every date, the arena the finale), the week's draw from the pools open (a new pool at once, never two days running, kept in the save), difficulty by week and the smoothed levels, the first visit at the band's foot, the season finale, one money (perks out of the Date Fund, the tip jar and sponsors into it, Marina's texts once), the coach's gear by stars, what a run leaves and what a game over keeps, an older save carried over, the album's stills and scenes, the ending and its credits, and the screens wired |
 | `node phase3-check.mjs` | Depth and feel (Phase 3): the happy streak's tiers (to ×2.5), saves and tips feeding it, its breaks with who broke it and the guest putting it at risk; coaching tips (asked once a workout from their own stream, the coach's E at the lane's end, faster and happier, lapsing); the big moment (scheduled at about two thirds of a shift, never too near either end, one kind for each pool, announced, graded and stamped, waiting for a rescue); the race played start to finish (the lane kept clear, the whistle, the starter going alone, the pile-up); the Lazy River's two ways round (the rapids quicker, loved by thrill-seekers, a chiller's wipeout, too many at once); the rooftop's seating (wishes, verdicts, the cabanas, a VIP's tip in one); and a highlight played from a shift's real record, matching it tick for tick |
-| `node onboarding-check.mjs` | The first ten minutes: a card and an easier first visit for every new pool (never the first Monday), the pools seen and the tutorial kept in the save; the guided first shift played through by a script (select, lane, fins with their marker and metres on the rack then the guest, lane, mop, well done, then quiet; no fins marker outside the tutorial) and only with `config.tutorial` on; skipping; the lane verdicts; one meaning per key; the main screen without the old map and the one-card start; the calmer HUD |
+| `node onboarding-check.mjs` | The first ten minutes: a card and an easier first visit for every new pool (never the first Monday), the pools seen and the tutorial kept in the save; the guided shifts played through by a script: the first lanes only (select, lane, more, well done, then quiet; no fins guest, no wet spot), the second at the Community Pool (the rack within 4 m of the line, fins with their marker on the rack then the guest, lane, then the cramp: ring, dive, swim, climb out, ring back on its hook, well done; no incident before), `lessonDue` from the third shift until `lesson2`, never the finale Saturday; no fins marker outside the lesson; skipping; the lane verdicts; one meaning per key; the main screen without the old map and the one-card start; the calmer HUD |
 | `node wet-check.mjs` | Wet spots and the mop: a bucket in every pool, one in five swimmers climbing out dripping a spot (its own random stream), a spot that never dries, a slip and lost points for a guest, the coach down for 1.3 s when he steps in one (not again on his way off it; a jump clears it), the mop grabbed, used and put back (E or Q), spots that merge, and the bot mopping in every pool |
 | `node pee-check.mjs` | The wee: a third of sick guests (half at the Kids Pool), the 🚽 warning and its prevention, a missed one turning the water yellow, emptying the pool and costing as much as a poo, cleared with chlorine alone; a poo still a poo |
 | `node disco-check.mjs` | The Aqua Disco: its floor plan (four zones, no blocks, a stage past the pool, no locker rooms but one door in the back wall that guests and a dog come in and leave by, every station, fixture and queue spot reachable), a class of aqua dancers whatever the level wrote (Marco and the VIPs too, Marco's toast a dancer's), rows down a zone facing the stage with the front row by it, four to a zone comfortable and six packed (moods fall, one toast, in zones), zones not lanes in toasts and stings, the dance routine |

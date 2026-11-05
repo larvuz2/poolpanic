@@ -253,6 +253,7 @@ export function buildHarbourside(w, venue) {
   w.water.material.uniforms.uSun.value.copy(HARBOUR_SUN);
   const root = H.scene.clone(true);
   root.name = "harbourside";
+  moveFinRack(root, venue.stations.fins);
   w.scene.add(root);
   (w.liveProps ||= []).push(root); // (the model is batched already: never again by scene.mjs)
   const material = makeMaterials(w);
@@ -282,6 +283,65 @@ export function buildHarbourside(w, venue) {
   beams(w);
   motes(w);
   glows(w, info.lights);
+}
+
+// The fin rack (its table, the crate and the three pairs, Fins_1..3) is baked into the model where it stood until 5 November 2026,
+// at the far end of the deck. It moves to wherever the plan puts the fin station (spatial.mjs, by the waiting line): every triangle
+// of the model standing inside the rack's box above the floor slides over, once (the clones share their geometry), and the pairs
+// with it. The floor and its baked shading stay as they are.
+export const BAKED_RACK = { x: -10.3, z: 7.8, hx: 0.65, hz: 1.3, floor: 0.002 };
+export function moveFinRack(root, to) {
+  const B = BAKED_RACK,
+    dx = to.x - B.x,
+    dz = to.z - B.z;
+  if (!dx && !dz) return 0;
+  root.updateMatrixWorld(true);
+  let moved = 0;
+  const v = new THREE.Vector3(),
+    inv = new THREE.Matrix4();
+  root.traverse((o) => {
+    if (/^Fins_\d$/.test(o.name) && !o.userData.rackMoved) {
+      o.userData.rackMoved = true;
+      o.position.x += dx;
+      o.position.z += dz;
+    }
+    const g = o.isMesh && o.geometry;
+    if (!g || g.userData.rackMoved || /^Fins_\d$/.test(o.name)) return;
+    g.userData.rackMoved = true;
+    const pos = g.attributes.position,
+      index = g.index,
+      count = index ? index.count : pos.count,
+      at = (i) => (index ? index.getX(i) : i);
+    const world = (i) => v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+    const inside = (p) => Math.abs(p.x - B.x) < B.hx && Math.abs(p.z - B.z) < B.hz;
+    const take = new Set(),
+      keep = new Set();
+    for (let t = 0; t < count; t += 3) {
+      let all = true,
+        top = -Infinity;
+      for (let k = 0; k < 3; k++) {
+        const p = world(at(t + k));
+        all &&= inside(p);
+        top = Math.max(top, p.y);
+      }
+      for (let k = 0; k < 3; k++) (all && top > B.floor ? take : keep).add(at(t + k));
+    }
+    if (!take.size) return;
+    // (the shift, in the mesh's own frame)
+    inv.copy(o.matrixWorld).invert();
+    const a = new THREE.Vector3(0, 0, 0).applyMatrix4(inv),
+      b = new THREE.Vector3(dx, 0, dz).applyMatrix4(inv),
+      d = b.sub(a);
+    for (const i of take) {
+      if (keep.has(i)) continue; // (a corner shared with the floor stays put)
+      pos.setXYZ(i, pos.getX(i) + d.x, pos.getY(i) + d.y, pos.getZ(i) + d.z);
+      moved++;
+    }
+    pos.needsUpdate = true;
+    g.computeBoundingBox();
+    g.computeBoundingSphere();
+  });
+  return moved;
 }
 
 // What the game moves or asks for: the stations' hit boxes and labels, the rings, the fins, the doors, the clocks' hands.

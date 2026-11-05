@@ -206,7 +206,7 @@ console.log(
     s.clutter.filter((p) => p.type === "fins").length +
     (s.coach.carry === "fins" ? 1 : 0);
   assert.equal(inventory(), 3, "Evacuation retains carried, worn, and dropped fins");
-  at(s, -9.3, 7.8);
+  at(s, s.venue.stations.fins.x + 1, s.venue.stations.fins.z);
   assert.ok(s.returnItem());
   assert.equal(inventory(), 3);
   assert.equal(s.coach.carry, null);

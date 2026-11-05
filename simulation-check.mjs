@@ -78,8 +78,8 @@ function swimmer(s, type, lane, p = 0) {
   const s = isolated();
   const p = s.spawn({ type: "advanced" });
   p.needsFins = true;
-  s.coach.x = -10.3;
-  s.coach.z = 8.8;
+  s.coach.x = s.venue.stations.fins.x + 1;
+  s.coach.z = s.venue.stations.fins.z;
   assert.ok(s.fetch("fins"));
   assert.equal(s.finsAvailable, 2);
   s.coach.x = p.x;
@@ -94,8 +94,8 @@ function swimmer(s, type, lane, p = 0) {
   assert.ok(s.pickup(s.clutter[0].id));
   assert.equal(s.coach.carry, "fins");
   assert.equal(s.returnItem(), false);
-  s.coach.x = -10.3;
-  s.coach.z = 8.8;
+  s.coach.x = s.venue.stations.fins.x + 1;
+  s.coach.z = s.venue.stations.fins.z;
   assert.ok(s.returnItem());
   assert.equal(s.finsAvailable, 3);
   assert.equal(s.clutter.length, 0);

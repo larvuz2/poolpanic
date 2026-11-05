@@ -32,6 +32,9 @@ import {
   reroll,
   textsPassed,
   TUTORIAL_SECONDS,
+  LESSON_POOL,
+  LESSON_EXTRA,
+  lessonDue,
 } from "./week.mjs";
 import { scene, money } from "./marina.mjs";
 import { ART } from "./story.mjs";
@@ -67,7 +70,12 @@ export function installWeek({
       ? Array(SHIFTS_PER_WEEK).fill(forcedPool)
       : w.pools || weekPools(w.chapter, w.seed, openPools(save.ladder, w.chapter));
   // The week as buildShift reads it: its pools, and the gear the coach wears now.
-  const planned = (w) => ({ ...w, pools: itinerary(w), gear: save.gear });
+  // (the second guided shift is at the Community Pool, whatever the week drew for the day: week.mjs lessonDue)
+  const planned = (w) => {
+    const pools = [...itinerary(w)];
+    if (w === save.week && lessonDue(save)) pools[w.shift] = LESSON_POOL;
+    return { ...w, pools, gear: save.gear };
+  };
 
   function load() {
     try {
@@ -85,7 +93,7 @@ export function installWeek({
 
   // The six shifts, one a day, each with its stars once played (✗ for one not passed), and Sunday's date.
   function daysHtml(week) {
-    const pools = week ? itinerary(week) : null;
+    const pools = week ? planned(week).pools : null;
     const days = DAYS.map((d, i) => {
       const h = week?.history[i],
         now = week && i === week.shift && !h,
@@ -233,7 +241,12 @@ export function installWeek({
     // The guided first shift (Phase 1, tutorial.mjs): the first shift of a player's first run teaches the job, a little longer
     // than the gentle minute. Played or skipped once, never again (`save.tutorial`, set by finishShift or by skipTutorial).
     if (!save.tutorial && shift.step === 0)
-      shift = { ...shift, config: { ...shift.config, tutorial: true, duration: TUTORIAL_SECONDS } };
+      shift = { ...shift, config: { ...shift.config, tutorial: 1, duration: TUTORIAL_SECONDS } };
+    // The second (5 November 2026): fins and a cramp, from the third shift, until it is done (`save.lesson2`). No big moment.
+    else if (lessonDue(save)) {
+      const { big, ...config } = shift.config;
+      shift = { ...shift, config: { ...config, tutorial: 2, duration: config.duration + LESSON_EXTRA } };
+    }
     $("week-dialog").close();
     hideMenu();
     crumb(
@@ -535,8 +548,8 @@ export function installWeek({
   }
   // The player skipped the guided first shift's tips: never again.
   function skipTutorial() {
-    if (save.tutorial) return;
-    save.tutorial = true;
+    if (shift?.config?.tutorial === 2) save.lesson2 = true;
+    else save.tutorial = true;
     persist();
   }
   return {
