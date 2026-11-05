@@ -511,6 +511,9 @@ export function loopPosition(p, center = 0) {
   if (p < 30) return { x: center - 0.6, z: 7.2 - (p - 15.6), angle: Math.PI };
   return { x: center - 0.6 + (p - 30), z: -7.2, angle: Math.PI / 2 };
 }
+// (the second guided shift's fins guest, still coming in or waiting for a lane: tickLessons, lessonsDone)
+const finsWaiting = (p) => !!p && (p.status === "arriving" || p.status === "queue");
+
 export class PoolSimulation extends ChaosController {
   // `options.booking` (a booking or its id) folds a booking's extra trouble into the shift; `options.config` plays a
   // custom shift (a drill) at the feature tier `level`.
@@ -898,7 +901,9 @@ export class PoolSimulation extends ChaosController {
                 : spec.type ||
                   (r < mix[0] ? "beginner" : r < mix[1] ? "intermediate" : r < mix[2] ? "advanced" : "aqua");
     const index = this.people.length;
-    const side = index % 2 === 0 ? -1 : 1;
+    // (the second guided shift's fins guest waits on the fin rack's side of the line, a few steps from it: tutorial.mjs)
+    const lessonFins = this.config.tutorial === 2 && index === 1 && TYPES[type].speed > 0;
+    const side = index % 2 === 0 || lessonFins ? -1 : 1;
     const occupied = new Set(
       this.people
         .filter(
@@ -1012,12 +1017,16 @@ export class PoolSimulation extends ChaosController {
       });
       p.waitLimit *= 0.75;
     }
-    // The guided first shift (Phase 1, tutorial.mjs): everyone is patient while the player learns, and the second guest asks for
-    // fins before they will swim, to teach carrying. (Set after the numbers are drawn, so no other roll of the shift moves.)
+    // The guided shifts (tutorial.mjs): everyone is patient while the player learns, nobody falls ill and nobody cramps unless the
+    // lesson says so. The first (`tutorial` 1, the run's first shift) is only sending swimmers to lanes (the creator, 5 November
+    // 2026: "let the first level only be assigning swimmers into the swim lanes"). The second (`tutorial` 2, the third shift, at the
+    // Community Pool) teaches fins, then a cramp: its second guest asks for fins before they will swim, and once they are sent the
+    // first swimmer already in the water cramps (`tickLessons`). (Set after the numbers are drawn, so no other roll of the shift
+    // moves.)
     if (this.config.tutorial) {
       p.waitLimit *= 2.5;
-      if (index === 1 && TYPES[type].speed > 0)
-        Object.assign(p, { needsFins: true, midFins: false, finsFirst: true, problem: "fins" });
+      Object.assign(p, { sick: false, crampAt: Infinity });
+      if (lessonFins) Object.assign(p, { needsFins: true, midFins: false, finsFirst: true, problem: "fins" });
     }
     if (type === "rider") riderSpawn(this, p);
     if (this.venue.waves) batherSpawn(this, p);
@@ -1669,6 +1678,7 @@ export class PoolSimulation extends ChaosController {
     for (const side of [-1, 1]) this.doors[side] = Math.max(0, this.doors[side] - dt);
     while (this.nextArrival < this.schedule.length && this.arrivalTime >= this.schedule[this.nextArrival].at)
       this.spawn({ ...this.schedule[this.nextArrival++], entrance: true });
+    this.tickLessons();
     this.updateRescue();
     if (this.ship) updateShip(this, dt);
     prepareDeck(this, dt);
@@ -2002,6 +2012,39 @@ export class PoolSimulation extends ChaosController {
   toggleWaves() {
     return this.venue.waves ? toggleWaves(this) : false;
   }
+  // The second guided shift (`config.tutorial` 2, tutorial.mjs): the fins guest has had their fins and been sent to a lane, and the
+  // lesson's cramp has been rescued, the ring back on its hook. Until then the shift's incidents wait (chaos.mjs).
+  lessonsDone() {
+    if (this.config.tutorial !== 2) return true;
+    const fins = this.people.find((p) => p.finsFirst);
+    return (
+      !!this.lessonCrampDone &&
+      !finsWaiting(fins) &&
+      !this.rescue &&
+      this.lifeRings.every((r) => r.state === "wall")
+    );
+  }
+  // The second guided shift's cramp: once the fins guest is in the water (or gone), the swimmer longest in the water cramps a
+  // few seconds later, in the middle of the pool where the coach can see them (rescue.mjs starts it).
+  tickLessons() {
+    if (this.config.tutorial !== 2) return;
+    if (this.lessonCramp !== undefined && !this.lessonCrampDone) {
+      const p = this.get(this.lessonCramp);
+      if (p?.crampDone && !this.rescue) this.lessonCrampDone = true;
+      // (out of the water before the cramp came: the next swimmer has it)
+      else if (!p || (!p.crampDone && p.status !== "swim")) this.lessonCramp = undefined;
+    }
+    if (this.lessonCramp !== undefined) return;
+    // (the fins first: the guest who asks for them is the second to come, so the cramp waits for them too)
+    const fins = this.people.find((p) => p.finsFirst);
+    if (this.people.length < 2 || finsWaiting(fins)) return;
+    const p = this.people
+      .filter((q) => q.status === "swim" && !q.finsFirst && !q.vip && !q.problem && !q.racer)
+      .sort((a, b) => b.workTime - a.workTime || a.id - b.id)[0];
+    if (!p) return;
+    this.lessonCramp = p.id;
+    p.crampAt = p.workTime + 3;
+  }
   summary() {
     const stars = this.config.thresholds.filter((t) => this.score >= t).length;
     return {
@@ -2014,6 +2057,7 @@ export class PoolSimulation extends ChaosController {
         : 0,
       avgHappiness: this.stats.served ? this.stats.totalHappiness / this.stats.served : 0,
       met: [...new Set(this.met || [])], // the roaming incidents that really started (week.mjs finishShift)
+      ...(this.config.tutorial === 2 && { lessons: this.lessonsDone() }), // (the second lesson done: never again, week.mjs)
     };
   }
 }

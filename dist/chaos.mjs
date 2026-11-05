@@ -172,7 +172,8 @@ export class ChaosController extends RescueController {
         continue;
       }
       const system = this.system(entry.kind);
-      if (!system || !this.canStartChaos(system)) {
+      // (the second guided shift: the incidents wait until its fins and its cramp are done, sim.mjs lessonsDone)
+      if (!system || !this.canStartChaos(system) || !this.lessonsDone()) {
         entry.at = this.arrivalTime + 2.5;
         continue;
       }

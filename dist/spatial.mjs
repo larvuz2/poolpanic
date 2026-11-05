@@ -482,8 +482,11 @@ export const CLUB = makeVenue({
   queue: { outerX: 4.6, stepX: 1.1, startZ: -11.1, stepZ: 1.15 },
   coachStart: { x: -6.6, z: 0 },
   cameraFollow: { kx: 0.22, maxX: 2.4 },
+  // (The fin rack by the waiting line since 5 November 2026, the creator: "the fins closer to where the swimmers are coming out
+  // from, so it's very easy to understand for the first-time user… an easy and fast walk": a few steps from the MEN's door and the
+  // guests waiting by the starting blocks; it stood at the far end of the deck, 20 m away.)
   stations: {
-    fins: { x: -10.3, z: 7.8 },
+    fins: { x: -8.2, z: -11.0 },
     chlorine: { x: 10.8, z: 7.8 },
     relief: { x: 10.8, z: 3.9 },
   },
@@ -506,7 +509,7 @@ export const CLUB = makeVenue({
     { kind: "bench", x: -10.2, z: -0.9, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
     { kind: "bench", x: 10.3, z: -0.5, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
     { kind: "bench", x: -9.8, z: 3.3, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
-    { kind: "rack", x: -10.3, z: 7.8, hx: 0.48, hz: 1.03 },
+    { kind: "rack", x: -8.2, z: -11.0, hx: 0.48, hz: 1.03 },
     { kind: "station", x: 10.8, z: 7.8, hx: 0.6, hz: 0.9 },
     { kind: "station", x: 10.8, z: 3.9, hx: 0.9, hz: 0.6 },
     { kind: "plant", x: -13, z: 10.6, hx: 0.5, hz: 0.5, scale: 0.85 },

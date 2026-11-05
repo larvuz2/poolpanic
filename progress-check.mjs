@@ -470,7 +470,10 @@ function playWeek(save, starsEach = 3) {
   assert.match(ui, /Start the finale 🏆/);
   assert.match(ui, /New gear in the locker/);
   assert.match(ui, /NEW POOL: /);
-  assert.match(ui, /const planned = \(w\) => \(\{ \.\.\.w, pools: itinerary\(w\), gear: save\.gear \}\)/);
+  assert.match(
+    ui,
+    /const pools = \[\.\.\.itinerary\(w\)\];[\s\S]{0,120}return \{ \.\.\.w, pools, gear: save\.gear \};/,
+  );
   assert.match(ui, /textsPassed\(result\.peakBefore, result\.fund, result\.goal\)/);
   assert.match(css, /\.locker-pools \{/);
   assert.match(css, /@keyframes cine-roll/);

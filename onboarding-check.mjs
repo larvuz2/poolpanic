@@ -17,6 +17,12 @@ import {
   finishShift,
   INCIDENT_ORDER,
   bandOf,
+  LESSON_STEP,
+  LESSON_POOL,
+  LESSON_EXTRA,
+  lessonDue,
+  FINALE_WEEK,
+  SHIFTS_PER_WEEK,
 } from "./dist/week.mjs";
 import { tick, go } from "./check-helpers.mjs";
 
@@ -78,92 +84,211 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   assert.ok(s.seen.includes(sh.pool) && s.tutorial, "played: seen, and the tutorial done");
 }
 
-// 2) The guided first shift, played through by a script: select, lane, fins to the guest who asks first, lane, mop the wet spot,
-// then the finale for a few seconds and nothing more. The simulation sets the stage only when `config.tutorial` is on.
+// 2) The guided shifts (5 November 2026), played through by a script. The first is lanes and nothing else: select, lane, a few more,
+// then the finale for a few seconds and nothing more; no fins guest, no wet spot. The second (the third shift, at the Community
+// Pool): fins from the rack by the line, the guest to a lane, then a cramp, the ring, the dive, the swim, the climb out and the ring
+// back on its hook; its incidents wait until then.
 {
   const save = normalizeWeekSave({});
   save.week = newWeek(save, 2026);
   const sh = buildShift(save.week, "regular", [], []);
   assert.equal(sh.step, 0);
   const s = new PoolSimulation(sh.tier, 4242, {
-    config: { ...sh.config, tutorial: true, duration: TUTORIAL_SECONDS },
+    config: { ...sh.config, tutorial: 1, duration: TUTORIAL_SECONDS },
   });
   s.start();
-  const tutor = new Tutor();
+  const tutor = new Tutor(1);
   const tip = () => tutor.update(s, s.events.splice(0));
-  const until = (fn, seconds = 30) => {
+  const until = (sim, fn, seconds = 30, each = () => {}) => {
     for (let f = 0; f < seconds * 60 && !fn(); f++) {
-      tick(s);
-      tip();
+      tick(sim);
+      each();
     }
     return fn();
   };
   assert.ok(
-    until(() => tip()?.id === "select"),
+    until(s, () => tip()?.id === "select"),
     "first: select the waiting swimmer",
   );
-  const first = s.people.find((p) => p.status === "queue" && !p.finsFirst);
+  assert.ok(!s.people.some((p) => p.finsFirst), "nobody asks for fins in the first");
+  const first = s.people.find((p) => p.status === "queue");
   s.select(first.id);
   assert.equal(tip().id, "lane", "then: a lane");
   assert.ok(s.assign(0), "sent to lane 1");
-  const guest = () => s.people.find((p) => p.finsFirst);
   assert.ok(
-    until(() => tip()?.id === "fins", 40),
-    "then: the guest who wants fins",
+    until(s, () => tip()?.id === "more", 40, tip),
+    "then: keep sending them",
+  );
+  let sent = 1;
+  const done = until(
+    s,
+    () => tutor.finishedAt !== null,
+    60,
+    () => {
+      const q = s.people.find((p) => p.status === "queue");
+      if (q && s.select(q.id) !== false && s.assign(sent % 4)) sent++;
+      tip();
+    },
+  );
+  assert.ok(done && sent >= 3, "three sent: the lessons are done");
+  assert.equal(tip()?.id, "finale", "then the well done");
+  assert.equal(tip().step, LESSONS.length);
+  tick(s, (FINALE_SECONDS + 1) * 60);
+  assert.equal(tip(), null, "and then nothing more");
+  tick(s, 60 * 60);
+  assert.ok(!s.people.some((p) => p.finsFirst), "no fins guest all shift");
+  assert.equal(s.wetSpots?.length || 0, 0, "and no wet spot: the first is lanes only");
+  assert.equal(s.loudestAlert()?.kind === "fins", false);
+  // Skipping says nothing more.
+  const skipping = new Tutor(1);
+  skipping.skip();
+  assert.equal(skipping.update(s, []), null);
+}
+{
+  // The second, at the Community Pool: the fin rack stands a few steps from the waiting line and the MEN's door.
+  const save = normalizeWeekSave({ tutorial: true });
+  save.week = { ...newWeek(save, 31), shift: LESSON_STEP };
+  const sh = buildShift({ ...save.week, pools: Array(6).fill(LESSON_POOL) }, null, INCIDENT_ORDER, []);
+  const { big, ...config } = sh.config;
+  assert.ok(sh.tier >= 2, "a level with cramps");
+  const s = new PoolSimulation(sh.tier, 77, {
+    config: { ...config, tutorial: 2, duration: config.duration + LESSON_EXTRA },
+  });
+  assert.equal(s.venue.id, "club");
+  s.start();
+  const rack = s.venue.stations.fins;
+  const spots = [0, 1, 2, 3, 4, 5, 6, 7].map((slot) => s.venue.queuePosition(-1, slot));
+  const nearest = Math.min(...spots.map((q) => Math.hypot(q.x - rack.x, q.z - rack.z)));
+  assert.ok(nearest < 4, "the rack is by the line (" + nearest.toFixed(1) + " m)");
+  const tutor = new Tutor(2);
+  const tip = () => tutor.update(s, s.events.splice(0));
+  const until = (fn, seconds = 30, each = () => {}) => {
+    for (let f = 0; f < seconds * 60 && !fn(); f++) {
+      tick(s);
+      tip();
+      each();
+    }
+    return fn();
+  };
+  const guest = () => s.people.find((p) => p.finsFirst);
+  // Send everyone but the fins guest, so the pool has swimmers in it.
+  const sendOthers = () => {
+    for (const q of s.people.filter((p) => p.status === "queue" && !p.finsFirst)) {
+      s.select(q.id);
+      s.assign(q.type === "beginner" ? 0 : 1 + (q.id % 3));
+    }
+  };
+  assert.ok(
+    until(() => tip()?.id === "fins", 40, sendOthers),
+    "the guest who wants fins",
   );
   assert.ok(guest().needsFins && guest().problem === "fins" && guest().status === "queue");
+  assert.equal(guest().side, -1, "on the rack's side of the line");
+  assert.ok(
+    Math.hypot(guest().x - rack.x, guest().z - rack.z) < 5,
+    "a few steps from the rack (" + Math.hypot(guest().x - rack.x, guest().z - rack.z).toFixed(1) + " m)",
+  );
   assert.match(tip().text, new RegExp(guest().name + " won't swim without fins"));
-  const rack = s.venue.stations.fins;
-  // Like the life ring's, the fins have a marker with metres (only in the tutorial): the rack first, then the guest.
+  assert.match(tip().text, /right by the line/);
+  // Like the life ring's, the fins have a marker with metres (only in this lesson): the rack first, then the guest.
   const finsAlert = () => s.loudestAlert();
   assert.equal(finsAlert()?.kind, "fins");
   assert.equal(finsAlert().label, "Fin rack");
   assert.deepEqual([finsAlert().x, finsAlert().z], [rack.x, rack.z]);
   assert.equal(finsAlert().near, 1, "its metres show from 1 m away");
+  // An easy, fast walk: from the guest to the rack in a few seconds.
   go(s, rack.x, rack.z);
   until(() => s.fetch("fins") || s.coach.carry === "fins", 5);
   assert.equal(s.coach.carry, "fins");
   assert.match(tip().text, /Walk up to/);
-  assert.equal(finsAlert()?.kind, "fins");
   assert.equal(finsAlert().label, guest().name, "with the fins, the marker is on the guest");
+  const t1 = s.time;
   for (let k = 0; k < 6 && !guest().hasFins; k++) {
     const point = s.servicePoint(guest());
     go(s, point.x, point.z);
     until(() => s.deliver(guest().id) || guest().hasFins, 3);
   }
   assert.ok(guest().hasFins, "fins handed over");
+  assert.ok(s.time - t1 < 6, "the guest is a few steps from the rack (" + (s.time - t1).toFixed(1) + " s)");
   assert.equal(tip().id, "fins-lane");
   assert.notEqual(finsAlert()?.kind, "fins", "handed over: no fins marker");
   s.select(guest().id);
   assert.ok(s.assign(1), "the fins guest sent to lane 2");
   tip();
+  assert.equal(s.lessonsDone(), false, "the cramp is still to come");
+  // Then the cramp: the swimmer longest in the water, a few seconds later.
   assert.ok(
-    until(() => (s.wetSpots?.length || 0) > 0, 60),
-    "the first swimmer out drips a wet spot",
+    until(() => tip()?.id === "ring", 30, sendOthers),
+    "a cramp: fetch a ring",
   );
-  assert.equal(tip().id, "mop");
-  const bucket = s.venue.fixtures.mop;
-  go(s, bucket.x, bucket.z);
-  until(() => s.mop() || s.coach.carry === "mop", 5);
-  assert.equal(s.coach.carry, "mop");
-  assert.match(tip().text, /Walk onto the wet spot/);
-  const spot = s.wetSpots[0];
-  go(s, spot.x, spot.z);
+  assert.equal(s.rescue.kind, "cramp");
+  assert.equal(s.rescue.victim, s.lessonCramp);
+  assert.match(tip().text, /has a cramp/);
+  const p = s.get(s.rescue.victim);
+  // The ring from the wall, then the edge: the coach dives in by himself.
+  go(s, -6.6, -13.7);
+  go(s, -4, -14.5);
+  assert.ok(s.interact());
+  assert.equal(s.coach.carry, "lifering");
+  assert.equal(tip().id, "dive");
+  go(s, -4, -10.5);
+  go(s, -7.2, -10.5);
+  go(s, -7.2, 0);
+  s.setMovement(1, 0);
+  for (let f = 0; f < 120 && !s.coach.waterTransition; f++) s.tick(1 / 60);
+  s.clearInput();
   assert.ok(
-    until(() => (s.mop(), tutor.done.has("mop")), 8),
-    "mopped",
+    until(() => tip()?.id === "swim", 3),
+    "in the water: swim to them",
   );
-  const done = tip();
-  assert.equal(done?.id, "finale", "then the well done");
-  assert.equal(done.step, LESSONS.length);
+  tick(s, 40);
+  assert.ok(
+    until(
+      () => s.rescue?.stage !== "stranded",
+      15,
+      () => {
+        const dx = p.x - s.coach.x,
+          dz = p.z - s.coach.z,
+          d = Math.hypot(dx, dz) || 1;
+        s.setMovement(dx / d, dz / d);
+      },
+    ),
+    "swum to them: they grab the ring",
+  );
+  s.clearInput();
+  assert.equal(tip().id, "climb", "then climb out");
+  s.setMovement(-1, 0);
+  for (let f = 0; f < 400 && (s.coach.swimming || s.coach.waterTransition); f++) s.tick(1 / 60);
+  s.clearInput();
+  assert.ok(!s.coach.swimming && !s.coach.waterTransition, "out of the water");
+  assert.ok(
+    until(() => !s.rescue, 60, sendOthers),
+    "the swimmer is safe on the deck",
+  );
+  const ring = s.lifeRings.find((r) => r.state !== "wall");
+  assert.notEqual(tip()?.id, "hang", "(not while the swimmer still holds the ring)");
+  assert.ok(
+    until(() => ring.state === "deck", 30, sendOthers),
+    "on the bench, they let go of it",
+  );
+  assert.equal(tip().id, "hang", "then: the ring back on its hook");
+  assert.match(tip().text, /Pick up the life ring by the bench/);
+  go(s, ring.x, ring.z);
+  assert.ok(s.interact());
+  assert.equal(s.coach.carry, "lifering");
+  assert.match(tip().text, /Hang the life ring back/);
+  go(s, ring.mount.x, ring.mount.z);
+  until(() => s.returnItem() || ring.state === "wall", 5);
+  assert.equal(ring.state, "wall");
+  assert.equal(tip()?.id, "finale", "then the well done");
+  assert.match(tip().text, /real lifeguard/);
+  assert.ok(s.lessonsDone() && s.summary().lessons, "the lessons done: the summary says so");
+  // The incidents waited for it, and come after.
+  const metBefore = (s.met || []).length;
+  assert.equal(metBefore, 0, "no incident during the lessons");
   tick(s, (FINALE_SECONDS + 1) * 60);
   assert.equal(tip(), null, "and then nothing more");
-  // A guest who asks for fins first and the wet spot come only with the tutorial on.
-  const plain = new PoolSimulation(sh.tier, 4242, { config: sh.config });
-  plain.start();
-  tick(plain, 30 * 60);
-  assert.ok(!plain.people.some((p) => p.finsFirst), "no fins guest in the plain gentle minute");
-  // Outside the tutorial a guest who asks for fins has no marker of the kind.
+  // Outside the lessons a guest who asks for fins has no marker of the kind.
   const later = new PoolSimulation(6, 2, {});
   later.start();
   let finsMarked = false,
@@ -174,16 +299,57 @@ const app = readFileSync("dist/app.mjs", "utf8"),
     finsMarked ||= later.loudestAlert()?.kind === "fins";
   }
   assert.ok(finsAsked, "(a guest asked for fins first)");
-  assert.ok(!finsMarked, "no fins marker in a shift that is not the tutorial");
+  assert.ok(!finsMarked, "no fins marker in a shift that is not the lesson");
   assert.match(app, /far > \(a\.near \?\? 4\)/, "the alert's metres: from `near` m, else 4");
-  // Skipping says nothing more.
-  const skipping = new Tutor();
-  skipping.skip();
-  assert.equal(skipping.update(s, []), null);
-  // In the week: the first shift of a first run is the tutorial, a little longer; played or skipped once, never again.
+}
+{
+  // In the week: the first shift of a first run is the first lesson; the third (and every shift after, until it is done or
+  // skipped) the second, at the Community Pool, with no big moment. The finale Saturday is never a lesson.
+  const save = normalizeWeekSave({});
+  save.week = newWeek(save, 31);
+  assert.equal(lessonDue(save), false, "not before the first lesson");
+  save.tutorial = true;
+  for (const [shift, due] of [
+    [0, false],
+    [1, false],
+    [LESSON_STEP, true],
+    [LESSON_STEP + 1, true],
+  ]) {
+    save.week.shift = shift;
+    assert.equal(lessonDue(save), due, "shift " + shift);
+  }
+  const sh = buildShift({ ...save.week, pools: Array(6).fill(LESSON_POOL) }, null, INCIDENT_ORDER, []);
+  finishShift(
+    save,
+    { ...sh, config: { ...sh.config, tutorial: 2 } },
+    { score: 10, stars: 0, lessons: false },
+    {},
+  );
+  assert.equal(save.lesson2, false, "not finished: it comes back");
+  save.week.shift = LESSON_STEP + 1;
+  assert.equal(lessonDue(save), true);
+  finishShift(
+    save,
+    { ...sh, config: { ...sh.config, tutorial: 2 } },
+    { score: 900, stars: 3, lessons: true },
+    {},
+  );
+  assert.equal(save.lesson2, true, "finished: never again");
+  assert.equal(lessonDue(save), false);
+  assert.equal(normalizeWeekSave({ lesson2: 1 }).lesson2, true, "the save keeps it");
+  const finale = normalizeWeekSave({ tutorial: true });
+  finale.week = { ...newWeek(finale, 5), chapter: FINALE_WEEK, shift: SHIFTS_PER_WEEK - 1 };
+  assert.equal(lessonDue(finale), false, "never on the finale Saturday");
   assert.match(weekUi, /if \(!save\.tutorial && shift\.step === 0\)/);
-  assert.match(weekUi, /tutorial: true, duration: TUTORIAL_SECONDS/);
-  assert.match(app, /tutor = sim\.config\.tutorial \? new Tutor\(\) : null/);
+  assert.match(weekUi, /tutorial: 1, duration: TUTORIAL_SECONDS/);
+  assert.match(weekUi, /else if \(lessonDue\(save\)\) \{\s*const \{ big, \.\.\.config \} = shift\.config;/);
+  assert.match(weekUi, /tutorial: 2, duration: config\.duration \+ LESSON_EXTRA/);
+  assert.match(weekUi, /if \(w === save\.week && lessonDue\(save\)\) pools\[w\.shift\] = LESSON_POOL/);
+  assert.match(
+    weekUi,
+    /if \(shift\?\.config\?\.tutorial === 2\) save\.lesson2 = true;\s*else save\.tutorial = true;/,
+  );
+  assert.match(app, /tutor = sim\.config\.tutorial \? new Tutor\(sim\.config\.tutorial\) : null/);
   assert.match(app, /if \(tutor\) renderTutor\(tutor\.update\(sim, batch\)\)/);
   for (const id of ["tutor", "tutor-step", "tutor-text", "tutor-skip"])
     assert.ok(html.includes(`id="${id}"`), id);
@@ -298,5 +464,5 @@ const app = readFileSync("dist/app.mjs", "utf8"),
 }
 
 console.log(
-  "Onboarding checks passed: a card and an easier first visit for every new pool; the guided first shift played through (select, lane, fins, lane, mop, well done) and only when asked for; the lane choice judged at once; one meaning per key (numbers for places, Z waves, B bar); the main screen without the old map; a calmer HUD; every message in the column on the left, the middle of the view the pool's.",
+  "Onboarding checks passed: a card and an easier first visit for every new pool; the guided shifts played through (the first lanes only; the second at the Community Pool: fins from the rack by the line, then a cramp rescue, its incidents held until then, again until done); the lane choice judged at once; one meaning per key (numbers for places, Z waves, B bar); the main screen without the old map; a calmer HUD; every message in the column on the left, the middle of the view the pool's.",
 );

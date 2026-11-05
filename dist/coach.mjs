@@ -368,7 +368,7 @@ export class CoachController {
   // with its metres on the fin rack, and once the coach has a pair, on the guest. Only in the tutorial (`near`: the metres show
   // from 1 m away, where the other alerts wait for 4).
   collectAlerts(alerts) {
-    if (!this.config?.tutorial) return;
+    if (this.config?.tutorial !== 2) return;
     const p = this.people.find((q) => q.finsFirst && !q.hasFins && q.status === "queue"),
       rack = this.venue.stations?.fins;
     if (!p || !rack) return;
