@@ -1,5 +1,6 @@
 // Presentation layer: builds a venue with Three.js and mirrors simulation state every frame. Rendering never
 // advances gameplay; cosmetic motion (bobbing, flapping, wagging) never feeds back into the simulation.
+import { LooseProps } from "./scene/loose.mjs";
 import { buildMopStation } from "./scene/wet-view.mjs";
 import {
   buildMassageTable,
@@ -602,7 +603,10 @@ export class PoolWorld extends SceneKit {
     this.camera.far = 180;
     this.camera.updateProjectionMatrix();
     this.floatY = -0.15; // (where a floater bobs: the pool's surface; the Jumping Pool's raised hot tub sets its own)
+    // (loose things to knock about, on screen only: a builder may hand in its own, then the venue's kit, scene/loose.mjs)
+    this.loose = new LooseProps(this, venue);
     (BUILDERS[venue.id] || buildClub)(this, venue, lighting);
+    this.loose.populate();
     buildMopStation(this, venue); // (every pool has the mop: incidents/wet.mjs)
     buildMassageTable(this, venue); // (only where the venue has one: incidents/massage.mjs)
     this.sky = venue.scenery ? new Sky(this, SCENERY[venue.scenery]) : null;
@@ -757,6 +761,8 @@ export class PoolWorld extends SceneKit {
         this.fuseLever,
         this.trampolineBed,
         ...(this.liveProps || []),
+        this.loose?.group,
+        ...(this.loose?.items || []).map((it) => it.object),
       ].filter(Boolean),
     );
     const batches = new Map();
@@ -928,6 +934,7 @@ export class PoolWorld extends SceneKit {
     clearWheelchairs(this);
     this.incidentView.clearVisitors();
     this.warmPending = true; // (the first frame of the shift compiles what its incidents will show: warmShaders)
+    this.loose?.reset(); // (the loose props stand where they stood)
     this.introPlan = null; // the coach walks in again
     this.coachMoments = null; // and nothing has startled him yet
   }
@@ -1131,6 +1138,7 @@ export class PoolWorld extends SceneKit {
     });
     this.syncClutter(sim);
     this.updateEnvironment(sim, time, dt);
+    this.loose?.update(sim, dt);
     this.incidentView.sync(sim, time, dt);
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];

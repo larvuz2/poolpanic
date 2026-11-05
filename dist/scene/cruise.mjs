@@ -1213,7 +1213,9 @@ export function loose(ctx) {
     g.position.set(x, 0, z);
     g.rotation.y = a;
     live.add(g);
-    ctx.loose.push({ g, z, vz: 0, lo, hi, rub: 0.08, kind: "chair", spin: 0 });
+    // (they join the deck's loose props: knocked about by the coach and the guests, sliding with the roll, scene/loose.mjs)
+    w.loose?.adopt(g, "steamer", { drag: 1.4 });
+    ctx.loose.push({ g, lo, hi });
   }
   const ballMat = (i) =>
     new THREE.MeshStandardMaterial({ color: [0xd8312f, 0xffd23f, 0x1f8fd8][i % 3], roughness: 0.4 });
@@ -1231,7 +1233,8 @@ export function loose(ctx) {
     b.add(white);
     b.position.set(x, 0.25, z);
     live.add(b);
-    ctx.loose.push({ g: b, z, vz: 0, lo, hi, rub: 0.012, kind: "ball", spin: 0 });
+    w.loose?.adopt(b, "ball", { r: 0.25, ownPivot: true, drag: 0.35 });
+    ctx.loose.push({ g: b, lo, hi });
   }
   const afloat = new THREE.Group();
   afloat.add(new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), ballMat(1)));
@@ -1348,25 +1351,10 @@ export function syncCruise(w, sim, time, dt, ctx) {
     }
     mesh.instanceMatrix.needsUpdate = true;
   }
-  // Loose things slide (and the balls roll) downhill, on screen only.
-  const g = 9.8,
-    sin = Math.sin(angle),
-    cos = Math.cos(angle);
-  for (const o of ctx.loose || []) {
-    const pull = g * sin * (o.kind === "ball" ? 0.7 : 0.55),
-      rub = g * cos * o.rub;
-    if (Math.abs(pull) > rub || Math.abs(o.vz) > 0.02) {
-      const dir = o.vz ? Math.sign(o.vz) : Math.sign(pull);
-      o.vz += (pull - dir * rub) * dt;
-      if (o.vz && Math.sign(o.vz) !== dir && Math.abs(pull) <= rub) o.vz = 0;
-    }
-    o.vz *= o.kind === "ball" ? 0.995 : 1;
-    o.z += o.vz * dt;
-    if (o.z < o.lo) ((o.z = o.lo), (o.vz = o.kind === "ball" ? -o.vz * 0.4 : 0));
-    if (o.z > o.hi) ((o.z = o.hi), (o.vz = o.kind === "ball" ? -o.vz * 0.4 : 0));
-    o.g.position.z = o.z;
-    if (o.kind === "ball") o.g.rotation.x += (o.vz * dt) / 0.25;
-  }
+  // Loose things slide (and the balls roll) downhill, on screen only: the slope's pull for the deck's loose props (scene/loose.mjs,
+  // which also lets the coach and the guests knock them about).
+  const sin = Math.sin(angle);
+  if (w.loose) w.loose.tilt.z = 9.8 * sin;
   if (ctx.afloat) {
     const a = ctx.afloat;
     a.vz += (sin * 2.2 - a.vz * 0.6) * dt;
