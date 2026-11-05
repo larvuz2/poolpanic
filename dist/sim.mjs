@@ -5,6 +5,7 @@ import { ChaosController, HOLD_LIMIT } from "./chaos.mjs";
 import { ENTRY, VENUES, createCoach } from "./spatial.mjs";
 import { BOOKINGS, applyBooking } from "./bookings.mjs";
 import { WetSpots, wetSpotAt, slippedInWet } from "./incidents/wet.mjs";
+import { influencerAt, trippedOverInfluencer } from "./incidents/influencer.mjs";
 import { Massage } from "./incidents/massage.mjs";
 import { tickTips } from "./tips.mjs";
 import { createBig, BIG } from "./big-moment.mjs";
@@ -1625,8 +1626,10 @@ export class PoolSimulation extends ChaosController {
     }
     p.stunned = Math.max(0, (p.stunned || 0) - dt);
     // (Wet spots trip the guests here; the coach slips in them in coach.mjs: incidents/wet.mjs.)
-    const wet = wetSpotAt(this, p.x, p.z);
-    if (!p.stunned && (wet || this.slipperyAt(p.x, p.z, 0.6))) {
+    const wet = wetSpotAt(this, p.x, p.z),
+      // (and the influencer filming in the middle of the deck: they walk straight into them, incidents/influencer.mjs)
+      snap = wet ? null : influencerAt(this, p);
+    if (!p.stunned && (wet || snap || this.slipperyAt(p.x, p.z, 0.6))) {
       p.slipTime = 0.65;
       p.stunned = 3;
       p.annoyedTime = 0.85;
@@ -1634,6 +1637,7 @@ export class PoolSimulation extends ChaosController {
       p.h = Math.max(0, p.h - 6);
       this.emit("slip", { id: p.id, x: p.x, z: p.z });
       if (wet) slippedInWet(this, p, wet);
+      else if (snap) trippedOverInfluencer(this, p, snap);
       return true;
     }
     return false;

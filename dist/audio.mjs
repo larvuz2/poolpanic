@@ -787,6 +787,14 @@ export class PoolAudio {
       this.noise(t, 0.08, 0.14, 1600);
       this.tone(180, t + 0.05, 0.25, 0.14, "sawtooth", 120);
       this.tone(300, t + 0.3, 0.18, 0.1, "square", 220);
+    } else if (type === "influencer-trip") {
+      // A bump and a stumble.
+      this.noise(t, 0.08, 0.14, 700);
+      this.tone(220, t + 0.04, 0.2, 0.1, "triangle", 120);
+    } else if (type === "influencer-done") {
+      // The phone put away: a last shutter click and a small happy chime.
+      this.noise(t, 0.04, 0.1, 4200);
+      [659, 784, 988].forEach((f, i) => this.tone(f, t + 0.2 + i * 0.08, 0.18, 0.09, "sine"));
     } else if (type === "karen-calmed") {
       // A long sigh down, then a small relieved chime.
       this.noise(t, 0.7, 0.07, 700);
@@ -1065,6 +1073,10 @@ export class PoolAudio {
         return play("tray");
       case "selfie-start":
         return play("shutter");
+      case "influencer-trip": // someone walks into the influencer: a bump and an "ooh"
+        if (!play("bonk")) return false;
+        play("ooh", { delay: 0.12, gain: 0.7 });
+        return true;
       case "tidy":
       case "towel":
         return play("towel");
@@ -1395,6 +1407,14 @@ export class PoolAudio {
           );
         },
         monster: () => [0, 0.45].forEach((d) => this.tone(440, at + d, 0.4, 0.1, "sawtooth", 880)),
+        // (the influencer on the deck: the same three shutter clicks, then a little "ding")
+        influencer: () => {
+          [0, 0.16, 0.32].forEach((d) => {
+            this.noise(at + d, 0.04, 0.12, 4200);
+            this.tone(1900, at + d + 0.02, 0.03, 0.05, "square");
+          });
+          this.tone(1320, at + 0.5, 0.25, 0.07, "sine");
+        },
         selfie: () =>
           [0, 0.16, 0.32].forEach((d) => {
             this.noise(at + d, 0.04, 0.12, 4200);

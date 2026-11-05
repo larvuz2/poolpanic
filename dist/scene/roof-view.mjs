@@ -30,7 +30,7 @@ export const roofFloorAt = (x) => {
 };
 
 // Something held in the right hand (a margarita, a phone): made once, hung on the hand bone of the model (or the classic arm).
-function held(w, g, key, make) {
+export function held(w, g, key, make) {
   const u = g.userData;
   u.held ||= {};
   // (Made on the classic arm before the model came: hung again on the model's hand.)
@@ -83,7 +83,7 @@ function glassObject() {
 // own face on it, more or less) toward the face, and a flash that pops at each snap (`userData.flash`, scene/roof-view.mjs).
 // Made standing up along y with the screen facing +z, then turned so the screen faces back along the hand toward the face.
 let flashTexture = null;
-function phoneObject() {
+export function phoneObject() {
   const phone = new THREE.Group();
   const body = new THREE.Mesh(
     new THREE.BoxGeometry(0.1, 0.19, 0.018),
@@ -180,7 +180,7 @@ function bubble(w, g) {
 // The flash at each snap of the Selfie clip (frames 16 and 52 of its 72, tools/blender/character_clips.py), or every 1.5 s on
 // the classic figure; no snaps once they are losing the balance.
 const SNAPS = [16 / 24, 52 / 24];
-function snapFlash(phone, u, dread, time) {
+export function snapFlash(phone, u, dread, time) {
   const flash = phone.userData.flash;
   if (!flash) return;
   const action = u.rig?.actions?.selfie;

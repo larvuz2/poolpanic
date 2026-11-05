@@ -1214,6 +1214,7 @@ const TRIGGERS = [
   ["carl", "💣 Cannonball man"],
   ["karen", "😡 Karen"],
   ["massage", "💆 Massage"],
+  ["influencer", "🤳 Influencer"],
   ["outage", "⚡ Power cut"],
 ];
 let pulseClock = 0,
@@ -1356,6 +1357,7 @@ const crampCandidate = () =>
 function triggerBlocker(key) {
   if (!ptPaused || ptResume !== "playing") return "start a shift";
   if (key === "massage" && !sim.venue.fixtures?.massage) return "no massage table here";
+  if (key === "influencer" && !sim.venue.selfieSpots?.length) return "not at this pool";
   if (key === "cramp")
     return sim.level < 2
       ? "from level 2"
@@ -3521,25 +3523,27 @@ function updateUI() {
                       ? "Is that kid carrying a FISH?"
                       : sim.karen && !["calmed", "leaving"].includes(sim.visitor(sim.karen.id)?.status)
                         ? "Karen is complaining. Everyone is annoyed."
-                        : sim.massage?.stage === "lying"
-                          ? "Someone is waiting on the massage table."
-                          : sim.carl
-                            ? sim.carl.name + " is loose. Brace for splash."
-                            : sim.dog && sim.dog.stage !== "leaving"
-                              ? "There’s a dog on the deck!"
-                              : sim.get(sim.jumper)?.jumpStage === "waiting"
-                                ? "A daredevil is waiting on the tower."
-                                : sim.laneClosed() >= 0
-                                  ? laneWord(sim) + " " + (sim.laneClosed() + 1) + " is closed · wet floor."
-                                  : chaos > 3
-                                    ? "Keep calm. Mostly calm."
-                                    : chaos > 0
-                                      ? "Someone needs a little love."
-                                      : sim.streak >= 3
-                                        ? "Now we’re in the swim of it."
-                                        : count > 3
-                                          ? "The deck is getting crowded."
-                                          : "Looking good, coach.";
+                        : sim.influencer && ["posing", "strolling"].includes(sim.influencer.stage)
+                          ? "Someone is filming in the middle of the deck."
+                          : sim.massage?.stage === "lying"
+                            ? "Someone is waiting on the massage table."
+                            : sim.carl
+                              ? sim.carl.name + " is loose. Brace for splash."
+                              : sim.dog && sim.dog.stage !== "leaving"
+                                ? "There’s a dog on the deck!"
+                                : sim.get(sim.jumper)?.jumpStage === "waiting"
+                                  ? "A daredevil is waiting on the tower."
+                                  : sim.laneClosed() >= 0
+                                    ? laneWord(sim) + " " + (sim.laneClosed() + 1) + " is closed · wet floor."
+                                    : chaos > 3
+                                      ? "Keep calm. Mostly calm."
+                                      : chaos > 0
+                                        ? "Someone needs a little love."
+                                        : sim.streak >= 3
+                                          ? "Now we’re in the swim of it."
+                                          : count > 3
+                                            ? "The deck is getting crowded."
+                                            : "Looking good, coach.";
   $("hint").textContent =
     sim.incidentHint() ||
     (sim.coach.carry === "skimmer"
@@ -4199,6 +4203,7 @@ const BREAKS = {
   cannonball: "a cannonball",
   fish: "a fish in the pool",
   karen: "Karen annoyed {name}",
+  influencer: "{name} tripped over an influencer",
   massage: "{name} gave up on a massage",
   crash: "a trampoline crash",
   slip: "{name} slipped",
@@ -4292,7 +4297,9 @@ function events() {
       } else if (e.type === "fish-caught") {
         world.splash(e.x, -0.1, e.z, 18);
       } else if (e.type === "karen-arrive") world.kick(0.15);
-      else if (e.type === "karen-calmed" || e.type === "massage-done") world.sparkle(e.x, e.z);
+      else if (e.type === "karen-calmed" || e.type === "massage-done" || e.type === "influencer-done")
+        world.sparkle(e.x, e.z);
+      else if (e.type === "influencer-trip") world.kick(0.12);
       else if (e.type === "massage-angry") world.kick(0.2);
       else if (e.type === "cannonball") {
         world.bigSplash(e.x, e.z, 1.6);
@@ -4413,7 +4420,9 @@ function events() {
         toast(
           e.wet
             ? "Whoops! Coach Waters slipped on a wet spot. Mop it (Q), go round, or jump over it (Space)."
-            : "Whoops! Jump over fins, or pick them up with E.",
+            : e.influencer
+              ? "Oof! The coach walked into the influencer. Walk up slowly and hold E to move them on."
+              : "Whoops! Jump over fins, or pick them up with E.",
         );
       else if (e.type === "ended") finish();
       else if (e.type === "streak-tier") streakTierUp(e);

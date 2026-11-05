@@ -3,6 +3,7 @@ import { riverServicePoint, riverWaterPoint } from "./river-ride.mjs";
 import { batherInReach, batherServicePoint } from "./wave-pool.mjs";
 import { takeTray, roofServicePoint, ROOF_REACH } from "./rooftop.mjs";
 import { wetSpotAt, WET_TUNING } from "./incidents/wet.mjs";
+import { coachTripsOverInfluencer } from "./incidents/influencer.mjs";
 import { coachDrift } from "./ship.mjs";
 import { springAt, ONSEN_WATER } from "./onsen-plan.mjs";
 import { onsenServicePoint, onsenWaterPoint } from "./onsen.mjs";
@@ -170,7 +171,7 @@ export class CoachController {
       c.vx = c.vz = 0;
       c.dashTime = 0;
       c.jumpBuffer = 0;
-      c.state = "Calming Karen";
+      c.state = c.calmWho === "influencer" ? "Moving the influencer on" : "Calming Karen";
       return;
     }
     c.feedback = Math.max(0, c.feedback - dt);
@@ -261,6 +262,16 @@ export class CoachController {
       c.vz *= 0.15;
       this.stats.coachWetSlips = (this.stats.coachWetSlips || 0) + 1;
       this.emit("coach-slip", { x: c.x, z: c.z, wet: true });
+    } else if (
+      // The influencer in the middle of the deck (incidents/influencer.mjs): walk into them and down he goes.
+      c.y < 0.18 &&
+      !c.wading &&
+      !c.swimming &&
+      c.slipTime === 0 &&
+      !c.busy &&
+      coachTripsOverInfluencer(this, c)
+    ) {
+      // (coachTripsOverInfluencer has put him down)
     } else if (c.y < 0.18 && c.slipCooldown === 0 && this.slipperyAt(c.x, c.z, 0.58)) {
       c.slipTime = c.slipLength = 0.7;
       c.slipCooldown = 2;

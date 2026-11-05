@@ -467,6 +467,9 @@ export class CoachBot {
       if (s.dog && s.dog.stage !== "leaving" && this.free("dog")) return this.dog;
       const karen = s.karen && s.visitor(s.karen.id);
       if (karen && ["marching", "ranting"].includes(karen.status) && this.free("karen")) return this.karen;
+      const snap = s.influencer && s.visitor(s.influencer.id);
+      if (snap && ["posing", "strolling"].includes(snap.status) && this.free("influencer"))
+        return this.influencer;
       if (s.massages?.some((m) => m.stage === "lying") && this.free("massage")) return this.massage;
     }
     // The hot springs: a monkey in the water is shooed out at once (whoever the coach is); one on its way, met before it gets there.
@@ -897,6 +900,22 @@ export class CoachBot {
     for (let f = 0; f < 60 * 10 && s.karen && s.karen.calming && !this.over; f++) yield* this.frame$();
     s.setHold(false);
   }
+  // Up to the influencer filming on the deck and hold E until they leave (incidents/influencer.mjs).
+  *influencer$() {
+    const s = this.s,
+      v = s.visitor(s.influencer.id);
+    yield* this.chase$(
+      () => v,
+      () => !s.influencer || s.nearestInteraction()?.kind === "influencer",
+      900,
+    );
+    if (!s.influencer || s.nearestInteraction()?.kind !== "influencer") return;
+    s.setHold(true);
+    s.interact();
+    for (let f = 0; f < 60 * 10 && s.influencer && s.influencer.calming && !this.over; f++)
+      yield* this.frame$();
+    s.setHold(false);
+  }
   // To the massage table and hold E until the guest is relaxed (incidents/massage.mjs).
   *massage$() {
     const s = this.s,
@@ -1073,6 +1092,7 @@ export const FRAMED = [
   "haulRoof",
   "helpDizzy",
   "helpFallen",
+  "influencer",
   "karen",
   "lineCut",
   "massage",
