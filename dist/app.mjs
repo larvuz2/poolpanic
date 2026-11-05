@@ -609,6 +609,12 @@ function updateAlert() {
 }
 const bubbles = new Map();
 let stationLabels = [];
+const STATION_LABEL_NEAR = 6,
+  HUD_TOP = 4;
+let coinSeen = null,
+  coinSimSeen = null,
+  coinGather = 0,
+  coinGatherAt = 0;
 // The Look tuner (look-tuner.mjs): its sidebar, and whether it holds the shift still.
 let lookTuner = null,
   lookFreeze = false;
@@ -1200,7 +1206,10 @@ function closeCrash() {
     live = dialog.classList.contains("live");
   if (dialog.open) dialog.close();
   dialog.classList.remove("live");
-  if (live && mode === "paused" && !$("pause-dialog").open) $("pause-dialog").showModal();
+  if (live && mode === "paused" && !$("pause-dialog").open) {
+    fillPauseShift();
+    $("pause-dialog").showModal();
+  }
 }
 // ---- playtest ------------------------------------------------------------------------------------------------------------------
 // `?playtest` (playtest.mjs): a bug button for flagging a problem, the log sent to the developer while the game runs (so a page that dies
@@ -2376,8 +2385,35 @@ function shiftTag() {
     : `${zone.name.toUpperCase()} · ${zone.nodes.findIndex((n) => n.level === sim.level) + 1} OF ${zone.nodes.length}`;
 }
 
+// What the HUD no longer shows in a shift (5 November 2026): the venue and the shift, the coins it takes to pass and to earn each
+// star, and which are already earned. Shown only in the pause menu, of a shift.
+function fillPauseShift() {
+  const live = ["playing", "countdown", "paused"].includes(mode);
+  $("pause-shift").hidden = !live;
+  if (!live) return;
+  const pool = POOLS[sim.config.pool]?.name || sim.config.place || sim.venue?.name || "";
+  $("pause-venue").textContent = pool || sim.config.name;
+  $("pause-tag").textContent = [pool && sim.config.name !== pool ? sim.config.name : "", shiftTag()]
+    .filter(Boolean)
+    .join(" · ");
+  const coins = (n) => Math.round(n).toLocaleString("en-US"),
+    pass = sim.config.week ? passMark(sim.config) : 0,
+    rows = [
+      ...(pass ? [{ label: "PASS", at: pass }] : []),
+      ...sim.config.thresholds.map((at, i) => ({ label: "★".repeat(i + 1), at })),
+    ];
+  $("pause-goals").innerHTML =
+    `<div class="pause-now"><img src="assets/hud/coin.webp" alt="" width="22" height="22" /><b>${coins(sim.score)}</b> Splash Coins</div>` +
+    rows
+      .map(
+        (r) =>
+          `<div class="pause-goal${sim.score >= r.at ? " met" : ""}"><span>${r.label}</span><b>${coins(r.at)}</b><i>${sim.score >= r.at ? "✓" : coins(r.at - sim.score) + " to go"}</i></div>`,
+      )
+      .join("");
+}
 function pause() {
   if (!["playing", "countdown"].includes(mode)) return;
+  fillPauseShift();
   // (a co-op shift goes on for the others: the menu opens over it, as the settings)
   if (coop) {
     releaseMouse();
@@ -2404,6 +2440,7 @@ function openMenu() {
   if (["playing", "countdown"].includes(mode)) return pause();
   if (mode === "paused") return resume();
   if ($("pause-dialog").open) return closeSettings();
+  fillPauseShift();
   releaseMouse();
   menuLook(false);
   $("pause-dialog").showModal();
@@ -3193,27 +3230,25 @@ function updateUI() {
   document.body.classList.toggle("pool-incident", !!sim.cleanup || !!sim.rescue);
   $("countdown").hidden = mode !== "countdown";
   if (mode === "countdown") $("countdown-number").textContent = Math.max(1, Math.ceil(sim.countdown));
-  $("score").textContent = String(sim.score).padStart(4, "0");
-  const remaining = sim.config.duration - (mode === "menu" ? 0 : sim.time);
-  $("timer").textContent = formatTime(remaining);
-  $("timer").classList.toggle("danger-pulse", remaining < 20 && mode === "playing");
-  $("shift-label").textContent = sim.config.name.toUpperCase();
-  $("level-progress").textContent = shiftTag();
-  const n = sim.config.thresholds.filter((t) => sim.score >= t).length;
-  $("stars").textContent = Array.from({ length: 3 }, (_, i) => (i < n ? "★" : "☆")).join(" ");
-  $("score-fill").style.width =
-    Math.min(100, (Math.max(0, sim.score) / sim.config.thresholds[2]) * 100) + "%";
-  const pass = sim.config.week ? passMark(sim.config) : 0;
-  $("next-star").classList.toggle("below-pass", sim.score < pass);
-  $("next-star").textContent =
-    sim.score < pass
-      ? (pass - Math.max(0, sim.score)).toLocaleString() + " TO PASS THE SHIFT"
-      : n >= 3
-        ? "THREE-STAR COACH"
-        : Math.max(0, sim.config.thresholds[n] - sim.score).toLocaleString() +
-          " TO " +
-          (n === 0 ? "FIRST" : n === 1 ? "SECOND" : "THIRD") +
-          " STAR";
+  // The two plaques at the bottom (5 November 2026, the creator: "like Overcooked… in the lower right corner… the time with a
+  // progress bar and numeric… in the lower left… the points… green… when we add more points, very, very subtle. Or red"):
+  // the shift's Splash Coins, with the streak's multiplier under them while it counts, and the time left with its bar (red under
+  // 20 s, amber while an incident holds the clock). The venue, the pass mark and the star targets are in the pause menu.
+  const remaining = sim.config.duration - (mode === "menu" ? 0 : sim.time),
+    clockText = formatTime(remaining);
+  if ($("clock").textContent !== clockText) $("clock").textContent = clockText;
+  $("clock").classList.toggle("danger-pulse", remaining < 20 && mode === "playing");
+  $("hud-clock").classList.toggle("danger", remaining < 20 && mode !== "menu");
+  $("hud-clock").classList.toggle("held", mode === "playing" && !!sim.clockHeld?.() && remaining <= 0.05);
+  const clockFill = Math.round(Math.max(0, Math.min(1, remaining / sim.config.duration)) * 1000) / 10 + "%",
+    coinText = Math.round(sim.score).toLocaleString("en-US"),
+    streakNow = streakTier(sim.streak),
+    coinSub = streakNow.mult > 1 ? "STREAK ×" + streakNow.mult : "SPLASH COINS";
+  if ($("clock-fill").style.width !== clockFill) $("clock-fill").style.width = clockFill;
+  if ($("coins").textContent !== coinText) $("coins").textContent = coinText;
+  if ($("coins-sub").textContent !== coinSub) $("coins-sub").textContent = coinSub;
+  $("hud-coins").classList.toggle("streak", streakNow.mult > 1);
+  coinChange();
   $("clarity").textContent = Math.round(100 - sim.contamination) + "%";
   $("water-fill").style.width = 100 - sim.contamination + "%";
   $("water-fill").style.background = sim.contamination > 55 ? "#9dba59" : "#48b3b5";
@@ -3833,14 +3868,41 @@ function placeTag(b, screen, tagTop) {
 }
 // The scoreboard's foot (the tags stay under it), read at most twice a second: reading it after the tags had moved made the
 // browser lay the page out again in the middle of the frame (3 November 2026).
-let boardFoot = { at: -1e9, y: 0 };
 function scoreboardBottom() {
-  const now = performance.now();
-  if (now - boardFoot.at > 500)
-    boardFoot = { at: now, y: document.querySelector(".scoreboard").getBoundingClientRect().bottom };
-  return boardFoot.y;
+  // (nothing over the top of the pool since 5 November 2026: the tags keep only a small margin under the window's top)
+  return HUD_TOP;
 }
-const STATION_LABEL_NEAR = 6;
+// The Splash Coins' change since the last frame, as a small +N (green) or −N (red) rising from the plaque, and the plaque tinted
+// for a moment. Changes within a quarter second are summed into one, so a busy frame is one number.
+function coinChange() {
+  if (coinSimSeen !== sim || mode === "menu") {
+    coinSimSeen = sim;
+    coinSeen = sim.score;
+    coinGather = 0;
+    return;
+  }
+  const now = performance.now(),
+    diff = Math.round(sim.score - coinSeen);
+  coinSeen = sim.score;
+  if (diff) {
+    coinGather += diff;
+    coinGatherAt ||= now;
+  }
+  if (!coinGather || now - coinGatherAt < 250) return;
+  const pop = document.createElement("span"),
+    up = coinGather > 0;
+  pop.className = "coin-pop " + (up ? "good" : "bad");
+  pop.textContent = (up ? "+" : "−") + Math.abs(coinGather).toLocaleString("en-US");
+  const pops = $("coin-pops");
+  while (pops.childElementCount >= 3) pops.firstElementChild.remove();
+  pops.append(pop);
+  setTimeout(() => pop.remove(), 1200);
+  const plaque = $("hud-coins");
+  plaque.classList.remove("gain", "loss");
+  requestAnimationFrame(() => plaque.classList.add(up ? "gain" : "loss"));
+  coinGather = 0;
+  coinGatherAt = 0;
+}
 function updateBubbles() {
   // `notags` (the played hunt): no tag, bubble or label is drawn over the pool at all.
   if (tuning.has("notags")) {
@@ -4853,6 +4915,7 @@ function bind() {
     toast(on ? "Sound on ♫" : "Sound off");
   };
   $("settings").onclick = openMenu;
+  $("pause-btn").onclick = openMenu;
   $("resume").onclick = resume;
   if (isDesktop()) {
     $("quit-game").hidden = false; // (a window needs a way out that is not the keyboard)

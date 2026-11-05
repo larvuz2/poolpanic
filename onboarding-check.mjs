@@ -447,6 +447,37 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   assert.match(app, /\$\("pool-status-box"\)\.hidden = calmStatus && calmHint/);
   assert.match(app, /data\.z - sim\.coach\.z\) > STATION_LABEL_NEAR/);
   assert.match(app, /if \(!firstPerson\)\s*prompt\.hidden = !near && !c\.busy/);
+  // The HUD the Overcooked way (5 November 2026): no scoreboard and no ⚙ over the pool in a shift; the Splash Coins at the bottom
+  // left (a coin icon, the streak's multiplier under them, a small green +N or red −N on a change), the time at the bottom right
+  // (a stopwatch icon, a bar, the pause button); the venue, the pass mark and the star targets in the pause menu.
+  assert.ok(!html.includes('id="scoreboard"'), "no scoreboard");
+  for (const id of [
+    "hud-coins",
+    "coins",
+    "coins-sub",
+    "coin-pops",
+    "hud-clock",
+    "clock",
+    "clock-fill",
+    "pause-btn",
+  ])
+    assert.ok(html.includes(`id="${id}"`), id);
+  assert.ok(html.includes('src="assets/hud/coin.webp"') && html.includes('src="assets/hud/stopwatch.webp"'));
+  for (const f of ["coin", "stopwatch"])
+    assert.ok(readFileSync(`dist/assets/hud/${f}.webp`).length < 40000, f);
+  assert.match(css, /body:not\(\.menu\) \.top-actions #settings,/);
+  assert.match(css, /\.hud-coins \{\s*left: var\(--edge\);/);
+  assert.match(css, /\.hud-clock \{\s*right: var\(--edge\);/);
+  assert.match(app, /streakNow\.mult > 1 \? "STREAK ×" \+ streakNow\.mult : "SPLASH COINS"/);
+  assert.match(app, /pop\.className = "coin-pop " \+ \(up \? "good" : "bad"\)/);
+  assert.match(css, /\.coin-pop\.good \{/);
+  assert.match(css, /\.coin-pop\.bad \{/);
+  assert.match(app, /\$\("pause-btn"\)\.onclick = openMenu/);
+  assert.match(app, /function fillPauseShift\(\)/);
+  assert.match(
+    app,
+    /sim\.config\.thresholds\.map\(\(at, i\) => \(\{ label: "★"\.repeat\(i \+ 1\), at \}\)\)/,
+  );
   // Tags only where they help: where every guest goes to the same thing, a guest has one only while they need the coach.
   assert.match(
     app,

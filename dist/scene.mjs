@@ -2141,11 +2141,12 @@ export class PoolWorld extends SceneKit {
   cameraBounds() {
     const { w, h } = this.viewSize(),
       portrait = w <= 620;
-    // (the left strip holds the column of messages, the right one the water check and the gear: index.html `#hud-rail`)
+    // (the left strip holds the column of messages, the right one the water check; nothing over the top since 5 November 2026,
+    // the coins and the clock at the bottom corners: index.html `#hud-rail`, `.hud-plaque`)
     return {
       left: portrait ? 24 : Math.min(300, w * 0.22),
       right: w - (portrait ? 24 : Math.min(245, w * 0.22)),
-      top: portrait ? 151 : 105,
+      top: portrait ? 151 : 72,
       bottom: portrait ? Math.max(300, h - 366) : h <= 540 ? h - 145 : h - 135,
     };
   }

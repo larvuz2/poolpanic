@@ -35,22 +35,6 @@
         <a class="brand" href="./" aria-label="Pool Panic home"
           ><img class="brand-logo" src="assets/brand/logo.webp" alt="Pool Panic" width="640" height="371"
         /></a>
-        <div id="scoreboard" class="scoreboard">
-          <div class="score-metric"><small>SHIFT SCORE</small><strong id="score">0000</strong></div>
-          <div class="star-track">
-            <div id="stars" class="stars">☆ ☆ ☆</div>
-            <div class="score-track"><i id="score-fill"></i></div>
-            <small id="next-star">1,200 TO FIRST STAR</small>
-          </div>
-          <div class="clock-metric">
-            <span class="clock-icon">◷</span>
-            <div>
-              <strong id="timer">1:30</strong
-              ><small id="level-progress" class="level-progress">LEVEL 01 / 15</small
-              ><small id="shift-label">MORNING DIP</small>
-            </div>
-          </div>
-        </div>
         <nav class="top-actions" aria-label="Game settings">
           <button id="fund-pill" class="fund-pill" title="Ocean Fund · click to watch the story">
             <span aria-hidden="true">🌊</span><b id="fund-now">$0</b
@@ -220,6 +204,21 @@
           </button>
         </div>
       </aside>
+      <!-- The HUD the Overcooked way (5 November 2026, the creator): the shift's Splash Coins at the bottom left, the time at the
+           bottom right, nothing over the top of the pool. The venue, the pass mark and the star targets are in the pause menu. -->
+      <div id="hud-coins" class="hud-plaque hud-coins" aria-label="Splash Coins">
+        <img class="plaque-icon" src="assets/hud/coin.webp" alt="" width="192" height="192" />
+        <div class="plaque-body"><strong id="coins">0</strong><small id="coins-sub">SPLASH COINS</small></div>
+        <div id="coin-pops" class="coin-pops" aria-hidden="true"></div>
+      </div>
+      <div id="hud-clock" class="hud-plaque hud-clock" aria-label="Time left">
+        <div class="plaque-body">
+          <strong id="clock">1:30</strong>
+          <div class="clock-bar"><i id="clock-fill"></i></div>
+        </div>
+        <img class="plaque-icon" src="assets/hud/stopwatch.webp" alt="" width="192" height="192" />
+        <button id="pause-btn" class="pause-btn" aria-label="Pause · Esc" title="Pause · Esc">❚❚</button>
+      </div>
       <footer class="bottom-bar">
         <div id="pool-status-box" class="pool-status">
           <span class="status-light"></span>
@@ -586,6 +585,10 @@
       <dialog id="pause-dialog" class="modal small-modal settings-modal" aria-labelledby="pause-title">
         <div class="eyebrow" id="pause-eyebrow">TAKE A BREATHER</div>
         <h2 id="pause-title">TAKE FIVE.</h2>
+        <div id="pause-shift" class="pause-shift" hidden>
+          <div class="pause-venue"><b id="pause-venue"></b><small id="pause-tag"></small></div>
+          <div id="pause-goals" class="pause-goals"></div>
+        </div>
         <button id="resume" class="primary">BACK IN ▶</button>
         <div class="settings-list">
           <button id="help" class="setting">

@@ -872,6 +872,26 @@ The diagnostic of 19 October found that nothing taught the game and the first ho
     while they need the coach: a problem, a meter running, a wheel, a rescue, a mood under 45, or selected. At the Lazy River a
     waiting guest keeps the icon alone (⚡ or 🐢), for the way round. With no tags to click, a ZONE or SPRING button with nobody
     selected sends the guest who has waited longest (`sim.assign`; not the Kids Pool, where a kid is caught first).
+- **The HUD the Overcooked way** (5 November 2026, the creator: "like Overcooked, where in the lower right corner we have like the
+  time with a progress bar and numeric… in the lower left… the currency or the points… green label whenever we add more points,
+  very, very subtle. Or red… It is not until we pause the game that we see the name of the venue and how many points to get
+  certain stars… remove all of the HUD from the upper center"). Nothing is over the top of the pool in a shift any more: no
+  scoreboard, and no ⚙ (Esc, or the small ❚❚ on the clock, pauses). Two slanted navy plaques at the bottom corners
+  (`.hud-plaque` in style.css, `#hud-coins` and `#hud-clock` in index.html):
+  - **Splash Coins** (the game's name for a shift's points) at the bottom left: a gold coin with a blue splash on it, the number,
+    and under it SPLASH COINS, or the streak's multiplier (STREAK ×1.5) while it counts. A change rises from it as a small
+    **+N in green or −N in red**, fading in a second, and the plaque glows faintly the same colour (`coinChange` in app.mjs:
+    changes within a quarter second are one number, three at most on screen).
+  - **The time** at the bottom right: the minutes and seconds, a bar that empties, red under 20 s, amber while an incident holds
+    the clock, and a red swim coach's stopwatch.
+  - **The pause menu** (`fillPauseShift`) now carries what the scoreboard did: the venue and the shift, the coins so far, and the
+    coins to PASS (a shift of the week) and for each star, with what is still to go, or ✓.
+  - The icons are GPT Image 2.5 (`openai/gpt-image-2.5/flare/edit`, the game's logo as the style reference, transparent),
+    trimmed to 192 px WebP in `dist/assets/hud/` (17 and 14 kB). The coin: "a thick, glossy, chunky gold coin… embossed in its
+    centre with a bold stylised water SPLASH… a dark navy outline like the logo's lettering… no text". The stopwatch: "a chunky
+    swim coach's stopwatch… glossy bright cherry-red body… a white face with bold navy tick marks… one thick navy hand… a short
+    looped white lanyard". Original designs in the game's own look, not Overcooked's.
+  - The camera keeps less room at the top (`cameraBounds`: 72 px, was 105) and the column of messages ends above the plaques.
 
 Checked by `onboarding-check.mjs`, which plays the tutorial through with a script. **Not verified:** whether a new player reads the
 tips and learns the game from them; only a first-time player can say.
@@ -2151,7 +2171,7 @@ coach has to go and press E, like Karen same progress bar and then they leave!! 
 
 Chaos only feels funny when the player can read it, so every problem announces itself the same way, one thing at a time points to where to go next, and every save pays off.
 
-- **The column of messages** (21 October 2026, the creator: the messages under the scoreboard blocked the view and each other, the tutorial's tip over an incident's banner; "never block the central view"). Every message of a shift stands in one column on the left, under the logo, where the guests' cards used to be (`#hud-rail` in index.html, `.hud-rail` at the end of style.css), one under the other in this order: the big moment's result, the incident's sting, its banner with the current step, the guided first shift's tip, the streak, the toasts, the selected guest. It sits inside the strip the follow camera keeps clear on the left (`cameraBounds`: up to 300 px, 22% of a narrower window; the column ends 10 px short of it), so the coach is never under it and the middle of the view is the pool's alone; the scoreboard keeps the top. On a phone held upright the column runs across the top instead, under the scoreboard. The highlight replay hides it with the rest of the HUD.
+- **The column of messages** (21 October 2026, the creator: the messages under the scoreboard blocked the view and each other, the tutorial's tip over an incident's banner; "never block the central view"). Every message of a shift stands in one column on the left, under the logo, where the guests' cards used to be (`#hud-rail` in index.html, `.hud-rail` at the end of style.css), one under the other in this order: the big moment's result, the incident's sting, its banner with the current step, the guided first shift's tip, the streak, the toasts, the selected guest. It sits inside the strip the follow camera keeps clear on the left (`cameraBounds`: up to 300 px, 22% of a narrower window; the column ends 10 px short of it), so the coach is never under it and the middle of the view is the pool's alone; nothing keeps the top any more (5 November 2026: the coins and the clock are at the bottom corners). On a phone held upright the column runs across the top instead, under the scoreboard. The highlight replay hides it with the rest of the HUD.
 - **Stings.** When an incident starts or gets worse, a big sign slams in at the top of the column of messages and names it together with the action, e.g. "LOOSE DOG! Grab the treats · lead Biscuit out". The game slows down for a moment, the overview camera glides over to make room for the incident, and each incident has its own sound. The sign then shrinks away and the incident banner takes its place in the column, keeping the current step. Stings replace the warning toast they would duplicate.
   - The first time a player meets an incident, the sting runs longer, the game nearly stops, and a one-line lesson explains how it works (a "NEW" tag marks it). Seen incidents are remembered per device in `localStorage` under `pool-panic.seen.v1`, so later stings are short.
   - Incidents that sting: cramp, tummy trouble, the accident in the pool, fish kid, fish in the pool, loose dog, Cannonball Carl, Karen, a guest on the massage table, flickering lights, blackout, a daredevil waiting over a busy splash lane, the daredevil jumping anyway, and a crash. A clean jump into an empty lane is not an incident.
@@ -2395,7 +2415,7 @@ booming belly laugh as he turns up, a war whoop on the run-up (`carl-charge`), a
 (`carl-jump`, in place of the rising synthesised tone), then the cannonball's boom and wall of water. Ten new takes (ElevenLabs on
 fal), the voices among them run through speech-to-text: every one an interjection ("Ho, ho, ho", "Yee-haw!", "Hehehe"), no words.
 
-Support keyboard and touch, native clickable swimmer tags, readable skill labels, help, pause, and responsive HUD/control placement. Keep tags below the measured scoreboard edge. Do not let menus or controls obscure the coach on short or portrait displays.
+Support keyboard and touch, native clickable swimmer tags, readable skill labels, help, pause, and responsive HUD/control placement. Keep tags inside the window (no scoreboard over the top since 5 November 2026). Do not let menus or controls obscure the coach on short or portrait displays.
 
 Respect reduced motion: use steady selection cues, remove dash streaks/lean and repeated rescue bobbing, suppress panic jumping, and use a static back-on-deck slip pose. Preserve gameplay meaning and collision separation even when decorative animation is reduced.
 
@@ -2617,8 +2637,8 @@ time, back to the menu between venues (`renderer.info`, the processes' memory, t
    the menu 846 → 498 MB in the browser (JS heap 220 → 90 MB), 858 → 488 MB in the desktop app.
 3. **No forced layout in a frame.** Every guest's tag read the view's size (`clientWidth`) just after the previous tag had moved,
    which made the browser lay the whole page out again, once a guest, every frame (`cameraBounds` alone was a third of the game's
-   script time). The size is kept (`viewSize` in scene.mjs, forgotten on a resize and by a ResizeObserver) and the scoreboard's foot
-   read twice a second (`scoreboardBottom`). The main thread's time per frame fell 22% on average over the 13 venues (11.9 → 9.2 ms on
+   script time). The size is kept (`viewSize` in scene.mjs, forgotten on a resize and by a ResizeObserver) and the tags' top margin is a
+   fixed one (`scoreboardBottom`, since the scoreboard went on 5 November 2026; it was read twice a second). The main thread's time per frame fell 22% on average over the 13 venues (11.9 → 9.2 ms on
    this machine, lower in every one).
 4. **The crowd draws only the pose each spectator is in** (scene/crowd-models.mjs). The other pose used to be drawn shrunk to nothing,
    every triangle still processed: the Grand Gala Arena 617k → 426k triangles a frame, the Aquatic Centre 556k → 403k.
