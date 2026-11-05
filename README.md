@@ -2137,6 +2137,43 @@ cutting salad animation!! … add this massage table in some venues !! not all!!
   the table and holds E. Seen in Chromium with software drawing (the table, a guest lying on it, a coach massaging: pictures sent to
   the creator); not yet on the creator's machines.
 
+### Loose props: a deck that reacts (every pool, 5 November 2026)
+
+The creator: "if I walk and hit them, they should move… and react to the hit. Also like the furniture… a pot, if I run, it falls
+off. That doesn't affect the point system… all of the venues have physics and it's more alive". `dist/scene/loose.mjs`
+(`LooseProps`, built with every venue in `PoolWorld.build`, updated at the end of each frame's `sync`, put back by
+`resetActors` at every shift):
+
+- **On screen only.** Nothing of it is the simulation's: the score, the replays and co-op's hashes never see a prop, and a prop
+  never blocks anyone (the coach and the guests walk where the simulation says; the props are pushed out of their way).
+- **Every venue has a kit of its own kind** (`VENUE_KITS`, 6 to 13 things): beach balls, kickboards, pool noodles, rubber ducks,
+  plastic chairs, potted plants, traffic cones, buckets (wooden ones at the Mountain Hot Springs), bottles (champagne green at the
+  Gala, the Rooftop Pool and the Aqua Disco). Each is a few low-poly meshes made in code. They stand on free deck by the walls
+  (`homeSpots`: a grid of the deck where two to five of eight directions a metre away are blocked, at least 2.2 m from every
+  station, fixture, ring, door, place in the line and lane's way in, 2.4 m apart; seeded by the venue, so always the same places),
+  balls and sliding things on the open stretches, pots and cones in the corners.
+- **Three ways to move.** A **ball** kicked flies off faster than the foot (1 + its bounce), hops, rolls (turned about its middle as
+  it goes), bounces off walls, furniture and the pool's edge, and in a plain rectangular pool (the Community Pool, Splash Park, the
+  Lagoon, the Aquatic Centre, the Disco, the Kids Pool, Senior Aqua Fit, the Gala) may end up in the water and float there,
+  bobbing. A **board, noodle, chair or duck** skids and turns (a glancing hit spins it) and soon stops. A **pot, cone, bucket or
+  bottle** rocks at a nudge and **falls over at a run** (a closing speed of 4.2 m/s or more: the coach moves at 7.6, dashes at
+  19, a guest walks at about 2), away from the hit, with a small lift so it lies on its side, and can then be shoved about; a
+  hard knock from another prop topples it too.
+- **The pushers** are every coach (a jump over a prop clears it) and every guest on foot, their speed read from where they were
+  last frame. Props bump each other. Walls, furniture and the water's edge are `venue.isDeck`, the same test the coach walks by.
+- **The Cruise Ship's** steamer chairs and beach balls (scene/cruise.mjs) are loose props too (`adopt`): the coach and the guests
+  knock them about, and they still slide and roll with the roll, the slope's pull now the system's `tilt` (with the same
+  static friction: a chair stays put until she leans far enough).
+- **Cost**: a few dozen meshes per venue; a prop at rest costs nothing a frame.
+
+Checked by `loose-check.mjs` (headless): a kit in every venue on free deck, apart, clear of the stations, the same places each
+time; a ball kicked at a run rolls well away and stays on the deck or in the pool; a pot nudged at a walk only rocks and run into
+falls over, lying on its side; a jump clears a kickboard and a run shoves it; a guest strolling into a cone does not topple it; a
+new shift puts everything back; the cruise's chairs and balls joined and a ball rolls downhill as the ship leans; the simulation
+never sees any of it. Filmed in Chromium with software drawing (the coach running through a ball, a pot and a steamer chair);
+not yet seen on the creator's machines, and the dressed venues' own baked decorations are not loose (they are merged into the
+venue's few meshes): a kit prop may stand by one.
+
 ### The influencer: filming in the middle of the deck
 
 The creator, 5 November 2026, after the rooftop's selfie was fixed: "make this incident appear in other venues as well… like wave
@@ -2473,6 +2510,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/scene/wave.mjs`, `dist/scene/wave-view.mjs` | The Wave Pool's builder (the beach and the mosaic in one bed, the basin walls, the water moved by the simulation's crests, the wave house with its chambers, mural, sign, LED board and lighthouse beacons, the beach dressing, the tube hut, the Surf Shack and surf rack, the walls and the surf gate; the water as the lane for picking); the bathers on screen (`wavePose`: standing, treading, in a tube, woozy, under; `syncLostTubes`) |
 | `dist/scene/dive.mjs`, `dist/scene/dive-view.mjs` | The Jumping Pool's builder (the lawn, the deep pool, the two stations: the springboards, platforms, stairs and plates; the hot tub and the spa corner; the hedges, trees, sunbeds, clubhouse and gates; a highlight and a click target for each height and the tub) and its cast (`divePose`: the line, the stairs, the edge, the flight with its spin, the entry, the tub; the landing rings, the springboard's bend, the steam) |
 | `dist/scene/onsen.mjs`, `dist/scene/onsen-view.mjs` | The Mountain Hot Springs' builder (the snowfield and drifts, the icy terrace and its snow mask, the basins, the water shader, the rim stones and boulders, the bathhouse, the lanterns, the bamboo spout, the cedars and firs, the mountains, the steam and the snowfall, a highlight and a click target for each spring) and its cast (`onsenPose`: guests sitting to the shoulders, wading, panicking; the snow monkeys, `loadMonkey`, their clips and stand-in) |
+| `dist/scene/loose.mjs` | Loose props on screen only ("Loose props: a deck that reacts"): each venue's kit (`VENUE_KITS`) and where it stands (`homeSpots`), the props' looks, and `LooseProps`: balls that roll, boards and chairs that slide, pots and cones that rock or fall over, pushed by the coaches and the guests, bumping each other, a slope's pull (`tilt`), back in place each shift |
 | `dist/scene/cruise.mjs` | The Cruise Ship's builder (the sea shader and panorama, the hull with its balconies and lifeboats, the teak deck, the basin and its sloshing water, the ropes, the rails, the superstructure with the screen, the name, the bridge, the mast and flags and the funnel's smoke, the lobbies, the sliding loungers, the Lido Bar with its bartender, the hot tub, the loose chairs and balls); the roll each frame (`syncCruise`: the scene tipped, the sea and the sky turned back, the water's slosh, the ropes riding it); a guest in the pool treading water (`cruisePose`) |
 | `dist/scene/rooftop.mjs`, `dist/scene/roof-view.mjs`, `dist/scene/city.mjs` | The Rooftop Pool's builder (the teak deck and travertine, the cantilevered slab, the basin and its water shader, the infinity edge and the gutter's flow, the glass rail, the lifts and their sliding doors, the sunbeds, parasols and cabanas, the lounge and fire table, the SKY BAR, the DJ's stage with its LED wall and beams, palms and festoons); the guests on screen (`roofPose`: chest-deep, lying on a sunbed, a glass in hand, the poser on the edge, overboard in the gutter, dancing on the drop; chat bubbles; the towels; the DJ and the bartender, `buildRoofCast`); the city 185 m below (streets and traffic, instanced towers with generated facades, landmarks, the bay and bridge, the skyline) |
 | `dist/scene/river.mjs`, `dist/scene/river-view.mjs` | The Lazy River's builder (the deck cut along the river, the bed, banks and flowing water, the cave and its waterfall, the temple, the bridge, the stones, the docks, the tube rack and return, the palisade and gate, the jungle and the parrots; the river's "lane" for picking and guidance); the riders and their tubes on screen (`riverPose`, `tubeState`: TubeBoard, TubeFloat, the tube on the water, under the arm, on the rack, on the deck) |
@@ -2810,6 +2848,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node karen-check.mjs` | Karen: on level 4's plan, through a locker door to the coach, follows and stays off the water, annoys each person once (they stop, resume after), hold-E ring fills and drains, planted coach, latched click-to-calm, +100/+50, leaves and the influence ends, swimmers generated identically, and on screen: scribbles, her circle, hands over ears, the coach's pat |
 | `node coachcam-check.mjs` | Coach Cam: facing follows the look, E prefers what is in view, view-relative movement, eye and water-level height with the body hidden, hand lag and settle, head bob (off with reduced motion), landing dip, items in hand, field of view, crosshair target |
 | `node fish-model-check.mjs` | The fish model: the file's shape (one mesh, matte, no skeleton, nose to +z and back to +y from its vertices), fish dressed when the model comes or when they are made, each with a wave of its own and one program, a model that does not load leaving the koi, and the fish of the incident seen in the pool only once the kid has tipped it out |
+| `node loose-check.mjs` | Loose props: a kit in every venue on free deck by the walls, apart, clear of the stations, the same places each time; a ball kicked away, a pot rocking at a walk and falling over at a run, a jump clearing a board, a guest strolling past toppling nothing, a new shift putting everything back, the cruise's chairs and balls sliding with the roll, the simulation untouched |
 | `node swimmer-model-check.mjs` | The swimmer models (stand-in skeletons): the choice and its switch, who gets which look, the clip rules (walk and run by foot speed with hysteresis, swim, scratch, panic) and each model's own ground speeds, the poses laid over the clips (arm and leg directions, easing), the swap in the scene and back, the Panic clip and its fallbacks, the VIP crown (and no sash) and daredevil star and cape riding on the head and chest bones, the type disc, queasy tint and a model that breaks being dropped; the cannonball men: the Cannonball clip followed through the incident, the swim in the water, and the crowd's panic (swimmers held upright in the water, the queue hopping) with the models and with the classic swimmers |
 
 Read the selected test's imports before running it in a new environment. CPU scene checks use the runtime's canvas dependency and are not GPU rendering tests. Historical checks passed during implementation, but that is not a claim that this documentation update reran every suite.
