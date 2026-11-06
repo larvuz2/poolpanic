@@ -161,7 +161,8 @@ export function onTheBeat(ctx) {
   const { w } = ctx;
   w.updaters.push((time, dt, world, sim) => {
     const calm = world.reducedMotion?.matches,
-      t = calm ? 4.2 : sim && sim.status !== "ready" ? sim.time || 0 : time;
+      // (the intro cinematic holds the shift: the room dances to its own clock meanwhile)
+      t = calm ? 4.2 : sim && sim.status !== "ready" && !w.cinematic ? sim.time || 0 : time;
     const d = danceAt(t),
       lit = Math.min(1, w.incidentLight ?? 1);
     for (const f of ctx.beats) f(t, d, calm ? 0.5 : pulse(d.phase), lit, calm ? 0 : dt, sim);
@@ -380,6 +381,8 @@ export function stage(ctx, x, z, { body = true } = {}) {
   const g = character(w, person);
   g.position.set(x, top, z - 0.1);
   g.rotation.y = Math.PI; // facing the pool
+  // (her close-up in the intro cinematic: scene/intro-cinematic.mjs)
+  w.cineSpots.valentina = { x, y: top, z: z - 0.1, angle: Math.PI, head: 1.5, dist: 2.6, side: 0.6 };
   w.scene.add(g);
   w.liveProps.push(g);
   const u = g.userData;

@@ -401,6 +401,17 @@ export function buildCast(w, ctx) {
     w.scene.add(g);
     w.liveProps.push(g);
     w.clickables = w.clickables.filter((m) => m !== g.userData.hit);
+    // (their close-ups in the Rooftop Pool's intro cinematic: scene/intro-cinematic.mjs)
+    if (w.cineSpots)
+      w.cineSpots[who.id] = {
+        x: who.at.x,
+        y: who.y,
+        z: who.at.z,
+        angle: who.angle,
+        head: 1.5,
+        dist: 2.3,
+        side: who.id === "dj" ? -0.6 : 0.6,
+      };
     const member = { who: who.id, g, rig: null };
     ctx.cast.push(member);
     loadFigure(who.id).then((t) => {
@@ -448,7 +459,8 @@ export function syncRoof(w, sim, time, dt, ctx) {
 // The DJ and the bartender, on the beat.
 export function syncCast(w, sim, time, dt, ctx) {
   const R = sim?.roof;
-  const d = danceAt(sim?.time || 0),
+  // (the intro cinematic holds the shift: the DJ plays to the world's clock meanwhile)
+  const d = danceAt(w.cinematic ? time : sim?.time || 0),
     dark = sim?.outage?.stage === "dark";
   for (const c of ctx.cast || []) {
     const u = c.g.userData;

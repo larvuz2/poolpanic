@@ -9,7 +9,7 @@
 // shooed out and scampers off. Until the model is here (or if it does not load) a simple monkey of balls stands in. Only the picture
 // moves here.
 import { THREE } from "./kit.mjs";
-import { SPRINGS, springLocal } from "../onsen-plan.mjs";
+import { SPRINGS, BOULDERS, springLocal } from "../onsen-plan.mjs";
 import { MONKEY } from "../onsen.mjs";
 
 const WATER = -0.15,
@@ -210,6 +210,54 @@ export function buildOnsenCast(w, ctx) {
   });
   ctx.monkeys = new Map();
   w.updaters.push((time, dt, world, sim) => syncMonkeys(w, sim, time, dt, ctx));
+  cineMonkey(w);
+}
+// The intro cinematic's snow monkey (scene/intro-cinematic.mjs, the creator: "a close-up of the monkey, like behind a rock"): one
+// that comes out from behind the boulder at the far side, by the forest, sits and looks about, the camera low by the rock. Only
+// while its shot runs, and only the picture.
+function cineMonkey(w) {
+  if (!w.cineSpots) return;
+  const rock = BOULDERS.filter((b) => b.spring === null).sort(
+    (a, b) => Math.hypot(a.x - 13.4, a.z - 2.6) - Math.hypot(b.x - 13.4, b.z - 2.6),
+  )[0];
+  if (!rock) return;
+  // hidden behind the rock (from the camera), then out at its edge
+  const hide = { x: rock.x + 0.35, z: rock.z - (rock.r - 0.5) },
+    peek = { x: rock.x + 0.3, z: rock.z - (rock.r + 0.2) },
+    from = { x: peek.x - 1.8, y: 0.62, z: peek.z + 0.5 },
+    to = { x: peek.x - 1.45, y: 0.52, z: peek.z + 0.38 },
+    out = Math.atan2(peek.x - hide.x, peek.z - hide.z),
+    look = Math.atan2(to.x - peek.x, to.z - peek.z);
+  w.cineSpots.monkey = {
+    x: peek.x,
+    z: peek.z,
+    cam: {
+      from,
+      to,
+      lookFrom: { x: peek.x, y: 0.3, z: peek.z + 0.25 },
+      lookTo: { x: peek.x, y: 0.4, z: peek.z },
+    },
+  };
+  const g = makeMonkey(w);
+  g.visible = false;
+  loadMonkey()?.then?.(() => dressMonkey(g));
+  w.updaters.push((time, dt) => {
+    const k = w.cinematic,
+      on = k?.kind === "monkey";
+    g.visible = on;
+    if (!on) return;
+    dressMonkey(g);
+    const s = Math.min(1, (k.inShot || 0) / 0.55),
+      e = s * s * (3 - 2 * s);
+    g.position.set(hide.x + (peek.x - hide.x) * e, 0, hide.z + (peek.z - hide.z) * e);
+    let turn = look - out;
+    turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+    g.rotation.y = out + turn * e;
+    const u = g.userData;
+    play(u, s < 1 ? "walk" : "idle", s < 1 ? 1.2 : 1);
+    u.mixer?.update(dt);
+    if (!u.model) u.stand.position.y = s < 1 ? Math.abs(Math.sin(time * 9)) * 0.04 : 0;
+  });
 }
 function syncMonkeys(w, sim, time, dt, ctx) {
   const list = sim?.onsen?.monkeys || [],
