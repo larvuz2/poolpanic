@@ -2,7 +2,8 @@
 // the doors open. One static camera looks down the dark pool at the far wall: a painted wall (assets/menu/hall-wall.webp,
 // generated), a real 3D deck in front of it where Coach Waters paces slowly right and left, light shafts from the windows,
 // dust in them, and the pool in the foreground with a layer of black on it that still mirrors the wall and the coach. START,
-// once the shift is chosen, has the coach walk to the doors and open them: the light floods in and the shift begins.
+// once the shift is chosen, has the coach walk to the doors and open them: the morning comes in, he spins round and runs at the
+// camera, and the shift begins.
 //
 // Behind the doors (21 October 2026, the creator: "make this a reality"): the doorway is cut out of the painting and the first
 // guests wait outside in the morning light, real characters (`GUESTS`: the leopard man, Cannonball Carl, Marco, Valentina and
@@ -39,6 +40,8 @@ const HALL = { half: 5.6, deck: 2.9, water: -0.2, poolHalf: 4.3, far: 18, ceilin
 // The coach's walk: along the deck, a step in front of the doors.
 const PACE = { z: 1.35, left: -2.7, right: 2.7, speed: 0.78 };
 const DOOR_SPOT = { x: 0, z: 0.85 };
+// Where he runs to once the doors are open: at the camera, to a step from the pool's edge.
+const RUN_TO = { x: 0.15, z: 2.5 };
 const COACH_SCALE = 1.08;
 // The first guests, waiting outside for seven o'clock: who (a swimmer's id in swimmer-models.mjs, or one of its figures), where
 // (from the doors' middle, z behind them), facing (0: the doors), the clip they wait with (`idle`), the ones they play once now
@@ -172,11 +175,11 @@ const WALL_FRAGMENT = /* glsl */ `
     float shade = 0.86 - 0.34 * side - 0.3 * high;
     vec2 d = vec2(vWorld.x / 2.4, (vWorld.y - 1.2) / 2.2);
     float halo = exp(-dot(d, d));
-    shade += halo * (0.14 + 0.9 * uOpen);
+    shade += halo * (0.14 + 0.4 * uOpen);
     shade *= uDim;
     vec3 warm = vec3(1.0, 0.86, 0.68);
-    vec3 lit = tex * shade * mix(vec3(1.0), warm, halo * (0.35 + 0.65 * uOpen));
-    vec3 color = mix(lit, tex * (0.92 + 0.5 * uOpen), smoothstep(0.62, 0.86, lum));
+    vec3 lit = tex * shade * mix(vec3(1.0), warm, halo * (0.35 + 0.35 * uOpen));
+    vec3 color = mix(lit, tex * (0.92 + 0.18 * uOpen), smoothstep(0.62, 0.86, lum));
     if (uLeaf > 0.5) {
       // Frosted glass lit from behind by the morning: the mask read where this point of the glass is on the screen, blurred
       // over a ring of taps, dark where a guest stands. Its colours are the painting's: a warm cream, more orange low down,
@@ -196,7 +199,7 @@ const WALL_FRAGMENT = /* glsl */ `
         vec3 light = mix(vec3(0.955, 0.855, 0.61), vec3(0.87, 0.61, 0.305), h);
         vec3 shadow = light * vec3(0.27, 0.2, 0.17);
         float grain = fract(sin(dot(floor(px * 1.5), vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-        vec3 g = mix(shadow, light, smoothstep(0.18, 0.88, m)) * (1.0 + 0.05 * grain) * (1.0 + 0.3 * uOpen) * uDim;
+        vec3 g = mix(shadow, light, smoothstep(0.18, 0.88, m)) * (1.0 + 0.05 * grain) * (1.0 + 0.1 * uOpen) * uDim;
         color = mix(color, g, glass);
       }
     }
@@ -248,7 +251,7 @@ const WATER_FRAGMENT = /* glsl */ `
     vec3 color = uDeep + mirror * mix(0.32, 0.7, fresnel) * (0.55 + 0.45 * far);
     // The faint sheen of the room on the swell, and a glint of the doors' light when they open.
     float glint = pow(max(dot(reflect(-view, normal), normalize(vec3(0.0, 0.35, -1.0))), 0.0), 60.0);
-    color += uSurface * (0.03 + 0.04 * n.x) + vec3(1.0, 0.8, 0.55) * glint * (0.25 + 2.5 * uOpen);
+    color += uSurface * (0.03 + 0.04 * n.x) + vec3(1.0, 0.8, 0.55) * glint * (0.25 + 0.7 * uOpen);
     gl_FragColor = vec4(color * uDim, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -1050,7 +1053,8 @@ export class MenuStage {
       }
     } else if (step.kind === "turn") {
       const turn = wrapAngle(step.angle - c.angle);
-      c.angle += clamp(turn, -dt * 2.4, dt * 2.4);
+      const rate = step.rate || 2.4;
+      c.angle += clamp(turn, -dt * rate, dt * rate);
       this.play("walk", 0.3, 0.45);
       if (Math.abs(turn) < 0.03) c.step = null;
     } else if (step.kind === "stand") {
@@ -1112,29 +1116,33 @@ export class MenuStage {
       o.started = true;
       o.sound("doors");
       this.guests.forEach((g, i) => this.guestEnters(g, i));
-      // The coach steps aside to let them in, and turns to welcome them.
+      // The coach sees who is coming, spins round and runs at the camera, to the pool's edge: the shift begins as he gets there
+      // (6 November 2026, the creator: walking off to the right "is a little bit weird… the character… starts running towards
+      // the camera, and that's where it ends").
       const c = this.coach;
       if (c) {
         c.plan = [
-          { kind: "walk", x: 1.55, z: 1.05, speed: 1.3 },
-          { kind: "turn", angle: -Math.PI * 0.72 },
+          { kind: "turn", angle: 0, rate: 7 },
+          { kind: "run", x: RUN_TO.x, z: RUN_TO.z, speed: 2.3 },
           { kind: "stand", time: 99 },
         ];
         c.step = null;
-        c.planDelay = 0.35;
+        c.planDelay = 0.45;
       }
     }
     const t = o.t - o.at;
     const swing = ease(t / OPEN.swing);
     for (const leaf of this.leaves) leaf.rotation.y = leaf.userData.sign * swing * 1.85;
-    const open = clamp(t / OPEN.swing, 0, 1);
+    // (the morning comes in, gently: since 6 November 2026 a third of what it was, the creator: "behind the door there is a lot
+    // of lighting"; the guests in the doorway and the pool's reflection of it had burnt out to white)
+    const open = ease(t / OPEN.swing);
     this.shared.uOpen.value = open;
     this.waterMaterial.uniforms.uOpen.value = open;
-    this.skyMaterial.color.setScalar(1 + open * 0.15);
-    this.doorSpot.intensity = 30 + open * 110;
-    this.guestFill.intensity = open * 34;
-    this.floorGlow.material.opacity = 0.32 + open * 1.3;
-    this.shaftMaterial.uniforms.uStrength.value = 0.16 + open * 0.25;
+    this.skyMaterial.color.setScalar(1 - open * 0.3); // (the morning outside, seen whole now: no longer a glare, nor in the pool)
+    this.doorSpot.intensity = 30 + open * 14;
+    this.guestFill.intensity = open * 12;
+    this.floorGlow.material.opacity = 0.32 + open * 0.22;
+    this.shaftMaterial.uniforms.uStrength.value = 0.16 + open * 0.1;
     o.flash(clamp((t - OPEN.flash[0]) / (OPEN.flash[1] - OPEN.flash[0]), 0, 1));
     if (t > OPEN.then && !o.called) {
       o.called = true;
