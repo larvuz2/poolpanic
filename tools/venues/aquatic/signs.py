@@ -16,6 +16,9 @@ spec.loader.exec_module(S)
 S.OUT = os.path.join(os.environ.get("VENUE_WORK", "/tmp/aquatic-work"), "signs")
 os.makedirs(S.OUT, exist_ok=True)
 from PIL import Image, ImageDraw, ImageFilter
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "common"))
+from carl_art import paste_carl  # (Cannonball Carl where a stick figure used to be: common/carl_art.py)
 
 NAVY, BLUE, RED, WHITE, GOLD, YELLOW, INK = "#10284a", "#1f5fd1", "#e03a3a", "#f4f8fb", "#e9b949", "#ffd24a", "#141820"
 F, P, centred, grain, save, sunfade = S.F, S.P, S.centred, S.grain, S.save, S.sunfade
@@ -169,15 +172,9 @@ def wet_floor():
     d = ImageDraw.Draw(img)
     d.rectangle((0, 0, W, 70), fill=INK)
     centred(d, (0, 0, W, 70), "CAUTION", F(56, "Black"), YELLOW)
-    # the slipping figure
-    cx, cy = W / 2, 200
-    d.ellipse((cx + 20, cy - 80, cx + 56, cy - 44), fill=INK)
-    d.line([(cx + 30, cy - 44), (cx - 10, cy + 20)], fill=INK, width=14)
-    d.line([(cx - 10, cy + 20), (cx - 60, cy + 10)], fill=INK, width=12)
-    d.line([(cx - 10, cy + 20), (cx + 40, cy + 60)], fill=INK, width=12)
-    d.line([(cx + 20, cy - 20), (cx + 70, cy - 50)], fill=INK, width=10)
-    d.line([(cx + 10, cy - 15), (cx - 50, cy - 40)], fill=INK, width=10)
-    d.line([(cx - 90, cy + 75), (cx + 90, cy + 75)], fill=INK, width=8)
+    # Carl going over on the wet tiles (6 November 2026: once a stick figure)
+    d.line([(W / 2 - 100, 285), (W / 2 + 100, 285)], fill=INK, width=8)
+    paste_carl(img, "slip", (14, 76, W - 14, 296))
     centred(d, (0, H - 80, W, H), "WET FLOOR", F(54, "Black"), INK)
     save(img, "wet_floor")
 
