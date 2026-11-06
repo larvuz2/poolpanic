@@ -2181,6 +2181,29 @@ by itself or skipped; the jolt and the freak-out cued; the simulation held; the 
 Chromium with software drawing in all 14 venues (a frame of each shot of each), and the four venues' own beats again on 6 November. Not yet seen on the creator's machines; the Coach
 Cam, co-op and replays go straight to the countdown.
 
+### Carl on the signs (6 November 2026)
+
+The creator: "the slippery sign… the stickman… it's not good… a slippery man like falling off, but choose Carl as the model… if you
+see other… stickman figurines replaced with actual characters, mostly Carl". Every painted stick figure in the dressed venues is now
+**Cannonball Carl**, drawn by GPT Image 2.5 with renders of his own model (`dist/assets/carl.glb`) as the reference:
+
+- **Mountain Hot Springs**, SLIPPERY! VERY.: Carl, a towel on his head, his feet gone from under him on the ice.
+- **Aquatic Centre**, CAUTION · WET FLOOR, and **Cruise Ship**, CAUTION · WET DECK: Carl going over in a splash.
+- **Cruise Ship**, MUSTER STATION B: Carl in a life jacket too small for him, thumbs up, seasick (once four little figures).
+- **Senior Aqua Fit**, Today's Moves: the Flamingo, the Teapot and the Slow Wave as chalk sketches of Carl in the water.
+- **Community Pool (the Harbourside)**: POOL RULES' six pictograms (Carl running, diving, bombing, eating a hot dog, showering,
+  listening to the lifeguard, in the red or green rings), the NO RUNNING enamel sign, PLEASE SHOWER, and the club's faded 1974
+  team photo (Carl kneeling in the middle with the cup, once grey silhouettes). These are the Godot test's textures too
+  (`godot/assets/textures/props/`), so its venue has them as well.
+
+The pictures are in `tools/venues/common/carl/` with `carl_art.py` (`paste_carl`), which the venues' `signs.py` and the Harbourside's
+`props_dressing_textures.py` call where they used to draw a figure. The game's atlases (`atlas_signs.webp` of `onsen-club`, `aquatic`,
+`cruise-club`, `senior-club`, `club`) were patched in place rather than rebuilt: each old sign found in its atlas by matching (scores
+0.98 to 0.999), the new one pasted at the same pixels and size with the exporter's 4 px edge pad, so the models' UVs are unchanged and
+a rebuild from the scripts gives the same signs. The changing rooms' MEN and WOMEN door figures stay pictograms on purpose. Checked by
+eye in Chromium (the hot springs' board, both faces, in the game; every patched sign cropped from its atlas); not yet on the
+creator's machines.
+
 ### Loose props: a deck that reacts (every pool, 5 November 2026)
 
 The creator: "if I walk and hit them, they should move… and react to the hit. Also like the furniture… a pot, if I run, it falls

@@ -16,6 +16,9 @@ spec.loader.exec_module(S)
 S.OUT = os.path.join(os.environ.get("VENUE_WORK", "/tmp/onsen-work"), "signs")
 os.makedirs(S.OUT, exist_ok=True)
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "common"))
+from carl_art import paste_carl  # (Cannonball Carl where a stick figure used to be: common/carl_art.py)
 
 F, centred, grain, save = S.F, S.centred, S.grain, S.save
 INK, WOOD, WOOD_DARK, PAPER, RED, INDIGO, SNOW, YELLOW = "#1c1612", "#c9a374", "#6b4a32", "#f3e6c8", "#b8352c", "#2c3c78", "#eef3fa", "#f2c230"
@@ -103,17 +106,11 @@ def slippery():
     img = Image.new("RGB", (W, H), "#f4f1e8")
     d = ImageDraw.Draw(img)
     d.rounded_rectangle((16, 16, W - 16, H - 16), 30, outline=RED, width=14)
-    # a stick figure flying off its feet
-    cx, cy = W / 2, 250
-    d.ellipse((cx + 40, cy - 150, cx + 100, cy - 90), fill=INK)
-    d.line([(cx + 60, cy - 90), (cx - 40, cy)], fill=INK, width=18)
-    d.line([(cx + 30, cy - 60), (cx + 140, cy - 110)], fill=INK, width=14)
-    d.line([(cx + 10, cy - 40), (cx - 90, cy - 90)], fill=INK, width=14)
-    d.line([(cx - 40, cy), (cx - 150, cy - 40)], fill=INK, width=16)
-    d.line([(cx - 40, cy), (cx + 40, cy + 60)], fill=INK, width=16)
-    d.line([(50, 360), (W - 50, 360)], fill="#7fb0d8", width=12)
-    for x in (120, 250, 380):
-        d.line([(x, 330), (x + 30, 300)], fill="#7fb0d8", width=6)
+    # Carl, a towel on his head, his feet gone from under him on the ice (6 November 2026: once a stick figure)
+    d.line([(50, 378), (W - 50, 378)], fill="#7fb0d8", width=12)
+    for x in (110, 380):
+        d.line([(x, 368), (x + 30, 352)], fill="#7fb0d8", width=6)
+    paste_carl(img, "ice", (52, 44, W - 52, 388))
     centred(d, (0, 400, W, 510), "SLIPPERY!", F(110, "Black"), RED)
     centred(d, (0, 510, W, 600), "VERY.", F(80, "Black"), INK)
     save(grain(img, 4), "slippery")

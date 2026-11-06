@@ -20,6 +20,9 @@ WORK = os.environ.get("VENUE_WORK", "/tmp/cruise-work")
 S.OUT = os.path.join(WORK, "signs")
 os.makedirs(S.OUT, exist_ok=True)
 from PIL import Image, ImageDraw, ImageFilter, ImageEnhance
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "common"))
+from carl_art import paste_carl  # (Cannonball Carl where a stick figure used to be: common/carl_art.py)
 
 F, P, centred, grain, save, sunfade = S.F, S.P, S.centred, S.grain, S.save, S.sunfade
 NAVY, NAVY_D, WHITE, CREAM, RED, BRASS, INK, GREEN, YELLOW, TEAL = (
@@ -177,12 +180,9 @@ def muster():
     img = Image.new("RGB", (768, 384), GREEN)
     d = ImageDraw.Draw(img)
     d.rectangle((8, 8, 759, 375), outline=WHITE, width=8)
-    # four little figures under a roof
-    d.polygon([(70, 150), (190, 70), (310, 150)], outline=WHITE, width=10)
-    for k in range(4):
-        cx = 108 + k * 56
-        d.ellipse((cx - 14, 168, cx + 14, 196), fill=WHITE)
-        d.rounded_rectangle((cx - 16, 200, cx + 16, 290), 10, fill=WHITE)
+    # Carl in a life jacket too small for him, on a white disc (6 November 2026: once four little figures under a roof)
+    d.ellipse((46, 26, 334, 358), fill=WHITE)
+    paste_carl(img, "lifejacket", (66, 40, 314, 348))
     fit(d, (340, 60, 740, 220), "MUSTER", lambda s: F(s, "Black"), 150, WHITE)
     fit(d, (340, 210, 740, 330), "STATION B", lambda s: F(s, "Black"), 110, WHITE)
     save(grain(img, 3), "muster")
@@ -245,14 +245,9 @@ def wet_deck():
     d = ImageDraw.Draw(img)
     d.rectangle((10, 10, W - 11, H - 11), outline=INK, width=10)
     fit(d, (40, 40, W - 40, 170), "CAUTION", lambda s: F(s, "Black"), 120, INK)
-    # a slipping figure
-    d.ellipse((215, 210, 265, 260), fill=INK)
-    d.line((240, 260, 200, 360), fill=INK, width=22)
-    d.line((205, 350, 290, 410), fill=INK, width=20)
-    d.line((205, 350, 150, 420), fill=INK, width=20)
-    d.line((225, 290, 300, 260), fill=INK, width=18)
-    d.line((225, 290, 160, 250), fill=INK, width=18)
+    # Carl going over on the wet deck (6 November 2026: once a stick figure)
     d.rectangle((90, 430, 390, 444), fill=INK)
+    paste_carl(img, "slip", (40, 168, W - 40, 448))
     fit(d, (40, 470, W - 40, 600), "WET DECK", lambda s: F(s, "Black"), 120, INK)
     save(grain(img, 3), "wet_deck")
 

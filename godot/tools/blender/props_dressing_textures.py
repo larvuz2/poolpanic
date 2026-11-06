@@ -9,6 +9,9 @@ and props_doors.py run it when a file is missing.
 import os, sys, math, random
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops, ImageEnhance
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "tools", "venues", "common"))
+from carl_art import carl, fit, paste_carl  # (Cannonball Carl where a stick figure used to be, 6 November 2026)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 FONTS = os.path.join(HERE, "fonts")
 OUT = os.path.abspath(os.path.join(HERE, "..", "..", "assets", "textures", "props"))
@@ -130,46 +133,24 @@ def no_sign(d, cx, cy, r, w=None, col="#d6423a"):
     d.line((cx - r * math.cos(a) + w * 0.2, cy - r * math.sin(a) + w * 0.2, cx + r * math.cos(a) - w * 0.2, cy + r * math.sin(a) - w * 0.2), fill=col, width=w)
 
 
+# Which of Carl's pictures each rule shows (tools/venues/common/carl_art.py; the creator, 6 November 2026: "replaced with actual
+# characters, mostly Carl"). The stick figures above (POSES, figure) are kept for anything that still wants one.
+CARL_FOR = {"run": "run", "dive": "dive", "bomb": "bomb", "eat": "eat", "shower": "shower", "whistle": "listen"}
+
+
 def pictogram(kind, size=200, bg=None):
-    """One rule's pictogram: a navy figure, a red prohibition ring where it is a 'no'."""
+    """One rule's pictogram: Cannonball Carl doing it, in a red prohibition ring where it is a 'no', a green ring where it is a 'do'."""
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0) if bg is None else rgb(bg) + (255,))
     d = ImageDraw.Draw(img)
     c = size / 2
-    s = size * 0.62
-    col = NAVY
-    if kind == "run":
-        figure(d, c, c + s * 0.4, s, "run", col)
-        no_sign(d, c, c, size * 0.45)
-    elif kind == "dive":
-        figure(d, c + s * 0.05, c + s * 0.25, s, "dive", col)
-        waves(d, size * 0.12, size * 0.88, c + s * 0.42, 4, SEA, 5, 28)
-        no_sign(d, c, c, size * 0.45)
-    elif kind == "bomb":
-        figure(d, c, c + s * 0.32, s, "bomb", col)
-        for k in (-1, 1):
-            d.line((c + k * s * 0.3, c + s * 0.3, c + k * s * 0.45, c + s * 0.12), fill=SEA, width=5)
-        waves(d, size * 0.12, size * 0.88, c + s * 0.42, 4, SEA, 5, 28)
-        no_sign(d, c, c, size * 0.45)
-    elif kind == "eat":
-        figure(d, c - s * 0.05, c + s * 0.42, s * 0.92, "eat", col)
-        x, y = c + s * 0.12, c - s * 0.42
-        d.polygon([(x - 13, y), (x + 13, y), (x, y + 30)], fill=MUSTARD)
-        d.ellipse((x - 14, y - 22, x + 14, y + 4), fill=CORAL)
-        no_sign(d, c, c, size * 0.45)
-    elif kind == "shower":
-        figure(d, c + s * 0.05, c + s * 0.45, s * 0.85, "stand", col)
-        d.line((c - s * 0.45, c - s * 0.62, c - s * 0.45, c - s * 0.75, c - s * 0.1, c - s * 0.75), fill=col, width=6)
-        d.pieslice((c - s * 0.2, c - s * 0.78, c + s * 0.06, c - s * 0.55), 180, 360, fill=col)
-        for k in range(5):
-            x = c - s * 0.16 + k * s * 0.055
-            d.line((x, c - s * 0.58, x + 3, c - s * 0.45), fill=SEA, width=4)
+    if kind in ("dive", "bomb"):
+        waves(d, size * 0.16, size * 0.84, size * 0.78, 4, SEA, max(3, size // 40), 28)
+    inner = size * 0.36
+    paste_carl(img, CARL_FOR[kind], (c - inner, c - inner, c + inner, c + inner))
+    if kind in ("shower", "whistle"):
         d.ellipse((c - size * 0.45, c - size * 0.45, c + size * 0.45, c + size * 0.45), outline="#3f8a4a", width=int(size * 0.07))
-    elif kind == "whistle":
-        figure(d, c, c + s * 0.42, s * 0.9, "whistle", col)
-        d.rounded_rectangle((c + s * 0.12, c - s * 0.4, c + s * 0.32, c - s * 0.3), 4, fill=MUSTARD)
-        for k in range(3):
-            d.arc((c + s * 0.25 + k * 9, c - s * 0.55 - k * 9, c + s * 0.45 + k * 9, c - s * 0.25 + k * 9), 290, 350, fill=CORAL, width=4)
-        d.ellipse((c - size * 0.45, c - size * 0.45, c + size * 0.45, c + size * 0.45), outline="#3f8a4a", width=int(size * 0.07))
+    else:
+        no_sign(d, c, c, size * 0.45)
     return img
 
 
@@ -438,17 +419,12 @@ def dr_honours():
 def dr_team_photo():
     w, h = 384, 288
     img = Image.new("RGB", (w, h), "#d9c49c")
+    # the club's swimmers in two rows, Carl kneeling in the middle with the cup (6 November 2026: once grey silhouettes)
+    photo = carl("team1974")
+    k = max(w / photo.width, 226 / photo.height)
+    photo = photo.resize((round(photo.width * k), round(photo.height * k)), Image.LANCZOS)
+    img.paste(photo.crop(((photo.width - w) // 2, (photo.height - 226) // 2, (photo.width - w) // 2 + w, (photo.height - 226) // 2 + 226)), (0, 0))
     d = ImageDraw.Draw(img)
-    d.rectangle((0, 0, w, 150), fill="#cdb48a")
-    d.rectangle((0, 150, w, h), fill="#9fbcb5")
-    for k in range(7):  # the back row, standing
-        x = 46 + k * 49
-        d.ellipse((x - 13, 52, x + 13, 80), fill="#6e5236")
-        d.rounded_rectangle((x - 20, 80, x + 20, 190), 10, fill="#2b3a4a")
-    for k in range(6):  # the front row, kneeling
-        x = 70 + k * 49
-        d.ellipse((x - 13, 118, x + 13, 146), fill="#7a5a3c")
-        d.rounded_rectangle((x - 20, 146, x + 20, 224), 10, fill="#33495c")
     d.rectangle((70, 232, 314, 270), fill="#f3e6c9")
     ctext(d, (192, 251), "HARBOURSIDE S.C. 1974", F(26, "Bold"), NAVY)
     img = ImageEnhance.Color(img).enhance(0.25)

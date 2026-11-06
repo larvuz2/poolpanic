@@ -20,6 +20,9 @@ spec.loader.exec_module(S)
 S.OUT = os.path.join(os.environ.get("VENUE_WORK", "/tmp/senior-work"), "signs")
 os.makedirs(S.OUT, exist_ok=True)
 from PIL import Image, ImageDraw, ImageFilter
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "common"))
+from carl_art import paste_carl  # (Cannonball Carl where a stick figure used to be: common/carl_art.py)
 
 F, P, centred, grain, save, sunfade = S.F, S.P, S.centred, S.grain, S.save, S.sunfade
 EMERALD, DEEP, GOLD, CREAM, IVORY, INK, RED, ROSE, BRASS = (
@@ -227,20 +230,8 @@ def moves():
     for k, n in enumerate(names):
         y = 190 + k * 190
         cx = 130
-        # a stick figure in the water doing the move
-        d.line([(40, y + 110), (230, y + 110)], fill="#9fd9e0", width=4)
-        d.ellipse((cx - 18, y + 10, cx + 18, y + 46), outline="#f4f1e6", width=5)
-        d.line([(cx, y + 46), (cx, y + 110)], fill="#f4f1e6", width=5)
-        if k == 0:
-            d.line([(cx, y + 80), (cx + 40, y + 60)], fill="#f4f1e6", width=5)
-            d.line([(cx, y + 60), (cx - 50, y + 30)], fill="#f4f1e6", width=5)
-            d.line([(cx, y + 60), (cx + 50, y + 30)], fill="#f4f1e6", width=5)
-        elif k == 1:
-            d.line([(cx, y + 60), (cx + 30, y + 80), (cx, y + 90)], fill="#f4f1e6", width=5)
-            d.line([(cx, y + 60), (cx - 50, y + 40), (cx - 60, y + 20)], fill="#f4f1e6", width=5)
-        else:
-            for s in (-1, 1):
-                d.arc((cx + s * 30 - 30, y + 30, cx + s * 30 + 30, y + 90), 180, 360, fill="#f4f1e6", width=5)
+        # Carl in chalk, in the water, doing the move (6 November 2026: once a stick figure)
+        paste_carl(img, ["chalk_flamingo", "chalk_teapot", "chalk_wave"][k], (cx - 110, y - 10, cx + 110, y + 170), tint="#f4f1e6")
         d.text((260, y + 40), n, font=F(52, "Bold"), fill="#f4f1e6")
     save(grain(img.filter(ImageFilter.GaussianBlur(0.6)), 8), "moves")
 
