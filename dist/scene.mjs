@@ -2124,7 +2124,7 @@ export class PoolWorld extends SceneKit {
   }
   // The intro cinematic (scene/intro-cinematic.mjs): three short shots before the countdown, the coach standing where he will walk
   // in from. Returns its length in seconds. The app holds the shift meanwhile (app.mjs) and ends it early on a key or a click.
-  startCinematic(sim) {
+  startCinematic(sim, { hold = false } = {}) {
     this.introPlan ||= planIntro(sim);
     const c = sim.coach,
       at =
@@ -2137,6 +2137,7 @@ export class PoolWorld extends SceneKit {
       plan: planCinematic(sim.venue, at, { x: side.x, z: side.z }, this.cineSpots || {}),
       shot: -1,
       coach: {},
+      hold, // (the page holds the clock while it comes up from black: app.mjs)
     };
     this.updateCinematic(0);
     return this.cinematic.plan.total;
@@ -2149,7 +2150,8 @@ export class PoolWorld extends SceneKit {
   }
   updateCinematic(dt) {
     const k = this.cinematic;
-    k.t += dt;
+    // (a long frame, a hitch or the first frame's warm-up, never eats into a shot)
+    if (!k.hold) k.t += Math.min(dt, 1 / 20);
     const at = cinematicAt(k.plan, k.t, this.clock);
     if (!at) return this.endCinematic();
     k.inShot = at.inShot; // (for the venue's own subjects: the snow monkey peeking out)

@@ -24,8 +24,9 @@
       </div>
       <div id="stamps" class="stamps" aria-hidden="true"></div>
       <!-- The intro cinematic (5 November 2026): three short shots before the countdown, letterboxed, with name cards; any key or
-           click skips it (scene/intro-cinematic.mjs). -->
-      <div id="cinematic" class="cine-overlay" hidden>
+           click skips it (scene/intro-cinematic.mjs). It opens from black (#cine-black). Not #cinematic: that is the story's dialog. -->
+      <div id="intro-cine" class="cine-overlay" hidden>
+        <div id="cine-black" class="cine-black"></div>
         <div class="cine-bar top"></div>
         <div class="cine-bar bottom"></div>
         <div id="cine-flash" class="cine-flash"></div>

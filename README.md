@@ -2167,6 +2167,13 @@ coach with a nervous animation… like the minigames in Mario Party… very, ver
     at the right end's high boards, up to 13.5 m over the pool's near edge, tilting down until both diving stations, all six boards,
     are in view; card: the venue's name. 5.3 s.
   The coaches are in their own two shots only (`COACH_SHOTS`); every other shot is the venue's and its people's.
+- **It opens from black** (6 November 2026, the creator: the first frames "almost like it glitches… from black towards the in-game
+  cinematic… very smooth. And subtle"): the screen is black (`#cine-black`) while the venue's first frames draw (the first one warms
+  every shader), the cinematic's clock held meanwhile (`hold`), then the picture eases in over 0.9 s
+  (`cubic-bezier(0.4, 0, 0.2, 1)`) and the shots run from their start. No white flash on the first shot (it flashed at the very
+  start before); the cuts keep theirs. A long frame never eats into a shot: the clock takes at most 1/20 s a frame. The overlay is
+  `#intro-cine`: for a day it was `#cinematic`, the story's own dialog's id, so the Sunday dates and the credits found the overlay
+  instead of their dialog; `cinematic-check.mjs` now holds every id in `index.html` to once.
 - **The shift waits**: the simulation is held (the app ticks nothing) until it is over, then the countdown runs as before. Any key
   or click skips it (and does nothing else). Letterbox bars, a white flash at each cut, a name card sliding in for each shot, the
   HUD and the tags hidden; on the Cruise Ship the camera rides the deck as she rolls.
