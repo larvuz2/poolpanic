@@ -23,6 +23,9 @@ export const SHOTS = [
 ];
 // (the common three; a venue with a beat of its own runs a little longer: `planCinematic(...).total`)
 export const CINEMATIC_SECONDS = SHOTS.reduce((t, s) => t + s.seconds, 0);
+// Its last half second dips to black (6 November 2026, the creator: "add the fade to black at the end too"); the game then comes up
+// out of the black (app.mjs). It opens from black too.
+export const FADE_OUT = 0.5;
 export const VENUE_SHOTS = {
   onsen: [{ kind: "monkey", seconds: 1.5, fov: 34 }],
   disco: [{ kind: "valentina", seconds: 1.5, fov: 30 }],

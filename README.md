@@ -2174,6 +2174,9 @@ coach with a nervous animation… like the minigames in Mario Party… very, ver
   start before); the cuts keep theirs. A long frame never eats into a shot: the clock takes at most 1/20 s a frame. The overlay is
   `#intro-cine`: for a day it was `#cinematic`, the story's own dialog's id, so the Sunday dates and the credits found the overlay
   instead of their dialog; `cinematic-check.mjs` now holds every id in `index.html` to once.
+- **And it ends in black** (6 November 2026, the creator: "add the fade to black at the end too"): its last half second
+  (`FADE_OUT`) dips to black (`onCinematicDip`, the HERE THEY COME… card staying over it), the game's own view and the countdown
+  come up under the black, and after three frames the black lifts off them over 0.7 s. A skip is still a plain cut.
 - **The shift waits**: the simulation is held (the app ticks nothing) until it is over, then the countdown runs as before. Any key
   or click skips it (and does nothing else). Letterbox bars, a white flash at each cut, a name card sliding in for each shot, the
   HUD and the tags hidden; on the Cruise Ship the camera rides the deck as she rolls.
