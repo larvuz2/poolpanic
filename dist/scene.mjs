@@ -1,7 +1,7 @@
 // Presentation layer: builds a venue with Three.js and mirrors simulation state every frame. Rendering never
 // advances gameplay; cosmetic motion (bobbing, flapping, wagging) never feeds back into the simulation.
 import { LooseProps } from "./scene/loose.mjs";
-import { planCinematic, cinematicAt } from "./scene/intro-cinematic.mjs";
+import { planCinematic, cinematicAt, COACH_SHOTS } from "./scene/intro-cinematic.mjs";
 import { buildMopStation } from "./scene/wet-view.mjs";
 import {
   buildMassageTable,
@@ -565,6 +565,7 @@ export class PoolWorld extends SceneKit {
     this.dimmers = [];
     this.liveProps = [];
     this.updaters = [];
+    this.cineSpots = {}; // (the venue's subjects for its own intro shots: scene/intro-cinematic.mjs)
     this.cheer = 0;
     // What only some venues have: never carry the last venue's hall, glass or lamps into this one.
     this.hall = null;
@@ -1590,8 +1591,8 @@ export class PoolWorld extends SceneKit {
       if (this.introPlan.length > 0)
         intro = { ...introAt(this.introPlan, sim.countdown), rate: this.introPlan.rate };
     }
-    // (the intro cinematic's sweep across the venue is the venue's alone: the coaches step out of it)
-    cg.visible = !firstPerson && this.cinematic?.kind !== "venue";
+    // (the intro cinematic's shots of the venue and its people are theirs alone: the coaches step out of them)
+    cg.visible = !firstPerson && (!this.cinematic?.kind || COACH_SHOTS.has(this.cinematic.kind));
     // (a guest's own coach is drawn a little ahead of the shift, where the stick is taking him: net.mjs Predictor)
     const ahead = local && this.drawAhead ? this.drawAhead : null;
     cg.position.set(
@@ -2133,7 +2134,7 @@ export class PoolWorld extends SceneKit {
     const side = this.viewDirection || { x: -0.65, z: 0 };
     this.cinematic = {
       t: 0,
-      plan: planCinematic(sim.venue, at, { x: side.x, z: side.z }),
+      plan: planCinematic(sim.venue, at, { x: side.x, z: side.z }, this.cineSpots || {}),
       shot: -1,
       coach: {},
     };
@@ -2151,11 +2152,14 @@ export class PoolWorld extends SceneKit {
     k.t += dt;
     const at = cinematicAt(k.plan, k.t, this.clock);
     if (!at) return this.endCinematic();
+    k.inShot = at.inShot; // (for the venue's own subjects: the snow monkey peeking out)
     if (at.index !== k.shot) {
       k.shot = at.index;
       // the coach acts each shot: still and sure of himself, then a jolt and the freak-out (syncCoach reads k.coach)
       k.coach = at.kind === "nervous" ? { startle: true, urgent: true, urgency: 95 } : { urgency: 0 };
       k.kind = at.kind;
+      // (in or out of the picture from this frame: syncCoach, which drew him already, has the last shot's kind)
+      if (this.coach) this.coach.visible = COACH_SHOTS.has(at.kind);
       this.onCinematic?.(at.index, at.kind);
     }
     const { w, h } = this.viewSize(),

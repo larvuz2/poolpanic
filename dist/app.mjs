@@ -2429,15 +2429,22 @@ function startCinematic() {
       sim.venue?.name ||
       sim.config.name
     ).toUpperCase(),
-    cards = [
-      ["COACH WATERS", "On duty"],
-      [
-        venueName,
-        [sim.config.name !== venueName ? sim.config.name : "", shiftTag()].filter(Boolean).join(" · "),
-      ],
-      ["HERE THEY COME…", ""],
-    ];
-  world.onCinematic = (index) => {
+    venueCard = [
+      venueName,
+      [sim.config.name !== venueName ? sim.config.name : "", shiftTag()].filter(Boolean).join(" · "),
+    ],
+    // (one card a shot, by its kind: the venues' own shots have theirs)
+    cards = {
+      coach: ["COACH WATERS", "On duty"],
+      venue: venueCard,
+      crane: venueCard,
+      monkey: ["SNOW MONKEYS", "They want the hot water too"],
+      valentina: ["VALENTINA", "Tonight's routine"],
+      dj: ["THE DJ", "Waiting for the drop"],
+      bartender: ["SKY BAR", "Margaritas, three to a tray"],
+      nervous: ["HERE THEY COME…", ""],
+    };
+  world.onCinematic = (index, kind) => {
     if (index < 0) {
       document.body.classList.remove("cine-on");
       $("cinematic").hidden = true;
@@ -2445,14 +2452,14 @@ function startCinematic() {
       crashlog.crumb("cinematic", "done");
       return;
     }
-    const [title, sub] = cards[index] || ["", ""];
+    const [title, sub] = cards[kind] || ["", ""];
     $("cine-title").textContent = title;
     $("cine-sub").textContent = sub;
     for (const el of [$("cine-card"), $("cine-flash")]) {
       el.classList.remove("on");
       requestAnimationFrame(() => el.classList.add("on"));
     }
-    $("cine-card").dataset.shot = index;
+    $("cine-card").dataset.shot = kind;
   };
   document.body.classList.add("cine-on");
   $("cinematic").hidden = false;

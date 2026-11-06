@@ -1,12 +1,21 @@
 // The intro cinematic (5 November 2026): three short shots before every shift's countdown, in every venue: the coach close up, a
 // low sweep across the venue, the coach jumping and freaking out. The shift waits for it; a key or a click skips it; Settings
-// turns it off; never in co-op, the Coach Cam or a replay. Render only.
+// turns it off; never in co-op, the Coach Cam or a replay. Render only. Some venues have a beat of their own (the snow monkey, Valentina,
+// the DJ and the bartender), and the Jumping Pool's view of the venue is a crane.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { PoolWorld } from "./dist/scene.mjs";
 import { PoolSimulation, SHIFTS } from "./dist/sim.mjs";
-import { SHOTS, CINEMATIC_SECONDS, planCinematic, cinematicAt } from "./dist/scene/intro-cinematic.mjs";
+import {
+  SHOTS,
+  CINEMATIC_SECONDS,
+  VENUE_SHOTS,
+  CRANE,
+  shotsFor,
+  planCinematic,
+  cinematicAt,
+} from "./dist/scene/intro-cinematic.mjs";
 import { planIntro, introAt } from "./dist/scene/coach-model.mjs";
 import { normalizeSettings, SETTING_DEFAULTS } from "./dist/title.mjs";
 import { POOL_IDS } from "./dist/week.mjs";
@@ -35,8 +44,17 @@ for (const id of POOL_IDS) {
     coach = plan0.length > 0 ? introAt(plan0, sim.countdown) : { x: sim.coach.x, z: sim.coach.z, angle: 0 },
     plan = planCinematic(sim.venue, coach, { x: -0.65, z: 0 }),
     d = sim.venue.deck;
-  assert.equal(plan.total, CINEMATIC_SECONDS);
-  let last = -1;
+  assert.equal(
+    plan.total,
+    shotsFor(id).reduce((t, s) => t + s.seconds, 0),
+  );
+  assert.ok(
+    plan.total >= 4 && plan.total <= 6,
+    id + ": about five seconds without its subjects (" + plan.total + ")",
+  );
+  let last = -1,
+    craneFrom = null,
+    craneTo = null;
   for (let t = 0; t < plan.total; t += 0.1) {
     const at = cinematicAt(plan, t, t);
     assert.ok(at, id + ": a camera at " + t.toFixed(1));
@@ -45,7 +63,11 @@ for (const id of POOL_IDS) {
     assert.ok(at.index >= last, id + ": the shots in order");
     last = at.index;
     const fromCoach = Math.hypot(at.pos.x - coach.x, at.pos.z - coach.z);
-    if (at.kind === "venue") {
+    if (at.kind === "crane") {
+      craneFrom ||= at.pos;
+      craneTo = at.pos;
+      assert.ok(at.pos.y > 0.5 && at.pos.y < 15, id + ": the crane between the deck and the sky");
+    } else if (at.kind === "venue") {
       assert.ok(
         at.pos.x > d.minX && at.pos.x < d.maxX && at.pos.z > d.minZ && at.pos.z < d.maxZ,
         id + ": the sweep on the deck",
@@ -62,9 +84,62 @@ for (const id of POOL_IDS) {
       assert.ok(Math.abs(at.look.x - coach.x) < 0.01 && at.look.y > 1.2, id + ": looking at his face");
     }
   }
-  assert.equal(last, 2);
+  assert.equal(last, plan.shots.length - 1);
   assert.equal(cinematicAt(plan, plan.total + 0.01), null);
+  if (CRANE[id]) assert.ok(craneFrom.y < 1.2 && craneTo.y > 10, id + ": the crane from low to high");
+  else assert.ok(!craneFrom, id + ": a sweep, not a crane");
 }
+assert.deepEqual(Object.keys(CRANE), ["dive"], "the Jumping Pool's crane");
+
+// 2b) The venues' own beats (the creator, 5 November 2026): each venue's scene puts its subjects on the world, and the plan frames
+// each one close, between the sweep and the nervous coach; a venue without them plays the common three.
+for (const [id, want, subjects] of [
+  ["onsen", ["coach", "venue", "monkey", "nervous"], ["monkey"]],
+  ["disco", ["coach", "venue", "valentina", "nervous"], ["valentina"]],
+  ["roof", ["coach", "venue", "dj", "bartender", "nervous"], ["dj", "bartender"]],
+  ["dive", ["coach", "crane", "nervous"], []],
+  ["club", ["coach", "venue", "nervous"], []],
+]) {
+  const world = new PoolWorld({ clientWidth: 1440, clientHeight: 900 }, () => {}, { headless: true });
+  const sim = new PoolSimulation(3, 1, { config: { ...SHIFTS[2], venue: id } });
+  world.setVenue(sim.venue);
+  world.resize();
+  sim.start({ countdown: true });
+  for (const k of subjects) assert.ok(world.cineSpots[k], id + ": the scene puts its " + k + " on the world");
+  const seen = [];
+  world.onCinematic = (i, kind) => seen.push(kind);
+  const total = world.startCinematic(sim),
+    plan = world.cinematic.plan;
+  assert.ok(total <= 7.5, id + ": still brief (" + total.toFixed(1) + " s)");
+  for (const shot of plan.shots) {
+    const spot = world.cineSpots[shot.kind];
+    if (!spot || !subjects.includes(shot.kind)) continue;
+    assert.ok(
+      shot.seconds >= 1.2 && shot.seconds <= 1.5,
+      id + ": a second and a half or less of the " + shot.kind,
+    );
+    const near = Math.hypot(shot.to.x - spot.x, shot.to.z - spot.z);
+    assert.ok(near > 0.8 && near < 3.2, id + ": close on the " + shot.kind + " (" + near.toFixed(1) + " m)");
+    assert.ok(
+      Math.hypot(shot.lookTo.x - spot.x, shot.lookTo.z - spot.z) < 0.4,
+      id + ": looking at the " + shot.kind,
+    );
+  }
+  const coachShown = [];
+  for (let f = 0; f < 600 && world.cinematic; f++) {
+    world.updateCinematic(1 / 60);
+    if (world.cinematic) coachShown.push([world.cinematic.kind, world.coach.visible]);
+  }
+  assert.deepEqual(seen, [...want, null], id + ": " + want.join(", "));
+  for (const [kind, shown] of coachShown)
+    assert.equal(
+      shown,
+      kind === "coach" || kind === "nervous",
+      id + ": the coach only in his own shots (" + kind + ")",
+    );
+}
+for (const [id, shots] of Object.entries(VENUE_SHOTS))
+  for (const s of shots) assert.ok(s.seconds <= 1.5, id + ": " + s.kind + " brief");
 
 // 3) The world: the camera is the cinematic's while it runs, the coach acts on cue, and the overview's lens comes back after.
 {
@@ -122,11 +197,11 @@ for (const id of POOL_IDS) {
   assert.equal(normalizeSettings({ cinematics: "yes" }).cinematics, true);
   assert.match(
     scene,
-    /cg\.visible = !firstPerson && this\.cinematic\?\.kind !== "venue"/,
-    "the sweep is the venue's alone",
+    /cg\.visible = !firstPerson && \(!this\.cinematic\?\.kind \|\| COACH_SHOTS\.has\(this\.cinematic\.kind\)\)/,
+    "the venue's shots are its alone",
   );
 }
 
 console.log(
-  `Intro cinematic checks passed: three shots in ${CINEMATIC_SECONDS} s (the coach close up, a low sweep across the venue, the coach jumping and freaking out) in all ${POOL_IDS.length} venues, every camera in front of the coach or low on the deck; the world's camera theirs while it runs and the overview's back after, by itself or skipped; the simulation held; a key or a click skips; Settings' switch kept; never in co-op, the Coach Cam or a replay.`,
+  `Intro cinematic checks passed: three shots in ${CINEMATIC_SECONDS} s (the coach close up, a low sweep across the venue, the coach jumping and freaking out) in all ${POOL_IDS.length} venues, with the venues' own beats (the snow monkey by its rock, Valentina on her stage, the DJ and the bartender, the Jumping Pool's crane from low to high), the coach only in his own shots, every camera in front of the coach or low on the deck; the world's camera theirs while it runs and the overview's back after, by itself or skipped; the simulation held; a key or a click skips; Settings' switch kept; never in co-op, the Coach Cam or a replay.`,
 );

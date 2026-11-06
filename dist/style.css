@@ -7577,7 +7577,8 @@ body.cine-on #game > *:not(#world):not(#cinematic) {
 .cine-card small:empty {
   display: none;
 }
-.cine-card[data-shot="1"] b {
+.cine-card[data-shot="venue"] b,
+.cine-card[data-shot="crane"] b {
   font-size: clamp(34px, 6vw, 80px);
 }
 @keyframes cine-card {
