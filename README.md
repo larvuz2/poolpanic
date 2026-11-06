@@ -611,7 +611,10 @@ AAA", the calm before the storm; everything the menu had kept but sorted differe
   mirrors them too. The leaves have glass both sides and a brass push bar across each.
 - **START** (once the shift is chosen, from the week or from FREE PLAY): the coach runs to the doors and turns to them, the view
   glides back to the middle, the doors swing open (1.3 s) and there the guests are, as they are, lit by a warm fill from the hall; they
-  turn to the doors and step up, casting shadows into the hall now, while the coach steps aside to let them in; then the light fills the
+  turn to the doors and step up, casting shadows into the hall now, while the coach sees who is coming, spins round and runs at the
+  camera to the pool's edge (since 6 November 2026, the creator: stepping aside to the right "is a little bit weird… starts running
+  towards the camera, and that's where it ends"; and the morning through the doors a third as bright as it was, its picture dimmed as
+  they open, so the doorway and the pool's reflection of it no longer burn out to white); then the light fills the
   screen and the shift's countdown comes up behind it (about 3.5 s in all; a click goes straight to the doors; reduce motion, a restart
   and the crash hunt's trials start at once; should the stage stop drawing, a watch starts the shift anyway). If the stage cannot load
   (12 s at most, the loader up meanwhile; one that comes later still takes its place) or stops drawing, a plain backdrop
