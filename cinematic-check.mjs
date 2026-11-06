@@ -167,6 +167,18 @@ for (const [id, shots] of Object.entries(VENUE_SHOTS))
   assert.deepEqual(seen, ["coach", "venue", "nervous", null], "each shot announced, then the end");
   assert.ok(urgent && startled, "the nervous shot: a jolt, then the freak-out");
   assert.equal(world.camera.fov, fov, "the overview's lens back");
+  // held (coming up from black): the clock waits, the camera is already on the first shot; a long frame never eats a shot
+  world.startCinematic(sim, { hold: true });
+  for (let f = 0; f < 30; f++) world.updateCinematic(1 / 60);
+  assert.equal(world.cinematic.t, 0, "the clock held while black");
+  assert.equal(world.camera.fov, SHOTS[0].fov, "the first shot's camera behind the black");
+  world.cinematic.hold = false;
+  world.updateCinematic(2.5);
+  assert.ok(
+    world.cinematic.t <= 0.051 && world.cinematic.kind === "coach",
+    "a 2.5 s hitch is one twentieth of a second",
+  );
+  world.endCinematic();
   // skipped early: the same end
   world.startCinematic(sim);
   world.endCinematic();
@@ -189,8 +201,27 @@ for (const [id, shots] of Object.entries(VENUE_SHOTS))
   assert.match(app, /document\.addEventListener\("keydown", skipCinematic, \{ capture: true \}\)/);
   assert.match(app, /document\.addEventListener\("pointerdown", skipCinematic, \{ capture: true \}\)/);
   assert.match(app, /\$\("countdown"\)\.hidden = mode !== "countdown" \|\| !!world\.cinematic/);
-  for (const id of ["cinematic", "cine-card", "cine-title", "cine-sub", "cine-flash", "set-cinematics"])
+  for (const id of [
+    "intro-cine",
+    "cine-black",
+    "cine-card",
+    "cine-title",
+    "cine-sub",
+    "cine-flash",
+    "set-cinematics",
+  ])
     assert.ok(html.includes(`id="${id}"`), id);
+  // (every id once: the overlay was #cinematic for a day, the story's dialog's id, and the Sunday dates found the overlay instead)
+  const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]),
+    twice = ids.filter((id, i) => ids.indexOf(id) !== i);
+  assert.deepEqual(twice, [], "no id twice in index.html");
+  assert.match(html, /<dialog id="cinematic" class="cinematic"/, "#cinematic is the story's dialog");
+  // it opens from black: black while the first frames draw, the clock held, then a soft fade; no white flash on the first shot
+  assert.match(app, /world\.startCinematic\(sim, \{ hold: true \}\)/);
+  assert.match(app, /world\.cinematic\.hold = false;\s*black\.classList\.add\("out"\)/);
+  assert.match(app, /index > 0 \? \[\$\("cine-card"\), \$\("cine-flash"\)\] : \[\$\("cine-card"\)\]/);
+  const css = readFileSync("dist/style.css", "utf8");
+  assert.match(css, /\.cine-black\.out \{\s*opacity: 0;\s*transition: opacity 0\.9s/);
   assert.match(title, /\$\("set-cinematics"\)\.onchange/);
   assert.equal(SETTING_DEFAULTS.cinematics, true, "on by default");
   assert.equal(normalizeSettings({ cinematics: false }).cinematics, false, "the player's off is kept");

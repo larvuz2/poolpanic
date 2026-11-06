@@ -7496,7 +7496,7 @@ body:not(.menu) .top-actions #fund-pill {
 
 /* ---- The intro cinematic (5 November 2026, scene/intro-cinematic.mjs) ------------------------------------------------------
    Letterbox bars, a name card for each shot sliding in from the left, a white flash at every cut, the HUD out of the way. */
-body.cine-on #game > *:not(#world):not(#cinematic) {
+body.cine-on #game > *:not(#world):not(#intro-cine) {
   visibility: hidden;
 }
 .cine-overlay {
@@ -7531,6 +7531,18 @@ body.cine-on #game > *:not(#world):not(#cinematic) {
   inset: 0;
   background: #fff;
   opacity: 0;
+}
+/* It opens from black (6 November 2026, the creator: "from black towards the in-game cinematic… very smooth. And subtle"): black
+   while the first frames draw, then a long, soft ease into the picture. Under the bars and the cards, which stand over it. */
+.cine-black {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 1;
+}
+.cine-black.out {
+  opacity: 0;
+  transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .cine-flash.on {
   animation: cine-flash 0.28s ease-out;

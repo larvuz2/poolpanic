@@ -2447,7 +2447,7 @@ function startCinematic() {
   world.onCinematic = (index, kind) => {
     if (index < 0) {
       document.body.classList.remove("cine-on");
-      $("cinematic").hidden = true;
+      $("intro-cine").hidden = true;
       $("countdown").hidden = mode !== "countdown";
       crashlog.crumb("cinematic", "done");
       return;
@@ -2455,16 +2455,29 @@ function startCinematic() {
     const [title, sub] = cards[kind] || ["", ""];
     $("cine-title").textContent = title;
     $("cine-sub").textContent = sub;
-    for (const el of [$("cine-card"), $("cine-flash")]) {
+    // (a white flash at each cut; the first shot comes up out of black instead)
+    for (const el of index > 0 ? [$("cine-card"), $("cine-flash")] : [$("cine-card")]) {
       el.classList.remove("on");
       requestAnimationFrame(() => el.classList.add("on"));
     }
     $("cine-card").dataset.shot = kind;
   };
   document.body.classList.add("cine-on");
-  $("cinematic").hidden = false;
+  $("intro-cine").hidden = false;
   $("countdown").hidden = true;
-  world.startCinematic(sim);
+  // From black: the screen stays black while the venue's first frames draw (the first one warms every shader, scene.mjs), the
+  // cinematic's clock held meanwhile, then the picture eases in and the shots run from their start.
+  const black = $("cine-black");
+  black.classList.remove("out");
+  world.startCinematic(sim, { hold: true });
+  let frames = 0;
+  const reveal = () => {
+    if (!world.cinematic) return;
+    if (++frames < 3) return requestAnimationFrame(reveal);
+    world.cinematic.hold = false;
+    black.classList.add("out");
+  };
+  requestAnimationFrame(reveal);
 }
 function skipCinematic(e) {
   if (!world?.cinematic || mode !== "countdown") return;
