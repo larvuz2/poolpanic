@@ -2444,12 +2444,45 @@ function startCinematic() {
       bartender: ["SKY BAR", "Margaritas, three to a tray"],
       nervous: ["HERE THEY COME…", ""],
     };
+  const overlay = $("intro-cine"),
+    black = $("cine-black");
+  let dipped = false;
+  // The end: its last half second dips to black (the card stays over it), the game comes up out of the black. A skip is a cut.
+  world.onCinematicDip = () => {
+    dipped = true;
+    overlay.classList.add("dipping");
+    black.classList.remove("out");
+    black.classList.add("dip");
+  };
   world.onCinematic = (index, kind) => {
     if (index < 0) {
       document.body.classList.remove("cine-on");
-      $("intro-cine").hidden = true;
       $("countdown").hidden = mode !== "countdown";
-      crashlog.crumb("cinematic", "done");
+      crashlog.crumb("cinematic", dipped ? "done" : "skipped");
+      if (!dipped) {
+        overlay.hidden = true;
+        return;
+      }
+      // the camera is the game's again under the black: let it draw, then fade the black away
+      overlay.classList.add("closing");
+      let frames = 0;
+      const back = () => {
+        if (++frames < 3) return requestAnimationFrame(back);
+        black.classList.remove("dip");
+        black.classList.add("back");
+        // gone once the black has lifted (or a little after, should the browser not say so)
+        let done = false;
+        const finish = () => {
+          if (done || !overlay.classList.contains("closing")) return; // (a new cinematic took the overlay)
+          done = true;
+          overlay.hidden = true;
+          overlay.classList.remove("closing", "dipping");
+          black.classList.remove("back");
+        };
+        black.addEventListener("transitionend", finish, { once: true });
+        setTimeout(finish, 1500);
+      };
+      requestAnimationFrame(back);
       return;
     }
     const [title, sub] = cards[kind] || ["", ""];
@@ -2463,12 +2496,12 @@ function startCinematic() {
     $("cine-card").dataset.shot = kind;
   };
   document.body.classList.add("cine-on");
-  $("intro-cine").hidden = false;
+  overlay.classList.remove("closing", "dipping");
+  overlay.hidden = false;
   $("countdown").hidden = true;
   // From black: the screen stays black while the venue's first frames draw (the first one warms every shader, scene.mjs), the
   // cinematic's clock held meanwhile, then the picture eases in and the shots run from their start.
-  const black = $("cine-black");
-  black.classList.remove("out");
+  black.classList.remove("out", "dip", "back");
   world.startCinematic(sim, { hold: true });
   let frames = 0;
   const reveal = () => {

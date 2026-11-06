@@ -13,6 +13,7 @@ import {
   VENUE_SHOTS,
   CRANE,
   shotsFor,
+  FADE_OUT,
   planCinematic,
   cinematicAt,
 } from "./dist/scene/intro-cinematic.mjs";
@@ -151,6 +152,9 @@ for (const [id, shots] of Object.entries(VENUE_SHOTS))
   const fov = world.camera.fov,
     seen = [];
   world.onCinematic = (i, kind) => seen.push(kind);
+  const dips = [];
+  world.onCinematicDip = () =>
+    dips.push({ kind: world.cinematic.kind, left: +(CINEMATIC_SECONDS - world.cinematic.t).toFixed(3) });
   const total = world.startCinematic(sim);
   assert.equal(total, CINEMATIC_SECONDS);
   assert.ok(world.cinematic && world.camera.fov === SHOTS[0].fov, "the close-up's lens");
@@ -165,6 +169,11 @@ for (const [id, shots] of Object.entries(VENUE_SHOTS))
   }
   assert.equal(world.cinematic, null, "over by itself");
   assert.deepEqual(seen, ["coach", "venue", "nervous", null], "each shot announced, then the end");
+  assert.equal(dips.length, 1, "one dip to black, at the end");
+  assert.ok(
+    dips[0].kind === "nervous" && Math.abs(dips[0].left - FADE_OUT) < 0.02,
+    "its last half second (" + dips[0].left + ")",
+  );
   assert.ok(urgent && startled, "the nervous shot: a jolt, then the freak-out");
   assert.equal(world.camera.fov, fov, "the overview's lens back");
   // held (coming up from black): the clock waits, the camera is already on the first shot; a long frame never eats a shot
@@ -222,6 +231,12 @@ for (const [id, shots] of Object.entries(VENUE_SHOTS))
   assert.match(app, /index > 0 \? \[\$\("cine-card"\), \$\("cine-flash"\)\] : \[\$\("cine-card"\)\]/);
   const css = readFileSync("dist/style.css", "utf8");
   assert.match(css, /\.cine-black\.out \{\s*opacity: 0;\s*transition: opacity 0\.9s/);
+  // and it ends in black: the dip, the game's view drawn under it, then the black lifted; a skip is a cut
+  assert.match(css, /\.cine-black\.dip \{\s*opacity: 1;\s*transition: opacity 0\.5s/);
+  assert.match(css, /\.cine-black\.back \{\s*opacity: 0;\s*transition: opacity 0\.7s/);
+  assert.match(app, /world\.onCinematicDip = \(\) => \{\s*dipped = true;/);
+  assert.match(app, /if \(!dipped\) \{\s*overlay\.hidden = true;\s*return;\s*\}/);
+  assert.match(app, /black\.classList\.remove\("dip"\);\s*black\.classList\.add\("back"\);/);
   assert.match(title, /\$\("set-cinematics"\)\.onchange/);
   assert.equal(SETTING_DEFAULTS.cinematics, true, "on by default");
   assert.equal(normalizeSettings({ cinematics: false }).cinematics, false, "the player's off is kept");

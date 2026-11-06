@@ -1,7 +1,7 @@
 // Presentation layer: builds a venue with Three.js and mirrors simulation state every frame. Rendering never
 // advances gameplay; cosmetic motion (bobbing, flapping, wagging) never feeds back into the simulation.
 import { LooseProps } from "./scene/loose.mjs";
-import { planCinematic, cinematicAt, COACH_SHOTS } from "./scene/intro-cinematic.mjs";
+import { planCinematic, cinematicAt, COACH_SHOTS, FADE_OUT } from "./scene/intro-cinematic.mjs";
 import { buildMopStation } from "./scene/wet-view.mjs";
 import {
   buildMassageTable,
@@ -2155,6 +2155,11 @@ export class PoolWorld extends SceneKit {
     const at = cinematicAt(k.plan, k.t, this.clock);
     if (!at) return this.endCinematic();
     k.inShot = at.inShot; // (for the venue's own subjects: the snow monkey peeking out)
+    // (its last half second: the page dips to black, app.mjs)
+    if (!k.dipping && k.plan.total - k.t <= FADE_OUT) {
+      k.dipping = true;
+      this.onCinematicDip?.(FADE_OUT);
+    }
     if (at.index !== k.shot) {
       k.shot = at.index;
       // the coach acts each shot: still and sure of himself, then a jolt and the freak-out (syncCoach reads k.coach)

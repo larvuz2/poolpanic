@@ -7544,6 +7544,21 @@ body.cine-on #game > *:not(#world):not(#intro-cine) {
   opacity: 0;
   transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1);
 }
+/* And it ends in black: its last half second dips (easing in, so it settles into the black), the game's view comes up under it,
+   and the black lifts off the game a little quicker than it fell. The letterbox and the skip hint go once the black is down. */
+.cine-black.dip {
+  opacity: 1;
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.6, 1);
+}
+.cine-black.back {
+  opacity: 0;
+  transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cine-overlay.dipping .cine-skip,
+.cine-overlay.closing .cine-bar,
+.cine-overlay.closing .cine-card {
+  visibility: hidden;
+}
 .cine-flash.on {
   animation: cine-flash 0.28s ease-out;
 }
