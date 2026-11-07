@@ -609,6 +609,12 @@ AAA", the calm before the storm; everything the menu had kept but sorted differe
   target (the mask, `renderMask`), and the doors' glass (the leaves' shader, `uLeaf`) reads it where it stands on the screen, blurred
   over a ring of taps, in the painting's colours: warm cream glass, deep brown shadows. So the shadows move as they do, and the water
   mirrors them too. The leaves have glass both sides and a brass push bar across each.
+- **On the tiles** (6 November 2026, the creator: the coach "is floating a bit above the ground… delete the gap"): his soles
+  measured on his skinned vertices were on the deck at rest but up to 2.4 cm above it in the walk, and with no darkness where a shoe
+  meets the tiles and the door light's shadow starting a little off his feet he read as floating. Now every frame his lowest sole is
+  put 4 mm into the deck (`groundCoach`, the lowest of 280 sole vertices as drawn that frame: measured at -4 mm in every frame of
+  idle, walk, run and scratch), a soft contact shadow lies under each shoe (darker the closer it is, gone as it lifts 12 cm), and the
+  door light's shadow map is sharper with a smaller bias (2048, -0.00015, normal bias 0.01) so his shadow starts at his feet.
 - **START** (once the shift is chosen, from the week or from FREE PLAY): the coach runs to the doors and turns to them, the view
   glides back to the middle, the doors swing open (1.3 s) and there the guests are, as they are, lit by a warm fill from the hall; they
   turn to the doors and step up, casting shadows into the hall now, while the coach sees who is coming, spins round and runs at the
