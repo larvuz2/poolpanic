@@ -43,9 +43,6 @@ const DOOR_SPOT = { x: 0, z: 0.85 };
 // Where he runs to once the doors are open: at the camera, to a step from the pool's edge.
 const RUN_TO = { x: 0.15, z: 2.5 };
 const COACH_SCALE = 1.08;
-// On the tiles (6 November 2026, the creator: "the coach… is floating a bit above the ground… delete the gap"): each frame his
-// lowest sole is put on the deck (a hair into it), and a soft contact shadow lies under each shoe, darker the closer it is.
-const SOLE = { picks: 140, sink: 0.004, lift: 0.12 };
 // The first guests, waiting outside for seven o'clock: who (a swimmer's id in swimmer-models.mjs, or one of its figures), where
 // (from the doors' middle, z behind them), facing (0: the doors), the clip they wait with (`idle`), the ones they play once now
 // and then (`extras`), and the one a shuffle walks with. The clips are the ones they wait with in a shift's queue. Since 21
@@ -95,24 +92,6 @@ const OPEN = { swing: 1.3, step: 0.45, flash: [1.75, 2.45], then: 2.5 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ease = (t) => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
 const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
-
-// The coach's soles: of each skinned mesh's bind pose, the lowest vertices, split by side into the two shoes ([[mesh, index]…]
-// for each). His feet are the lowest of him, at rest and in every clip he plays here.
-function soles(root) {
-  const low = [];
-  root.traverse((o) => {
-    if (!o.isSkinnedMesh) return;
-    const pos = o.geometry.attributes.position;
-    for (let i = 0; i < pos.count; i++) low.push([pos.getY(i), pos.getX(i), o, i]);
-  });
-  low.sort((a, b) => a[0] - b[0]);
-  const pick = low.slice(0, SOLE.picks * 2);
-  if (pick.length < 8) return [];
-  const mid = pick.reduce((t, p) => t + p[1], 0) / pick.length;
-  const left = pick.filter((p) => p[1] < mid).map((p) => [p[2], p[3]]),
-    right = pick.filter((p) => p[1] >= mid).map((p) => [p[2], p[3]]);
-  return [left, right].filter((f) => f.length);
-}
 
 // ---- textures drawn here (no files) --------------------------------------------------------------------------------
 
@@ -624,9 +603,8 @@ export class MenuStage {
     this.doorSpot.position.set(0, 2.9, -3.4);
     this.doorSpot.target.position.set(0, 0, 4.5);
     this.doorSpot.castShadow = true;
-    this.doorSpot.shadow.mapSize.set(2048, 2048);
-    this.doorSpot.shadow.bias = -0.00015;
-    this.doorSpot.shadow.normalBias = 0.01;
+    this.doorSpot.shadow.mapSize.set(1024, 1024);
+    this.doorSpot.shadow.bias = -0.0004;
     this.doorSpot.shadow.radius = 4;
     s.add(this.doorSpot, this.doorSpot.target);
     this.guestFill = new THREE.SpotLight(0xffe6c8, 0, 9, 0.55, 0.7, 1.4);
@@ -1002,70 +980,6 @@ export class MenuStage {
     this.play("idle", 0);
     this.coach.root.position.set(this.coach.x, 0, this.coach.z);
     this.coach.root.rotation.y = this.coach.angle;
-    this.coach.soles = soles(root);
-    this.coach.contacts = this.coach.soles.map(() => {
-      const m = new THREE.Mesh(this.own(new THREE.PlaneGeometry(1, 1)), this.contactMaterial());
-      m.rotation.x = -Math.PI / 2;
-      m.renderOrder = 1;
-      this.scene.add(m);
-      return m;
-    });
-    this.groundCoach();
-  }
-  // A soft dark oval for under a shoe (one picture, a material per shoe for its own opacity).
-  contactMaterial() {
-    this.contactTexture ||= this.own(
-      canvasTexture(128, 128, (g, w, h) => {
-        const r = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
-        r.addColorStop(0, "rgba(0,0,0,1)");
-        r.addColorStop(0.45, "rgba(0,0,0,0.7)");
-        r.addColorStop(1, "rgba(0,0,0,0)");
-        g.fillStyle = r;
-        g.fillRect(0, 0, w, h);
-      }),
-    );
-    this.contactTexture.wrapS = this.contactTexture.wrapT = THREE.ClampToEdgeWrapping;
-    return this.own(
-      new THREE.MeshBasicMaterial({
-        map: this.contactTexture,
-        transparent: true,
-        depthWrite: false,
-        opacity: 0,
-        toneMapped: false,
-      }),
-    );
-  }
-  // His soles on the deck: the lowest point of either shoe (his skinned vertices, as drawn this frame) put a hair into the tiles,
-  // and each shoe's contact shadow under it, fading as it lifts.
-  groundCoach() {
-    const c = this.coach;
-    if (!c?.soles?.length) return;
-    c.root.position.y = 0;
-    c.root.updateMatrixWorld(true);
-    const v = new THREE.Vector3(),
-      feet = c.soles.map((foot) => {
-        let low = Infinity,
-          x = 0,
-          z = 0;
-        for (const [mesh, i] of foot) {
-          mesh.getVertexPosition(i, v).applyMatrix4(mesh.matrixWorld);
-          if (v.y < low) low = v.y;
-          x += v.x;
-          z += v.z;
-        }
-        return { low, x: x / foot.length, z: z / foot.length };
-      });
-    const lowest = Math.min(...feet.map((f) => f.low));
-    if (!Number.isFinite(lowest)) return;
-    c.root.position.y = -lowest - SOLE.sink;
-    feet.forEach((f, k) => {
-      const m = c.contacts[k],
-        up = clamp((f.low - lowest) / SOLE.lift, 0, 1);
-      m.position.set(f.x, 0.003, f.z);
-      m.rotation.z = c.angle;
-      m.scale.set(0.2 * (1 + up * 0.4), 0.34 * (1 + up * 0.4), 1);
-      m.material.opacity = 0.55 * (1 - up) * (1 - up);
-    });
   }
   play(name, fade = 0.35, rate = 1) {
     const c = this.coach,
@@ -1107,7 +1021,6 @@ export class MenuStage {
     if (c.planDelay > 0) {
       c.planDelay -= dt;
       c.mixer.update(dt);
-      this.groundCoach();
       return;
     }
     if (!c.step) {
@@ -1158,7 +1071,6 @@ export class MenuStage {
     c.root.position.set(c.x, 0, c.z);
     c.root.rotation.y = c.angle;
     c.mixer.update(dt);
-    this.groundCoach();
   }
 
   // ---- the doors -----------------------------------------------------------------------------------------------
