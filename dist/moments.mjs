@@ -1,4 +1,5 @@
 import { BIG_KINDS, BIG_RESULTS } from "./big-moment.mjs";
+import { stingSticker, stingLine } from "./incident-cards.mjs";
 // Incident moments. The simulation reports `incident` (a problem starts or gets worse) and `save` (a problem
 // prevented or solved) events; this module decides how they land: a sting that names the problem and the action
 // (with slow motion, and a one-line lesson the first time a player meets it), a hit-stop and stamp for every
@@ -337,6 +338,9 @@ export class MomentDirector {
       title: fill(style.title, named).toUpperCase(),
       verb: fill(style.verb, named),
       how: first ? fill(style.how, named) : "",
+      // (what the HUD shows since 13 November 2026: the incident's sticker, its name, and this one line the first time)
+      sticker: stingSticker(e.kind, named),
+      line: zoned(stingLine(e.kind, named), named),
       x: e.x,
       z: e.z,
       duration: first ? T.firstSting : T.sting,

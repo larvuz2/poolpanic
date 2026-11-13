@@ -138,7 +138,7 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    at once, `laneVerdict`; one meaning per key, the numbers for places, Z waves, B bar; the old map off the main screen; a calmer
    HUD, since 5 November 2026 less of it: the Water Check, the fins and the hand only when needed, no Interact button, tags only
    where who goes where is a choice or a guest needs the coach, and the HUD the Overcooked way: nothing over the pool, the shift's
-   **Splash Coins** bottom left (+N green, −N red) and the clock bottom right, the venue and star targets in the pause menu; README "The first ten minutes") is **done**. **Phase 2, a run worth repeating** (the pools as a ladder opened across runs,
+   **Splash Coins** bottom left (+N green, −N red) and the clock bottom right, the venue and star targets in the pause menu; README "The first ten minutes") is **done**. **Since 13 November 2026 the HUD is stickers and no lane bar** (README "Stickers, and no lane bar"): no row of lane buttons (a guest is sent by clicking the place in the pool, which glows softly while a waiting guest is selected and brightens under the mouse; a few chips at the bottom only for what is no place in the pool: the river's two ways, the rooftop's seats, the bar, the wave machine), and every pending incident is a **sticker** at the top of the left column (25 of them, GPT Image 2.5 from the game's own characters, `tools/hud/stickers.mjs`), an exclamation mark at its corner, its card (a name and one short line, **never a key**: "Find Karen and calm her down") only under the mouse; no incident banner, no steps, no status box (`dist/incident-cards.mjs`). **Phase 2, a run worth repeating** (the pools as a ladder opened across runs,
    three to start and one more with every date; what lasts in the coach's locker: the dates album, coach gear opened by stars, the
    best stars per pool; difficulty by week with every level smoothed; one money, perks out of the Date Fund; the Gala as week 4's
    finale and the story's ending with credits, then endless; the goals tuned with the coach bots; README "A run worth repeating") is
@@ -156,7 +156,7 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    the middle, Valentina and three swimmers on their waiting clips; no fish kid, no Karen; nobody near enough to the doors to come
    through the glass), seen through the frosted glass as their shadows (a mask of them drawn each frame) and as they are when the
    doors open; the choices at the bottom left; in a browser, which holds sound until the first click, *Click anywhere for sound* in
-   the corner until then. **In a shift every message stands in a column on the left** (the incident's sting and banner, the
+   the corner until then. **In a shift every message stands in a column on the left** (the incident's sting and the incidents' stickers, the
    tutorial's tip, the streak, the toasts, the selected guest: `#hud-rail`, 21 October 2026, "never block the central view"),
    inside the strip the camera keeps clear, so the middle of the view is the pool's alone. The creator's choices: the ladder, one money, an ending, a guided first shift, **no new pools until
    Phase 2 is done**, and **keep the reward (the Sunday date) as it is for now** ("we'll change it later").
@@ -312,6 +312,12 @@ the app and depot ids, the store page, the price, written proof that the AI tool
   its sums and their order stay as they are**: a shift must replay to the last bit. **A slow frame writes a `hitch` line in the
   log** (`hitchWatch`: how long, which stage, what incident, a shader or picture sent just then): where the creator sees a lag,
   read those lines in their device's report before guessing; this machine has no graphics card to show it.
+- **The HUD says that something is there, not how to deal with it** (13 November 2026, the creator: "minimize all of the text
+  that is on the HUD… Do not add the 'Press E to interact' text. That's obvious"). A new incident needs a sticker (a line in
+  `tools/hud/stickers.mjs`, drawn from the game's own character where there is one, and its key in `STICKERS`) and its words in
+  `dist/incident-cards.mjs` (`WORDS`: a title of a word or three and one short line; `STING_LINES` for its sting):
+  `stickers-check.mjs` fails without them, and for a line that names a key. No new banner, steps, status line or button row:
+  a choice that is a place in the pool is made by clicking that place, which glows (`laneHighlights`).
 - Fonts are bundled (`dist/assets/fonts/`). The game must not need the network once its files have loaded.
 - Generated art (Meshy, fal, image models) is committed under `dist/assets/`, never linked: the CDN links expire.
 

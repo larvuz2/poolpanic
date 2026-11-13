@@ -2144,6 +2144,63 @@ cutting salad animation!! … add this massage table in some venues !! not all!!
   the table and holds E. Seen in Chromium with software drawing (the table, a guest lying on it, a coach massaging: pictures sent to
   the creator); not yet on the creator's machines.
 
+### Stickers, and no lane bar (the HUD, 13 November 2026)
+
+The creator: "I don't think we need to display all of the pool lanes. On the bottom of this screen, let's remove that. Instead,
+whenever we click on a swimmer that is waiting to be assigned… we see a very, very subtle glow on the lanes on top of the pool.
+It's very visual that I have to click on top of the lanes to assign the swimmer. Also, let's minimize all of the text that is on
+the HUD… when Karen comes out, we see a lot of text displaying on a card saying, 'Go near, press E to interact.' I don't need to
+know all that. The only thing I need to know on the HUD is that Karen is there, and maybe we show the card, and then we can just
+minimize the card into an icon. We do need to have icons for all of the incidents, so make them on GPT Image Maker using FAL…
+It should be like a sticker, so maybe I can see there are two or three remaining incidents that need my attention… if I hover
+over the sticker… 'Find Karen and calm her down'… Do not add the 'Press E to interact' text. That's obvious."
+
+- **No row of lane buttons.** A guest is sent by clicking the place itself: a lane, a zone, a spring, a board or the tub, the
+  kids' pool, the river, the rooftop's water. While a waiting guest is selected each place glows: a soft golden frame lying on
+  the water with a fainter fill, breathing slowly, and the one under the mouse brightens with its rim (`laneHighlights`,
+  `laneSpots`, `laneGlowTexture`, `hoverLane` in scene.mjs). The lanes of the pools with a basin had had a highlight since the
+  beginning, but it had never shown: it was drawn before the water, which painted over it; it is now drawn after. Where the
+  whole pool is one place (the Kids Pool, the rooftop) the glow and the place to click are the whole pool. The numbers still
+  send a guest (1 to 5), T the trampoline, Z the waves, B the bar.
+- **What is left at the bottom** is a chip for each choice that is no place in the pool, there only while it is of use
+  (`renderLaneControls`, `.lane-btn.chip`): the Lazy River's two ways round (🐢 1, ⚡ 2) and the rooftop's seats (💬 1, 🛏️ 2,
+  👑 3, with what is free) while a waiting guest is selected; the bar (🍹 B, with the orders waiting or what is on the tray)
+  while a drink is ordered, at the rooftop and on the ship; the wave machine (🌊 Z: ON, CALM, HORN, MONSTER!, STOPPED and its
+  seconds) at the Wave Pool. The ship's roll gauge and the buttons' texts are gone.
+- **Incidents are stickers** (`dist/incident-cards.mjs`, `renderStickers` in app.mjs). At the top of the column of messages, one
+  sticker for every incident pending, the most pressing first: a rescue, a clean-up, a guest about to be sick, then Karen, the
+  cannonball man, the fish kid, the dog, the blackout, the influencer, the massage, the daredevil, first aid, the big moment
+  and the venues' own (the monkey, the monster wave, the swell, the DJ's drop, the line cutter). Until now the HUD showed one
+  incident's banner at a time with its steps, and a status box that said it again with the keys; with Karen, Carl and a cramp
+  at once it now shows three. Each sticker is a little askew, with an exclamation mark at its corner (yellow; red and pulsing
+  for one that presses: a rescue, a clean-up, a fuse nearly burnt) and, when the incident is timed, a fuse under it. A sticker
+  dealt with peels off.
+- **Its card, only when asked**: the mouse over a sticker (or the keyboard's focus, or a tap, which keeps it until the next tap)
+  shows a name and one line under the row: KAREN · "Find Karen and calm her down"; CANNONBALL CARL · "Stop him before he jumps";
+  EVERYBODY OUT · "Get the skimmer", then "Skim it out", "Bin it", "Hang up the skimmer", "Chlorine the water". The line
+  follows the job and never names a key (`stickers-check.mjs` reads every card of 28 bot-played shifts for one).
+- **The sting** (the moment an incident begins) is its sticker and its name; one short line under them the first time a player
+  meets it, the same as the card's (`sticker` and `line` on a sting, moments.mjs). No "Select · Send to locker", no lesson
+  paragraph, no steps.
+- **Gone**: the incident banner (`#closure`) with its steps, the status box at the bottom left (`#pool-status-box`: "Karen is
+  complaining. Everyone is annoyed. · Run to Karen · then hold E"), the lane buttons' modes and counts. The selected guest's
+  chip says who they are and how they feel, not what to press. What to do next is in the world, as before: the alert's marker
+  or arrow, the prompt over the coach, the guests' tags.
+- **The 25 stickers** are GPT Image 2.5 on fal (`openai/gpt-image-2.5/flare/edit`, quality high, transparent), made by
+  `tools/hud/stickers.mjs`: each character's sticker is drawn from the game's own model (its head and shoulders and whole
+  figure rendered from the GLB, `tools/hud/ref/`), with the HUD's coin as the finish to match, so Karen is Karen, with no
+  mouth, her sunglasses in her hair and her bag; the incidents with no character are an object with the same eyes (the bulb,
+  the poo, the duck on yellow water, the wave, the ship's bell, the trophy, the puddle, the cloud, the cone). Trimmed and made
+  192 px WebP in `dist/assets/hud/stickers/` (406 kB in all), fetched when the game is up so the first sting has its picture; an
+  incident's emoji stands in if a file is missing. A new incident needs its sticker (`STICKERS` in both files) and its words
+  (`WORDS`, and `STING_LINES` for its sting) in incident-cards.mjs: the check fails without them.
+
+Checked by `stickers-check.mjs` (headless) and played in Chromium at the Community Pool, the Lazy River, the Rooftop Pool, the
+Wave Pool, the Kids Pool, the Mountain Hot Springs and the Jumping Pool (pictures looked at: the glow with a guest selected and
+under the mouse, the sting, three stickers at once, a card under the mouse, the chips), and from START through the doors into
+the guided first shift. Not judged here: how subtle the glow reads on the creator's screens, which is theirs to say (its
+strength is two numbers in scene.mjs's `sync`).
+
 ### The intro cinematic (every pool, 5 November 2026)
 
 The creator: "a system that I can turn off later in a toggle for game cinematics as intro… a close-up of the coach always, and
@@ -2581,6 +2638,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/scene/fish-model.mjs` | The fish (`dist/assets/fish.glb`): loads it, stands it in a group of the fish's size, dresses the classic koi `fishObject` builds with it (now or when it arrives), and gives each fish its own swim wave in the vertex shader |
 | `dist/input.mjs` | Keyboard/touch intents and held input |
 | `dist/guidance.mjs` | Shared world/HUD guidance state and pulse |
+| `dist/incident-cards.mjs` | What needs the coach now, as the HUD shows it: one card an incident pending (its sticker, a name, one short line), the sticker and the line of each sting; pure |
 | `dist/moments.mjs` | Incident moments: sting and stamp text, first sightings, queueing, slow motion and hit-stop timing, edge-arrow geometry |
 | `dist/progression.mjs` | Record normalization (levels and drills), stars, unlocks and the `UNLOCK_ALL` playtest switch |
 | `dist/campaign.mjs` | Acts, chunks and the finale as a view over `SHIFTS`: zone progress, "you are here", level and drill states, panel icons. No DOM |
@@ -2997,6 +3055,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node coachcam-check.mjs` | Coach Cam: facing follows the look, E prefers what is in view, view-relative movement, eye and water-level height with the body hidden, hand lag and settle, head bob (off with reduced motion), landing dip, items in hand, field of view, crosshair target |
 | `node fish-model-check.mjs` | The fish model: the file's shape (one mesh, matte, no skeleton, nose to +z and back to +y from its vertices), fish dressed when the model comes or when they are made, each with a wave of its own and one program, a model that does not load leaving the koi, and the fish of the incident seen in the pool only once the kid has tipped it out |
 | `node cinematic-check.mjs` | The intro cinematic: three shots in about five seconds in every venue (the coach's in front of him, the sweep low on the deck), the venues' own beats (the snow monkey, Valentina, the DJ and the bartender close up, the Jumping Pool's crane from low to high, the coach out of them), the world's camera and the coach's acting while it runs, the overview's lens back after (by itself or skipped), the shift held, the skip and the Settings switch, never in co-op, the Coach Cam or a replay |
+| `node stickers-check.mjs` | The HUD of 13 November 2026: 25 stickers with their pictures, made by the tool from the game's own characters; a sticker and one line for every sting; one card an incident pending (three at once, the rescue first), a name and one short line that never names a key, in bot-played shifts in all 14 venues; the page with the stickers' row and card and no banner, status box or steps; no lane buttons, the chips that are left, and in every venue a place to click that glows softly while a waiting guest is selected and answers the mouse. |
 | `node perf-check.mjs` | Performance, kept from coming back: a venue's every texture, shader picture and skeleton freed with it; venues loaded when played; no layout read per frame; the crowd drawing one pose; and the second pass: the cues' pulse set where something pulses, a picture on the card sharpened there (the cast's before the first frame), flat see-through things in one pass, a shadow material each for the characters and the crowd, the tags, alert, prompt and HUD reading nothing from the page and writing only changes, the log's housekeeping between frames, the hitch line, nothing made new by the deck's contacts and the loose props. |
 | `node loose-check.mjs` | Loose props: a kit in every venue on free deck by the walls, apart, clear of the stations, the same places each time; a ball kicked away, a pot rocking at a walk and falling over at a run, a jump clearing a board, a guest strolling past toppling nothing, a new shift putting everything back, the cruise's chairs and balls sliding with the roll, the simulation untouched |
 | `node swimmer-model-check.mjs` | The swimmer models (stand-in skeletons): the choice and its switch, who gets which look, the clip rules (walk and run by foot speed with hysteresis, swim, scratch, panic) and each model's own ground speeds, the poses laid over the clips (arm and leg directions, easing), the swap in the scene and back, the Panic clip and its fallbacks, the VIP crown (and no sash) and daredevil star and cape riding on the head and chest bones, the type disc, queasy tint and a model that breaks being dropped; the cannonball men: the Cannonball clip followed through the incident, the swim in the water, and the crowd's panic (swimmers held upright in the water, the queue hopping) with the models and with the classic swimmers |

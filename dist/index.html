@@ -64,26 +64,19 @@
            banner, the guided first shift's tip, the streak, the toasts, the selected guest and the big moment's result, one
            under the other where the guests' cards used to be. -->
       <div id="hud-rail" class="hud-rail">
+        <!-- An incident begins: its sticker and its name slam in here for a moment (app.mjs showSting; one short line under
+             them the first time a player meets it), then it is a sticker in the row below. -->
         <div id="sting" class="sting" role="alert" hidden>
           <span class="sting-icon" aria-hidden="true"></span>
-          <div class="sting-body">
-            <strong class="sting-title"></strong><span class="sting-verb"></span
-            ><small class="sting-how"></small>
-          </div>
+          <div class="sting-body"><strong class="sting-title"></strong><span class="sting-verb"></span></div>
           <b class="sting-new">NEW</b>
         </div>
-        <div id="closure" class="closure" role="status" hidden>
-          <span>💩</span>
-          <div>
-            <strong id="closure-title">EVERYBODY OUT!</strong>
-            <p id="closure-task">Get the pool skimmer</p>
-            <div class="cleanup-steps">
-              <span data-cleanup-step="skim">1 · SKIM</span><span data-cleanup-step="bin">2 · BIN</span
-              ><span data-cleanup-step="hang">3 · HANG</span
-              ><span data-cleanup-step="chlorine">4 · CHLORINE</span>
-            </div>
-            <div class="closure-timer" hidden><i></i></div>
-          </div>
+        <!-- What needs the coach now (13 November 2026: "like a sticker, so maybe I can see there are two or three remaining
+             incidents that need my attention"): one sticker an incident, an exclamation mark at its corner; over one, its
+             card: a name and one short line (incident-cards.mjs). -->
+        <div id="stickers" class="stickers" role="group" aria-label="Incidents"></div>
+        <div id="sticker-card" class="sticker-card" role="status" hidden>
+          <strong></strong><small></small>
         </div>
         <div id="tutor" class="tutor" role="status" aria-live="polite" hidden>
           <b id="tutor-step" class="tutor-step">1/5</b>
@@ -230,13 +223,6 @@
         <button id="pause-btn" class="pause-btn" aria-label="Pause · Esc" title="Pause · Esc">❚❚</button>
       </div>
       <footer class="bottom-bar">
-        <div id="pool-status-box" class="pool-status">
-          <span class="status-light"></span>
-          <div>
-            <strong id="pool-status">A good day for a dip.</strong
-            ><small id="hint">WASD MOVE · SHIFT DASH · SPACE JUMP</small>
-          </div>
-        </div>
         <div id="lane-controls" class="lane-controls"></div>
         <button id="assist" class="assist-btn" title="Interact with nearby equipment or swimmer · E" hidden>
           <span>✋</span><span class="interact-label">Interact</span><kbd>E</kbd>

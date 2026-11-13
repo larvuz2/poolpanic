@@ -276,7 +276,12 @@ export function buildPool(
   // Invisible lane volumes for click assignment.
   lanes.forEach((x, i) => {
     const m = new THREE.Mesh(
-      new THREE.BoxGeometry(3.18, 0.2, 16.5),
+      // (a pool that is one place to click, the rooftop's water, is clicked anywhere on it)
+      new THREE.BoxGeometry(
+        lanes.length === 1 ? halfX * 2 - 0.3 : 3.18,
+        0.2,
+        lanes.length === 1 ? halfZ * 2 - 0.2 : 16.5,
+      ),
       new THREE.MeshBasicMaterial({ visible: false }),
     );
     m.position.set(x, -0.12, 0);

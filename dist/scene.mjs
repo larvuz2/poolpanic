@@ -503,6 +503,38 @@ function withDome(name, venue) {
 // (a point on its way to the screen, project and screenPoint: every tag asks every frame, so not a new vector each time)
 const SCREEN_A = new THREE.Vector3(),
   SCREEN_B = new THREE.Vector3();
+// The lanes' glow: a soft frame of light just inside the lane's edge, a fainter fill within, nothing at the edge itself (so
+// three lanes side by side read as three places to click, not three tiles). One picture for every lane of every venue: 3 m by
+// 16 m at 6 cm a pixel.
+let laneGlow = null;
+function laneGlowTexture() {
+  if (laneGlow) return laneGlow;
+  const W = 48,
+    H = 256,
+    canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const g = canvas.getContext("2d");
+  if (g?.createImageData) {
+    const img = g.createImageData(W, H),
+      ease = (t) => t * t * (3 - 2 * t),
+      metre = 3 / W;
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        // (how far in from the nearest edge, in metres)
+        const d = (Math.min(x, W - 1 - x, y, H - 1 - y) + 0.5) * metre,
+          frame = Math.exp(-(((d - 0.3) / 0.2) ** 2)),
+          a = ease(Math.min(1, d / 0.16)) * (0.42 + 0.58 * frame),
+          k = (y * W + x) * 4;
+        img.data[k] = img.data[k + 1] = img.data[k + 2] = 255;
+        img.data[k + 3] = Math.round(a * 255);
+      }
+    g.putImageData(img, 0, 0);
+  }
+  laneGlow = new THREE.CanvasTexture(canvas);
+  laneGlow.colorSpace = THREE.SRGBColorSpace;
+  return laneGlow;
+}
 const SHARP_SLOTS = ["map", "normalMap", "roughnessMap", "emissiveMap", "aoMap"];
 // The shadows' own materials (13 November 2026). three.js draws every shadow with one depth material, and works its shader out
 // again each time the thing it draws changes kind: a character on a skeleton, then a bench, then the crowd (one mesh drawn many
@@ -671,21 +703,44 @@ export class PoolWorld extends SceneKit {
       ? this.springHighlights
       : this.riverHighlight
         ? [this.riverHighlight]
-        : venue.lanes.map((x) => {
+        : this.laneSpots().map((spot) => {
+            // A soft glow lying on the water of each lane, the place to click while a waiting guest is selected (13 November
+            // 2026, the creator: "a very, very subtle glow on the lanes on top of the pool. It's very visual that I have to
+            // click on top of the lanes"; there is no row of lane buttons any more). Drawn after the water (which is drawn
+            // late and would paint over it: the glow there was before had never shown), its edges fading out.
             const m = new THREE.Mesh(
-              new THREE.PlaneGeometry(3.0, 16),
+              new THREE.PlaneGeometry(spot.w, spot.l),
               new THREE.MeshBasicMaterial({
                 color: 0xffe58b,
+                map: laneGlowTexture(),
                 transparent: true,
                 opacity: 0,
                 depthWrite: false,
               }),
             );
             m.rotation.x = -Math.PI / 2;
-            m.position.set(x, -0.17, 0);
+            m.position.set(spot.x, -0.17, 0);
+            m.renderOrder = 6;
             this.scene.add(m);
             return m;
           });
+    this.hoverLane = -1;
+    // (A pool whose builder made no place to click, the rooftop's water: one over each glow, so the glow never lies.)
+    if (
+      !this.springHighlights &&
+      !this.riverHighlight &&
+      !this.clickables.some((c) => c.userData?.kind === "lane")
+    )
+      this.laneSpots().forEach((spot, i) => {
+        const pick = new THREE.Mesh(
+          new THREE.BoxGeometry(spot.w, 0.2, spot.l),
+          new THREE.MeshBasicMaterial({ visible: false }),
+        );
+        pick.position.set(spot.x, -0.12, 0);
+        pick.userData = { kind: "lane", lane: i };
+        this.scene.add(pick);
+        this.clickables.push(pick);
+      });
     this.buildGuidance();
     this.incidentView = new IncidentView(this);
     const look = this.coachCam && {
@@ -891,13 +946,15 @@ export class PoolWorld extends SceneKit {
       ? this.springRims
       : this.riverRim
         ? [this.riverRim]
-        : this.venue.lanes.map((x) => {
-            const points = [
-              [-1.43, -7.9],
-              [1.43, -7.9],
-              [1.43, 7.9],
-              [-1.43, 7.9],
-            ].map(([a, b]) => new THREE.Vector3(x + a, -0.13, b));
+        : this.laneSpots().map((spot) => {
+            const a = spot.w / 2 - 0.07,
+              b = spot.l / 2 - 0.1,
+              points = [
+                [-a, -b],
+                [a, -b],
+                [a, b],
+                [-a, b],
+              ].map(([x, z]) => new THREE.Vector3(spot.x + x, -0.13, z));
             const rim = new THREE.LineLoop(
               new THREE.BufferGeometry().setFromPoints(points),
               new THREE.LineBasicMaterial({
@@ -907,6 +964,7 @@ export class PoolWorld extends SceneKit {
                 depthWrite: false,
               }),
             );
+            rim.renderOrder = 7; // (after the water, like the glow it goes round)
             this.scene.add(rim);
             return rim;
           });
@@ -1163,20 +1221,40 @@ export class PoolWorld extends SceneKit {
       this.guideAura.userData.halo.scale.setScalar(1 + pulse * 0.22);
       this.guideAura.userData.shell.scale.set(1 + pulse * 0.12, 1.8 + pulse * 0.12, 1 + pulse * 0.12);
     }
-    this.laneHighlights.forEach((m, i) => {
-      const danger = sim.laneLocked ? sim.laneLocked(i) : false,
-        open = !!guide.lanes && i !== guide.laneExcept;
+    // The places a guest can be sent glow while one is selected: softly, a slow breath; the one under the mouse brighter, with
+    // its rim, so it is plain that a click there sends them (`hoverLane`, bindInput).
+    for (let i = 0; i < this.laneHighlights.length; i++) {
+      const m = this.laneHighlights[i],
+        danger = sim.laneLocked ? sim.laneLocked(i) : false,
+        open = !!guide.lanes && i !== guide.laneExcept,
+        // (where the whole pool is the one place, any of it under the mouse)
+        hot =
+          open &&
+          !danger &&
+          (i === this.hoverLane || (this.laneHighlights.length === 1 && this.hoverLane >= 0)),
+        // (a glow with soft edges, the lanes', can be stronger than one that tints a whole spring or the river)
+        soft = !!m.material.map,
+        unhappy = !danger && !open && sim.lanePeople(i).some((p) => p.h < 30);
       m.material.opacity = danger
         ? 0.1 + pulse * 0.16
-        : open
-          ? 0.14 + pulse * 0.19
-          : sim.lanePeople(i).some((p) => p.h < 30)
-            ? 0.07
-            : 0;
-      m.material.color.set(danger ? 0xff7a3d : open ? 0xffdf52 : 0xff5d31);
-      this.laneRims[i].visible = open && !danger;
-      this.laneRims[i].material.opacity = 0.5 + pulse * 0.5;
-    });
+        : hot
+          ? soft
+            ? 0.78
+            : 0.4
+          : open
+            ? soft
+              ? 0.3 + pulse * 0.12
+              : 0.15 + pulse * 0.1
+            : unhappy
+              ? 0.07
+              : 0;
+      m.material.color.set(danger ? 0xff7a3d : open ? 0xffd84a : 0xff5d31);
+      const rim = this.laneRims[i];
+      if (rim) {
+        rim.visible = open && !danger;
+        rim.material.opacity = hot ? 1 : 0.22 + pulse * 0.2;
+      }
+    }
     this.syncClutter(sim);
     this.updateEnvironment(sim, time, dt);
     this.loose?.update(sim, dt);
@@ -2152,6 +2230,15 @@ export class PoolWorld extends SceneKit {
     props.__currentAnisotropy = level;
     this.sharpenedLive = (this.sharpenedLive || 0) + 1; // (for checks and the log: pictures told without an upload)
   }
+  // Where a guest can be sent in a pool with a basin, as rectangles on the water (x across, its width, its length): each lane,
+  // zone or lap lane; or the whole pool where it is one place (the Kids Pool, the rooftop's water).
+  laneSpots() {
+    const v = this.venue,
+      P = v.pool || {};
+    if ((v.kids || v.lanes.length === 1) && P.halfX && P.halfZ)
+      return [{ x: 0, w: P.halfX * 2 - 0.5, l: P.halfZ * 2 - 0.6 }];
+    return v.lanes.map((x) => ({ x, w: 3.0, l: 16 }));
+  }
   // The view's size in CSS pixels, kept from the last resize: reading the container's size in a frame, after the tags over the
   // guests had moved, made the browser lay the whole page out again, once for every guest (3 November 2026). A ResizeObserver
   // forgets it when the container changes size some other way.
@@ -2544,10 +2631,12 @@ export class PoolWorld extends SceneKit {
       }
       this.pointer.set(...ndc(e));
       this.raycaster.setFromCamera(this.pointer, this.camera);
-      canvas.style.cursor = this.raycaster.intersectObjects(this.clickables, false).length
-        ? "pointer"
-        : "default";
+      const over = this.raycaster.intersectObjects(this.clickables, false)[0]?.object.userData;
+      canvas.style.cursor = over ? "pointer" : "default";
+      // (the lane, zone, spring or board under the mouse: its glow answers, sync)
+      this.hoverLane = over?.kind === "lane" ? over.lane : -1;
     });
+    canvas.addEventListener("pointerleave", () => (this.hoverLane = -1));
     canvas.addEventListener(
       "wheel",
       (e) => {

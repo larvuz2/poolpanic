@@ -390,7 +390,9 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   assert.match(app, /key === "b" && \(sim\.venue\.roof \|\| sim\.venue\.cruise\)\) sim\.fetch\("bar"\)/);
   assert.ok(!/sim\.venue\.waves && key === "1"/.test(app) && !/sim\.venue\.roof && key === "1"/.test(app));
   assert.ok(!/sim\.venue\.cruise && key === "3"/.test(app));
-  assert.ok(app.includes('"press Z to start"') && app.includes('"No orders · press B for a tray"'));
+  // (no sentence says it since 13 November 2026: the chip that is left of the lane bar wears its key)
+  assert.match(app, /chip\("waves-btn", 'data-lane="waves"', "🌊", "Z"/);
+  assert.match(app, /chip\("bar-btn", 'data-lane="bar" hidden', "🍹", "B"/);
   assert.ok(!/1 stops|press 1 to start|press " \+ \(sim\.venue\.cruise/.test(app));
 }
 
@@ -445,7 +447,8 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   assert.match(app, /putFlag\(\$\("coach-state"\), "hidden", !sim\.coach\.carry && !sim\.coach\.job\)/);
   assert.match(app, /\["water-check", "care-actions", "coach-state"\]\.every\(\(id\) => \$\(id\)\.hidden\)/);
   assert.match(html, /<button id="assist"[^>]*hidden>/);
-  assert.match(app, /putFlag\(\$\("pool-status-box"\), "hidden", calmStatus && calmHint/);
+  // (no status box at all since 13 November 2026: an incident is a sticker in the column on the left, stickers-check.mjs)
+  assert.ok(!html.includes('id="pool-status-box"') && html.includes('id="stickers"'));
   assert.match(app, /data\.z - sim\.coach\.z\) > STATION_LABEL_NEAR/);
   assert.match(app, /if \(!firstPerson\)\s*putFlag\(\s*prompt,\s*"hidden",\s*!near && !c\.busy/);
   // The HUD the Overcooked way (5 November 2026): no scoreboard and no ⚙ over the pool in a shift; the Splash Coins at the bottom
@@ -510,15 +513,15 @@ const app = readFileSync("dist/app.mjs", "utf8"),
 // cards were, inside the strip the follow camera keeps clear; nothing of it is centred under the scoreboard any more.
 {
   const rail = html.slice(html.indexOf('<div id="hud-rail"'), html.indexOf('<div id="map"'));
-  const order = ["sting", "closure", "tutor", "combo", "toast", "queue-panel"].map((id) =>
-    rail.indexOf(`id="${id}"`),
-  );
+  // (the banner gave way to the incidents' stickers and their card on 13 November 2026: stickers-check.mjs)
+  const column = ["sting", "stickers", "sticker-card", "tutor", "combo", "toast", "queue-panel"];
+  const order = column.map((id) => rail.indexOf(`id="${id}"`));
   assert.ok(
     order.every((i) => i > 0) && order.every((i, k) => !k || i > order[k - 1]),
-    "the sting, the banner, the tip, the streak, the toasts and the selected guest, one under the other",
+    "the sting, the stickers and their card, the tip, the streak, the toasts and the selected guest, one under the other",
   );
-  for (const id of ["sting", "closure", "tutor", "combo", "toast", "queue-panel"])
-    assert.equal(html.split(`id="${id}"`).length, 2, id + " only in the column");
+  for (const id of column) assert.equal(html.split(`id="${id}"`).length, 2, id + " only in the column");
+  assert.ok(!html.includes('id="closure"'), "no banner");
   assert.match(
     css,
     /\.hud-rail \{[^}]*left: var\(--edge\);[^}]*width: calc\(min\(22vw, 300px\) - var\(--edge\) - 10px\);/,
