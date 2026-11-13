@@ -30,7 +30,7 @@ const FIRST = [
     id: "lane",
     ready: (sim, seen) => seen.selectDone,
     done: (sim, seen) => seen.assigned > 0,
-    text: () => "Now click a lane, or press 1. A swimmer on their own swims fastest.",
+    text: () => "Now click a lane in the pool: they glow. A swimmer on their own swims fastest.",
   },
   {
     id: "more",

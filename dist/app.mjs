@@ -23,6 +23,7 @@ import { DRILLS } from "./drills.mjs";
 import { offerBookings, BOOKINGS } from "./bookings.mjs";
 import { LevelMap } from "./map.mjs";
 import { guidanceState, cuePulse, laneVerdict } from "./guidance.mjs";
+import { incidentCards, stickerUrl, STICKERS } from "./incident-cards.mjs";
 import { TIPS } from "./tips.mjs";
 import { Tutor } from "./tutorial.mjs";
 import {
@@ -32,7 +33,6 @@ import {
   loopPosition,
   swimmerLook as baseSwimmerLook,
   freePlayGuests,
-  CLASS_ROOM,
   SENIOR_LOOKS,
   streakTier,
   STREAK_TIERS,
@@ -135,11 +135,9 @@ import { waveBoard } from "./waves.mjs";
 import { BATHE } from "./wave-pool.mjs";
 import { CHILL, GUEST_KIND, nextDrop, SEATS, seatVerdict, wishWord } from "./rooftop.mjs";
 import { ROOF_BEDS } from "./roof-plan.mjs";
-import { slide } from "./ship.mjs";
-import { SOAK, springGuests, monkeyIn } from "./onsen.mjs";
-import { SPRINGS } from "./onsen-plan.mjs";
-import { HEIGHTS, TUB, TUB_LANE, LINE_ROOM, LINE_MAX } from "./dive-plan.mjs";
-import { tubGuests, boardOpen, lineLength, SKILL, shownType } from "./dive.mjs";
+import { SOAK } from "./onsen.mjs";
+import { HEIGHTS, TUB_LANE } from "./dive-plan.mjs";
+import { SKILL, shownType } from "./dive.mjs";
 import { Achievements } from "./achievements.mjs";
 import { isDesktop, quitGame, richPresence, unlockAchievement } from "./platform.mjs";
 import * as hunts from "./bisect.mjs";
@@ -478,6 +476,19 @@ const moments = new MomentDirector({
   },
 });
 const seconds = () => performance.now() / 1000;
+// A sticker's picture (assets/hud/stickers/, tools/hud/stickers.mjs); the incident's emoji stands in if the file is not there.
+function stickerImage(key, fallback = "❗") {
+  const img = document.createElement("img");
+  img.alt = "";
+  img.draggable = false;
+  img.decoding = "async";
+  img.onerror = () =>
+    img.replaceWith(Object.assign(document.createElement("span"), { textContent: fallback }));
+  img.src = stickerUrl(key);
+  return img;
+}
+// (fetched once the game is up, so the first incident's sticker is on screen with its sting)
+const warmStickers = () => STICKERS.forEach((key) => (new Image().src = stickerUrl(key)));
 let stingAnimation = null,
   viewClock = 0,
   alertKey = "";
@@ -486,11 +497,14 @@ function showSting(sting) {
   const el = $("sting"),
     reduced = reducedMotion.matches,
     ms = sting.duration * 1000;
-  el.className = "sting " + sting.tone + (sting.first ? " first" : "");
-  el.querySelector(".sting-icon").textContent = sting.icon;
+  el.className = "sting " + sting.tone + (sting.first ? " first" : "") + (sting.sticker ? " has-art" : "");
+  // Its sticker and its name; one short line the first time a player meets it, and never which key to press (13 November
+  // 2026, "minimize all of the text that is on the HUD"). The same sticker then waits in the row below (renderStickers).
+  const icon = el.querySelector(".sting-icon");
+  if (sting.sticker) icon.replaceChildren(stickerImage(sting.sticker, sting.icon));
+  else icon.textContent = sting.icon;
   el.querySelector(".sting-title").textContent = sting.title;
-  el.querySelector(".sting-verb").textContent = sting.verb;
-  el.querySelector(".sting-how").textContent = sting.how;
+  el.querySelector(".sting-verb").textContent = sting.first ? sting.line || "" : "";
   el.hidden = false;
   document.body.classList.add("sting-on");
   world.focusMoment(sting.x, sting.z, Math.min(2, sting.duration));
@@ -1835,146 +1849,43 @@ function syncVenue(s) {
 }
 // The Aqua Disco has zones of open water where the other pools have lanes (the same thing to the simulation).
 const laneWord = (sim) => (sim?.venue?.class ? "Zone" : sim?.venue?.onsen ? "Spring" : "Lane");
+// No row of lane buttons since 13 November 2026 (the creator: "I don't think we need to display all of the pool lanes. On the
+// bottom of this screen, let's remove that. Instead, whenever we click on a swimmer that is waiting to be assigned… we see a
+// very, very subtle glow on the lanes on top of the pool. It's very visual that I have to click on top of the lanes to assign
+// the swimmer"). A guest is sent by clicking the place itself, which glows while they are selected (scene.mjs laneHighlights:
+// a lane, a zone, a spring, a board, the kids' pool, the river); the numbers still do it too. What is left down there is the
+// few choices that are not a place in the pool, as small chips that show only when they are of use: the river's two ways
+// round and the rooftop's seats (while a waiting guest is selected), the bar (while a drink is ordered), the wave machine.
+const chip = (extra, attrs, icon, key, label) =>
+  `<button class="lane-btn chip ${extra}" ${attrs} aria-label="${label}" title="${label}"><span class="chip-icon" aria-hidden="true">${icon}</span><span class="lane-mode"></span><span class="lane-count"></span><span class="lane-caps"></span><kbd>${key}</kbd></button>`;
 function renderLaneControls(venue) {
   // The kit's names: the Lazy River's rack and the Wave Pool's hut hold tubes, not fins.
   const tubes = venue.river || venue.waves;
   $("fins").innerHTML = tubes
     ? '<span>🛟</span>Tubes <b id="fin-count">' + (venue.tubes ?? 3) + "</b><kbd>F</kbd>"
     : '<span>🦶</span>Fins <b id="fin-count">3</b><kbd>F</kbd>';
-  $("fins").title = tubes
-    ? "Walk to the tube " + (venue.waves ? "hut" : "rack") + " · E to pick up"
-    : "Walk to the fin rack · E to pick up";
-  // The Lazy River has no lanes either: one button sends a guest with a tube off to the boarding dock.
-  if (venue.river) {
-    $("lane-controls").innerHTML =
-      // (Two ways round since Phase 3: 1 the lazy loop, 2 the rapids, river-ride.mjs ROUTES.)
-      `<button class="lane-btn pool-btn river-btn" data-lane="river" data-route="0" aria-label="Send the selected guest round the lazy loop"><div class="lane-top"><span class="lane-no">🐢 LAZY<kbd>1</kbd></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Hand a guest a tube</span><span class="lane-caps"></span></div></button>` +
-      `<button class="lane-btn pool-btn river-btn" data-lane="river" data-route="1" aria-label="Send the selected guest down the rapids"><div class="lane-top"><span class="lane-no">⚡ RAPIDS<kbd>2</kbd></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">For thrill-seekers</span><span class="lane-caps"></span></div></button>`;
-    $("lane-controls").classList.remove("five-lanes");
-    return;
-  }
-  // The Rooftop Pool has no lanes and nobody is sent anywhere: its one button is the bar (a tray of margaritas, 1 or F), and it
-  // shows the orders waiting and the DJ's next drop.
-  if (venue.roof) {
-    // (Since Phase 3 the coach seats the guests waiting by the lift: 1 the water, 2 a sunbed, 3 a cabana, rooftop.mjs SEATS.)
-    $("lane-controls").innerHTML =
-      SEATS.map(
-        (s, i) =>
-          `<button class="lane-btn pool-btn seat-btn" data-lane="seat" data-seat="${i}" aria-label="Seat the selected guest: ${s.name.toLowerCase()}"><div class="lane-top"><span class="lane-no">${s.icon} ${s.name}<kbd>${i + 1}</kbd></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count"></span><span class="lane-caps"></span></div></button>`,
-      ).join("") +
-      `<button class="lane-btn pool-btn bar-btn" data-lane="bar" aria-label="Get a tray of margaritas from the bar"><div class="lane-top"><span class="lane-no">🍹 BAR<kbd>B</kbd></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">No orders yet</span><span class="lane-caps"></span></div></button>`;
-    $("lane-controls").classList.add("five-lanes");
+  $("fins").title = tubes ? "Tubes" : "Fins";
+  const bar = chip("bar-btn", 'data-lane="bar" hidden', "🍹", "B", "A tray of margaritas from the bar");
+  let chips = "";
+  // (The Lazy River's two ways round: 1 the lazy loop, 2 the rapids, river-ride.mjs ROUTES.)
+  if (venue.river)
+    chips =
+      chip("river-btn when-ready", 'data-lane="river" data-route="0"', "🐢", "1", "The lazy loop") +
+      chip("river-btn when-ready", 'data-lane="river" data-route="1"', "⚡", "2", "The rapids");
+  // (The Rooftop Pool's seats for a guest waiting by the lift: 1 the water, 2 a sunbed, 3 a cabana, rooftop.mjs SEATS.)
+  else if (venue.roof) {
+    chips =
+      SEATS.map((s, i) =>
+        chip("seat-btn when-ready", `data-lane="seat" data-seat="${i}"`, s.icon, i + 1, s.name.toLowerCase()),
+      ).join("") + bar;
     $("fins").innerHTML = '<span>🍹</span>Tray <b id="fin-count">3</b><kbd>F</kbd>';
-    $("fins").title = "Walk to the bar · E for a tray of margaritas";
-    return;
+    $("fins").title = "A tray of margaritas";
   }
-  // The Wave Pool has no lanes and nobody is sent in: one button stops the wave machine, or starts it again.
-  if (venue.waves) {
-    $("lane-controls").innerHTML =
-      `<button class="lane-btn pool-btn waves-btn" data-lane="waves" aria-label="Stop the waves, or start them again"><div class="lane-top"><span class="lane-no">🌊 WAVES</span><span class="lane-mode">ON</span></div><div class="lane-bottom"><span class="lane-count">Press 1 to stop</span><span class="lane-caps"></span></div></button>`;
-    $("lane-controls").classList.remove("five-lanes");
-    return;
-  }
-  // The Jumping Pool: a button for each height, LOW, MID and HIGH (1 to 3, in their green, yellow and red), and the hot tub (4):
-  // each shows its two lines (one at each end) and whether it is open yet (dive.mjs).
-  if (venue.dive) {
-    $("lane-controls").innerHTML =
-      HEIGHTS.map(
-        (h, i) =>
-          `<button class="lane-btn pool-btn dive-btn" data-lane="${i}" style="--dive:${h.color}" aria-label="Send the selected guest to the ${h.name} board"><div class="lane-top"><span class="lane-no"><i class="dive-dot"></i>${h.name}<kbd>${i + 1}</kbd></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">${h.label}</span><span class="lane-caps"></span></div></button>`,
-      ).join("") +
-      `<button class="lane-btn pool-btn dive-btn tub-btn" data-lane="3" aria-label="Send the selected guest to the hot tub"><div class="lane-top"><span class="lane-no">♨️ TUB<kbd>4</kbd></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Hot tub guests</span><span class="lane-caps"></span></div></button>`;
-    $("lane-controls").classList.add("five-lanes");
-    return;
-  }
-  // The Kids Pool has no lanes: one button sends the kid the coach has caught into the pool (its emptiest zone, sim.poolLane).
-  if (venue.kids) {
-    $("lane-controls").innerHTML =
-      `<button class="lane-btn pool-btn" data-lane="pool" aria-label="Send the kid you caught into the pool"><div class="lane-top"><span class="lane-no">🌊 POOL</span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Catch a kid first</span><span class="lane-caps"></span></div></button>`;
-    $("lane-controls").classList.remove("five-lanes");
-    return;
-  }
-  const word = venue.class ? "ZONE" : venue.onsen ? "SPRING" : "LANE";
-  $("lane-controls").innerHTML =
-    venue.lanes
-      .map(
-        (x, i) =>
-          `<button class="lane-btn" data-lane="${i}" aria-label="Assign selected swimmer to ${word.toLowerCase()} ${i + 1}"><div class="lane-top"><span class="lane-no"><span class="lane-word">${word} </span>0${i + 1}</span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">Jump on in</span><span class="lane-caps"></span></div></button>`,
-      )
-      .join("") +
-    (venue.cruise
-      ? `<button class="lane-btn pool-btn bar-btn" data-lane="bar" aria-label="Get a tray of margaritas from the bar"><div class="lane-top"><span class="lane-no">🍹<span class="lane-word"> BAR</span></span><span class="lane-mode">OPEN</span></div><div class="lane-bottom"><span class="lane-count">No orders yet</span><span class="lane-caps"></span></div></button>` +
-        `<div class="lane-btn ship-gauge" aria-label="How far the ship is rolling"><div class="lane-top"><span class="lane-no">⚓<span class="lane-word"> SHIP</span></span><span class="lane-mode">STEADY</span></div><div class="lane-bottom"><span class="lane-count">0°</span><span class="ship-dial"><i></i></span></div></div>`
-      : "") +
-    (venue.trampoline
-      ? `<button class="lane-btn trampoline-btn" data-lane="trampoline" aria-label="Send selected daredevil to the trampoline"><div class="lane-top"><span class="lane-no">🤸<span class="lane-word"> TRAMP</span></span><span class="lane-mode">READY</span></div><div class="lane-bottom"><span class="lane-count">Daredevils only</span><span class="lane-caps"></span></div></button>`
-      : "");
-  $("lane-controls").classList.toggle("five-lanes", venue.lanes.length > 3);
-}
-// The Jumping Pool's buttons, each frame: a height's two lines (LEFT · RIGHT), CLOSED until it opens (with its countdown), BUSY
-// when both lines are long; the hot tub's seats; a warning when the guest picked is sent too high (or too low) for what they say.
-function updateDiveButton(b, i, p) {
-  const mode = sim.status,
-    D = sim.dive;
-  if (!D) return;
-  putFlag(b, "disabled", mode !== "playing");
-  if (i === TUB_LANE) {
-    const guests = tubGuests(sim),
-      cap = TUB.cap,
-      dirty = !!sim.cleanup;
-    b.classList.toggle("danger", dirty);
-    b.classList.toggle(
-      "assignable",
-      mode === "playing" && !!p?.tubOnly && p.status === "queue" && guests.length < cap && !dirty,
-    );
-    put(
-      part(b, ".lane-mode"),
-      dirty ? "CLOSED" : guests.length >= cap ? "FULL" : guests.length ? "ROOM" : "OPEN",
-    );
-    put(part(b, ".lane-count"), dirty ? "Clean it up!" : guests.length + " of " + cap + " seats");
-    putHTML(
-      part(b, ".lane-caps"),
-      guests.map((q) => '<i style="background:' + roofLook(q).color + '"></i>').join(""),
-    );
-    return;
-  }
-  const open = boardOpen(sim, i),
-    left = lineLength(sim, i),
-    right = lineLength(sim, 3 + i),
-    full = D.boards[i].line.length >= LINE_MAX && D.boards[3 + i].line.length >= LINE_MAX,
-    canSend =
-      !!p &&
-      !p.tubOnly &&
-      (p.status === "queue" || (p.status === "dive" && ["walk", "line"].includes(p.dive)));
-  const diff = canSend ? i - SKILL[shownType(p)] : 0;
-  b.classList.toggle("assignable", mode === "playing" && open && canSend && !full);
-  b.classList.toggle("lane-closed", !open);
-  b.classList.toggle("danger", open && (left > LINE_ROOM || right > LINE_ROOM || (canSend && diff > 0)));
-  b.classList.toggle("dive-low", open && canSend && diff < 0);
-  put(
-    part(b, ".lane-mode"),
-    !open
-      ? "OPENS IN " + Math.max(1, Math.ceil(D.opens[i] - sim.arrivalTime)) + "s"
-      : full
-        ? "FULL"
-        : canSend && diff > 0
-          ? "TOO HIGH?"
-          : canSend && diff < 0
-            ? "TOO LOW?"
-            : left + right === 0
-              ? "OPEN"
-              : "LINES",
-  );
-  put(part(b, ".lane-count"), !open ? HEIGHTS[i].label : "◀ " + left + " · " + right + " ▶");
-  putHTML(
-    part(b, ".lane-caps"),
-    [...D.boards[i].line, ...D.boards[3 + i].line]
-      .slice(0, 8)
-      .map((id) => sim.get(id))
-      .filter(Boolean)
-      .map((q) => '<i style="background:' + roofLook(q).color + '"></i>')
-      .join(""),
-  );
+  // (The Wave Pool's machine: stopped, or started again.)
+  else if (venue.waves) chips = chip("waves-btn", 'data-lane="waves"', "🌊", "Z", "The wave machine");
+  else if (venue.cruise) chips = bar;
+  $("lane-controls").innerHTML = chips;
+  $("lane-controls").classList.remove("five-lanes");
 }
 // ?cannonball=carl or ?cannonball=leopard puts that man in every Cannonball incident, whatever the level (to look at him).
 const forcedMan = ["carl", "leopard"].includes(params.get("cannonball")) ? params.get("cannonball") : null;
@@ -2407,7 +2318,7 @@ function returnMenu() {
   $("welcome").hidden = false;
   $("queue-panel").hidden = true;
   $("combo").hidden = true;
-  $("closure").hidden = true;
+  renderStickers(NO_CARDS);
   $("toast").hidden = true;
   document.body.classList.add("menu");
   weekShift = null;
@@ -3364,10 +3275,10 @@ function updateQueue() {
         Math.round(p.h) +
         "% happy · " +
         (p.type === "daredevil"
-          ? "Trampoline only · T"
+          ? "Trampoline only"
           : p.type === "child"
             ? p.status === "queue"
-              ? "Caught! Send them INTO THE POOL · 1"
+              ? "Caught!"
               : "Splashing about"
             : sim.venue.roof || p.chill
               ? (p.status === "lounge"
@@ -3391,7 +3302,7 @@ function updateQueue() {
                       : "Riding the river"
                     : sim.venue.onsen
                       ? "Soaking in Spring " + (p.lane + 1) + ((p.cold || 0) > 0.1 ? " · warming up" : "")
-                      : "Pick a lane to move them"
+                      : "Swimming"
                   : profile.speed
                     ? profile.speed + "× pace"
                     : "Aqua class") +
@@ -3402,30 +3313,6 @@ function updateQueue() {
 // The Wave Pool's WAVES button (renderLaneControls): ON with the seconds left of the set, the calm's countdown to the next, the
 // horn, a monster on its way (red, flashing), STOPPED by the coach (and for how long: the bathers grow restless), or stopped for an
 // emergency. Its dots are the bathers in the water, red for the dizzy ones.
-function updateShipGauge(b) {
-  const S = sim.ship,
-    deg = (S.angle * 180) / Math.PI,
-    k = slide(sim),
-    warn = S.phase === "warn",
-    adrift = sim.roof?.beds.filter((q) => q.adrift).length || 0;
-  b.classList.toggle("danger", warn || Math.abs(k) > 0.3);
-  put(
-    part(b, ".lane-mode"),
-    warn ? "SWELL " + Math.max(1, Math.ceil(S.dur - S.t)) : k ? (deg > 0 ? "STBD ▶" : "◀ PORT") : "STEADY",
-  );
-  put(
-    part(b, ".lane-count"),
-    Math.abs(deg).toFixed(0) +
-      "°" +
-      (warn
-        ? " · 🔔 hold on!"
-        : adrift
-          ? " · " + adrift + " lounger" + (adrift > 1 ? "s" : "") + " adrift"
-          : ""),
-  );
-  // (The dial's bar shows the deck: it tips the way she rolls, so the screen's left goes down when she leans to port.)
-  putStyle(part(b, ".ship-dial i"), "transform", "rotate(" + (-deg * 2).toFixed(1) + "deg)");
-}
 function updateWavesButton(b) {
   const board = waveBoard(sim.waves);
   if (!board) return;
@@ -3451,23 +3338,10 @@ function updateWavesButton(b) {
                 : "STOPPED"
               : "OFF",
   );
+  // (the seconds of what it is counting: the set's, the calm's, the horn's, the monster's)
   put(
     part(b, ".lane-count"),
-    board.state === "stopped"
-      ? (board.seconds > BATHE.grace ? "They want waves! " : "Stopped · ") + "press Z to start"
-      : board.state === "halted"
-        ? board.reason === "rescue"
-          ? "Stopped for the rescue"
-          : board.reason === "blackout"
-            ? "Fix the power"
-            : "Stopped · pool closed"
-        : board.state === "monster"
-          ? "Monster in " + secs + " · Z to stop!"
-          : board.state === "horn"
-            ? "Waves in " + secs
-            : board.state === "calm"
-              ? "Next set in " + secs + " · Z stops"
-              : (dizzy ? dizzy + " dizzy · " : "") + secs + "s left · Z stops",
+    secs !== null && board.state !== "stopped" && board.state !== "halted" ? secs + "s" : "",
   );
   putHTML(
     part(b, ".lane-caps"),
@@ -3584,48 +3458,8 @@ function updateUI() {
   );
   putFlag($("assist"), "disabled", mode !== "playing");
   put(part($("assist"), ".interact-label"), sim.nearestInteraction()?.label || "Interact");
-  const p = sim.get(sim.selected),
-    blocked = sim.laneBlocked(),
-    moving = p?.status === "swim" && !p.problem ? p : null;
-  // The Kids Pool's one button: how many are splashing, and whether there is room (sim.kidsRoom: KIDS_ROOM, more for a party).
-  const poolBtn = laneButton("pool");
-  if (poolBtn) {
-    const kids = sim.people.filter((q) => ["swim", "enter"].includes(q.status) && q.type === "child");
-    poolBtn.classList.toggle(
-      "assignable",
-      mode === "playing" && !sim.closed && !sim.rescue && p?.status === "queue",
-    );
-    const room = sim.kidsRoom();
-    poolBtn.classList.toggle("danger", kids.length > room);
-    put(
-      part(poolBtn, ".lane-mode"),
-      sim.closed
-        ? "CLOSED"
-        : kids.length > room
-          ? "PACKED!"
-          : kids.length === room
-            ? "FULL"
-            : kids.length
-              ? "SPLASHING"
-              : "OPEN",
-    );
-    put(
-      part(poolBtn, ".lane-count"),
-      p?.status === "queue"
-        ? "Send " + p.name + " in!"
-        : kids.length
-          ? kids.length + " of " + room + " kids splashing"
-          : "Catch a kid first",
-    );
-    putHTML(
-      part(poolBtn, ".lane-caps"),
-      kids
-        .slice(0, 10)
-        .map((q) => '<i style="background:' + roofLook(q).color + '"></i>')
-        .join(""),
-    );
-    putFlag(poolBtn, "disabled", mode !== "playing" || !!sim.rescue);
-  }
+  // (No lane buttons to keep up since 13 November 2026: a lane's state is in the pool itself. The chips that are left follow.)
+  const p = sim.get(sim.selected);
   // The Lazy River's one button: who is riding, who is round the loop, and whether the selected guest has a tube yet.
   // The Lazy River's two ways round (Phase 3): who is on each, the rapids' room, and what the selected guest would make of it.
   for (const riverBtn of $("lane-controls").querySelectorAll('[data-lane="river"]')) {
@@ -3680,22 +3514,18 @@ function updateUI() {
     const orders = sim.people.filter((q) => q.problem === "drink"),
       at = nextDrop(sim),
       building = !!sim.roof?.warned && at != null;
+    // (the chip: what is on the tray, or how many are waiting for a drink; there only while one is, or the tray is in hand.
+    // The DJ's drop has its own sticker.)
     put(
       part(barBtn, ".lane-mode"),
       sim.coach.carry === "tray"
-        ? "TRAY " + sim.coach.tray + "/" + CHILL.tray
-        : building
-          ? "DROP " + Math.max(1, Math.ceil(at - sim.time))
-          : "OPEN",
+        ? sim.coach.tray + "/" + CHILL.tray
+        : orders.length
+          ? "×" + orders.length
+          : "",
     );
-    put(
-      part(barBtn, ".lane-count"),
-      orders.length
-        ? orders.length + " margarita" + (orders.length > 1 ? "s" : "") + " ordered"
-        : building
-          ? "🎧 The drop is coming!"
-          : "No orders · press B for a tray",
-    );
+    putFlag(barBtn, "hidden", !orders.length && sim.coach.carry !== "tray");
+    barBtn.classList.toggle("assignable", orders.length > 0 && sim.coach.carry !== "tray");
     putHTML(
       part(barBtn, ".lane-caps"),
       orders
@@ -3746,206 +3576,15 @@ function updateUI() {
     );
     putFlag(seatBtn, "disabled", mode !== "playing");
   }
-  // The Cruise Ship's gauge: how far she rolls now (the bar tips with her), a big swell's countdown, what slid.
-  const gauge = $("lane-controls").querySelector(".ship-gauge");
-  if (gauge && sim.ship) updateShipGauge(gauge);
   // The Wave Pool's one button: the machine's state, the clock to the next set, the bathers in the water and how many are dizzy.
   const wavesBtn = laneButton("waves");
   if (wavesBtn) updateWavesButton(wavesBtn);
-  for (let i = 0; i < sim.lanes.length; i++) {
-    if (sim.venue.river || sim.venue.waves || sim.venue.roof) break;
-    const people = sim.lanePeople(i),
-      count = sim.occupancy(i),
-      average = people.length ? people.reduce((sum, p) => sum + p.h, 0) / people.length : 100;
-    const b = laneButton(i);
-    if (!b) continue;
-    // (The Jumping Pool's heights and its hot tub: dive.mjs.)
-    if (sim.venue.dive) {
-      updateDiveButton(b, i, p);
-      continue;
-    }
-    // (the big moment's race lane, Phase 3: locked like the splash lane until the race is over)
-    const race =
-        sim.big?.kind === "race" && ["announce", "live"].includes(sim.big.stage) && i === sim.big.lane,
-      splash = i === blocked || race,
-      closed = i === sim.laneClosed(),
-      moveHere = !!moving && moving.lane !== i && !splash && !closed;
-    b.classList.toggle(
-      "assignable",
-      mode === "playing" &&
-        !sim.closed &&
-        !sim.rescue &&
-        !splash &&
-        !closed &&
-        ((p?.status === "queue" && p.type !== "daredevil") ||
-          sim.coach.carry === "chlorine" ||
-          moveHere ||
-          // (the zones and springs take the longest-waiting guest with nobody selected: sim.assign)
-          ((sim.venue.class || sim.venue.onsen) &&
-            p?.status !== "swim" &&
-            sim.people.some((q) => q.status === "queue" && !(q.finsFirst && !q.hasFins)))),
-    );
-    b.classList.toggle("splash-zone", splash);
-    b.classList.toggle("lane-closed", closed);
-    b.classList.toggle("danger", average < 50 || people.some((p) => p.blocked > 3));
-    // (At the Aqua Disco a zone holds CLASS_ROOM dancers; more and they crowd each other.)
-    const zone = !!sim.venue.class;
-    // (At the hot springs a spring has its seats: FULL when they are all taken, MONKEY! when one is sitting in it.)
-    if (sim.venue.onsen) {
-      const guests = springGuests(sim, i),
-        cap = SPRINGS[i].cap,
-        monkey = !!monkeyIn(sim, i);
-      b.classList.toggle("danger", monkey || average < 50);
-      b.classList.toggle("assignable", b.classList.contains("assignable") && guests.length < cap);
-      put(
-        part(b, ".lane-mode"),
-        monkey ? "MONKEY!" : guests.length >= cap ? "FULL" : guests.length === 0 ? "OPEN" : "ROOM",
-      );
-      put(part(b, ".lane-count"), monkey ? "🐒 Shoo it out!" : guests.length + " of " + cap + " seats");
-      putHTML(
-        part(b, ".lane-caps"),
-        guests.map((p) => '<i style="background:' + roofLook(p).color + '"></i>').join(""),
-      );
-      putFlag(b, "disabled", mode !== "playing" || !!sim.rescue);
-      continue;
-    }
-    put(
-      part(b, ".lane-mode"),
-      closed
-        ? "CLOSED"
-        : splash
-          ? race
-            ? "RACE!"
-            : "SPLASH!"
-          : moveHere
-            ? "MOVE HERE"
-            : count === 0
-              ? "OPEN"
-              : zone
-                ? count < CLASS_ROOM
-                  ? "ROOM"
-                  : count === CLASS_ROOM
-                    ? "FULL"
-                    : "PACKED!"
-                : count === 1
-                  ? "SOLO"
-                  : count === 2
-                    ? "SPLIT"
-                    : "CIRCLE",
-    );
-    put(
-      part(b, ".lane-count"),
-      closed
-        ? "Wet floor"
-        : splash
-          ? count
-            ? "Clear this lane!"
-            : race
-              ? "Clear for the race 🏁"
-              : "Flip incoming"
-          : count === 0
-            ? "Jump on in"
-            : zone
-              ? count + " of " + CLASS_ROOM + " dancers"
-              : count + " swimmer" + (count === 1 ? "" : "s"),
-    );
-    putHTML(
-      part(b, ".lane-caps"),
-      people
-        .slice(0, 8)
-        .map((p) => '<i style="background:' + roofLook(p).color + '"></i>')
-        .join(""),
-    );
-    putFlag(b, "disabled", mode !== "playing" || !!sim.rescue);
-  }
-  updateTrampolineButton(p);
   const chaos = sim.people.filter(
     (p) => p.status === "swim" && (p.h < 50 || p.problem || p.blocked > 3),
   ).length;
   const count = sim.people.filter((p) => p.status === "queue").length;
-  put(
-    $("pool-status"),
-    mode === "menu"
-      ? "A good day for a dip."
-      : sim.rescue?.kind === "crash"
-        ? "CRASH! Rings, then first aid."
-        : sim.rescue
-          ? "Rescue in progress · hold your lanes."
-          : sim.people.some((p) => p.status === "injured")
-            ? "Swimmers hurt on deck · med kit!"
-            : sim.fish?.stage === "loose"
-              ? "Fish in the pool · clock held."
-              : sim.closed
-                ? "Cleanup in progress · clock held."
-                : sim.outage?.stage === "dark"
-                  ? "Blackout! Lanes are bumping."
-                  : sim.outage?.stage === "flicker"
-                    ? "The lights are flickering…"
-                    : sim.fish?.stage === "approach"
-                      ? "Is that kid carrying a FISH?"
-                      : sim.karen && !["calmed", "leaving"].includes(sim.visitor(sim.karen.id)?.status)
-                        ? "Karen is complaining. Everyone is annoyed."
-                        : sim.influencer && ["posing", "strolling"].includes(sim.influencer.stage)
-                          ? "Someone is filming in the middle of the deck."
-                          : sim.massage?.stage === "lying"
-                            ? "Someone is waiting on the massage table."
-                            : sim.carl
-                              ? sim.carl.name + " is loose. Brace for splash."
-                              : sim.dog && sim.dog.stage !== "leaving"
-                                ? "There’s a dog on the deck!"
-                                : sim.get(sim.jumper)?.jumpStage === "waiting"
-                                  ? "A daredevil is waiting on the tower."
-                                  : sim.laneClosed() >= 0
-                                    ? laneWord(sim) + " " + (sim.laneClosed() + 1) + " is closed · wet floor."
-                                    : chaos > 3
-                                      ? "Keep calm. Mostly calm."
-                                      : chaos > 0
-                                        ? "Someone needs a little love."
-                                        : sim.streak >= 3
-                                          ? "Now we’re in the swim of it."
-                                          : count > 3
-                                            ? "The deck is getting crowded."
-                                            : "Looking good, coach.",
-  );
-  put(
-    $("hint"),
-    sim.incidentHint() ||
-      (sim.coach.carry === "skimmer"
-        ? sim.coach.skimmerLoaded
-          ? "WASTE BIN · E TO EMPTY"
-          : "POOL EDGE · E TO SCOOP"
-        : sim.coach.carry === "chlorine"
-          ? "WALK TO THE POOL EDGE · E TO POUR"
-          : sim.coach.carry === "tray"
-            ? "NEAR A GUEST WHO ORDERED · E TO SERVE"
-            : sim.coach.carry === "fins"
-              ? sim.venue.river || sim.venue.waves
-                ? "NEAR A GUEST · E TO GIVE THE TUBE / ELSE E TO DROP"
-                : "NEAR SWIMMER · E TO GIVE / ELSE E TO DROP"
-              : sim.coach.carry
-                ? "MEET YOUR SWIMMER · E TO HAND OVER"
-                : sim.cleanup
-                  ? sim.sanitationHint().toUpperCase()
-                  : p?.status === "queue"
-                    ? "● ● ●"
-                    : sim.clutter.length
-                      ? "PICK UP DROPPED GEAR · E"
-                      : "WASD MOVE · SHIFT DASH · SPACE JUMP"),
-  );
-  // The status box only when it has something to say (5 November 2026, "too much UI"): an incident, a job in hand or its next
-  // step. Its calm lines and the keys' reminder are left out (the keys stay in the first lesson, and in Help).
-  const calmStatus = [
-      "A good day for a dip.",
-      "Keep calm. Mostly calm.",
-      "Someone needs a little love.",
-      "Now we’re in the swim of it.",
-      "The deck is getting crowded.",
-      "Looking good, coach.",
-    ].includes($("pool-status").textContent),
-    calmHint = ["● ● ●", "PICK UP DROPPED GEAR · E", "WASD MOVE · SHIFT DASH · SPACE JUMP"].includes(
-      $("hint").textContent,
-    );
-  putFlag($("pool-status-box"), "hidden", calmStatus && calmHint && sim.config.tutorial !== 1);
+  // (No status box since 13 November 2026: what is going on is a sticker in the column on the left, and what to do next is in
+  // the world: the alert's marker, the prompt over the coach.)
   // The happy streak's badge (Phase 3): the count, its tier and multiplier, what the next tier needs, and the guest who puts it at
   // risk; for a moment after it breaks, what broke it.
   const tier = streakTier(sim.streak),
@@ -3983,100 +3622,116 @@ function updateUI() {
           : "Unstoppable. Keep it going!",
     );
   }
-  renderIncidentPanel(sim.cleanup ? sanitationPanel() : sim.incidentPanel());
+  renderStickers(mode === "menu" ? NO_CARDS : incidentCards(sim));
   audio.panic = mode !== "menu" && sim.chaosPanic();
   audio.urgency = Math.min(1, (chaos + count) / 10);
   if (mode !== "menu") updateQueue();
 }
-function updateTrampolineButton(p) {
-  const b = laneButton("trampoline"),
-    tr = sim.venue.trampoline;
-  if (!b || !tr) return;
-  const j = sim.get(sim.jumper),
-    waiting = sim.people.filter((q) => q.status === "queue" && q.type === "daredevil").length;
-  b.classList.toggle(
-    "assignable",
-    mode === "playing" && !sim.rescue && !sim.closed && !j && p?.status === "queue" && p.type === "daredevil",
-  );
-  b.classList.toggle("danger", j?.jumpStage === "waiting" && j.jumpPatience < 5);
-  put(
-    part(b, ".lane-mode"),
-    sim.rescue?.kind === "crash"
-      ? "CRASH!"
-      : !j
-        ? "READY"
-        : j.jumpStage === "toStairs"
-          ? "WALKING"
-          : j.jumpStage === "waiting"
-            ? Math.ceil(j.jumpPatience) + "s"
-            : "FLIP!",
-  );
-  put(
-    part(b, ".lane-count"),
-    j
-      ? j.jumpStage === "waiting"
-        ? "Clear lane " + (tr.lane + 1) + "!"
-        : j.name + " on the tower"
-      : waiting
-        ? waiting + " daredevil" + (waiting === 1 ? "" : "s") + " waiting"
-        : "Daredevils only",
-  );
-  putFlag(b, "disabled", mode !== "playing" || !!sim.rescue);
-}
-function sanitationPanel() {
-  // A wee: everybody out, then the chlorine (there is nothing to scoop).
-  if (sim.cleanup.kind === "pee")
-    return {
-      icon: "💛",
-      title: "WHO PEED?!",
-      task: sim.sanitationHint(),
-      steps: ["EVERYBODY OUT", "CHLORINE"].map((label, i) => ({
-        label: i + 1 + " · " + label,
-        active: i === 1,
-        done: i < 1,
-      })),
-    };
-  const order = ["floating", "caught", "return", "treat"],
-    stage = order.indexOf(sim.cleanup.stage);
-  return {
-    icon: "💩",
-    title: ["EVERYBODY OUT!", "TO THE WASTE BIN!", "RETURN THE SKIMMER", "BALANCE THE WATER"][stage],
-    task: sim.sanitationHint(),
-    steps: ["SKIM", "BIN", "HANG", "CHLORINE"].map((label, i) => ({
-      label: i + 1 + " · " + label,
-      active: i === stage,
-      done: i < stage,
-    })),
-  };
-}
-let panelKey = "";
-function renderIncidentPanel(panel) {
-  putFlag($("closure"), "hidden", !panel || mode === "menu");
-  $("closure").classList.toggle("big-moment", !!panel?.big);
-  if (!panel) return;
-  put($("closure").firstElementChild, panel.icon);
-  put($("closure-title"), panel.title);
-  put($("closure-task"), panel.task || "");
-  // Timed threats drain a fuse on the banner.
-  const timer = part($("closure"), ".closure-timer"),
-    left = Number.isFinite(panel.timer) ? Math.max(0, Math.min(1, panel.timer)) : null;
-  putFlag(timer, "hidden", left === null);
-  if (left !== null) {
-    putStyle(timer.firstElementChild, "width", left * 100 + "%");
-    timer.classList.toggle("low", left < 0.35);
+// ---- the incidents' stickers (13 November 2026, incident-cards.mjs) -------------------------------------------------------
+// The creator: "The only thing I need to know on the HUD is that Karen is there… minimize the card into an icon… like a sticker,
+// so maybe I can see there are two or three remaining incidents that need my attention. Maybe, if I hover over the sticker,
+// then we display the original card with a little bit more text, but it has to be very, very minimal."
+// A row of stickers at the top of the column of messages, one for each incident pending, an exclamation mark at its corner
+// (red and pulsing when it presses: a rescue, a fuse nearly burnt); a fuse under it when the incident is timed. Over a sticker
+// (the mouse, the keyboard's focus, a tap) its card: a name and one line. Nothing else is written about an incident.
+const NO_CARDS = [];
+const stickers = new Map(); // id → {el, card, leaving}
+let stickerOver = null, // the sticker whose card is shown
+  stickerPinned = false; // (by a tap: until the next tap)
+function renderStickers(cards) {
+  const row = $("stickers");
+  if (!cards.length && !stickers.size) return;
+  for (let i = 0; i < cards.length; i++) {
+    const c = cards[i];
+    let s = stickers.get(c.id);
+    if (!s || s.sticker !== c.sticker) {
+      // (new, or the same incident with another face: Carl's clean-up after the leopard man's)
+      s?.el.remove();
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "sticker";
+      el.dataset.id = c.id;
+      // (a little askew, each its own way, like stickers put on by hand)
+      el.style.setProperty("--tilt", (((c.id.charCodeAt(0) * 7 + c.id.length * 13) % 9) - 4) * 1.2 + "deg");
+      el.append(
+        stickerImage(c.sticker),
+        Object.assign(document.createElement("i"), { className: "sticker-bang", textContent: "!" }),
+        Object.assign(document.createElement("i"), { className: "sticker-fuse", innerHTML: "<b></b>" }),
+      );
+      el.lastChild.setAttribute("aria-hidden", "true");
+      row.appendChild(el);
+      s = { el, sticker: c.sticker };
+      stickers.set(c.id, s);
+    }
+    if (s.leaving) {
+      clearTimeout(s.leaving);
+      s.leaving = 0;
+      s.el.classList.remove("leaving");
+    }
+    s.card = c;
+    s.seen = true;
+    const label = c.title + ". " + c.line;
+    if (s.label !== label) {
+      s.label = label;
+      s.el.setAttribute("aria-label", label);
+    }
+    s.el.classList.toggle("urgent", !!c.urgent);
+    s.el.classList.toggle("timed", c.timer !== null);
+    if (c.timer !== null) putStyle(part(s.el, ".sticker-fuse b"), "width", Math.round(c.timer * 100) + "%");
+    // (kept in the cards' order: the most pressing first)
+    if (row.children[i] !== s.el) row.insertBefore(s.el, row.children[i] || null);
   }
-  const key = JSON.stringify(panel.steps || []);
-  if (key !== panelKey) {
-    panelKey = key;
-    const steps = part($("closure"), ".cleanup-steps");
-    putFlag(steps, "hidden", !panel.steps?.length);
-    putHTML(
-      steps,
-      (panel.steps || [])
-        .map((s) => `<span class="${s.active ? "active" : ""} ${s.done ? "done" : ""}">${s.label}</span>`)
-        .join(""),
-    );
+  for (const [id, s] of stickers) {
+    if (s.seen) {
+      s.seen = false;
+      continue;
+    }
+    if (s.leaving) continue;
+    // (dealt with: it peels off)
+    s.el.classList.add("leaving");
+    s.leaving = setTimeout(() => {
+      s.el.remove();
+      stickers.delete(id);
+      if (stickerOver === id) showStickerCard(null);
+    }, 320);
   }
+  if (stickerOver) showStickerCard(stickerOver);
+}
+function showStickerCard(id, pinned = stickerPinned) {
+  const s = id && stickers.get(id),
+    box = $("sticker-card");
+  stickerOver = s && !s.leaving ? id : null;
+  stickerPinned = !!stickerOver && pinned;
+  putFlag(box, "hidden", !stickerOver);
+  for (const [key, other] of stickers) other.el.classList.toggle("open", key === stickerOver);
+  if (!stickerOver) return;
+  put(box.firstElementChild, s.card.title);
+  put(box.lastElementChild, s.card.line);
+  box.classList.toggle("urgent", !!s.card.urgent);
+}
+function bindStickers() {
+  const row = $("stickers"),
+    of = (e) => e.target.closest?.(".sticker")?.dataset.id || null;
+  row.addEventListener(
+    "pointerover",
+    (e) => e.pointerType === "mouse" && of(e) && showStickerCard(of(e), false),
+  );
+  row.addEventListener(
+    "pointerout",
+    (e) => e.pointerType === "mouse" && !stickerPinned && showStickerCard(null),
+  );
+  row.addEventListener("focusin", (e) => of(e) && showStickerCard(of(e), false));
+  row.addEventListener("focusout", () => !stickerPinned && showStickerCard(null));
+  // (a tap, or a click: its card stays until the next one)
+  row.addEventListener("click", (e) => {
+    const id = of(e);
+    if (!id) return;
+    showStickerCard(stickerPinned && stickerOver === id ? null : id, true);
+    e.target.closest(".sticker").blur();
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (stickerPinned && !e.target.closest?.(".sticker")) showStickerCard(null, false);
+  });
 }
 function updateContext() {
   const floater = $("scoop-target"),
@@ -5390,6 +5045,8 @@ function bind() {
     start(b.dataset.booking);
   };
   $("booking-back").onclick = () => $("booking-dialog").close();
+  bindStickers();
+  whenIdle(warmStickers, 4000);
   $("lane-controls").onclick = (e) => {
     const b = e.target.closest("[data-lane]");
     if (!b) return;

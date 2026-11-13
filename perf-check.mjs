@@ -253,11 +253,8 @@ assert.match(bodyOf(app, "function cueFrame(t)"), /host\.el\.querySelector\(host
   for (const head of [
     "function updateUI() {",
     "function updateQueue() {",
-    "function updateDiveButton(b, i, p) {",
     "function updateWavesButton(b) {",
-    "function updateShipGauge(b) {",
-    "function updateTrampolineButton(p) {",
-    "function renderIncidentPanel(panel) {",
+    "function renderStickers(cards) {",
   ]) {
     const body = bodyOf(app, head);
     assert.ok(
