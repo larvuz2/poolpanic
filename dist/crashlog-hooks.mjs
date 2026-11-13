@@ -53,6 +53,12 @@ export function installCrashLog({
   now,
   schedule,
 } = {}) {
+  // The log's saves (the session as text, to the device's storage) wait for a moment the page is idle, a quarter of a second at
+  // most after they are due: between two frames instead of inside one (13 November 2026). A new error is still saved at once.
+  // (No such thing in Safari: there a save is made when it is due, as before.)
+  const idle = win?.requestIdleCallback?.bind(win),
+    timeout = win?.setTimeout?.bind(win) || setTimeout;
+  schedule ||= (fn, ms) => timeout(() => (idle ? idle(() => fn(), { timeout: 250 }) : fn()), ms);
   const log = new CrashLog({ storage, now, schedule });
   log.hooks = [];
   const on = (target, type, fn, options) => {

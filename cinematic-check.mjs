@@ -209,7 +209,7 @@ for (const [id, shots] of Object.entries(VENUE_SHOTS))
   );
   assert.match(app, /document\.addEventListener\("keydown", skipCinematic, \{ capture: true \}\)/);
   assert.match(app, /document\.addEventListener\("pointerdown", skipCinematic, \{ capture: true \}\)/);
-  assert.match(app, /\$\("countdown"\)\.hidden = mode !== "countdown" \|\| !!world\.cinematic/);
+  assert.match(app, /putFlag\(\$\("countdown"\), "hidden", mode !== "countdown" \|\| !!world\.cinematic\)/);
   for (const id of [
     "intro-cine",
     "cine-black",

@@ -499,6 +499,45 @@ function withDome(name, venue) {
   return { ...base, dome };
 }
 
+// The pictures of a material that are sharpened at a slant (PoolWorld.sharpenTextures).
+// (a point on its way to the screen, project and screenPoint: every tag asks every frame, so not a new vector each time)
+const SCREEN_A = new THREE.Vector3(),
+  SCREEN_B = new THREE.Vector3();
+const SHARP_SLOTS = ["map", "normalMap", "roughnessMap", "emissiveMap", "aoMap"];
+// The shadows' own materials (13 November 2026). three.js draws every shadow with one depth material, and works its shader out
+// again each time the thing it draws changes kind: a character on a skeleton, then a bench, then the crowd (one mesh drawn many
+// times), then a character again: five to ten times a frame, each a list of a hundred settings made and compared. With a depth
+// material of their own for the characters and one for the crowd, each keeps its shader and three.js's own keeps the rest. The
+// shadows are drawn by the very same shaders as before.
+const SKINNED_DEPTH = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }),
+  INSTANCED_DEPTH = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+SKINNED_DEPTH.name = "shadow:skinned";
+INSTANCED_DEPTH.name = "shadow:instanced";
+// (a material three.js would give a depth material of its own anyway: cut out by its picture, pushed out, clipped)
+const ownDepth = (m) => !!m && (m.alphaTest > 0 || !!m.displacementMap || m.clipShadows === true);
+function shadowKind(o) {
+  if (!o.castShadow || o.customDepthMaterial !== undefined) return;
+  const skinned = o.isSkinnedMesh === true,
+    instanced = o.isInstancedMesh === true;
+  if (skinned === instanced) return; // (neither, or both: three.js's own)
+  const m = o.material,
+    g = o.geometry;
+  if (Array.isArray(m) ? m.some(ownDepth) : ownDepth(m)) return;
+  if (g?.morphAttributes?.position) return;
+  o.customDepthMaterial = skinned ? SKINNED_DEPTH : INSTANCED_DEPTH;
+}
+// A shape with no thickness, by how it was made and by its own measure (kept on it): a ring, a disc, a plane left flat.
+const FLAT_SHAPES = new Set(["RingGeometry", "CircleGeometry", "PlaneGeometry"]);
+function flatShape(g) {
+  if (!g || !FLAT_SHAPES.has(g.type)) return false;
+  const u = g.userData;
+  if (u.flat === undefined) {
+    if (!g.boundingBox) g.computeBoundingBox();
+    const b = g.boundingBox;
+    u.flat = Math.min(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) < 1e-4;
+  }
+  return u.flat;
+}
 export class PoolWorld extends SceneKit {
   constructor(container, onPick, { headless = false, venue = CLUB, lighting } = {}) {
     super();
@@ -2029,27 +2068,89 @@ export class PoolWorld extends SceneKit {
     if (gfx?.plan) return gfx.plan.ratio(w, h, gfx.scale);
     return Math.min(devicePixelRatio, Math.max(0.5, this.tune.number("dpr", 1.7)));
   }
-  // Textures seen at an angle (the deck, the tiles, the models) stay as sharp as the chosen quality asks (anisotropic filtering). Looked
-  // over every two seconds, so the models that load later get it too; a texture is only sent again when its setting changes.
-  sharpenTextures() {
+  // Sharper pictures at a slant (anisotropic filtering): every picture a material draws with gets the level, looked for every
+  // 2 s (a guest, a visitor or a model may have come) and at once in the shift's warm-up (`force`). A picture the graphics card
+  // does not hold yet takes the level with its first upload. One it holds already is told directly, one parameter on its
+  // texture (`setSharpness`): until 13 November 2026 it was flagged as changed instead, and the whole picture was sent again,
+  // which is what stalled the game a second or two after a visitor came in (Carl's and the dog's 1024 px, Karen's two 1536 px:
+  // 8 to 20 ms where it was measured, 1.3 s once under load). Nothing is made here: no arrays, no closures per material.
+  sharpenTextures(force = false) {
     const want = this.lookAniso || globalThis.__poolGfx?.plan?.anisotropy;
-    if (!want || !this.renderer) return;
-    const now = performance.now();
-    if (now - (this.sharpenedAt || 0) < 2000) return;
-    this.sharpenedAt = now;
-    const level = Math.max(1, Math.min(want, this.renderer.capabilities.getMaxAnisotropy?.() || 1));
-    const visit = (o) => {
-      for (const m of [].concat(o.material || []))
-        for (const key of ["map", "normalMap", "roughnessMap", "emissiveMap", "aoMap"]) {
-          const t = m[key];
-          if (t?.isTexture && t.anisotropy !== level) {
-            t.anisotropy = level;
-            t.needsUpdate = true;
-          }
-        }
+    this.sharpLevel =
+      want && this.renderer
+        ? Math.max(1, Math.min(want, this.renderer.capabilities.getMaxAnisotropy?.() || 1))
+        : 0;
+    if (!this.scene) return;
+    if (!force && performance.now() - (this.tendedAt || 0) < 2000) return;
+    this.tendScene();
+  }
+  // One walk over the scene for what its materials need looking after: their pictures' sharpness (above) and the flat
+  // see-through shapes (below).
+  tendScene() {
+    this.tendVisit ||= (o) => {
+      const m = o.material;
+      if (!m) return;
+      if (o.castShadow === true && o.customDepthMaterial === undefined) shadowKind(o);
+      if (Array.isArray(m)) for (let i = 0; i < m.length; i++) this.tendMaterial(m[i], o);
+      else this.tendMaterial(m, o);
     };
-    this.scene.traverse(visit);
-    this.coachCam?.scene?.traverse(visit);
+    this.tendedAt = performance.now();
+    this.scene.traverse(this.tendVisit);
+    this.coachCam?.scene?.traverse(this.tendVisit);
+  }
+  tendMaterial(m, o) {
+    if (this.sharpLevel) this.sharpenMaterial(m);
+    // A see-through, two-sided material is drawn by three.js in two passes (its back, then its front), and flagged as changed
+    // before each: its shader is looked up and its uniforms sent again, twice a frame. On a flat shape (the rings round the
+    // guests and stations, the discs, the decals) one pass draws exactly the same picture, so those are drawn in one
+    // (13 November 2026: twelve of them in every pool, a third of what a frame allocated).
+    if (
+      m.transparent === true &&
+      m.side === THREE.DoubleSide &&
+      m.forceSinglePass === false &&
+      m.isMeshBasicMaterial &&
+      flatShape(o.geometry)
+    )
+      m.forceSinglePass = true;
+  }
+  sharpenMaterial(m) {
+    const level = this.sharpLevel;
+    for (let k = 0; k < SHARP_SLOTS.length; k++) {
+      const t = m[SHARP_SLOTS[k]];
+      if (t && t.isTexture && t.anisotropy !== level) this.setSharpness(t, level);
+    }
+  }
+  // The level on a picture; on the graphics card's copy too if it has one, as three.js would set it on an upload (the same
+  // conditions: WebGLTextures' setTextureParameters), without the upload.
+  setSharpness(t, level) {
+    t.anisotropy = level;
+    const r = this.renderer,
+      props = r.properties?.get(t),
+      held = props?.__webglTexture;
+    if (!held) return;
+    const ext = r.extensions?.has("EXT_texture_filter_anisotropic")
+      ? r.extensions.get("EXT_texture_filter_anisotropic")
+      : null;
+    // (a kind of texture this does not know, or no way to reach it: the old way, the whole picture again)
+    if (
+      !r.state?.bindTexture ||
+      t.isCubeTexture ||
+      t.isData3DTexture ||
+      t.isDataArrayTexture ||
+      t.isCompressedArrayTexture
+    ) {
+      t.needsUpdate = true;
+      return;
+    }
+    if (!ext || t.magFilter === THREE.NearestFilter) return;
+    if (t.minFilter !== THREE.NearestMipmapLinearFilter && t.minFilter !== THREE.LinearMipmapLinearFilter)
+      return;
+    if (t.type === THREE.FloatType && !r.extensions.has("OES_texture_float_linear")) return;
+    const gl = r.getContext();
+    r.state.bindTexture(gl.TEXTURE_2D, held);
+    gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, level);
+    props.__currentAnisotropy = level;
+    this.sharpenedLive = (this.sharpenedLive || 0) + 1; // (for checks and the log: pictures told without an upload)
   }
   // The view's size in CSS pixels, kept from the last resize: reading the container's size in a frame, after the tags over the
   // guests had moved, made the browser lay the whole page out again, once for every guest (3 November 2026). A ResizeObserver
@@ -2365,8 +2466,8 @@ export class PoolWorld extends SceneKit {
   // Screen position of a world point, whether it is behind the camera (the Coach Cam can face away), and how far
   // it sits to the right (1) or left (-1) of the camera's back.
   screenPoint(x, y, z) {
-    const v = new THREE.Vector3(x, y, z).applyMatrix4(this.scene.matrixWorld),
-      local = v.clone().applyMatrix4(this.camera.matrixWorldInverse),
+    const v = SCREEN_A.set(x, y, z).applyMatrix4(this.scene.matrixWorld),
+      local = SCREEN_B.copy(v).applyMatrix4(this.camera.matrixWorldInverse),
       { w, h } = this.viewSize();
     v.project(this.camera);
     return {
@@ -2378,7 +2479,7 @@ export class PoolWorld extends SceneKit {
   }
   project(x, y, z) {
     // (The scene's own turn: the cruise ship's roll, scene/cruise.mjs; nothing anywhere else.)
-    const v = new THREE.Vector3(x, y, z).applyMatrix4(this.scene.matrixWorld).project(this.camera),
+    const v = SCREEN_A.set(x, y, z).applyMatrix4(this.scene.matrixWorld).project(this.camera),
       { w, h } = this.viewSize();
     return {
       x: (v.x * 0.5 + 0.5) * w,
@@ -2473,6 +2574,8 @@ export class PoolWorld extends SceneKit {
       g.position.set(ahead.x + (i - cast.length / 2) * 0.8, 0, ahead.z);
       this.scene.add(g);
     });
+    // (the cast's pictures, and any that came since the last look, take their sharpness before they are first sent)
+    this.sharpenTextures(true);
     const shown = [],
       culled = [];
     this.scene.traverse((o) => {

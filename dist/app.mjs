@@ -156,6 +156,18 @@ import {
 } from "./story.mjs";
 const $ = (id) => document.getElementById(id),
   audio = new PoolAudio();
+// The window's size, read once and again after it changes: asked in a frame, after the frame's own writes to the page, it can
+// make the browser lay the page out there and then (the tags, the alert and the coach's prompt all place themselves by it).
+const win = { w: 0, h: 0 };
+const windowSize = () => {
+  if (!win.w) {
+    win.w = innerWidth;
+    win.h = innerHeight;
+  }
+  return win;
+};
+addEventListener("resize", () => (win.w = 0));
+const finePointer = window.matchMedia("(pointer: fine)");
 // Reduce motion: the system's wish, unless Settings says otherwise (`motionChoice`, set once the settings are read).
 const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 let motionChoice = "auto";
@@ -561,12 +573,14 @@ function showPayoff(pay) {
 }
 // The loud alert: the most urgent problem gets a marker over its next target, or an arrow at the edge of the safe
 // area when that target is off screen (or behind the Coach Cam).
+let markerHalf = 0;
 function updateAlert() {
   const marker = $("alert-marker"),
     arrow = $("alert-arrow"),
     a = mode === "playing" ? sim.loudestAlert() : null;
   if (!a) {
-    marker.hidden = arrow.hidden = true;
+    putFlag(marker, "hidden", true);
+    putFlag(arrow, "hidden", true);
     alertKey = "";
     return;
   }
@@ -577,34 +591,44 @@ function updateAlert() {
     far = Math.hypot(a.x - sim.coach.x, a.z - sim.coach.z),
     label = a.label + (far > (a.near ?? 4) ? " · " + Math.round(far) + " m" : ""),
     tone = a.urgency >= 85 ? " danger" : "",
-    key = [edge ? "edge" : "mark", a.icon, label, tone].join("|");
-  marker.hidden = !!edge;
-  arrow.hidden = !edge;
+    key = (edge ? "edge|" : "mark|") + a.icon + "|" + label + "|" + tone,
+    width = windowSize().w;
+  putFlag(marker, "hidden", !!edge);
+  putFlag(arrow, "hidden", !edge);
   const el = edge ? arrow : marker;
   if (key !== alertKey) {
     alertKey = key;
-    el.querySelector("b").textContent = a.icon;
-    el.querySelector("span:not(.alert-chip)").textContent = label;
+    put(part(el, "b"), a.icon);
+    put(part(el, "span:not(.alert-chip)"), label);
+    markerHalf = 0; // (its words changed: measured again below)
   }
   if (edge) {
     // The label sits below the badge (above it on the bottom edge) and hugs the screen edge it is near.
-    arrow.className =
+    const look =
       "alert-arrow" +
       tone +
       (Math.sin(edge.angle) > 0.6 ? " low" : "") +
-      (edge.x > innerWidth - 110 ? " at-right" : edge.x < 110 ? " at-left" : "");
-    arrow.style.left = edge.x + "px";
-    arrow.style.top = edge.y + "px";
-    arrow.style.setProperty("--angle", edge.angle + "rad");
+      (edge.x > width - 110 ? " at-right" : edge.x < 110 ? " at-left" : "");
+    if (arrow.className !== look) arrow.className = look;
+    putStyle(arrow, "left", edge.x + "px");
+    putStyle(arrow, "top", edge.y + "px");
+    putStyle(arrow, "--angle", edge.angle + "rad");
   } else {
-    // A person or visitor already wears a tag: the marker sits just above it rather than on top of it.
+    // A person or visitor already wears a tag: the marker sits just above it rather than on top of it. Where the tag is comes
+    // from where it was put this frame (placeTags: its middle at `_left`, its foot at `_top`, a quiet one drawn at 0.8), not
+    // from the page, which would have to lay itself out to say (every frame of every incident, until 13 November 2026).
     const tag = a.id != null && bubbles.get(a.id),
-      over = tag && !tag.hidden ? tag.getBoundingClientRect() : null;
-    marker.className = "alert-marker" + tone;
-    const half = marker.offsetWidth / 2 + 6;
-    marker.style.left =
-      Math.max(half, Math.min(innerWidth - half, over ? over.left + over.width / 2 : p.x)) + "px";
-    marker.style.top = (over ? over.top - 4 : p.y) + "px";
+      over = tag && tag._w && tag._p?.seen.hidden === false ? tag : null,
+      look = "alert-marker" + tone;
+    if (marker.className !== look) marker.className = look;
+    // (its own width is measured when its words change, not every frame)
+    if (!markerHalf) markerHalf = marker.offsetWidth / 2 + 6;
+    putStyle(
+      marker,
+      "left",
+      Math.max(markerHalf, Math.min(width - markerHalf, over ? over._left : p.x)) + "px",
+    );
+    putStyle(marker, "top", (over ? over._top - over._h * (over._p.seen.cQuiet ? 0.8 : 1) - 4 : p.y) + "px");
   }
 }
 const bubbles = new Map();
@@ -1341,7 +1365,8 @@ function playtestTick(dt) {
       const want = liveWant({ mode, changed });
       // (`nolog`: a playtest's log goes out when the shift is over, not while it is played.)
       if (want && !(tuning.has("nolog") && ["playing", "countdown"].includes(mode))) live.dirty(want);
-      live.poll();
+      // (the copy is put together between two frames, not in one: the whole log as text, twice)
+      if (live.due()) whenIdle(() => live?.poll());
     }
   } catch (e) {
     playtestBroken = true;
@@ -1609,17 +1634,123 @@ function bindPlaytest() {
 // goes on; the simulation, or a stage that fails for a second and a half straight, stops the shift with the report.
 const failing = {};
 let snagged = false;
+// (how long each stage took in this frame, in ms: what a slow frame's line in the log is made of, `hitchWatch`)
+const stageMs = {};
 function stage(name, fn) {
+  const began = performance.now();
   try {
     fn();
     if (failing[name]) failing[name] = 0;
+    stageMs[name] = performance.now() - began;
     return true;
   } catch (e) {
+    stageMs[name] = performance.now() - began;
     failing[name] = (failing[name] || 0) + 1;
     if (failing[name] === 1 || failing[name] % 300 === 0) console.error("Pool Panic frame error", name, e);
     crashlog.error("frame:" + name, e);
     return false;
   }
+}
+// Housekeeping that can wait a moment (the log's numbers every few seconds, a playtest's copy of the log) is done when the page
+// has nothing else to do, between two frames, and within a second at the latest: never inside a frame, where it was a few
+// milliseconds on top of whatever that frame had to do (13 November 2026).
+const whenIdle = (fn, within = 1000) =>
+  typeof requestIdleCallback === "function"
+    ? requestIdleCallback(() => fn(), { timeout: within })
+    : setTimeout(fn, 0);
+// A frame that took far longer than the ones around it, while a shift is played, leaves a line in the log: how long, which
+// stages of the frame took the time, what was going on, and whether a shader was compiled or a picture sent to the graphics card
+// just then (which a shift should never do after its first frame: warmShaders, warmCast). Written because the machine this game
+// is made on has no graphics card (13 November 2026): what lags on a player's machine is that machine's to say, and a tester
+// build's log says it by itself. "Far longer" is against the shift's own recent frames (a slow device's every frame is long, and
+// must not fill the log), at most one line every four seconds and thirty a shift.
+const HITCH = { work: 34, gap: 110, times: 2.5, every: 4000, settle: 2500, most: 30 };
+const hitch = { since: 0, at: 0, skipped: 0, lines: 0, work: 0, gap: 0, programs: 0, textures: 0, sim: null };
+function hitchWatch(gap, work) {
+  if (mode !== "playing" || world.cinematic || !sim) {
+    hitch.since = 0;
+    return;
+  }
+  const now = performance.now(),
+    info = world.renderer?.info,
+    programs = info?.programs?.length || 0,
+    textures = info?.memory?.textures || 0,
+    shaders = programs - hitch.programs,
+    pictures = textures - hitch.textures;
+  hitch.programs = programs;
+  hitch.textures = textures;
+  if (hitch.sim !== sim) {
+    hitch.sim = sim;
+    hitch.lines = 0;
+    hitch.since = 0;
+  }
+  if (!hitch.since) {
+    // (a shift's first moments are its warm-up, and so is coming back from a pause)
+    hitch.since = now;
+    hitch.work = work;
+    hitch.gap = gap;
+    return;
+  }
+  const usualWork = hitch.work,
+    usualGap = hitch.gap;
+  // (what a frame usually takes here: the recent ones, a hitch itself counting for little)
+  hitch.work += (Math.min(work, usualWork * 3 + 5) - usualWork) * 0.05;
+  hitch.gap += (Math.min(gap, usualGap * 3 + 5) - usualGap) * 0.05;
+  if (now - hitch.since < HITCH.settle || gap > 2000) return;
+  // (too much of the game's own work in one frame, or a long wait between two frames that was not the game's work: the
+  // graphics card, the browser, memory being tidied)
+  const heavy = work > Math.max(HITCH.work, usualWork * HITCH.times),
+    late = gap > Math.max(HITCH.gap, usualGap * HITCH.times),
+    compiled = shaders > 0;
+  if (!heavy && !late && !compiled) return;
+  if (now - hitch.at < HITCH.every || hitch.lines >= HITCH.most) {
+    hitch.skipped++;
+    return;
+  }
+  hitch.at = now;
+  hitch.lines++;
+  let parts = "";
+  for (let n = 0; n < 3; n++) {
+    let top = "",
+      ms = 2;
+    for (const name in stageMs)
+      if (stageMs[name] > ms && !parts.includes(name + " ")) {
+        top = name;
+        ms = stageMs[name];
+      }
+    if (!top) break;
+    parts += (parts ? ", " : "") + top + " " + Math.round(ms);
+  }
+  const going = [
+    (sim.activeSystems?.() || []).map((s) => s.key).join("+"),
+    sim.rescue ? "rescue" : "",
+    sim.cleanup ? "cleanup" : "",
+    sim.big && ["announce", "live"].includes(sim.big.stage) ? "big moment" : "",
+  ]
+    .filter(Boolean)
+    .join("+");
+  crashlog.crumb(
+    "hitch",
+    (heavy
+      ? Math.round(work) +
+        " ms of the game's work in one frame" +
+        (parts ? " (" + parts + ")" : "") +
+        ", usually " +
+        Math.round(usualWork)
+      : late
+        ? Math.round(gap) +
+          " ms between two frames, usually " +
+          Math.round(usualGap) +
+          "; the game's own work " +
+          Math.round(work) +
+          " ms"
+        : "no slow frame") +
+      (compiled ? " · " + shaders + " shader" + (shaders > 1 ? "s" : "") + " compiled mid-shift" : "") +
+      (pictures > 0 ? " · " + pictures + " new picture" + (pictures > 1 ? "s" : "") + " on the card" : "") +
+      (going ? " · during " + going : "") +
+      (hitch.skipped ? " · " + hitch.skipped + " more not written" : ""),
+  );
+  hitch.skipped = 0;
 }
 function snag() {
   if (snagged) return;
@@ -1786,7 +1917,7 @@ function updateDiveButton(b, i, p) {
   const mode = sim.status,
     D = sim.dive;
   if (!D) return;
-  b.disabled = mode !== "playing";
+  putFlag(b, "disabled", mode !== "playing");
   if (i === TUB_LANE) {
     const guests = tubGuests(sim),
       cap = TUB.cap,
@@ -1796,19 +1927,15 @@ function updateDiveButton(b, i, p) {
       "assignable",
       mode === "playing" && !!p?.tubOnly && p.status === "queue" && guests.length < cap && !dirty,
     );
-    b.querySelector(".lane-mode").textContent = dirty
-      ? "CLOSED"
-      : guests.length >= cap
-        ? "FULL"
-        : guests.length
-          ? "ROOM"
-          : "OPEN";
-    b.querySelector(".lane-count").textContent = dirty
-      ? "Clean it up!"
-      : guests.length + " of " + cap + " seats";
-    b.querySelector(".lane-caps").innerHTML = guests
-      .map((q) => '<i style="background:' + roofLook(q).color + '"></i>')
-      .join("");
+    put(
+      part(b, ".lane-mode"),
+      dirty ? "CLOSED" : guests.length >= cap ? "FULL" : guests.length ? "ROOM" : "OPEN",
+    );
+    put(part(b, ".lane-count"), dirty ? "Clean it up!" : guests.length + " of " + cap + " seats");
+    putHTML(
+      part(b, ".lane-caps"),
+      guests.map((q) => '<i style="background:' + roofLook(q).color + '"></i>').join(""),
+    );
     return;
   }
   const open = boardOpen(sim, i),
@@ -1824,24 +1951,30 @@ function updateDiveButton(b, i, p) {
   b.classList.toggle("lane-closed", !open);
   b.classList.toggle("danger", open && (left > LINE_ROOM || right > LINE_ROOM || (canSend && diff > 0)));
   b.classList.toggle("dive-low", open && canSend && diff < 0);
-  b.querySelector(".lane-mode").textContent = !open
-    ? "OPENS IN " + Math.max(1, Math.ceil(D.opens[i] - sim.arrivalTime)) + "s"
-    : full
-      ? "FULL"
-      : canSend && diff > 0
-        ? "TOO HIGH?"
-        : canSend && diff < 0
-          ? "TOO LOW?"
-          : left + right === 0
-            ? "OPEN"
-            : "LINES";
-  b.querySelector(".lane-count").textContent = !open ? HEIGHTS[i].label : "◀ " + left + " · " + right + " ▶";
-  b.querySelector(".lane-caps").innerHTML = [...D.boards[i].line, ...D.boards[3 + i].line]
-    .slice(0, 8)
-    .map((id) => sim.get(id))
-    .filter(Boolean)
-    .map((q) => '<i style="background:' + roofLook(q).color + '"></i>')
-    .join("");
+  put(
+    part(b, ".lane-mode"),
+    !open
+      ? "OPENS IN " + Math.max(1, Math.ceil(D.opens[i] - sim.arrivalTime)) + "s"
+      : full
+        ? "FULL"
+        : canSend && diff > 0
+          ? "TOO HIGH?"
+          : canSend && diff < 0
+            ? "TOO LOW?"
+            : left + right === 0
+              ? "OPEN"
+              : "LINES",
+  );
+  put(part(b, ".lane-count"), !open ? HEIGHTS[i].label : "◀ " + left + " · " + right + " ▶");
+  putHTML(
+    part(b, ".lane-caps"),
+    [...D.boards[i].line, ...D.boards[3 + i].line]
+      .slice(0, 8)
+      .map((id) => sim.get(id))
+      .filter(Boolean)
+      .map((q) => '<i style="background:' + roofLook(q).color + '"></i>')
+      .join(""),
+  );
 }
 // ?cannonball=carl or ?cannonball=leopard puts that man in every Cannonball incident, whatever the level (to look at him).
 const forcedMan = ["carl", "leopard"].includes(params.get("cannonball")) ? params.get("cannonball") : null;
@@ -3208,57 +3341,62 @@ function formatTime(t) {
 // chip for the guest the coach has selected, with what they are doing and the Send home button (a queasy guest is stopped there).
 function updateQueue() {
   const p = sim.get(sim.selected);
-  $("send-home").textContent = p?.stomachWarning ? "Send to locker ↗" : "Send home ↗";
+  put($("send-home"), p?.stomachWarning ? "Send to locker ↗" : "Send home ↗");
   $("send-home").classList.toggle("urgent", !!p?.stomachWarning);
-  $("queue-panel").hidden = !p || !["playing", "paused", "countdown", "help"].includes(mode);
-  $("send-home").hidden =
+  putFlag($("queue-panel"), "hidden", !p || !["playing", "paused", "countdown", "help"].includes(mode));
+  putFlag(
+    $("send-home"),
+    "hidden",
     !p ||
-    !["queue", "enter", "swim"].includes(p.status) ||
-    p.problem === "injured" ||
-    !!(sim.rescue && p.status === "swim");
+      !["queue", "enter", "swim"].includes(p.status) ||
+      p.problem === "injured" ||
+      !!(sim.rescue && p.status === "swim"),
+  );
   if (p) {
     const profile = roofLook(p);
-    $("selected-detail").innerHTML =
+    putHTML(
+      $("selected-detail"),
       "<b>" +
-      p.name +
-      " · " +
-      profile.label +
-      "</b><span>" +
-      Math.round(p.h) +
-      "% happy · " +
-      (p.type === "daredevil"
-        ? "Trampoline only · T"
-        : p.type === "child"
-          ? p.status === "queue"
-            ? "Caught! Send them INTO THE POOL · 1"
-            : "Splashing about"
-          : sim.venue.roof || p.chill
-            ? (p.status === "lounge"
-                ? "Lounging"
-                : p.status === "swim"
-                  ? p.chatting
-                    ? "Chatting in the pool"
-                    : "Chilling in the pool"
-                  : sim.venue.cruise
-                    ? "On deck"
-                    : "On the roof") +
-              (p.drinks ? " · " + p.drinks + " 🍹" : "") +
-              (p.tipsy ? " · tipsy 🥴" : "")
-            : p.status === "swim" && !p.problem && sim.venue.waves
-              ? (p.hasFins ? "Riding the waves in a tube" : "Riding the waves") +
-                ((p.dizzy || 0) >= BATHE.woozy ? " · 💫 woozy" : "")
-              : p.status === "swim" && !p.problem
-                ? sim.venue.river
-                  ? p.lap
-                    ? "Floating to the exit dock"
-                    : "Riding the river"
-                  : sim.venue.onsen
-                    ? "Soaking in Spring " + (p.lane + 1) + ((p.cold || 0) > 0.1 ? " · warming up" : "")
-                    : "Pick a lane to move them"
-                : profile.speed
-                  ? profile.speed + "× pace"
-                  : "Aqua class") +
-      "</span>";
+        p.name +
+        " · " +
+        profile.label +
+        "</b><span>" +
+        Math.round(p.h) +
+        "% happy · " +
+        (p.type === "daredevil"
+          ? "Trampoline only · T"
+          : p.type === "child"
+            ? p.status === "queue"
+              ? "Caught! Send them INTO THE POOL · 1"
+              : "Splashing about"
+            : sim.venue.roof || p.chill
+              ? (p.status === "lounge"
+                  ? "Lounging"
+                  : p.status === "swim"
+                    ? p.chatting
+                      ? "Chatting in the pool"
+                      : "Chilling in the pool"
+                    : sim.venue.cruise
+                      ? "On deck"
+                      : "On the roof") +
+                (p.drinks ? " · " + p.drinks + " 🍹" : "") +
+                (p.tipsy ? " · tipsy 🥴" : "")
+              : p.status === "swim" && !p.problem && sim.venue.waves
+                ? (p.hasFins ? "Riding the waves in a tube" : "Riding the waves") +
+                  ((p.dizzy || 0) >= BATHE.woozy ? " · 💫 woozy" : "")
+                : p.status === "swim" && !p.problem
+                  ? sim.venue.river
+                    ? p.lap
+                      ? "Floating to the exit dock"
+                      : "Riding the river"
+                    : sim.venue.onsen
+                      ? "Soaking in Spring " + (p.lane + 1) + ((p.cold || 0) > 0.1 ? " · warming up" : "")
+                      : "Pick a lane to move them"
+                  : profile.speed
+                    ? profile.speed + "× pace"
+                    : "Aqua class") +
+        "</span>",
+    );
   }
 }
 // The Wave Pool's WAVES button (renderLaneControls): ON with the seconds left of the set, the calm's countdown to the next, the
@@ -3271,23 +3409,22 @@ function updateShipGauge(b) {
     warn = S.phase === "warn",
     adrift = sim.roof?.beds.filter((q) => q.adrift).length || 0;
   b.classList.toggle("danger", warn || Math.abs(k) > 0.3);
-  b.querySelector(".lane-mode").textContent = warn
-    ? "SWELL " + Math.max(1, Math.ceil(S.dur - S.t))
-    : k
-      ? deg > 0
-        ? "STBD ▶"
-        : "◀ PORT"
-      : "STEADY";
-  b.querySelector(".lane-count").textContent =
+  put(
+    part(b, ".lane-mode"),
+    warn ? "SWELL " + Math.max(1, Math.ceil(S.dur - S.t)) : k ? (deg > 0 ? "STBD ▶" : "◀ PORT") : "STEADY",
+  );
+  put(
+    part(b, ".lane-count"),
     Math.abs(deg).toFixed(0) +
-    "°" +
-    (warn
-      ? " · 🔔 hold on!"
-      : adrift
-        ? " · " + adrift + " lounger" + (adrift > 1 ? "s" : "") + " adrift"
-        : "");
+      "°" +
+      (warn
+        ? " · 🔔 hold on!"
+        : adrift
+          ? " · " + adrift + " lounger" + (adrift > 1 ? "s" : "") + " adrift"
+          : ""),
+  );
   // (The dial's bar shows the deck: it tips the way she rolls, so the screen's left goes down when she leans to port.)
-  b.querySelector(".ship-dial i").style.transform = "rotate(" + (-deg * 2).toFixed(1) + "deg)";
+  putStyle(part(b, ".ship-dial i"), "transform", "rotate(" + (-deg * 2).toFixed(1) + "deg)");
 }
 function updateWavesButton(b) {
   const board = waveBoard(sim.waves);
@@ -3298,7 +3435,8 @@ function updateWavesButton(b) {
   b.classList.toggle("danger", board.state === "monster" || dizzy > 0);
   b.classList.toggle("assignable", board.state === "stopped");
   b.classList.toggle("waves-off", board.state === "stopped" || board.state === "halted");
-  b.querySelector(".lane-mode").textContent =
+  put(
+    part(b, ".lane-mode"),
     board.state === "running"
       ? "ON"
       : board.state === "monster"
@@ -3311,8 +3449,10 @@ function updateWavesButton(b) {
               ? board.reason === "blackout"
                 ? "NO POWER"
                 : "STOPPED"
-              : "OFF";
-  b.querySelector(".lane-count").textContent =
+              : "OFF",
+  );
+  put(
+    part(b, ".lane-count"),
     board.state === "stopped"
       ? (board.seconds > BATHE.grace ? "They want waves! " : "Stopped · ") + "press Z to start"
       : board.state === "halted"
@@ -3327,25 +3467,31 @@ function updateWavesButton(b) {
             ? "Waves in " + secs
             : board.state === "calm"
               ? "Next set in " + secs + " · Z stops"
-              : (dizzy ? dizzy + " dizzy · " : "") + secs + "s left · Z stops";
-  b.querySelector(".lane-caps").innerHTML = bathers
-    .slice(0, 12)
-    .map((q) => '<i style="background:' + (q.problem === "dizzy" ? "#ef5a4a" : roofLook(q).color) + '"></i>')
-    .join("");
-  b.disabled = mode !== "playing";
+              : (dizzy ? dizzy + " dizzy · " : "") + secs + "s left · Z stops",
+  );
+  putHTML(
+    part(b, ".lane-caps"),
+    bathers
+      .slice(0, 12)
+      .map(
+        (q) => '<i style="background:' + (q.problem === "dizzy" ? "#ef5a4a" : roofLook(q).color) + '"></i>',
+      )
+      .join(""),
+  );
+  putFlag(b, "disabled", mode !== "playing");
 }
 function updateUI() {
   if (!sim) return;
   document.body.classList.toggle("pool-incident", !!sim.cleanup || !!sim.rescue);
-  $("countdown").hidden = mode !== "countdown" || !!world.cinematic;
-  if (mode === "countdown") $("countdown-number").textContent = Math.max(1, Math.ceil(sim.countdown));
+  putFlag($("countdown"), "hidden", mode !== "countdown" || !!world.cinematic);
+  if (mode === "countdown") put($("countdown-number"), Math.max(1, Math.ceil(sim.countdown)));
   // The two plaques at the bottom (5 November 2026, the creator: "like Overcooked… in the lower right corner… the time with a
   // progress bar and numeric… in the lower left… the points… green… when we add more points, very, very subtle. Or red"):
   // the shift's Splash Coins, with the streak's multiplier under them while it counts, and the time left with its bar (red under
   // 20 s, amber while an incident holds the clock). The venue, the pass mark and the star targets are in the pause menu.
   const remaining = sim.config.duration - (mode === "menu" ? 0 : sim.time),
     clockText = formatTime(remaining);
-  if ($("clock").textContent !== clockText) $("clock").textContent = clockText;
+  put($("clock"), clockText);
   $("clock").classList.toggle("danger-pulse", remaining < 20 && mode === "playing");
   $("hud-clock").classList.toggle("danger", remaining < 20 && mode !== "menu");
   $("hud-clock").classList.toggle("held", mode === "playing" && !!sim.clockHeld?.() && remaining <= 0.05);
@@ -3353,58 +3499,63 @@ function updateUI() {
     coinText = Math.round(sim.score).toLocaleString("en-US"),
     streakNow = streakTier(sim.streak),
     coinSub = streakNow.mult > 1 ? "STREAK ×" + streakNow.mult : "SPLASH COINS";
-  if ($("clock-fill").style.width !== clockFill) $("clock-fill").style.width = clockFill;
-  if ($("coins").textContent !== coinText) $("coins").textContent = coinText;
-  if ($("coins-sub").textContent !== coinSub) $("coins-sub").textContent = coinSub;
+  putStyle($("clock-fill"), "width", clockFill);
+  put($("coins"), coinText);
+  put($("coins-sub"), coinSub);
   $("hud-coins").classList.toggle("streak", streakNow.mult > 1);
   coinChange();
-  $("clarity").textContent = Math.round(100 - sim.contamination) + "%";
-  $("water-fill").style.width = 100 - sim.contamination + "%";
-  $("water-fill").style.background = sim.contamination > 55 ? "#9dba59" : "#48b3b5";
-  $("water-label").textContent =
+  put($("clarity"), Math.round(100 - sim.contamination) + "%");
+  putStyle($("water-fill"), "width", 100 - sim.contamination + "%");
+  putStyle($("water-fill"), "background", sim.contamination > 55 ? "#9dba59" : "#48b3b5");
+  put(
+    $("water-label"),
     sim.contamination > 75
       ? "MURKY"
       : sim.contamination > 45
         ? "CLOUDY"
         : sim.contamination > 20
           ? "GOOD"
-          : "SPARKLING";
-  $("chlorine-label").textContent =
+          : "SPARKLING",
+  );
+  put(
+    $("chlorine-label"),
     Math.round(sim.chlorine) +
-    (sim.chlorine > 75 ? " · Too high!" : sim.chlorine < 40 ? " · Low" : " · Balanced");
-  $("chlorine-label").style.color = sim.chlorine > 75 ? "#c36340" : "";
-  $("chlorine-dot").style.left = Math.min(98, sim.chlorine / 1.1) + "%";
-  $("fin-count").textContent = sim.venue.roof
-    ? sim.coach.carry === "tray"
-      ? sim.coach.tray
-      : CHILL.tray
-    : sim.finsAvailable;
-  $("carry").textContent = sim.coach.job
-    ? sim.coach.state
-    : sim.coach.carry
-      ? "Holding " + carryName(sim.coach)
-      : "Empty hands";
-  $("return-item").hidden = !sim.coach.carry || !!sim.coach.job;
+      (sim.chlorine > 75 ? " · Too high!" : sim.chlorine < 40 ? " · Low" : " · Balanced"),
+  );
+  putStyle($("chlorine-label"), "color", sim.chlorine > 75 ? "#c36340" : "");
+  putStyle($("chlorine-dot"), "left", Math.min(98, sim.chlorine / 1.1) + "%");
+  put(
+    $("fin-count"),
+    sim.venue.roof ? (sim.coach.carry === "tray" ? sim.coach.tray : CHILL.tray) : sim.finsAvailable,
+  );
+  put(
+    $("carry"),
+    sim.coach.job ? sim.coach.state : sim.coach.carry ? "Holding " + carryName(sim.coach) : "Empty hands",
+  );
+  putFlag($("return-item"), "hidden", !sim.coach.carry || !!sim.coach.job);
   ["fins", "chlorine", "relief"].forEach((item) => {
     $(item).classList.toggle("busy-btn", sim.coach.carry === item || sim.coach.job?.item === item);
-    $(item).disabled = mode !== "playing" || !!sim.coach.carry;
+    putFlag($(item), "disabled", mode !== "playing" || !!sim.coach.carry);
   });
-  $("clean").disabled = mode !== "playing" || !!sim.coach.job || !!sim.coach.carry;
+  putFlag($("clean"), "disabled", mode !== "playing" || !!sim.coach.job || !!sim.coach.carry);
   $("clean").classList.toggle("busy-btn", sim.clutter.length > 0);
   // The mop (incidents/wet.mjs): how many wet spots are on the deck, and whether the coach has it.
   const wet = sim.wetSpots?.length || 0;
-  $("mop").disabled =
-    mode !== "playing" || !!sim.coach.job || (!!sim.coach.carry && sim.coach.carry !== "mop");
+  putFlag(
+    $("mop"),
+    "disabled",
+    mode !== "playing" || !!sim.coach.job || (!!sim.coach.carry && sim.coach.carry !== "mop"),
+  );
   $("mop").classList.toggle("busy-btn", wet > 0 || sim.coach.carry === "mop");
-  $("wet-count").hidden = !wet;
-  $("wet-count").textContent = wet;
+  putFlag($("wet-count"), "hidden", !wet);
+  put($("wet-count"), wet);
   // A calmer HUD (19 October 2026, Phase 1): a tool that is not needed right now is not on screen. Eye relief shows when someone
   // has sore eyes, Tidy deck when gear lies on the deck, the mop when there is a wet spot (or the coach holds what they need);
   // their keys (R, X, Q) always work.
   const holding = (item) => sim.coach.carry === item || sim.coach.job?.item === item;
-  $("relief").hidden = !holding("relief") && !sim.people.some((p) => p.problem === "eyes");
-  $("clean").hidden = !sim.clutter.length;
-  $("mop").hidden = !wet && !holding("mop");
+  putFlag($("relief"), "hidden", !holding("relief") && !sim.people.some((p) => p.problem === "eyes"));
+  putFlag($("clean"), "hidden", !sim.clutter.length);
+  putFlag($("mop"), "hidden", !wet && !holding("mop"));
   // Only what the coach needs now (5 November 2026, the creator: "we don't need to see that chlorine always there. We just need to
   // see it when we have a problem… in hands, empty hands, there's no need for that… too much UI"). The Water Check and the
   // chlorine come when the water is a problem: cloudy enough that the guests mind it (from 35, sim.mjs; shown from 30), too much
@@ -3417,20 +3568,27 @@ function updateUI() {
     holding("tray") ||
     !!sim.venue.waves ||
     sim.people.some((q) => q.status !== "gone" && (q.problem === "fins" || q.problem === "drink"));
-  $("water-check").hidden = !waterTrouble;
-  $("chlorine").hidden = !waterTrouble;
-  $("fins").hidden = !gearWanted;
-  $("coach-state").hidden = !sim.coach.carry && !sim.coach.job;
-  $("care-actions").hidden = ["chlorine", "relief", "fins", "clean", "mop"].every((id) => $(id).hidden);
-  $("care-panel").hidden =
-    mode === "menu" || ["water-check", "care-actions", "coach-state"].every((id) => $(id).hidden);
-  $("assist").disabled = mode !== "playing";
-  $("assist").querySelector(".interact-label").textContent = sim.nearestInteraction()?.label || "Interact";
+  putFlag($("water-check"), "hidden", !waterTrouble);
+  putFlag($("chlorine"), "hidden", !waterTrouble);
+  putFlag($("fins"), "hidden", !gearWanted);
+  putFlag($("coach-state"), "hidden", !sim.coach.carry && !sim.coach.job);
+  putFlag(
+    $("care-actions"),
+    "hidden",
+    ["chlorine", "relief", "fins", "clean", "mop"].every((id) => $(id).hidden),
+  );
+  putFlag(
+    $("care-panel"),
+    "hidden",
+    mode === "menu" || ["water-check", "care-actions", "coach-state"].every((id) => $(id).hidden),
+  );
+  putFlag($("assist"), "disabled", mode !== "playing");
+  put(part($("assist"), ".interact-label"), sim.nearestInteraction()?.label || "Interact");
   const p = sim.get(sim.selected),
     blocked = sim.laneBlocked(),
     moving = p?.status === "swim" && !p.problem ? p : null;
   // The Kids Pool's one button: how many are splashing, and whether there is room (sim.kidsRoom: KIDS_ROOM, more for a party).
-  const poolBtn = document.querySelector('[data-lane="pool"]');
+  const poolBtn = laneButton("pool");
   if (poolBtn) {
     const kids = sim.people.filter((q) => ["swim", "enter"].includes(q.status) && q.type === "child");
     poolBtn.classList.toggle(
@@ -3439,30 +3597,38 @@ function updateUI() {
     );
     const room = sim.kidsRoom();
     poolBtn.classList.toggle("danger", kids.length > room);
-    poolBtn.querySelector(".lane-mode").textContent = sim.closed
-      ? "CLOSED"
-      : kids.length > room
-        ? "PACKED!"
-        : kids.length === room
-          ? "FULL"
-          : kids.length
-            ? "SPLASHING"
-            : "OPEN";
-    poolBtn.querySelector(".lane-count").textContent =
+    put(
+      part(poolBtn, ".lane-mode"),
+      sim.closed
+        ? "CLOSED"
+        : kids.length > room
+          ? "PACKED!"
+          : kids.length === room
+            ? "FULL"
+            : kids.length
+              ? "SPLASHING"
+              : "OPEN",
+    );
+    put(
+      part(poolBtn, ".lane-count"),
       p?.status === "queue"
         ? "Send " + p.name + " in!"
         : kids.length
           ? kids.length + " of " + room + " kids splashing"
-          : "Catch a kid first";
-    poolBtn.querySelector(".lane-caps").innerHTML = kids
-      .slice(0, 10)
-      .map((q) => '<i style="background:' + roofLook(q).color + '"></i>')
-      .join("");
-    poolBtn.disabled = mode !== "playing" || !!sim.rescue;
+          : "Catch a kid first",
+    );
+    putHTML(
+      part(poolBtn, ".lane-caps"),
+      kids
+        .slice(0, 10)
+        .map((q) => '<i style="background:' + roofLook(q).color + '"></i>')
+        .join(""),
+    );
+    putFlag(poolBtn, "disabled", mode !== "playing" || !!sim.rescue);
   }
   // The Lazy River's one button: who is riding, who is round the loop, and whether the selected guest has a tube yet.
   // The Lazy River's two ways round (Phase 3): who is on each, the rapids' room, and what the selected guest would make of it.
-  for (const riverBtn of document.querySelectorAll('[data-lane="river"]')) {
+  for (const riverBtn of $("lane-controls").querySelectorAll('[data-lane="river"]')) {
     const route = Number(riverBtn.dataset.route) || 0,
       riding = sim.people.filter((q) => ["swim", "enter"].includes(q.status) && (q.lane || 0) === route),
       away = riding.filter((q) => q.away).length,
@@ -3474,16 +3640,20 @@ function updateUI() {
       "danger",
       packed || (route === 0 && riding.filter((q) => !q.away).length > RIDE.crowd),
     );
-    riverBtn.querySelector(".lane-mode").textContent = sim.closed
-      ? "CLOSED"
-      : sim.rescue
-        ? "STOPPED"
-        : packed
-          ? "PACKED!"
-          : riding.length
-            ? "FLOWING"
-            : "OPEN";
-    riverBtn.querySelector(".lane-count").textContent =
+    put(
+      part(riverBtn, ".lane-mode"),
+      sim.closed
+        ? "CLOSED"
+        : sim.rescue
+          ? "STOPPED"
+          : packed
+            ? "PACKED!"
+            : riding.length
+              ? "FLOWING"
+              : "OPEN",
+    );
+    put(
+      part(riverBtn, ".lane-count"),
       p?.status === "queue"
         ? p.hasFins
           ? verdict?.text || "Send " + p.name
@@ -3492,40 +3662,52 @@ function updateUI() {
           ? riding.length + " on tubes" + (away ? " · " + away + " round the bend" : "")
           : route === 1
             ? "Thrill-seekers ⚡ · " + RIVER_ROUTES.rapidsRoom + " at a time"
-            : "Chillers 🐢 love it";
-    riverBtn.querySelector(".lane-caps").innerHTML = riding
-      .slice(0, 10)
-      .map((q) => '<i style="background:' + roofLook(q).color + '"></i>')
-      .join("");
-    riverBtn.disabled = mode !== "playing" || !!sim.rescue;
+            : "Chillers 🐢 love it",
+    );
+    putHTML(
+      part(riverBtn, ".lane-caps"),
+      riding
+        .slice(0, 10)
+        .map((q) => '<i style="background:' + roofLook(q).color + '"></i>')
+        .join(""),
+    );
+    putFlag(riverBtn, "disabled", mode !== "playing" || !!sim.rescue);
   }
   // The Rooftop Pool's one button: the bar. The orders waiting (a dot each, gold for a VIP's), what is on the tray, and the DJ's
   // next drop once the build-up has begun.
-  const barBtn = document.querySelector('[data-lane="bar"]');
+  const barBtn = laneButton("bar");
   if (barBtn) {
     const orders = sim.people.filter((q) => q.problem === "drink"),
       at = nextDrop(sim),
       building = !!sim.roof?.warned && at != null;
-    barBtn.querySelector(".lane-mode").textContent =
+    put(
+      part(barBtn, ".lane-mode"),
       sim.coach.carry === "tray"
         ? "TRAY " + sim.coach.tray + "/" + CHILL.tray
         : building
           ? "DROP " + Math.max(1, Math.ceil(at - sim.time))
-          : "OPEN";
-    barBtn.querySelector(".lane-count").textContent = orders.length
-      ? orders.length + " margarita" + (orders.length > 1 ? "s" : "") + " ordered"
-      : building
-        ? "🎧 The drop is coming!"
-        : "No orders · press B for a tray";
-    barBtn.querySelector(".lane-caps").innerHTML = orders
-      .slice(0, 10)
-      .map((q) => '<i style="background:' + (q.vip ? "#e9a92b" : "#9fe06a") + '"></i>')
-      .join("");
+          : "OPEN",
+    );
+    put(
+      part(barBtn, ".lane-count"),
+      orders.length
+        ? orders.length + " margarita" + (orders.length > 1 ? "s" : "") + " ordered"
+        : building
+          ? "🎧 The drop is coming!"
+          : "No orders · press B for a tray",
+    );
+    putHTML(
+      part(barBtn, ".lane-caps"),
+      orders
+        .slice(0, 10)
+        .map((q) => '<i style="background:' + (q.vip ? "#e9a92b" : "#9fe06a") + '"></i>')
+        .join(""),
+    );
     barBtn.classList.toggle("danger", building || orders.some((q) => (q.orderT || 0) > CHILL.grace * 3));
-    barBtn.disabled = mode !== "playing";
+    putFlag(barBtn, "disabled", mode !== "playing");
   }
   // The Rooftop Pool's seats (Phase 3): what is free, and what the selected guest would make of each.
-  for (const seatBtn of document.querySelectorAll('[data-lane="seat"]')) {
+  for (const seatBtn of $("lane-controls").querySelectorAll('[data-lane="seat"]')) {
     const i = Number(seatBtn.dataset.seat) || 0,
       seat = SEATS[i].id,
       waiting = p?.status === "queue" && p.chill ? p : null,
@@ -3538,7 +3720,8 @@ function updateUI() {
       inWater = sim.people.filter((q) => q.chill && q.status === "swim").length;
     seatBtn.classList.toggle("assignable", mode === "playing" && !!waiting && !verdict?.none);
     seatBtn.classList.toggle("danger", seat !== "pool" && free === 0);
-    seatBtn.querySelector(".lane-mode").textContent =
+    put(
+      part(seatBtn, ".lane-mode"),
       seat === "pool"
         ? inWater
           ? inWater + " IN"
@@ -3547,30 +3730,34 @@ function updateUI() {
           ? free + " FREE"
           : messy
             ? "MESSY"
-            : "FULL";
-    seatBtn.querySelector(".lane-count").textContent = verdict
-      ? verdict.text
-      : seat === "pool"
-        ? "Chat groups"
-        : seat === "bed"
-          ? messy
-            ? messy + " to tidy (E)"
-            : "Sunbathers 🛏️"
-          : "VIPs 👑 · bigger tips";
-    seatBtn.disabled = mode !== "playing";
+            : "FULL",
+    );
+    put(
+      part(seatBtn, ".lane-count"),
+      verdict
+        ? verdict.text
+        : seat === "pool"
+          ? "Chat groups"
+          : seat === "bed"
+            ? messy
+              ? messy + " to tidy (E)"
+              : "Sunbathers 🛏️"
+            : "VIPs 👑 · bigger tips",
+    );
+    putFlag(seatBtn, "disabled", mode !== "playing");
   }
   // The Cruise Ship's gauge: how far she rolls now (the bar tips with her), a big swell's countdown, what slid.
-  const gauge = document.querySelector(".ship-gauge");
+  const gauge = $("lane-controls").querySelector(".ship-gauge");
   if (gauge && sim.ship) updateShipGauge(gauge);
   // The Wave Pool's one button: the machine's state, the clock to the next set, the bathers in the water and how many are dizzy.
-  const wavesBtn = document.querySelector('[data-lane="waves"]');
+  const wavesBtn = laneButton("waves");
   if (wavesBtn) updateWavesButton(wavesBtn);
   for (let i = 0; i < sim.lanes.length; i++) {
     if (sim.venue.river || sim.venue.waves || sim.venue.roof) break;
     const people = sim.lanePeople(i),
       count = sim.occupancy(i),
       average = people.length ? people.reduce((sum, p) => sum + p.h, 0) / people.length : 100;
-    const b = document.querySelector('[data-lane="' + i + '"]');
+    const b = laneButton(i);
     if (!b) continue;
     // (The Jumping Pool's heights and its hot tub: dive.mjs.)
     if (sim.venue.dive) {
@@ -3610,68 +3797,74 @@ function updateUI() {
         monkey = !!monkeyIn(sim, i);
       b.classList.toggle("danger", monkey || average < 50);
       b.classList.toggle("assignable", b.classList.contains("assignable") && guests.length < cap);
-      b.querySelector(".lane-mode").textContent = monkey
-        ? "MONKEY!"
-        : guests.length >= cap
-          ? "FULL"
-          : guests.length === 0
-            ? "OPEN"
-            : "ROOM";
-      b.querySelector(".lane-count").textContent = monkey
-        ? "🐒 Shoo it out!"
-        : guests.length + " of " + cap + " seats";
-      b.querySelector(".lane-caps").innerHTML = guests
-        .map((p) => '<i style="background:' + roofLook(p).color + '"></i>')
-        .join("");
-      b.disabled = mode !== "playing" || !!sim.rescue;
+      put(
+        part(b, ".lane-mode"),
+        monkey ? "MONKEY!" : guests.length >= cap ? "FULL" : guests.length === 0 ? "OPEN" : "ROOM",
+      );
+      put(part(b, ".lane-count"), monkey ? "🐒 Shoo it out!" : guests.length + " of " + cap + " seats");
+      putHTML(
+        part(b, ".lane-caps"),
+        guests.map((p) => '<i style="background:' + roofLook(p).color + '"></i>').join(""),
+      );
+      putFlag(b, "disabled", mode !== "playing" || !!sim.rescue);
       continue;
     }
-    b.querySelector(".lane-mode").textContent = closed
-      ? "CLOSED"
-      : splash
-        ? race
-          ? "RACE!"
-          : "SPLASH!"
-        : moveHere
-          ? "MOVE HERE"
+    put(
+      part(b, ".lane-mode"),
+      closed
+        ? "CLOSED"
+        : splash
+          ? race
+            ? "RACE!"
+            : "SPLASH!"
+          : moveHere
+            ? "MOVE HERE"
+            : count === 0
+              ? "OPEN"
+              : zone
+                ? count < CLASS_ROOM
+                  ? "ROOM"
+                  : count === CLASS_ROOM
+                    ? "FULL"
+                    : "PACKED!"
+                : count === 1
+                  ? "SOLO"
+                  : count === 2
+                    ? "SPLIT"
+                    : "CIRCLE",
+    );
+    put(
+      part(b, ".lane-count"),
+      closed
+        ? "Wet floor"
+        : splash
+          ? count
+            ? "Clear this lane!"
+            : race
+              ? "Clear for the race 🏁"
+              : "Flip incoming"
           : count === 0
-            ? "OPEN"
+            ? "Jump on in"
             : zone
-              ? count < CLASS_ROOM
-                ? "ROOM"
-                : count === CLASS_ROOM
-                  ? "FULL"
-                  : "PACKED!"
-              : count === 1
-                ? "SOLO"
-                : count === 2
-                  ? "SPLIT"
-                  : "CIRCLE";
-    b.querySelector(".lane-count").textContent = closed
-      ? "Wet floor"
-      : splash
-        ? count
-          ? "Clear this lane!"
-          : race
-            ? "Clear for the race 🏁"
-            : "Flip incoming"
-        : count === 0
-          ? "Jump on in"
-          : zone
-            ? count + " of " + CLASS_ROOM + " dancers"
-            : count + " swimmer" + (count === 1 ? "" : "s");
-    b.querySelector(".lane-caps").innerHTML = people
-      .slice(0, 8)
-      .map((p) => '<i style="background:' + roofLook(p).color + '"></i>')
-      .join("");
-    b.disabled = mode !== "playing" || !!sim.rescue;
+              ? count + " of " + CLASS_ROOM + " dancers"
+              : count + " swimmer" + (count === 1 ? "" : "s"),
+    );
+    putHTML(
+      part(b, ".lane-caps"),
+      people
+        .slice(0, 8)
+        .map((p) => '<i style="background:' + roofLook(p).color + '"></i>')
+        .join(""),
+    );
+    putFlag(b, "disabled", mode !== "playing" || !!sim.rescue);
   }
   updateTrampolineButton(p);
   const chaos = sim.people.filter(
     (p) => p.status === "swim" && (p.h < 50 || p.problem || p.blocked > 3),
   ).length;
   const count = sim.people.filter((p) => p.status === "queue").length;
-  $("pool-status").textContent =
+  put(
+    $("pool-status"),
     mode === "menu"
       ? "A good day for a dip."
       : sim.rescue?.kind === "crash"
@@ -3712,30 +3905,33 @@ function updateUI() {
                                           ? "Now we’re in the swim of it."
                                           : count > 3
                                             ? "The deck is getting crowded."
-                                            : "Looking good, coach.";
-  $("hint").textContent =
+                                            : "Looking good, coach.",
+  );
+  put(
+    $("hint"),
     sim.incidentHint() ||
-    (sim.coach.carry === "skimmer"
-      ? sim.coach.skimmerLoaded
-        ? "WASTE BIN · E TO EMPTY"
-        : "POOL EDGE · E TO SCOOP"
-      : sim.coach.carry === "chlorine"
-        ? "WALK TO THE POOL EDGE · E TO POUR"
-        : sim.coach.carry === "tray"
-          ? "NEAR A GUEST WHO ORDERED · E TO SERVE"
-          : sim.coach.carry === "fins"
-            ? sim.venue.river || sim.venue.waves
-              ? "NEAR A GUEST · E TO GIVE THE TUBE / ELSE E TO DROP"
-              : "NEAR SWIMMER · E TO GIVE / ELSE E TO DROP"
-            : sim.coach.carry
-              ? "MEET YOUR SWIMMER · E TO HAND OVER"
-              : sim.cleanup
-                ? sim.sanitationHint().toUpperCase()
-                : p?.status === "queue"
-                  ? "● ● ●"
-                  : sim.clutter.length
-                    ? "PICK UP DROPPED GEAR · E"
-                    : "WASD MOVE · SHIFT DASH · SPACE JUMP");
+      (sim.coach.carry === "skimmer"
+        ? sim.coach.skimmerLoaded
+          ? "WASTE BIN · E TO EMPTY"
+          : "POOL EDGE · E TO SCOOP"
+        : sim.coach.carry === "chlorine"
+          ? "WALK TO THE POOL EDGE · E TO POUR"
+          : sim.coach.carry === "tray"
+            ? "NEAR A GUEST WHO ORDERED · E TO SERVE"
+            : sim.coach.carry === "fins"
+              ? sim.venue.river || sim.venue.waves
+                ? "NEAR A GUEST · E TO GIVE THE TUBE / ELSE E TO DROP"
+                : "NEAR SWIMMER · E TO GIVE / ELSE E TO DROP"
+              : sim.coach.carry
+                ? "MEET YOUR SWIMMER · E TO HAND OVER"
+                : sim.cleanup
+                  ? sim.sanitationHint().toUpperCase()
+                  : p?.status === "queue"
+                    ? "● ● ●"
+                    : sim.clutter.length
+                      ? "PICK UP DROPPED GEAR · E"
+                      : "WASD MOVE · SHIFT DASH · SPACE JUMP"),
+  );
   // The status box only when it has something to say (5 November 2026, "too much UI"): an incident, a job in hand or its next
   // step. Its calm lines and the keys' reminder are left out (the keys stay in the first lesson, and in Help).
   const calmStatus = [
@@ -3749,7 +3945,7 @@ function updateUI() {
     calmHint = ["● ● ●", "PICK UP DROPPED GEAR · E", "WASD MOVE · SHIFT DASH · SPACE JUMP"].includes(
       $("hint").textContent,
     );
-  $("pool-status-box").hidden = calmStatus && calmHint && sim.config.tutorial !== 1;
+  putFlag($("pool-status-box"), "hidden", calmStatus && calmHint && sim.config.tutorial !== 1);
   // The happy streak's badge (Phase 3): the count, its tier and multiplier, what the next tier needs, and the guest who puts it at
   // risk; for a moment after it breaks, what broke it.
   const tier = streakTier(sim.streak),
@@ -3757,30 +3953,35 @@ function updateUI() {
     risk = sim.streak >= 3 ? sim.streakRisk() : null,
     noted = streakNote && performance.now() < streakNote.until;
   audio.heat = STREAK_TIERS.indexOf(tier);
-  $("combo").hidden = mode === "menu" || (!noted && (!!sim.cleanup || sim.streak < 2));
+  putFlag($("combo"), "hidden", mode === "menu" || (!noted && (!!sim.cleanup || sim.streak < 2)));
   $("combo").classList.toggle("broken", !!noted);
   $("combo").classList.toggle("hot", !noted && tier.mult >= 2);
   $("combo").classList.toggle("at-risk", !noted && !!risk);
-  $("combo-icon").textContent = noted ? "💔" : tier.mult >= 2.5 ? "⚡" : tier.mult >= 2 ? "🔥" : "✦";
+  put($("combo-icon"), noted ? "💔" : tier.mult >= 2.5 ? "⚡" : tier.mult >= 2 ? "🔥" : "✦");
   if (noted) {
-    $("combo-text").textContent = streakNote.text;
-    $("combo-sub").textContent = streakNote.sub;
+    put($("combo-text"), streakNote.text);
+    put($("combo-sub"), streakNote.sub);
   } else if (sim.streak >= 2) {
-    $("combo-text").textContent =
-      sim.streak + " IN A ROW" + (tier.mult > 1 ? " · " + tier.name + " ×" + tier.mult : "");
-    $("combo-sub").textContent = risk
-      ? "⚠ " +
-        risk.name +
-        " is " +
-        (risk.status === "queue" ? "tired of waiting" : "unhappy") +
-        ": help them!"
-      : nextTier
-        ? nextTier.at -
-          sim.streak +
-          " more for ×" +
-          nextTier.mult +
-          " · happy guests, saves and tips all count"
-        : "Unstoppable. Keep it going!";
+    put(
+      $("combo-text"),
+      sim.streak + " IN A ROW" + (tier.mult > 1 ? " · " + tier.name + " ×" + tier.mult : ""),
+    );
+    put(
+      $("combo-sub"),
+      risk
+        ? "⚠ " +
+            risk.name +
+            " is " +
+            (risk.status === "queue" ? "tired of waiting" : "unhappy") +
+            ": help them!"
+        : nextTier
+          ? nextTier.at -
+            sim.streak +
+            " more for ×" +
+            nextTier.mult +
+            " · happy guests, saves and tips all count"
+          : "Unstoppable. Keep it going!",
+    );
   }
   renderIncidentPanel(sim.cleanup ? sanitationPanel() : sim.incidentPanel());
   audio.panic = mode !== "menu" && sim.chaosPanic();
@@ -3788,7 +3989,7 @@ function updateUI() {
   if (mode !== "menu") updateQueue();
 }
 function updateTrampolineButton(p) {
-  const b = document.querySelector('[data-lane="trampoline"]'),
+  const b = laneButton("trampoline"),
     tr = sim.venue.trampoline;
   if (!b || !tr) return;
   const j = sim.get(sim.jumper),
@@ -3798,7 +3999,8 @@ function updateTrampolineButton(p) {
     mode === "playing" && !sim.rescue && !sim.closed && !j && p?.status === "queue" && p.type === "daredevil",
   );
   b.classList.toggle("danger", j?.jumpStage === "waiting" && j.jumpPatience < 5);
-  b.querySelector(".lane-mode").textContent =
+  put(
+    part(b, ".lane-mode"),
     sim.rescue?.kind === "crash"
       ? "CRASH!"
       : !j
@@ -3807,15 +4009,19 @@ function updateTrampolineButton(p) {
           ? "WALKING"
           : j.jumpStage === "waiting"
             ? Math.ceil(j.jumpPatience) + "s"
-            : "FLIP!";
-  b.querySelector(".lane-count").textContent = j
-    ? j.jumpStage === "waiting"
-      ? "Clear lane " + (tr.lane + 1) + "!"
-      : j.name + " on the tower"
-    : waiting
-      ? waiting + " daredevil" + (waiting === 1 ? "" : "s") + " waiting"
-      : "Daredevils only";
-  b.disabled = mode !== "playing" || !!sim.rescue;
+            : "FLIP!",
+  );
+  put(
+    part(b, ".lane-count"),
+    j
+      ? j.jumpStage === "waiting"
+        ? "Clear lane " + (tr.lane + 1) + "!"
+        : j.name + " on the tower"
+      : waiting
+        ? waiting + " daredevil" + (waiting === 1 ? "" : "s") + " waiting"
+        : "Daredevils only",
+  );
+  putFlag(b, "disabled", mode !== "playing" || !!sim.rescue);
 }
 function sanitationPanel() {
   // A wee: everybody out, then the chlorine (there is nothing to scoop).
@@ -3845,136 +4051,247 @@ function sanitationPanel() {
 }
 let panelKey = "";
 function renderIncidentPanel(panel) {
-  $("closure").hidden = !panel || mode === "menu";
+  putFlag($("closure"), "hidden", !panel || mode === "menu");
   $("closure").classList.toggle("big-moment", !!panel?.big);
   if (!panel) return;
-  $("closure").firstElementChild.textContent = panel.icon;
-  $("closure-title").textContent = panel.title;
-  $("closure-task").textContent = panel.task || "";
+  put($("closure").firstElementChild, panel.icon);
+  put($("closure-title"), panel.title);
+  put($("closure-task"), panel.task || "");
   // Timed threats drain a fuse on the banner.
-  const timer = document.querySelector(".closure-timer"),
+  const timer = part($("closure"), ".closure-timer"),
     left = Number.isFinite(panel.timer) ? Math.max(0, Math.min(1, panel.timer)) : null;
-  timer.hidden = left === null;
+  putFlag(timer, "hidden", left === null);
   if (left !== null) {
-    timer.firstElementChild.style.width = left * 100 + "%";
+    putStyle(timer.firstElementChild, "width", left * 100 + "%");
     timer.classList.toggle("low", left < 0.35);
   }
   const key = JSON.stringify(panel.steps || []);
   if (key !== panelKey) {
     panelKey = key;
-    const steps = document.querySelector(".cleanup-steps");
-    steps.hidden = !panel.steps?.length;
-    steps.innerHTML = (panel.steps || [])
-      .map((s) => `<span class="${s.active ? "active" : ""} ${s.done ? "done" : ""}">${s.label}</span>`)
-      .join("");
+    const steps = part($("closure"), ".cleanup-steps");
+    putFlag(steps, "hidden", !panel.steps?.length);
+    putHTML(
+      steps,
+      (panel.steps || [])
+        .map((s) => `<span class="${s.active ? "active" : ""} ${s.done ? "done" : ""}">${s.label}</span>`)
+        .join(""),
+    );
   }
 }
 function updateContext() {
   const floater = $("scoop-target"),
-    q = sim.cleanup;
-  floater.hidden = mode !== "playing" || q?.stage !== "floating" || sim.coach.carry !== "skimmer";
-  if (!floater.hidden) {
+    q = sim.cleanup,
+    active = mode === "playing",
+    near = active ? sim.nearestInteraction() : null,
+    scooping = active && q?.stage === "floating" && sim.coach.carry === "skimmer";
+  putFlag(floater, "hidden", !scooping);
+  if (scooping) {
     const xy = world.project(q.x, 0.85, q.z),
-      ready = sim.nearestInteraction()?.kind === "scoop";
-    floater.style.left = xy.x + "px";
-    floater.style.top = Math.max(scoreboardBottom() + 42, xy.y) + "px";
-    floater.textContent = ready ? "E · SCOOP" : "GET CLOSER";
+      ready = near?.kind === "scoop";
+    putStyle(floater, "left", xy.x + "px");
+    putStyle(floater, "top", Math.max(scoreboardBottom() + 42, xy.y) + "px");
+    put(floater, ready ? "E · SCOOP" : "GET CLOSER");
     floater.classList.toggle("in-reach", ready);
   }
-  const active = mode === "playing",
-    firstPerson = world.viewMode === "coach";
-  $("coach-prompt").hidden = !active;
-  $("touch-controls").hidden = !active;
-  $("crosshair").hidden = !active || !firstPerson;
+  const firstPerson = world.viewMode === "coach";
+  putFlag($("coach-prompt"), "hidden", !active);
+  putFlag($("touch-controls"), "hidden", !active);
+  putFlag($("crosshair"), "hidden", !active || !firstPerson);
   if (!active) return;
   const c = sim.coach,
-    near = sim.nearestInteraction(),
-    prompt = $("coach-prompt");
+    prompt = $("coach-prompt"),
+    view = windowSize();
   if (firstPerson) {
     // Coach Cam: the prompt sits just above the hands; the crosshair names what a click would act on.
-    prompt.style.left = innerWidth / 2 + "px";
-    prompt.style.top = Math.round(innerHeight * 0.66) + "px";
-    prompt.hidden = !near && !c.busy && !c.swimming && !c.waterTransition && !c.slipTime;
+    putStyle(prompt, "left", view.w / 2 + "px");
+    putStyle(prompt, "top", Math.round(view.h * 0.66) + "px");
+    putFlag(prompt, "hidden", !near && !c.busy && !c.swimming && !c.waterTransition && !c.slipTime);
     const target = world.centerTarget(),
       crosshair = $("crosshair");
     crosshair.classList.toggle("on-target", !!target);
-    crosshair.querySelector("span").textContent = target
-      ? targetLabel(target)
-      : document.pointerLockElement
-        ? ""
-        : matchMedia("(pointer: fine)").matches
-          ? "Click the pool to look around"
-          : "Drag to look around";
+    put(
+      part(crosshair, "span"),
+      target
+        ? targetLabel(target)
+        : document.pointerLockElement
+          ? ""
+          : finePointer.matches
+            ? "Click the pool to look around"
+            : "Drag to look around",
+    );
   } else {
     const p = world.project(c.x, (c.y || 0) + 2.2, c.z);
-    prompt.style.left = Math.max(90, Math.min(innerWidth - 90, p.x)) + "px";
-    prompt.style.top = Math.max(110, Math.min(innerHeight - 108, p.y)) + "px";
+    putStyle(prompt, "left", Math.max(90, Math.min(view.w - 90, p.x)) + "px");
+    putStyle(prompt, "top", Math.max(110, Math.min(view.h - 108, p.y)) + "px");
   }
   prompt.classList.toggle("slipped", c.slipTime > 0);
   prompt.classList.toggle("can-interact", !!near);
-  prompt.querySelector("span").textContent = near
-    ? near.label
-    : c.busy
-      ? c.busy.label
-      : c.swimming
-        ? sim.rescue?.stage === "stranded"
-          ? sim.rescue.kind === "crash"
-            ? c.carry === "lifering"
-              ? "SWIM TO 🤕"
-              : "CLIMB OUT · NEXT RING"
-            : "SWIM TO 🦵"
-          : c.carry === "fishnet" && !c.netLoaded && sim.fish?.stage === "loose"
-            ? "CATCH THE FISH 🐟"
-            : "SWIM TO AN EDGE"
-        : c.waterTransition
-          ? "RESCUE"
-          : c.slipTime
-            ? "😠"
-            : c.y > 0.08
-              ? "Nice hop!"
-              : c.carry
-                ? "Carrying " + carryName(c)
-                : "COACH";
-  prompt.querySelector("kbd").hidden = !near;
+  put(
+    part(prompt, "span"),
+    near
+      ? near.label
+      : c.busy
+        ? c.busy.label
+        : c.swimming
+          ? sim.rescue?.stage === "stranded"
+            ? sim.rescue.kind === "crash"
+              ? c.carry === "lifering"
+                ? "SWIM TO 🤕"
+                : "CLIMB OUT · NEXT RING"
+              : "SWIM TO 🦵"
+            : c.carry === "fishnet" && !c.netLoaded && sim.fish?.stage === "loose"
+              ? "CATCH THE FISH 🐟"
+              : "SWIM TO AN EDGE"
+          : c.waterTransition
+            ? "RESCUE"
+            : c.slipTime
+              ? "😠"
+              : c.y > 0.08
+                ? "Nice hop!"
+                : c.carry
+                  ? "Carrying " + carryName(c)
+                  : "COACH",
+  );
+  putFlag(part(prompt, "kbd"), "hidden", !near);
   // (Over the coach from above only when it says something: E and what it does, a job, a swim, a slip. Never just COACH, nor what
   // the hand panel already says: 5 November 2026, "too much UI".)
   if (!firstPerson)
-    prompt.hidden = !near && !c.busy && !c.swimming && !c.waterTransition && !c.slipTime && !(c.y > 0.08);
+    putFlag(
+      prompt,
+      "hidden",
+      !near && !c.busy && !c.swimming && !c.waterTransition && !c.slipTime && !(c.y > 0.08),
+    );
 }
 function clearBubbles() {
   for (const b of bubbles.values()) b.remove();
   bubbles.clear();
 }
-// Writing to the page only what changed: a tag is redrawn every frame, and a write that changes nothing still makes the browser do
-// work (a new text node, a style recalculation).
+// Writing to the page only what changed (13 November 2026). The HUD's update runs eight times a second, the coach's prompt and
+// the alert every frame, and a write that changes nothing still costs: a text made new is a new text node (its box laid out and
+// painted again), a list written as HTML is parsed and built again, a `hidden` set again has its style worked out again. Every
+// write of theirs goes through one of these.
 const put = (el, text) => {
-  if (el.textContent !== text) el.textContent = text;
+  const s = text == null ? "" : typeof text === "string" ? text : String(text);
+  if (el.textContent !== s) el.textContent = s;
 };
-const putProp = (el, prop, value) => {
-  if (el[prop] !== value) el[prop] = value;
+// (a list written as HTML: what was last written is kept beside it, so the page is not asked to spell its own out)
+const putHTML = (el, html) => {
+  if (el._html === html) return;
+  el._html = html;
+  el.innerHTML = html;
 };
+// (hidden, disabled)
+const putFlag = (el, prop, on) => {
+  on = !!on;
+  if (el[prop] !== on) el[prop] = on;
+};
+// (a style: what was last written is kept beside it, since the page gives a colour or a long number back in other words; so an
+// element styled through here is styled nowhere else)
 const putStyle = (el, prop, value) => {
-  if (el.style[prop] !== value) el.style[prop] = value;
+  const seen = (el._style ||= {});
+  if (seen[prop] === value) return;
+  seen[prop] = value;
+  if (prop.startsWith("--")) el.style.setProperty(prop, value);
+  else el.style[prop] = value;
 };
-const putAttr = (el, name, value) => {
-  if (el.getAttribute(name) !== value) el.setAttribute(name, value);
+// (a part of a button or a panel, looked up once: the lane buttons are built anew with each venue, renderLaneControls)
+const part = (el, selector) => {
+  const parts = (el._parts ||= {});
+  return (parts[selector] ||= el.querySelector(selector));
 };
-// A tag's place over its person, kept on screen and below the scoreboard. Its size is measured only when its text changed (reading
-// a size makes the browser lay the page out), and it moves in whole pixels.
-function placeTag(b, screen, tagTop) {
-  const key = b.textContent + (b.querySelector(".label-name")?.hidden ? "" : "|n");
-  if (b._sizeKey !== key || !b._w) {
-    b._sizeKey = key;
-    b._w = b.offsetWidth;
-    b._h = b.offsetHeight;
-  }
-  putStyle(
-    b,
-    "left",
-    Math.round(Math.max(b._w / 2 + 8, Math.min(innerWidth - b._w / 2 - 8, screen.x))) + "px",
-  );
-  putStyle(b, "top", Math.round(Math.max(tagTop + b._h, screen.y)) + "px");
+// (a lane button by its key: looked for among the lane buttons, not in the whole page)
+const laneButton = (key) => $("lane-controls").querySelector('[data-lane="' + key + '"]');
+// A tag over a guest or a visitor is updated every frame, so nothing about it is read from the page (13 November 2026): its
+// parts are found once when it is made, and what was last written to each is kept beside it (`seen`), so a write happens only
+// when something changed. Until then every frame looked its parts up again (a dozen searches a tag), read its whole text to
+// know whether to measure it, and measured every hidden tag every frame (a hidden tag is 0 wide, which read as "not measured
+// yet"); each measure, coming after the tag before it had moved, made the browser lay the page out again. A hidden tag now gets
+// nothing but its `hidden`, and the tags that changed are measured together, after every write and before any is moved.
+function tagParts(b) {
+  return (b._p ||= {
+    marker: b.querySelector(".rescue-marker"),
+    ring: b.querySelector(".ring"),
+    ringText: b.querySelector(".ring b"),
+    icon: b.querySelector(".type-icon"),
+    label: b.querySelector(".type-label"),
+    mood: b.querySelector(".mood-icon"),
+    hp: b.querySelector(".hp"),
+    hpFill: b.querySelector(".hp i"),
+    stomach: b.querySelector(".stomach-meter"),
+    stomachFill: b.querySelector(".stomach-meter i"),
+    stomachText: b.querySelector(".stomach-meter b"),
+    name: b.querySelector(".label-name"),
+    seen: {},
+    resize: true, // its text changed (or it was hidden): measure it before it is placed
+  });
 }
+// (text: a change of it changes the tag's size)
+function tagText(parts, key, el, text) {
+  if (parts.seen[key] === text) return;
+  parts.seen[key] = text;
+  el.textContent = text;
+  parts.resize = true;
+}
+function tagProp(parts, key, el, prop, value) {
+  if (parts.seen[key] === value) return;
+  parts.seen[key] = value;
+  el[prop] = value;
+}
+function tagClass(parts, key, el, name, on) {
+  if (parts.seen[key] === on) return;
+  parts.seen[key] = on;
+  el.classList.toggle(name, on);
+}
+function tagStyle(parts, key, el, prop, value) {
+  if (parts.seen[key] === value) return;
+  parts.seen[key] = value;
+  el.style[prop] = value;
+}
+// Hidden or shown; a tag that comes back is measured again (it measured 0 while it was hidden).
+function tagHidden(b, parts, hidden) {
+  if (parts.seen.hidden === hidden) return;
+  parts.seen.hidden = hidden;
+  b.hidden = hidden;
+  if (!hidden) parts.resize = true;
+}
+// The tags to place this frame (shown ones only), with where their guest is on screen.
+const tagQueue = [];
+function queueTag(b, screen) {
+  b._sx = screen.x;
+  b._sy = screen.y;
+  tagQueue.push(b);
+}
+// Each over its person, kept on screen and below the top margin, in whole pixels: measured first (one layout for all that
+// changed), then moved.
+function placeTags(tagTop) {
+  for (let i = 0; i < tagQueue.length; i++) {
+    const b = tagQueue[i],
+      parts = b._p;
+    if (parts.resize || !b._w) {
+      parts.resize = false;
+      b._w = b.offsetWidth;
+      b._h = b.offsetHeight;
+    }
+  }
+  const width = windowSize().w;
+  for (let i = 0; i < tagQueue.length; i++) {
+    const b = tagQueue[i],
+      left = Math.round(Math.max(b._w / 2 + 8, Math.min(width - b._w / 2 - 8, b._sx))),
+      top = Math.round(Math.max(tagTop + b._h, b._sy));
+    if (b._left !== left) {
+      b._left = left;
+      b.style.left = left + "px";
+    }
+    if (b._top !== top) {
+      b._top = top;
+      b.style.top = top + "px";
+    }
+  }
+  tagQueue.length = 0;
+}
+const TAG_OUT = new Set(["exit", "enter", "evacuating", "panic", "recovering"]),
+  TAG_PICKABLE = new Set(["queue", "swim", "injured"]),
+  tagIds = new Set();
 // The scoreboard's foot (the tags stay under it), read at most twice a second: reading it after the tags had moved made the
 // browser lay the page out again in the middle of the frame (3 November 2026).
 function scoreboardBottom() {
@@ -4019,15 +4336,21 @@ function updateBubbles() {
     $("world-labels").hidden = true;
     return;
   }
-  const ids = new Set(),
+  const ids = tagIds,
     tagTop = scoreboardBottom() + 12,
     // (the pools where where a guest goes is no choice of who they are: every guest to the same thing)
-    tagFree = !!(sim.venue.class || sim.venue.waves || sim.venue.kids || sim.venue.onsen || sim.venue.river);
+    tagFree = !!(sim.venue.class || sim.venue.waves || sim.venue.kids || sim.venue.onsen || sim.venue.river),
+    guidedId = guidanceState(sim).swimmerId,
+    victims = sim.rescue?.victims,
+    coachView = world.viewMode === "coach",
+    playing = mode === "playing";
+  ids.clear();
+  tagQueue.length = 0;
   for (const p of sim.people) {
     if (
       p.status === "gone" ||
       p.away || // (round the Lazy River's loop, out of sight)
-      (["exit", "enter", "evacuating", "panic", "recovering"].includes(p.status) && !(p.annoyedTime > 0))
+      (TAG_OUT.has(p.status) && !(p.annoyedTime > 0))
     )
       continue;
     ids.add(p.id);
@@ -4042,23 +4365,14 @@ function updateBubbles() {
       $("world-labels").appendChild(b);
       bubbles.set(p.id, b);
     }
-    const screen = world.project(
-      p.x,
-      p.status === "swim"
-        ? p.type === "aqua"
-          ? 1.15
-          : 0.8
-        : p.status === "injured"
-          ? 1.15
-          : p.status === "massage" && p.massage !== "walk"
-            ? 1.55
-            : 2 + (p.y || 0),
-      p.z,
-    );
-    const rescuing =
-        (sim.rescue?.victims || []).includes(p.id) &&
+    const parts = tagParts(b),
+      selected = p.id === sim.selected,
+      guided = p.id === guidedId,
+      rescuing =
+        !!victims &&
+        victims.includes(p.id) &&
         !p.rescueRecover &&
-        ["swim", "switch"].includes(p.status),
+        (p.status === "swim" || p.status === "switch"),
       own = sim.personTag?.(p) || null,
       jumpWait = p.status === "trampoline" && p.jumpStage === "waiting",
       asking = !!p.ask && p.status === "swim" && !p.problem && !p.stomachWarning;
@@ -4079,43 +4393,70 @@ function updateBubbles() {
         p.status === "injured" ||
         p.annoyedTime > 0 ||
         p.h < 45 ||
-        p.id === sim.selected ||
-        p.id === guidanceState(sim).swimmerId,
-      wanted = needsCoach || !tagFree || (sim.venue.river && p.status === "queue");
-    // (Only what changed is written: a tag is updated every frame and most frames change nothing in it. 16 October 2026.)
-    putProp(
-      b,
-      "hidden",
-      !wanted ||
-        !screen.visible ||
-        (world.viewMode === "coach" && Math.hypot(p.x - sim.coach.x, p.z - sim.coach.z) > 16),
-    );
-    putProp(b, "disabled", mode !== "playing" || !["queue", "swim", "injured"].includes(p.status));
-    putAttr(b, "aria-label", "Select " + p.name + ", " + roofLook(p).label);
-    putAttr(b, "aria-pressed", String(p.id === sim.selected));
-    b.classList.toggle("rescue-victim", rescuing);
-    putProp(b.querySelector(".rescue-marker"), "hidden", !rescuing);
-    b.classList.toggle("stomach-warning", !!p.stomachWarning);
-    b.classList.toggle("injured", p.status === "injured");
+        selected ||
+        guided,
+      wanted = needsCoach || !tagFree || (sim.venue.river && p.status === "queue"),
+      // (where they are on screen: worked out only for a tag that is wanted)
+      screen = wanted
+        ? world.project(
+            p.x,
+            p.status === "swim"
+              ? p.type === "aqua"
+                ? 1.15
+                : 0.8
+              : p.status === "injured"
+                ? 1.15
+                : p.status === "massage" && p.massage !== "walk"
+                  ? 1.55
+                  : 2 + (p.y || 0),
+            p.z,
+          )
+        : null,
+      hidden =
+        !wanted || !screen.visible || (coachView && Math.hypot(p.x - sim.coach.x, p.z - sim.coach.z) > 16);
+    tagHidden(b, parts, hidden);
+    // (a hidden tag is not there for the player nor the keyboard: it is written again in full when it comes back)
+    if (hidden) continue;
+    const look = roofLook(p);
+    tagProp(parts, "disabled", b, "disabled", !playing || !TAG_PICKABLE.has(p.status));
+    if (parts.seen.ariaName !== p.name || parts.seen.ariaLabel !== look.label) {
+      parts.seen.ariaName = p.name;
+      parts.seen.ariaLabel = look.label;
+      b.setAttribute("aria-label", "Select " + p.name + ", " + look.label);
+    }
+    if (parts.seen.pressed !== selected) {
+      parts.seen.pressed = selected;
+      b.setAttribute("aria-pressed", String(selected));
+    }
+    tagClass(parts, "cRescue", b, "rescue-victim", rescuing);
+    tagProp(parts, "marker", parts.marker, "hidden", !rescuing);
+    tagClass(parts, "cStomach", b, "stomach-warning", !!p.stomachWarning);
+    tagClass(parts, "cInjured", b, "injured", p.status === "injured");
     // An incident's wheel on the guest's own tag (the massage table: the hold-E wheel with the coaches' faces on it, as on
     // Karen's, incidents/massage.mjs) and its patience as the countdown bar.
-    const ring = b.querySelector(".ring");
-    putProp(ring, "hidden", own?.ring === undefined);
+    const ring = parts.ring;
+    tagProp(parts, "ring", ring, "hidden", own?.ring === undefined);
     if (own?.ring !== undefined) {
-      ring.style.setProperty("--fill", Math.round(own.ring * 360) + "deg");
-      ring.classList.toggle("holding", own.ring > 0.02 || !!own.team?.length);
-      put(ring.firstElementChild, own.ring > 0.02 || own.team?.length ? "✋" : "E");
+      const fill = Math.round(own.ring * 360),
+        holding = own.ring > 0.02 || !!own.team?.length;
+      if (parts.seen.fill !== fill) {
+        parts.seen.fill = fill;
+        ring.style.setProperty("--fill", fill + "deg");
+      }
+      tagClass(parts, "cHolding", ring, "holding", holding);
+      tagText(parts, "ringText", parts.ringText, holding ? "✋" : "E");
       teamWheel(ring, own.team || []);
     }
-    b.classList.toggle("massage-edgy", !!own?.edgy);
+    tagClass(parts, "cEdgy", b, "massage-edgy", !!own?.edgy);
     // One countdown bar: stomach trouble, a daredevil losing patience on the tower, or a guest on the massage table.
     const waiting = own?.patience !== undefined,
-      stomach = b.querySelector(".stomach-meter");
-    putProp(stomach, "hidden", !p.stomachWarning && !jumpWait && !asking && !waiting);
-    stomach.classList.toggle("jump-meter", jumpWait || waiting);
-    stomach.classList.toggle("tip-meter", asking);
-    b.classList.toggle("asking", asking);
-    if (!stomach.hidden) {
+      stomach = parts.stomach,
+      meter = !!p.stomachWarning || jumpWait || asking || waiting;
+    tagProp(parts, "stomach", stomach, "hidden", !meter);
+    tagClass(parts, "cJump", stomach, "jump-meter", jumpWait || waiting);
+    tagClass(parts, "cTip", stomach, "tip-meter", asking);
+    tagClass(parts, "cAsking", b, "asking", asking);
+    if (meter) {
       const left = waiting
           ? own.left
           : jumpWait
@@ -4130,40 +4471,48 @@ function updateBubbles() {
             : asking
               ? TIPS.limit
               : p.sicknessDuration;
-      putStyle(stomach.querySelector("i"), "width", Math.round(Math.max(0, (left / total) * 100)) + "%");
-      put(stomach.querySelector("b"), Math.ceil(left) + "s");
+      tagStyle(
+        parts,
+        "stomachW",
+        parts.stomachFill,
+        "width",
+        Math.round(Math.max(0, (left / total) * 100)) + "%",
+      );
+      tagText(parts, "stomachText", parts.stomachText, Math.ceil(left) + "s");
     }
-    b.classList.toggle("selected", p.id === sim.selected);
-    b.classList.toggle("guided", p.id === guidanceState(sim).swimmerId);
+    tagClass(parts, "cSelected", b, "selected", selected);
+    tagClass(parts, "cGuided", b, "guided", guided);
     // A calmer pool (Phase 1): a swimmer happily swimming, with nothing wrong, keeps a small faded tag (the icon only), so the
     // tags that stand out are the ones that need the coach. Still clickable, to move them to another lane.
-    b.classList.toggle(
-      "quiet",
+    const quiet =
       (sim.venue.river && p.status === "queue" && !needsCoach) ||
-        (p.status === "swim" &&
-          !p.problem &&
-          !p.stomachWarning &&
-          !p.ask &&
-          !rescuing &&
-          p.id !== sim.selected &&
-          p.h >= 55 &&
-          !p.vip &&
-          !p.star),
-    );
-    put(b.querySelector(".type-icon"), roofLook(p).icon);
-    put(b.querySelector(".type-label"), roofLook(p).label);
+      (p.status === "swim" &&
+        !p.problem &&
+        !p.stomachWarning &&
+        !p.ask &&
+        !rescuing &&
+        !selected &&
+        p.h >= 55 &&
+        !p.vip &&
+        !p.star);
+    if (parts.seen.cQuiet !== quiet) {
+      parts.seen.cQuiet = quiet;
+      b.classList.toggle("quiet", quiet);
+      parts.resize = true; // (the quiet tag is the icon alone)
+    }
+    tagText(parts, "icon", parts.icon, look.icon);
+    tagText(parts, "label", parts.label, look.label);
     const statusIcon = problemIcon(p);
-    put(
-      b.querySelector(".mood-icon"),
-      statusIcon !== roofLook(p).icon && statusIcon !== "🙂" ? statusIcon : "",
-    );
-    const hp = b.querySelector(".hp i");
-    putStyle(hp, "width", Math.round(Math.max(0, p.h)) + "%");
-    putStyle(hp, "background", moodColor(p.h));
-    const name = b.querySelector(".label-name");
-    put(name, p.name);
-    putProp(name, "hidden", p.id !== sim.selected);
-    placeTag(b, screen, tagTop);
+    tagText(parts, "mood", parts.mood, statusIcon !== look.icon && statusIcon !== "🙂" ? statusIcon : "");
+    tagStyle(parts, "hpW", parts.hpFill, "width", Math.round(Math.max(0, p.h)) + "%");
+    tagStyle(parts, "hpColor", parts.hpFill, "background", moodColor(p.h));
+    tagText(parts, "name", parts.name, p.name);
+    if (parts.seen.nameHidden !== !selected) {
+      parts.seen.nameHidden = !selected;
+      parts.name.hidden = !selected;
+      parts.resize = true;
+    }
+    queueTag(b, screen);
   }
   for (const v of sim.visitors || []) {
     const tag = sim.visitorTag(v);
@@ -4178,57 +4527,85 @@ function updateBubbles() {
       $("world-labels").appendChild(b);
       bubbles.set(v.id, b);
     }
-    const screen = world.project(v.x, v.kind === "dog" ? 1.4 : v.kind === "kid" ? 1.5 : 2.3, v.z);
-    b.hidden = !screen.visible || mode === "menu";
-    b.classList.toggle("urgent", !!tag.urgent);
-    b.querySelector(".type-icon").textContent = tag.icon;
-    b.querySelector(".type-label").textContent = tag.label || "";
+    const parts = tagParts(b),
+      screen = world.project(v.x, v.kind === "dog" ? 1.4 : v.kind === "kid" ? 1.5 : 2.3, v.z),
+      hidden = !screen.visible || mode === "menu";
+    tagHidden(b, parts, hidden);
+    if (hidden) continue;
+    tagClass(parts, "cUrgent", b, "urgent", !!tag.urgent);
+    tagText(parts, "icon", parts.icon, tag.icon);
+    tagText(parts, "label", parts.label, tag.label || "");
     // The hold-E wheel (calming Karen), Overcooked style: it fills clockwise, with no numbers (E to start, a hand while it
     // fills). In a crew, each coach holding E on it has their face on the wheel in their colour, and once two are on it the
     // fill runs through their colours and a second ring goes round it, with a pop as each one joins (teamwork.mjs).
-    const ring = b.querySelector(".ring");
-    ring.hidden = tag.ring === undefined;
+    const ring = parts.ring;
+    tagProp(parts, "ring", ring, "hidden", tag.ring === undefined);
     if (tag.ring !== undefined) {
-      ring.style.setProperty("--fill", Math.round(tag.ring * 360) + "deg");
-      ring.classList.toggle("holding", tag.ring > 0.02 || !!tag.team?.length);
-      put(ring.firstElementChild, tag.ring > 0.02 || tag.team?.length ? "✋" : "E");
+      const fill = Math.round(tag.ring * 360),
+        holding = tag.ring > 0.02 || !!tag.team?.length;
+      if (parts.seen.fill !== fill) {
+        parts.seen.fill = fill;
+        ring.style.setProperty("--fill", fill + "deg");
+      }
+      tagClass(parts, "cHolding", ring, "holding", holding);
+      tagText(parts, "ringText", parts.ringText, holding ? "✋" : "E");
       teamWheel(ring, tag.team || []);
     }
-    const meter = b.querySelector(".hp");
-    meter.hidden = tag.meter === undefined;
+    tagProp(parts, "meter", parts.hp, "hidden", tag.meter === undefined);
     if (tag.meter !== undefined) {
-      meter.firstElementChild.style.width = Math.round(tag.meter * 100) + "%";
-      meter.firstElementChild.style.background =
-        tag.meter > 0.7 ? "#eb7754" : tag.meter > 0.4 ? "#e6b445" : "#73b65b";
+      tagStyle(parts, "hpW", parts.hpFill, "width", Math.round(tag.meter * 100) + "%");
+      tagStyle(
+        parts,
+        "hpColor",
+        parts.hpFill,
+        "background",
+        tag.meter > 0.7 ? "#eb7754" : tag.meter > 0.4 ? "#e6b445" : "#73b65b",
+      );
     }
-    placeTag(b, screen, tagTop);
+    queueTag(b, screen);
   }
-  for (const [id, b] of bubbles)
-    if (!ids.has(id)) {
-      b.remove();
-      bubbles.delete(id);
-    }
+  placeTags(tagTop);
+  if (bubbles.size !== ids.size)
+    for (const [id, b] of bubbles)
+      if (!ids.has(id)) {
+        b.remove();
+        bubbles.delete(id);
+      }
   for (let i = 0; i < stationLabels.length; i++) {
     const data = world.labels[i],
-      screen = world.project(data.x, data.y, data.z);
-    stationLabels[i].style.left = screen.x + "px";
-    stationLabels[i].style.top = screen.y + "px";
-    // (A station's name on the floor only near the coach, 6 m: the deck is not a map of labels. 5 November 2026, "too much UI".)
-    stationLabels[i].hidden =
-      mode === "menu" ||
-      Math.hypot(data.x - sim.coach.x, data.z - sim.coach.z) > STATION_LABEL_NEAR ||
-      sim.level < (data.minLevel || 1) ||
-      (data.when ? !data.when(sim) : false) ||
-      !screen.visible;
+      el = stationLabels[i],
+      // (A station's name on the floor only near the coach, 6 m: the deck is not a map of labels. 5 November 2026, "too much UI".)
+      far =
+        mode === "menu" ||
+        Math.hypot(data.x - sim.coach.x, data.z - sim.coach.z) > STATION_LABEL_NEAR ||
+        sim.level < (data.minLevel || 1) ||
+        (data.when ? !data.when(sim) : false),
+      screen = far ? null : world.project(data.x, data.y, data.z),
+      hidden = far || !screen.visible;
+    if (el._hidden !== hidden) {
+      el._hidden = hidden;
+      el.hidden = hidden;
+    }
+    if (hidden) continue;
+    if (el._x !== screen.x) {
+      el._x = screen.x;
+      el.style.left = screen.x + "px";
+    }
+    if (el._y !== screen.y) {
+      el._y = screen.y;
+      el.style.top = screen.y + "px";
+    }
   }
 }
 // The faces on a hold-E wheel: one per coach on the job, in their colour, the order they joined. A second coach on it turns
 // the wheel into a team wheel (a second ring, the fill through their colours) and every new pair of hands pops it.
 function teamWheel(ring, team) {
+  // (asked every frame a wheel is on screen: nothing to do, and nothing made, while nobody is on it)
+  if (!team.length && ring._team === "") return;
   const key = team.join(" ");
-  if (ring.dataset.team === key) return;
-  const before = ring.dataset.team ? ring.dataset.team.split(" ").length : 0;
-  ring.dataset.team = key;
+  if (ring._team === key) return;
+  const before = ring._team ? ring._team.split(" ").length : 0;
+  ring._team = key;
   const faces = ring.querySelector(".team");
   faces.replaceChildren(
     ...team.map((look) => {
@@ -4801,13 +5178,36 @@ function animate(t) {
   if (!snagged && Object.values(failing).some((n) => n >= 90)) snag();
   requestAnimationFrame(animate);
 }
+// The yellow pulse round what asks for the coach (guidance.mjs `cuePulse`, style.css `var(--cue)`: a guided or sick or injured
+// guest's tag, an urgent visitor's, the lane a picked guest may go to). It is written on the two parts of the page that can hold
+// something pulsing, and only while something in them does. Until 13 November 2026 it was written on the page's root every frame,
+// and since every element inherits a custom property the browser worked out the style of the whole page again, every frame
+// (2,600 elements: about 5 ms a frame where it was measured, the largest single cost of a frame). The root keeps a still 0.5.
+const CUE_HOSTS = [
+  ["world-labels", ".guided, .stomach-warning, .urgent, .injured"],
+  ["lane-controls", ".assignable"],
+];
+let cueHosts = null;
+function cueFrame(t) {
+  const value = cuePulse(t / 1000, reducedMotion.matches).toFixed(2);
+  cueHosts ||= CUE_HOSTS.map(([id, pulsing]) => ({ el: $(id), pulsing, value: "" })).filter((h) => h.el);
+  for (const host of cueHosts) {
+    const next = host.el.querySelector(host.pulsing) ? value : "";
+    if (next === host.value) continue;
+    host.value = next;
+    if (next) host.el.style.setProperty("--cue", next);
+    else host.el.style.removeProperty("--cue");
+  }
+}
 let logClock = 0,
   perfClock = 0;
 function frame(t) {
+  const began = performance.now(),
+    gap = previous ? t - previous : 0;
+  for (const name in stageMs) stageMs[name] = 0;
   if (revealing && ++bootFrames > 4 && (mode !== "menu" || !menuStage?.ready || menuDrawn)) revealGame();
   const covered = mode === "menu" && warmFrames-- <= 0;
-  if (!covered)
-    document.documentElement.style.setProperty("--cue", cuePulse(t / 1000, reducedMotion.matches).toFixed(3));
+  if (!covered) cueFrame(t);
   if (previous) crashlog.frame(t - previous);
   const dt = Math.min((t - previous) / 1000 || 0.016, 0.06),
     // Incident stings slow the game down and saves freeze it for a beat; menus always run at full speed.
@@ -4862,7 +5262,7 @@ function frame(t) {
     const underMap = document.body.classList.contains("freeplay") && !doorsOpening;
     if (covered && menuStage?.ready && !tuning.has("norender") && !underMap) {
       // (The view slides right on a wide screen, so the doors stand beside the menu's column, not behind it.)
-      const wide = innerWidth > 900 && innerWidth / innerHeight > 1.25;
+      const wide = windowSize().w > 900 && windowSize().w / windowSize().h > 1.25;
       menuStage.framing = wide ? 0.13 : 0;
       const drawn = stage("menu", () => {
         menuStage.update(dt);
@@ -4916,9 +5316,11 @@ function frame(t) {
   }
   if (perfClock > (playtest ? 5 : 10)) {
     perfClock = 0;
-    sampleLog();
+    // (a walk over the whole scene to count it: between two frames, not in this one)
+    whenIdle(sampleLog);
   }
   if (playtest) playtestTick(dt);
+  hitchWatch(gap, performance.now() - began);
 }
 function bind() {
   weekUi = installWeek({
@@ -5565,6 +5967,8 @@ try {
       get crashlog() {
         return crashlog;
       },
+      // (how long each stage of the last frame took, ms: `stage`)
+      stageMs,
       get story() {
         return story;
       },

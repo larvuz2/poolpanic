@@ -2773,6 +2773,69 @@ at the Aquatic Centre), lighter shadows (almost the whole venue is drawn again f
 and a Retina pixel ratio of 1.5 instead of 1.7 (half the pixels measured −29%). Not measured here: real frame rates on the creator's
 Mac and Windows PC. The report with its charts is the "Pool Panic Performance Pass" page.
 
+### Performance: the second pass (13 November 2026)
+
+The creator: "analyze the full game and make it better in terms of efficiency and performance… whenever we have incidents appearing,
+sometimes I see a lag for a bit". Measured the same way as the first pass (Chromium under a virtual screen, no graphics card, so
+what is counted is the game's own work: script time by stage, what is sent to the graphics card, the page's style and layout work,
+memory made and thrown away; never frames a second), with an incident started on purpose and the two seconds after it profiled.
+No shader was being compiled mid-shift (the warm-up of 4 November holds). What was found, and fixed; none of it changes the look or
+how a shift plays:
+
+1. **A visitor's pictures were sent to the graphics card twice.** `sharpenTextures` walked the scene every two seconds and, for any
+   picture not yet at the wanted sharpness (anisotropy), set it and flagged the whole picture to be uploaded again. An incident's
+   visitor arrives with pictures the walk has not seen, so one to two seconds after Carl, the dog or Karen walked in, their
+   pictures (1024² and 1536², up to 4.7 million pixels for Karen) were uploaded a second time in the middle of a frame: 8 to 20 ms
+   here, and 1.3 s once at the Wave Pool under load. Now a picture already on the card is made sharper there (one
+   `texParameterf`, `setSharpness` in scene.mjs; three.js is told through its own record, so it does not upload it either), a
+   picture not sent yet just takes the number, and the shift's whole cast is sharpened before the warm-up frame is drawn
+   (`warmShaders`). Pixels uploaded in the five seconds after an incident: 2.1 to 4.7 million → 8 to 18 thousand (small labels).
+2. **Every element's style was worked out again every frame.** The cues' pulse (`--cue`, the glow of a guided tag or lane button)
+   was written on the page's root sixty times a second; a custom property is inherited, so the browser recalculated all 2,600
+   elements each time: 4.9 to 6.2 ms a frame. Now it is written only on the two places that can pulse, and only while something
+   in them does (`cueFrame`): 1.1 to 1.4 ms a frame.
+3. **The tags over the guests read the page.** Every frame, every tag looked its dozen parts up again, read its own text to know
+   whether to measure itself, and was measured if hidden (a hidden tag is 0 wide, which read as "not measured yet"); each measure,
+   coming after the tag before it had been moved, made the browser lay the page out again. And the alert's marker asked the page
+   where the guest's tag was (`getBoundingClientRect`) every frame of every incident. Now a tag's parts are found once
+   (`tagParts`), what was last written to each is kept beside it and only a change is written, a hidden tag gets nothing but its
+   `hidden`, the tags that changed are measured together before any is moved (`placeTags`), and the alert takes the tag's place
+   from where the game put it. The window's size is kept from the last resize (`windowSize`). Layouts forced from script: every
+   frame → none in steady play, one when a new tag appears. The tags' share of the two seconds after Karen arrives: 23 to 33 ms →
+   4 ms.
+4. **The HUD rewrote itself eight times a second.** `updateUI` set some 120 texts, lists, flags and styles whether or not they had
+   changed; each lane button's dots were written as HTML and parsed again (207 times in six seconds). Every write now goes
+   through `put`, `putHTML`, `putFlag` or `putStyle`, which write only a change (0 to 2 parses in six seconds), and a lane button
+   is looked for among the lane buttons, not in the whole page.
+5. **Shaders worked out again every frame, with none compiled.** (a) A see-through material drawn on both sides is drawn by three.js
+   in two passes, and flagged as changed between them: its list of a hundred settings made and compared twice a frame, for the
+   dozen rings and puddles on a floor. A flat one loses nothing drawn in one pass (`forceSinglePass`, set by `tendMaterial` for
+   flat rings, discs and planes with a plain material): materials rebuilt a frame 8 → 0. (b) three.js draws every shadow with one
+   depth material and works it out again whenever the kind of thing changes (a character on a skeleton, a bench, the crowd): 5
+   times a frame at the Community Pool, 10 at the Grand Gala Arena. The characters and the crowd now have a depth material each
+   (`shadowKind`; the same shaders): 0. (What is left: a dressed venue's glass, twice a frame, which would change how it looks.)
+6. **Nothing made new for everybody on deck, every tick.** The deck's contacts (deck-physics.mjs) made two lists, a function and a
+   few objects for every guest sixty times a second, a tenth of all the memory the game used up while playing; the loose props made
+   a list, a set and three objects a person every frame. Both now reuse what they have. The sums and their order are untouched:
+   28 bot-played shifts (two in each of the 14 venues) end the same to the last bit of every place, score and mood. Memory made
+   while playing: 1.20 → 0.85 MB a second; the heap in a busy shift 108 → 81 MB.
+7. **The log's housekeeping is done between frames.** Its count of the scene (a walk over everything, every 5 or 10 s), a playtest's
+   copy of the log and its saves to the device now wait for a moment the page is idle (`whenIdle`, and the crash log's scheduler in
+   crashlog-hooks.mjs: a quarter of a second later at most; a new error is still saved at once; Safari, which has no such
+   moment, saves as before). (A tester build's copy of the log, every 3 s, was measured: 1.3 ms at the end of a shift. Not the lag.)
+
+And a way to find the rest, since the machine this is written on has no graphics card: **a frame far longer than the ones around
+it leaves a line in the log** (`hitchWatch` in app.mjs, the `hitch` lines of a report): how long, which stages of the frame took
+the time (`stageMs`), what incident was going on, and whether a shader was compiled or a picture sent to the card just then.
+"Far longer" is measured against the shift's own recent frames (2.5 times, and at least 34 ms of work or 110 ms between frames), at
+most one line every four seconds and thirty a shift, so a slow machine does not fill its log. A tester build sends them like the
+rest of its log: after a play-through with the lag in it, the device's report says where it was.
+
+With these, the frame an incident begins in costs about twice an ordinary frame of script here (20 ms against 11, most of it the
+drawing; the sting, its sound and the new tag's one layout are the rest), not five to ten times, and nothing follows it a second
+later. Not measured, as ever: the creator's Mac and Windows PC. Whether the lag they see is gone is theirs to say, and the `hitch`
+lines are there to say what is left. Checked by `perf-check.mjs` (sections 6 to 12).
+
 ### The Look tuner (3 November 2026)
 
 For the art pass, the creator asked for "a developer sidebar… a lot of sliders that alter the materials, the textures, and the
@@ -2934,6 +2997,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node coachcam-check.mjs` | Coach Cam: facing follows the look, E prefers what is in view, view-relative movement, eye and water-level height with the body hidden, hand lag and settle, head bob (off with reduced motion), landing dip, items in hand, field of view, crosshair target |
 | `node fish-model-check.mjs` | The fish model: the file's shape (one mesh, matte, no skeleton, nose to +z and back to +y from its vertices), fish dressed when the model comes or when they are made, each with a wave of its own and one program, a model that does not load leaving the koi, and the fish of the incident seen in the pool only once the kid has tipped it out |
 | `node cinematic-check.mjs` | The intro cinematic: three shots in about five seconds in every venue (the coach's in front of him, the sweep low on the deck), the venues' own beats (the snow monkey, Valentina, the DJ and the bartender close up, the Jumping Pool's crane from low to high, the coach out of them), the world's camera and the coach's acting while it runs, the overview's lens back after (by itself or skipped), the shift held, the skip and the Settings switch, never in co-op, the Coach Cam or a replay |
+| `node perf-check.mjs` | Performance, kept from coming back: a venue's every texture, shader picture and skeleton freed with it; venues loaded when played; no layout read per frame; the crowd drawing one pose; and the second pass: the cues' pulse set where something pulses, a picture on the card sharpened there (the cast's before the first frame), flat see-through things in one pass, a shadow material each for the characters and the crowd, the tags, alert, prompt and HUD reading nothing from the page and writing only changes, the log's housekeeping between frames, the hitch line, nothing made new by the deck's contacts and the loose props. |
 | `node loose-check.mjs` | Loose props: a kit in every venue on free deck by the walls, apart, clear of the stations, the same places each time; a ball kicked away, a pot rocking at a walk and falling over at a run, a jump clearing a board, a guest strolling past toppling nothing, a new shift putting everything back, the cruise's chairs and balls sliding with the roll, the simulation untouched |
 | `node swimmer-model-check.mjs` | The swimmer models (stand-in skeletons): the choice and its switch, who gets which look, the clip rules (walk and run by foot speed with hysteresis, swim, scratch, panic) and each model's own ground speeds, the poses laid over the clips (arm and leg directions, easing), the swap in the scene and back, the Panic clip and its fallbacks, the VIP crown (and no sash) and daredevil star and cape riding on the head and chest bones, the type disc, queasy tint and a model that breaks being dropped; the cannonball men: the Cannonball clip followed through the incident, the swim in the water, and the crowd's panic (swimmers held upright in the water, the queue hopping) with the models and with the classic swimmers |
 

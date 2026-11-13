@@ -302,6 +302,16 @@ the app and depot ids, the store page, the price, written proof that the AI tool
   incident-view.mjs). A new incident's character or effect goes into `warmCast`, and a model it uses loads before the shift (behind
   the menu, or in the venue's `VENUE_LOADS`). The dog (`dog.glb`) and the river's macaws are models with their own skeletons
   (`tools/blender/dog_rig.py`, `bird_rig.py`), designed with Coach Waters as the style reference (README "The dog and the macaws").
+- **What runs every frame reads nothing from the page, writes only what changed and makes nothing new** (13 November 2026, the
+  creator: "whenever we have incidents appearing, sometimes I see a lag for a bit"; README "Performance: the second pass"). The
+  HUD's writes go through `put`, `putHTML`, `putFlag` and `putStyle`, a tag's through `tagText` and its kin; no `offsetWidth`,
+  `getBoundingClientRect` or `innerWidth` in a frame (`windowSize`, a tag's kept size, `placeTags`); no CSS variable written on
+  the page's root in a frame; a picture already on the graphics card is never flagged `needsUpdate` for a setting
+  (`setSharpness`), and a new character's pictures are sharpened before the shift's first frame; the log's housekeeping waits for
+  an idle moment (`whenIdle`). Code that runs for everybody every tick (deck-physics.mjs) makes no list and no function, **and
+  its sums and their order stay as they are**: a shift must replay to the last bit. **A slow frame writes a `hitch` line in the
+  log** (`hitchWatch`: how long, which stage, what incident, a shader or picture sent just then): where the creator sees a lag,
+  read those lines in their device's report before guessing; this machine has no graphics card to show it.
 - Fonts are bundled (`dist/assets/fonts/`). The game must not need the network once its files have loaded.
 - Generated art (Meshy, fal, image models) is committed under `dist/assets/`, never linked: the CDN links expire.
 

@@ -2,17 +2,29 @@ import { CLUB } from "./spatial.mjs";
 
 const DIAMETER = 0.72;
 export const BUMP_DURATION = 0.48;
+// This file runs for everybody on deck sixty times a second, so nothing in it makes a list, a function or an object as it goes
+// (13 November 2026: it was a tenth of all the memory the game used up while playing). The sums, and their order, are as they
+// were: a shift plays to the same last bit.
+const ON_FOOT = new Set([
+  "queue",
+  "arriving",
+  "enter",
+  "exit",
+  "evacuating",
+  "panic",
+  "recovering",
+  "injured",
+]);
 export function onDeck(p, venue = CLUB) {
   return (
-    (["queue", "arriving", "enter", "exit", "evacuating", "panic", "recovering", "injured"].includes(
-      p.status,
-    ) ||
+    (ON_FOOT.has(p.status) ||
       (p.status === "fleeing" && p.fleePhase === "run") ||
       // (the Jumping Pool's divers on their way to a board's line, and standing in it: dive.mjs)
       (p.status === "dive" && (p.dive === "walk" || p.dive === "line"))) &&
     p.recoveryStage !== "resting" &&
     !p.evacWater &&
-    !["water", "climb"].includes(p.exitPhase) &&
+    p.exitPhase !== "water" &&
+    p.exitPhase !== "climb" &&
     !inWater(venue, p.x, p.z)
   );
 }
@@ -26,43 +38,54 @@ function inWater(venue, x, z) {
 const resting = (p) => (p.status === "queue" && p.type !== "child") || p.status === "panic";
 
 // Corrections respect solid deck edges. Authored door/entry transitions retain their routes.
-function displace(p, x, z, sim) {
-  const venue = sim.venue,
-    d = venue.deck;
-  const safe = venue.isDeck(p.x, p.z, sim.level);
-  const allowed = (x, z) =>
+const allowed = (venue, level, safe, x, z) => {
+  const d = venue.deck;
+  return (
     x >= d.minX &&
     x <= d.maxX &&
     z >= d.minZ &&
     z <= d.maxZ &&
     !inWater(venue, x, z) &&
-    (!safe || venue.isDeck(x, z, sim.level));
-  if (allowed(p.x + x, p.z + z)) {
+    (!safe || venue.isDeck(x, z, level))
+  );
+};
+function displace(p, x, z, sim) {
+  const venue = sim.venue,
+    level = sim.level,
+    safe = venue.isDeck(p.x, p.z, level);
+  if (allowed(venue, level, safe, p.x + x, p.z + z)) {
     p.x += x;
     p.z += z;
   } else {
-    if (allowed(p.x + x, p.z)) p.x += x;
-    if (allowed(p.x, p.z + z)) p.z += z;
+    if (allowed(venue, level, safe, p.x + x, p.z)) p.x += x;
+    if (allowed(venue, level, safe, p.x, p.z + z)) p.z += z;
   }
 }
 
-export function prepareDeck(sim, dt) {
-  for (const p of [...sim.people, ...sim.coaches]) {
-    p.bumpTime = Math.max(0, (p.bumpTime || 0) - dt);
-    p.bumpCooldown = Math.max(0, (p.bumpCooldown || 0) - dt);
-    if (!onDeck(p, sim.venue)) continue;
-    if (resting(p)) {
-      p.deckRest ??= { x: p.x, z: p.z };
-      const dx = p.deckRest.x - p.x,
-        dz = p.deckRest.z - p.z;
-      const rate = Math.min(1, dt * 2);
-      displace(p, dx * rate, dz * rate, sim);
-    } else p.deckRest = null;
-    if (p.bumpTime > 0 && p.slipTime <= 0) {
-      const fade = p.bumpTime / BUMP_DURATION;
-      displace(p, (p.bumpX || 0) * dt * fade, (p.bumpZ || 0) * dt * fade, sim);
-    }
+function prepareOne(p, sim, dt) {
+  p.bumpTime = Math.max(0, (p.bumpTime || 0) - dt);
+  p.bumpCooldown = Math.max(0, (p.bumpCooldown || 0) - dt);
+  if (!onDeck(p, sim.venue)) return;
+  if (resting(p)) {
+    p.deckRest ??= { x: p.x, z: p.z };
+    const dx = p.deckRest.x - p.x,
+      dz = p.deckRest.z - p.z;
+    const rate = Math.min(1, dt * 2);
+    displace(p, dx * rate, dz * rate, sim);
+  } else p.deckRest = null;
+  if (p.bumpTime > 0 && p.slipTime <= 0) {
+    const fade = p.bumpTime / BUMP_DURATION;
+    displace(p, (p.bumpX || 0) * dt * fade, (p.bumpZ || 0) * dt * fade, sim);
   }
+}
+export function prepareDeck(sim, dt) {
+  // (the guests, then the coaches: as many as there were when the tick began)
+  const people = sim.people,
+    coaches = sim.coaches,
+    n = people.length,
+    m = coaches.length;
+  for (let i = 0; i < n; i++) prepareOne(people[i], sim, dt);
+  for (let i = 0; i < m; i++) prepareOne(coaches[i], sim, dt);
 }
 
 // Brief right-hand sidesteps break head-on symmetry without changing any destination.
@@ -95,9 +118,19 @@ function bump(p, x, z) {
   p.bumpZ = z * 0.9;
 }
 
+// (who is on deck this tick, and the coaches on foot: two lists kept and filled again each tick. Nothing here moves anybody on or
+// off the deck, or a coach's feet off it, so both are as good for the fifth pass as for the first.)
+const DECK = [],
+  CREW = [];
+const onFoot = (c) => !(c.y >= 0.5 || c.swimming || c.waterTransition || c.wading);
 export function resolveDeck(sim) {
-  const people = sim.people.filter((p) => onDeck(p, sim.venue)),
-    onFoot = (c) => !(c.y >= 0.5 || c.swimming || c.waterTransition || c.wading);
+  const people = DECK,
+    crew = CREW,
+    venue = sim.venue;
+  people.length = 0;
+  crew.length = 0;
+  for (const p of sim.people) if (onDeck(p, venue)) people.push(p);
+  for (const c of sim.coaches) if (onFoot(c)) crew.push(c);
   // A few positional passes resolve crowded contacts; no stops, falls, or score penalties.
   for (let pass = 0; pass < 5; pass++) {
     for (let i = 0; i < people.length; i++)
@@ -119,7 +152,6 @@ export function resolveDeck(sim) {
         displace(b, nx * overlap, nz * overlap, sim);
       }
     // Coaches on foot shove guests aside (and each other, evenly).
-    const crew = sim.coaches.filter(onFoot);
     for (let i = 0; i < crew.length; i++)
       for (let j = i + 1; j < crew.length; j++) {
         const a = crew[i],
@@ -134,9 +166,11 @@ export function resolveDeck(sim) {
         displace(a, -nx * overlap, -nz * overlap, sim);
         displace(b, nx * overlap, nz * overlap, sim);
       }
-    for (const coach of crew)
-      for (const p of people) {
-        const dx = p.x - coach.x,
+    for (let c = 0; c < crew.length; c++)
+      for (let i = 0; i < people.length; i++) {
+        const coach = crew[c],
+          p = people[i],
+          dx = p.x - coach.x,
           dz = p.z - coach.z,
           d = Math.hypot(dx, dz);
         if (d >= DIAMETER) continue;
@@ -151,6 +185,9 @@ export function resolveDeck(sim) {
         displace(coach, -nx * overlap * 0.15, -nz * overlap * 0.15, sim);
       }
   }
+  // (the lists hold nobody between ticks)
+  people.length = 0;
+  crew.length = 0;
 }
 
 export function bumpLean(p, reducedMotion = false) {
