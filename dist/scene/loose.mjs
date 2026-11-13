@@ -64,6 +64,8 @@ export const VENUE_KITS = {
   arena: ["bottle", "bottle", "bottle", "bottle", "pot", "pot", "cone", "chair"],
 };
 // The pools a ball may roll into and float in (a plain rectangle of water in the middle); elsewhere the water's edge is a wall.
+// (not on foot: no pushing a ball about)
+const OFF_FOOT = new Set(["gone", "swim", "trampoline", "lounge"]);
 const SPLASH_POOLS = new Set(["club", "resort", "lagoon", "aquatic", "disco", "kids", "senior", "arena"]);
 
 // A small seeded random, so a venue's props stand in the same places every time.
@@ -380,33 +382,62 @@ export class LooseProps {
       Math.abs(z) < (P.halfZ ?? 0) - 0.2
     );
   }
-  // The coaches and every guest on foot, with how fast they move (from last frame's place).
+  // The coaches and every guest on foot, with how fast they move (from last frame's place). Asked every frame, so nothing is made
+  // new for it (13 November 2026): one record per person, kept from frame to frame (`prev`, keyed by the guest's id, a coach's
+  // by −1, −2, −3) and stamped with the frame it was last seen in; the list is the same one, filled again.
   pushers(sim, dt) {
-    const list = [],
-      seen = new Set();
-    const add = (key, x, z, r, airborne) => {
-      const was = this.prev.get(key);
+    const list = (this.pushList ||= []),
+      stamp = (this.pushStamp = (this.pushStamp || 0) + 1);
+    list.length = 0;
+    let seen = 0;
+    const coaches = sim.coaches;
+    if (coaches) {
+      for (let i = 0; i < coaches.length; i++) {
+        const c = coaches[i];
+        if (!c || c.swimming || c.waterTransition) continue;
+        this.pusher(-1 - i, c.x, c.z, COACH_R, (c.y || 0) > 0.35, dt, stamp);
+        seen++;
+      }
+    } else if (sim.coach && !sim.coach.swimming && !sim.coach.waterTransition) {
+      const c = sim.coach;
+      this.pusher(-1, c.x, c.z, COACH_R, (c.y || 0) > 0.35, dt, stamp);
+      seen++;
+    }
+    const people = sim.people;
+    if (people)
+      for (let i = 0; i < people.length; i++) {
+        const p = people[i];
+        if (OFF_FOOT.has(p.status) || p.away || p.chill) continue;
+        this.pusher(p.id, p.x, p.z, GUEST_R, (p.y || 0) > 0.35, dt, stamp);
+        seen++;
+      }
+    // (whoever was not seen this frame is forgotten: only looked for when somebody is missing)
+    if (this.prev.size !== seen)
+      for (const key of this.prev.keys()) if (this.prev.get(key).stamp !== stamp) this.prev.delete(key);
+    return list;
+  }
+  pusher(key, x, z, r, airborne, dt, stamp) {
+    let rec = this.prev.get(key);
+    if (!rec) {
+      // (first seen: standing still, as far as the props know)
+      rec = { x, z, r, vx: 0, vz: 0, stamp };
+      this.prev.set(key, rec);
+    } else {
       let vx = 0,
         vz = 0;
-      if (was && dt > 0) {
-        vx = (x - was.x) / dt;
-        vz = (z - was.z) / dt;
-        if (Math.hypot(vx, vz) > 30) vx = vz = 0; // a jump in place (a teleport, a new shift)
+      if (dt > 0) {
+        vx = (x - rec.x) / dt;
+        vz = (z - rec.z) / dt;
+        if (vx * vx + vz * vz > 900) vx = vz = 0; // a jump in place (a teleport, a new shift)
       }
-      this.prev.set(key, { x, z });
-      seen.add(key);
-      if (!airborne) list.push({ x, z, r, vx, vz });
-    };
-    (sim.coaches || [sim.coach]).forEach((c, i) => {
-      if (!c || c.swimming || c.waterTransition) return;
-      add("c" + i, c.x, c.z, COACH_R, (c.y || 0) > 0.35);
-    });
-    for (const p of sim.people || []) {
-      if (["gone", "swim", "trampoline", "lounge"].includes(p.status) || p.away || p.chill) continue;
-      add("p" + p.id, p.x, p.z, GUEST_R, (p.y || 0) > 0.35);
+      rec.x = x;
+      rec.z = z;
+      rec.r = r;
+      rec.vx = vx;
+      rec.vz = vz;
+      rec.stamp = stamp;
     }
-    for (const key of this.prev.keys()) if (!seen.has(key)) this.prev.delete(key);
-    return list;
+    if (!airborne) this.pushList.push(rec);
   }
   update(sim, dt) {
     if (!this.items.length || !sim || !(dt > 0)) return;
@@ -420,11 +451,14 @@ export class LooseProps {
     for (const it of this.items) this.step(it, dt);
   }
   hits(it, pushers) {
-    for (const p of pushers) {
-      const dx = it.x - p.x,
+    for (let k = 0; k < pushers.length; k++) {
+      const p = pushers[k],
+        dx = it.x - p.x,
         dz = it.z - p.z,
-        dist = Math.hypot(dx, dz),
         reach = it.r + p.r;
+      // (most props are nowhere near most people: no square root for those)
+      if (dx > reach || dx < -reach || dz > reach || dz < -reach) continue;
+      const dist = Math.sqrt(dx * dx + dz * dz);
       if (dist >= reach || dist < 1e-4) continue;
       const nx = dx / dist,
         nz = dz / dist,

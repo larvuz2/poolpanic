@@ -421,14 +421,15 @@ const app = readFileSync("dist/app.mjs", "utf8"),
 {
   assert.match(
     app,
-    /\$\("relief"\)\.hidden = !holding\("relief"\) && !sim\.people\.some\(\(p\) => p\.problem === "eyes"\)/,
+    /putFlag\(\$\("relief"\), "hidden", !holding\("relief"\) && !sim\.people\.some\(\(p\) => p\.problem === "eyes"\)\)/,
   );
-  assert.match(app, /\$\("clean"\)\.hidden = !sim\.clutter\.length/);
-  assert.match(app, /\$\("mop"\)\.hidden = !wet && !holding\("mop"\)/);
+  assert.match(app, /putFlag\(\$\("clean"\), "hidden", !sim\.clutter\.length\)/);
+  assert.match(app, /putFlag\(\$\("mop"\), "hidden", !wet && !holding\("mop"\)\)/);
   assert.match(app, /b\.classList\.toggle\(\s*"quiet"/);
   assert.match(css, /\.bubble\.quiet \{/);
   assert.match(css, /\.pool-status > div \{\s*background: #fff4cfe8/);
   assert.ok(POOLS.club && POOL_IDS.length === Object.keys(POOL_INTROS).length);
+  // (The HUD's writes go through putFlag since 13 November 2026: only what changed is written to the page, perf-check.mjs.)
   // Less UI (5 November 2026): the Water Check and the chlorine only when the water is a problem, the fins when a guest asks, the
   // hand only when it holds something, the panel only with something in it; no Interact button; the status box only with news;
   // the floor's station names only near the coach; nothing over the coach when it has nothing to say.
@@ -438,15 +439,15 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   );
   assert.match(
     app,
-    /\$\("water-check"\)\.hidden = !waterTrouble;\s*\$\("chlorine"\)\.hidden = !waterTrouble;/,
+    /putFlag\(\$\("water-check"\), "hidden", !waterTrouble\);\s*putFlag\(\$\("chlorine"\), "hidden", !waterTrouble\);/,
   );
-  assert.match(app, /\$\("fins"\)\.hidden = !gearWanted/);
-  assert.match(app, /\$\("coach-state"\)\.hidden = !sim\.coach\.carry && !sim\.coach\.job/);
+  assert.match(app, /putFlag\(\$\("fins"\), "hidden", !gearWanted\)/);
+  assert.match(app, /putFlag\(\$\("coach-state"\), "hidden", !sim\.coach\.carry && !sim\.coach\.job\)/);
   assert.match(app, /\["water-check", "care-actions", "coach-state"\]\.every\(\(id\) => \$\(id\)\.hidden\)/);
   assert.match(html, /<button id="assist"[^>]*hidden>/);
-  assert.match(app, /\$\("pool-status-box"\)\.hidden = calmStatus && calmHint/);
+  assert.match(app, /putFlag\(\$\("pool-status-box"\), "hidden", calmStatus && calmHint/);
   assert.match(app, /data\.z - sim\.coach\.z\) > STATION_LABEL_NEAR/);
-  assert.match(app, /if \(!firstPerson\)\s*prompt\.hidden = !near && !c\.busy/);
+  assert.match(app, /if \(!firstPerson\)\s*putFlag\(\s*prompt,\s*"hidden",\s*!near && !c\.busy/);
   // The HUD the Overcooked way (5 November 2026): no scoreboard and no ⚙ over the pool in a shift; the Splash Coins at the bottom
   // left (a coin icon, the streak's multiplier under them, a small green +N or red −N on a change), the time at the bottom right
   // (a stopwatch icon, a bar, the pause button); the venue, the pass mark and the star targets in the pause menu.
