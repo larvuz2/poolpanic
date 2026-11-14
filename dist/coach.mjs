@@ -23,6 +23,8 @@ const WADE = 0.5;
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const approach = (v, target, amount) =>
   v < target ? Math.min(target, v + amount) : Math.max(target, v - amount);
+// What roller skates make of any deck (the perk): the hot springs' grip and glide, no faster at the top.
+const SKATES = { grip: 11, glide: 4.6, top: 1 };
 export class CoachController {
   // ---- the crew: one coach in single player, up to three in co-op (22 October 2026) ------------------------------------
   // `coaches` holds every coach; `coach` is the one acting now (`actor`): the inputs a player gives, and the coach's own update,
@@ -188,7 +190,9 @@ export class CoachController {
     const moving = c.slipTime === 0;
     // On ice (the hot springs' terrace) his shoes barely grip: he picks up speed slowly, turns wide and slides on when he lets
     // go (`ice.grip`, `ice.glide`, m/s²); in the water or mid-air the ice has no say.
-    const ice = this.venue.ice && !c.wading && !c.swimming && c.y === 0 ? this.venue.ice : null;
+    // (roller skates, a perk: the hot springs' ice under his feet everywhere, at his own top speed)
+    const floor = this.venue.ice || (this.perks?.ice ? SKATES : null);
+    const ice = floor && !c.wading && !c.swimming && c.y === 0 ? floor : null;
     const pushing = !!(c.input.x || c.input.z);
     const accel = pushing ? (ice ? ice.grip : T.acceleration) : ice ? ice.glide : T.braking;
     const dashing = c.dashTime > 0 && moving;
@@ -353,6 +357,9 @@ export class CoachController {
   save(kind, where = this.coach, value = 0, extra = {}) {
     // (every save feeds the happy streak: sim.mjs bumpStreak)
     this.bumpStreak?.("save", where);
+    // (what a build's perks tip for: the dogs led out, the red cards: week.mjs `pays`)
+    if (this.stats && kind === "dog-out") this.stats.dogs = (this.stats.dogs || 0) + 1;
+    if (this.stats && kind === "red-card") this.stats.carded = (this.stats.carded || 0) + 1;
     this.emit("save", {
       kind,
       x: where.x,

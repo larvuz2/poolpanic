@@ -40,7 +40,7 @@ import {
   drawWishes,
   checkWishes,
   directShift,
-  shiftCards,
+  dayDoors,
   buildShift,
   shiftPay,
   passMark,
@@ -107,7 +107,23 @@ assert.ok(chapterFor(CHAPTERS.length + 1).heat === 1, "the weeks go on after it"
 assert.equal(chapterFor(0).id, 1);
 for (const [id, p] of Object.entries(PERKS)) {
   assert.ok(p.icon && p.name && p.text && p.price > 0, id + " is a full perk");
-  assert.ok(p.sim || p.director || p.vipTip || p.wishes || p.sponsor || p.insurance, id + " does something");
+  assert.ok(
+    p.sim ||
+      p.director ||
+      p.vipTip ||
+      p.wishes ||
+      p.sponsor ||
+      p.insurance ||
+      p.crowd ||
+      p.vips ||
+      p.must ||
+      p.pays ||
+      p.budget ||
+      p.highRoller ||
+      p.piggy ||
+      p.star,
+    id + " does something",
+  );
 }
 for (const [id, w] of Object.entries(WISHES)) assert.ok(w.icon && w.text && w.say && w.met && w.pay > 0, id);
 for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is a twist the game has");
@@ -600,19 +616,26 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   assert.ok(full > weeks * 0.7, "most weeks see all five (" + full + " of " + weeks + ")");
 }
 
-// 3) The cards: a regular day always, a booking only when its trouble is known, a mystery that brings one more.
+// 3) The doors (the fun plan, 14 November 2026; fun-check.mjs has the day rules): one door while there is no choice to make, then
+// the day's own pool first, each door a pool and a day rule that fits it, and a mystery that brings no less trouble.
 {
-  const random = stream(7);
-  const early = shiftCards(0, random, []);
+  const first = freshSave();
+  first.week = newWeek(first, 7);
   assert.deepEqual(
-    early.map((c) => c.id),
-    ["regular"],
+    dayDoors(first.week, []).map((c) => c.id),
+    ["regular@club"],
   );
   for (let seed = 1; seed <= 100; seed++) {
-    const cards = shiftCards(6, stream(seed), ["dog"], SHIFTS[6]);
-    assert.equal(cards[0].id, "regular");
-    for (const c of cards.filter((c) => c.booking))
-      assert.ok(["tour"].includes(c.booking), "only bookings it knows");
+    const save = freshSave({ chapter: 2, known: ["dog"] });
+    save.week = newWeek(save, seed);
+    save.week.shift = seed % 6;
+    const doors = dayDoors(save.week, save.known);
+    assert.equal(doors[0].pool, save.week.pools[save.week.shift], "the first door is the day's own pool");
+    for (const d of doors)
+      assert.ok(
+        !["powersaver", "carlbday", "karens"].includes(d.rule),
+        "a day rule about an incident only once it is known",
+      );
   }
   const save = freshSave({ chapter: 2, known: INCIDENT_ORDER });
   save.week = newWeek(save, 99);
@@ -624,8 +647,6 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     assert.ok(m.plan.chaos.length >= base.plan.chaos.length, "a mystery gig brings no less trouble");
     assert.ok(m.card.payout > 1);
   }
-  const booked = base.cards.find((c) => c.booking);
-  if (booked) assert.equal(buildShift(save.week, booked.id, save.known).booking, booked.booking);
 }
 
 // 4) Money: a shift that passes pays into the Date Fund (more for stars, a card and Marina's wishes); the shop's perks are paid out
@@ -740,13 +761,20 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     poor.chapter === 1 && poor.dates.length === 0 && poor.runs === 1 && poor.unlocked >= 9,
     "back to week 1",
   );
-  // Three stars and a wish a shift make the date in every week; one star a shift with no wish never does.
+  // Three stars and a wish a shift behind a better-paid door make the date in every week (the fun plan, 14 November 2026: from
+  // week 3 a plain week of three stars is no longer enough: a door and a build are how a date is made); one star a shift with no
+  // wish never does.
   for (let n = 1; n <= 12; n++) {
     const c = chapterFor(n);
     assert.ok(
-      shiftPay(3, c) * SHIFTS_PER_WEEK + 6 * 20 * c.pay >= c.goal,
-      "three stars and a wish a shift: week " + n,
+      shiftPay(3, c, { payout: 1.25 }) * SHIFTS_PER_WEEK + 6 * 20 * c.pay >= c.goal,
+      "three stars and a wish a shift behind a better-paid door: week " + n,
     );
+    if (n <= 2)
+      assert.ok(
+        shiftPay(3, c) * SHIFTS_PER_WEEK + 6 * 20 * c.pay >= c.goal,
+        "the first two weeks are made on regular days: week " + n,
+      );
     assert.ok(shiftPay(1, c) * SHIFTS_PER_WEEK < c.goal, "one star a shift is not enough: week " + n);
   }
   // Perks add up; the charm, the tip jar and the sponsor do what they say.

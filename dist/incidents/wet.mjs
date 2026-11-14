@@ -91,7 +91,12 @@ export const WetSpots = {
   climbedOut(sim, p, where) {
     // (the guided first shift is lanes and nothing else: no wet spots, 5 November 2026)
     if (sim.config.tutorial === 1 || sim.config.tutorial === true) return null;
-    if (wetRandom(sim) >= (sim.venue.wetChance ?? T.chance) || sim.status !== "playing") return null;
+    // (a perk or the day's rule makes more of them drip: `perks.drip`, the mop on wheels, a wet floor day)
+    if (
+      wetRandom(sim) >= (sim.venue.wetChance ?? T.chance) * (sim.perks?.drip || 1) ||
+      sim.status !== "playing"
+    )
+      return null;
     return addWetSpot(sim, where.x, where.z);
   },
 };
@@ -171,10 +176,11 @@ function mopSpot(sim, spot) {
     () => {
       if (!sim.wetSpots.includes(spot)) return;
       sim.wetSpots = sim.wetSpots.filter((s) => s !== spot);
-      sim.score += T.bonus;
+      const bonus = Math.round(T.bonus * (sim.perks?.mop || 1)); // (the mop on wheels: triple)
+      sim.score += bonus;
       sim.stats.mopped = (sim.stats.mopped || 0) + 1;
-      sim.emit("points", { x: spot.x, z: spot.z, value: T.bonus });
-      sim.save("mopped", spot, T.bonus);
+      sim.emit("points", { x: spot.x, z: spot.z, value: bonus });
+      sim.save("mopped", spot, bonus);
       sim.emit("mopped", { id: spot.id, x: spot.x, z: spot.z });
     },
     spot,

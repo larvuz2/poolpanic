@@ -613,6 +613,7 @@ function relaxed(sim, m, p) {
   sim.stats.prevented++;
   sim.emit("points", { x: p.x, z: p.z, value });
   sim.save("massage", p, value, { name: p.name });
+  if (p.vip) sim.find("royal", "", p); // (a crossover for the scrapbook: a VIP on the table)
   sim.emit("massage-done", { x: p.x, z: p.z, id: p.id });
   sim.emit("toast", {
     text: `😌 ${p.name} floats off the table. +${value}${m.team > 1 ? " · teamwork!" : ""}`,

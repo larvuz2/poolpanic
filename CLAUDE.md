@@ -116,7 +116,8 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    shift**, more as the run goes on (the creator wants to see them often); incidents drawn by a director
    (`INCIDENT_ORDER` in `dist/week.mjs` is the creator's to reorder: one new incident a shift from the first Tuesday, all five
    met in week 1, then a fair mix where one that just came is less likely, `RECENT`). A shift not passed pays nothing but the week goes on. Marina's
-   wishes for each shift, and a shop whose perks are paid out of the Date Fund (one money). **FREE PLAY** (on the menu since 21 October 2026, `dist/free-ui.mjs`) is
+   wishes for each shift, and (since 14 November 2026, the fun plan below) a door to pick before each shift and a perk to pick after
+   each one passed, two of the three paid out of the Date Fund (one money). **FREE PLAY** (on the menu since 21 October 2026, `dist/free-ui.mjs`) is
    a window of every pool, like the coach's locker: the pools the ladder has opened, at a difficulty a run has reached (Easy to
    Expert), a shift without the week (`freePlayShift`) with its own bests; **dev mode** (`dist/dev.mjs`, Settings > Developer, `?dev=1`/`?dev=0`, on by default for
    the creator's tests: `DEV_DEFAULT`, to turn off before the Steam release) opens every pool and difficulty there. Marina never appears on the deck: only in texts, wishes and full-screen
@@ -184,6 +185,23 @@ into them trip, and a coach holds E (Karen's wheel, 8/5/3 s, many hands) until t
    `net-check.mjs` plays whole shifts over a laggy network and compares every hash. The simulation has `sim.coaches` and `sim.actor`
    (whose coach `sim.coach` is); per-tick code that means "the coach" picks one (`focus`, `carrierIndex`, `nearestCoach`) or loops.
    Co-op is untested over Steam until the creator plays it on two machines (desktop/README.md, "Try co-op over Steam").
+   **The fun plan (14 November 2026, `docs/fun-plan.md`, README "The fun plan, built")**: asked "what must change so every run
+   feels fresh and a player wants one more shift", the creator approved all eight steps and the five recommendations ("ok
+   implement all 8"). What a run is now: before each shift **a door** (a pool, a day rule and what it pays: the day's own pool, a
+   pool from later in the week that swaps the two days, some days a mystery; 17 day rules in `RULES`, each only a setting of what
+   the game has); after each shift passed **a pick** of three perks, one to take (two out of the Date Fund, one with a catch
+   free), **a build of six that lasts the run** (31 perks in `PERKS`, the new ones change a rule); **the third star pays most**;
+   **overtime** on a near miss (short by a fifth or less on Saturday night: one last shift, double pay, once a run); **half of
+   what is over the goal starts next week**, and far over it is a **deluxe date** and a gift; **a veteran's Monday** from the
+   third run (no gentle minute, two levels up, a perk on the house); in every shift **the last call** (the last 25 s score ×1.5)
+   and **making it up** (after a broken streak, 12 s: the next points double, half the streak back), a director that holds new
+   trouble while three things are pending, breathes after trouble and fills a calm; **golden guests**, **crossovers** (the dog
+   sees Karen off, the influencer films a cannonball) and **the scrapbook**; **coach's challenges** counted over every run that
+   add perks and day rules to the decks; conditions for an endless week; a pool's intro cinematic once a run. The week's goals
+   were raised for the richer run (`GOAL_SHARE`), measured with `tools/fun-report.mjs`: **run it before and after anything that
+   touches the loop's numbers.** The simulation's new rules are switched on by the shift's config (`config.fun`), so a shift
+   recorded before replays as it was. Not built: the Daily Shift (with the Steam work, the creator's choice). The creator has
+   not ranked the perks, the day rules or the crossovers yet: they are theirs to reorder or cut, like `INCIDENT_ORDER`.
    **The Godot test (27 October 2026, `godot/README.md`)**: the creator wants to see how the game feels and looks in Godot instead
    of three.js, so `godot/` holds a Godot 4.7 project of one venue (the Community Pool), Coach Waters and one shift, no menu, built
    from numbers exported from `dist/` (`godot/tools/export-data.mjs`), with its own downloads (`godot-latest`). Nothing in the real game
@@ -312,6 +330,11 @@ the app and depot ids, the store page, the price, written proof that the AI tool
   its sums and their order stay as they are**: a shift must replay to the last bit. **A slow frame writes a `hitch` line in the
   log** (`hitchWatch`: how long, which stage, what incident, a shader or picture sent just then): where the creator sees a lag,
   read those lines in their device's report before guessing; this machine has no graphics card to show it.
+- **A new perk or day rule is a setting of what the game has** (14 November 2026, the fun plan): a line in `PERKS` or `RULES`
+  (week.mjs) whose effect goes through `perkEffects`, `mixSim` and `buildShift` into the shift's config and perks, never a new
+  branch in the screens; anything the simulation must do differently is read from `sim.perks` or `sim.fun`, so it replays.
+  `fun-check.mjs` pins them, and `tools/fun-report.mjs` says what a change did to a run (stars, where a week is decided, how
+  alike two runs are).
 - **The HUD says that something is there, not how to deal with it** (13 November 2026, the creator: "minimize all of the text
   that is on the HUD… Do not add the 'Press E to interact' text. That's obvious"). A new incident needs a sticker (a line in
   `tools/hud/stickers.mjs`, drawn from the game's own character where there is one, and its key in `STICKERS`) and its words in
@@ -334,7 +357,7 @@ the app and depot ids, the store page, the price, written proof that the AI tool
 | --- | --- |
 | The brief, every system, the module map and the checks | `README.md` |
 | Every incident, how a shift picks them, the level table, the director proposal | `docs/incidents.md` |
-| The fun plan: how to make a run addictive (a proposal of 14 November 2026, awaiting the creator's review: do only what they approve) | `docs/fun-plan.md` |
+| The fun plan (14 November 2026, approved and built the same day: doors and day rules, a pick of perks, overtime, the last call), what each step became and what is still open | `docs/fun-plan.md`, README "The fun plan, built", `fun-check.mjs`, `tools/fun-report.mjs` |
 | The week: chapters, the director, cards, wishes, pay, the shop, Marina's scenes | `dist/week.mjs`, `dist/week-ui.mjs`, `dist/marina.mjs`, README "The week" |
 | The road to a Steam release, the build and upload, the achievements list | `desktop/README.md`, `desktop/steam/` |
 | The Steam store page: capsules, screenshots, clips, the cast posters (and Marina's poster-only model), copy, brand book, launch plan (and the tools that stage them) | `marketing/steam/` |

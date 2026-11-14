@@ -115,6 +115,12 @@ const FREE_PLAY = [1, 1.2, 1.2, 1.2, 1.7, 1.2, 1.2, 1, 1.05, 1, 1.45, 1.15, 1.45
 export const FREE_PLAY_SCALE = (level) => FREE_PLAY[Math.max(1, Math.min(FREE_PLAY.length, level)) - 1];
 // How a swimmer shows in the queue and over their head: their type, or a golden VIP crown.
 export function swimmerLook(p) {
+  // (A golden guest, the fun plan: gold on their tag whoever they are; a happy goodbye pays a star's worth.)
+  if (p.golden) {
+    const { golden: _g, ...plain } = p,
+      look = swimmerLook(plain);
+    return { ...look, icon: "✨", label: "Golden · " + look.label, color: "#f2c230" };
+  }
   const t = TYPES[p.type];
   // (Nobody swims at the Mountain Hot Springs, Marco neither: he comes to relax, and his tag says so too.)
   if (p.star && p.soaker) return { ...t, icon: "♨️", label: "VIP · Hot tub", color: "#e9a92b" };
@@ -534,6 +540,12 @@ export class PoolSimulation extends ChaosController {
     this.drill = options.drill ?? null;
     // What the week's shop has bought for this shift (week.mjs PERKS): multipliers that are all 1 (and a warning of 0 s) without.
     this.perks = { speed: 1, dash: 1, patience: 1, cramp: 1, warning: 0, score: 1, ...(options.perks || {}) };
+    // The rules of the fun plan (week.mjs FUN: the last call, making it up, the director's hold and breath), for the shifts built
+    // with them; a shift recorded before 14 November 2026 has none and replays as it was.
+    this.fun = config.fun || null;
+    this.finds = []; // two incidents that met (the scrapbook's crossovers: `find`)
+    this.makeUp = null;
+    this.boostUntil = 0;
     this.seed = seed >>> 0;
     this.time = 0;
     this.arrivalTime = 0;
@@ -769,6 +781,11 @@ export class PoolSimulation extends ChaosController {
   }
   // (`by`: the coach whose player's input made it, while an input is being applied: a guidance toast is that player's alone)
   emit(type, data = {}) {
+    // (points that counted for more, the last call and its kin: the number on screen is what went on the board, `set score`)
+    if (type === "points") {
+      if (this._gain && data.value === this._gain.raw) data = { ...data, value: this._gain.scaled };
+      this._gain = null;
+    }
     this.events.push(this.inputBy == null ? { type, ...data } : { type, by: this.inputBy, ...data });
   }
   // How fast someone goes on foot: Senior Aqua Fit's seniors walk slowly and stooped, and roll their wheelchairs (SENIOR);
@@ -838,6 +855,15 @@ export class PoolSimulation extends ChaosController {
       while (i < n && (daredevils.has(i) || vips.has(i) || i === star)) i++;
       if (i < n) vips.add(i);
     }
+    // The golden guests (`config.golden`, the fun plan): an ordinary guest who pays a star's worth if sent home happy; never a
+    // VIP, Marco, a daredevil or one of the first three.
+    const golden = new Set();
+    for (const f of this.config.golden || []) {
+      let i = Math.max(3, slot(f));
+      while (i < n && (daredevils.has(i) || vips.has(i) || golden.has(i) || i === star || i === aquaSlot))
+        i++;
+      if (i < n) golden.add(i);
+    }
     return (
       Array.from({ length: n }, (_, i) => ({
         at:
@@ -872,6 +898,7 @@ export class PoolSimulation extends ChaosController {
               }
             : entry,
         )
+        .map((entry, i) => (golden.has(i) ? { ...entry, golden: true, sick: false } : entry))
         .sort((a, b) => a.at - b.at)
     );
   }
@@ -1015,8 +1042,9 @@ export class PoolSimulation extends ChaosController {
         problem: null,
         crampAt: Infinity,
       });
-      p.waitLimit *= 0.75;
+      p.waitLimit *= 0.75 * (this.perks.vipPatience ?? 1);
     }
+    if (spec.golden) p.golden = true; // (a golden guest: their tag says so, and a happy goodbye pays, `depart`)
     // The guided shifts (tutorial.mjs): everyone is patient while the player learns, nobody falls ill and nobody cramps unless the
     // lesson says so. The first (`tutorial` 1, the run's first shift) is only sending swimmers to lanes (the creator, 5 November
     // 2026: "let the first level only be assigning swimmers into the swim lanes"). The second (`tutorial` 2, the third shift, at the
@@ -1128,7 +1156,18 @@ export class PoolSimulation extends ChaosController {
   // makes (the stamps) and every coaching tip adds one; reaching a tier (STREAK_TIERS) is a moment of its own (`streak-tier`).
   bumpStreak(why = "happy", who = null) {
     const before = streakTier(this.streak);
-    this.streak++;
+    this.streak += this.perks.streakStep || 1;
+    // Making it up (the fun plan): the first good thing after a broken streak, in time, gives half of it back (all of it with a
+    // cool head). A save does it at any time with a second wind.
+    const m = this.makeUp;
+    if (m && (this.time <= m.until || (why === "save" && this.perks.secondWind))) {
+      const back = this.perks.secondWind && why === "save" ? m.was : Math.floor(m.was * m.share);
+      this.makeUp = null;
+      if (back > this.streak) {
+        this.streak = back;
+        this.emit("made-up", { streak: this.streak, x: who?.x, z: who?.z });
+      }
+    } else if (m && this.time > m.until && !this.perks.secondWind) this.makeUp = null; // (too late)
     this.bestStreak = Math.max(this.bestStreak, this.streak);
     const after = streakTier(this.streak);
     if (after.at > before.at)
@@ -1144,9 +1183,65 @@ export class PoolSimulation extends ChaosController {
   // Anything that goes wrong breaks it: a guest who leaves unhappy or is lost, a mess, a cannonball, Karen's victims… A streak of
   // three or more says so (`streak-broken`), with why and who, so the HUD can show what broke it.
   breakStreak(why = "", who = null) {
-    if (this.streak >= 3)
+    if (this.streak >= 3) {
       this.emit("streak-broken", { was: this.streak, why, name: who?.name || "", x: who?.x, z: who?.z });
+      // A streak worth having broke: a few seconds to make up for it (`fun.makeUp`; not for a showboat). The next points
+      // earned in time count double, and the next good thing gives part of the streak back (bumpStreak).
+      if (this.fun?.makeUp && !this.perks.noMakeUp) {
+        const k = this.perks.makeUp || 1;
+        this.makeUp = {
+          was: this.streak,
+          until: this.time + this.fun.makeUp * k,
+          share: k > 1 ? 1 : 0.5,
+          double: true,
+        };
+        this.emit("make-up", { seconds: this.fun.makeUp * k, was: this.streak });
+      } else if (this.perks.secondWind)
+        this.makeUp = { was: this.streak, until: -1, share: 1, double: false };
+    }
     this.streak = 0;
+  }
+  // The points on the board. Everything the shift earns goes through here (`sim.score += n`), so the rules that make points
+  // count more are in one place: the last call, the first points of making it up, Marco's autograph. What is lost is lost as is.
+  get score() {
+    return this._score || 0;
+  }
+  set score(value) {
+    const now = this._score || 0;
+    let d = value - now;
+    this._gain = null;
+    if (d > 0 && this.status === "playing") {
+      let k = 1;
+      if (this.inLastCall()) k *= this.fun.lastCallScale || 1;
+      if (this.makeUp?.double && this.time <= this.makeUp.until) {
+        k *= 2;
+        this.makeUp.double = false;
+      }
+      if (this.time < this.boostUntil) k *= 2;
+      if (k !== 1) {
+        const scaled = Math.round(d * k);
+        this._gain = { raw: d, scaled };
+        d = scaled;
+      }
+    }
+    this._score = now + d;
+  }
+  // The last call (`fun.lastCall`): the last seconds of a shift, when everything earned counts more (twice as long with last
+  // orders). Never in the guided shifts.
+  lastCallAt() {
+    if (!this.fun?.lastCall || this.config.tutorial) return Infinity;
+    return this.config.duration - this.fun.lastCall * (this.perks.lastCall || 1);
+  }
+  inLastCall() {
+    return this.status === "playing" && this.time >= this.lastCallAt();
+  }
+  // Two incidents met (a crossover, week.mjs CROSSOVERS): once a shift each, for the scrapbook, with a word on screen.
+  find(id, text = "", where = null) {
+    if (this.finds.includes(id)) return false;
+    this.finds.push(id);
+    this.emit("find", { id, x: where?.x, z: where?.z });
+    if (text) this.emit("toast", { text });
+    return true;
   }
   // The guest most likely to break the streak next: the crossest one still waiting or in the water, under STREAK_RISK.
   streakRisk() {
@@ -1418,6 +1513,21 @@ export class PoolSimulation extends ChaosController {
       if (p.vip) {
         points += 150;
         this.stats.vips++;
+        // (the red carpet: a VIP is worth double)
+        if (this.perks.vipScore) points = Math.round(points * this.perks.vipScore);
+      }
+      // A golden guest sent home happy: a star's worth for the date (week.mjs finishShift), and a moment of its own.
+      if (p.golden && happy) {
+        this.stats.golden = (this.stats.golden || 0) + 1;
+        points += 100;
+        this.emit("golden", { x: p.x, z: p.z, id: p.id, name: p.name });
+      }
+      // Marco's autograph (a perk): Marco sent home happy doubles everything for a while.
+      if (p.star && happy && this.perks.autograph) {
+        this.boostUntil = this.time + this.perks.autograph;
+        this.emit("toast", {
+          text: "✍️ Marco's autograph! Double points for " + this.perks.autograph + " s",
+        });
       }
       if (this.venue.kids && !happy) points *= p.h < 30 ? KID_MOOD_PAY.cross : KID_MOOD_PAY.meh;
       points = Math.round(points * this.scoreMultiplier());
@@ -1687,6 +1797,13 @@ export class PoolSimulation extends ChaosController {
     this.heldFor = hold ? (this.heldFor || 0) + dt : 0;
     this.time += this.clockHeld() ? 0 : dt;
     this.arrivalTime += dt;
+    if (!this.lastCalled && this.inLastCall()) {
+      this.lastCalled = true;
+      this.emit("last-call", {
+        seconds: Math.round(this.config.duration - this.time),
+        scale: this.fun.lastCallScale,
+      });
+    }
     for (const side of [-1, 1]) this.doors[side] = Math.max(0, this.doors[side] - dt);
     while (this.nextArrival < this.schedule.length && this.arrivalTime >= this.schedule[this.nextArrival].at)
       this.spawn({ ...this.schedule[this.nextArrival++], entrance: true });
@@ -2069,6 +2186,7 @@ export class PoolSimulation extends ChaosController {
         : 0,
       avgHappiness: this.stats.served ? this.stats.totalHappiness / this.stats.served : 0,
       met: [...new Set(this.met || [])], // the roaming incidents that really started (week.mjs finishShift)
+      ...(this.finds.length && { finds: [...this.finds] }), // the crossovers seen (the scrapbook)
       ...(this.config.tutorial === 2 && { lessons: this.lessonsDone() }), // (the second lesson done: never again, week.mjs)
     };
   }

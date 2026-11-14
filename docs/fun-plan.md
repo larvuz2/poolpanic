@@ -1,7 +1,10 @@
 # The fun plan: making a run addictive
 
-**A proposal, 14 November 2026. Nothing here is built. The creator reviews it first; a later session does only what they approve,
-in the order below, and tunes every number with the coach bots.**
+**Proposed on 14 November 2026 and approved the same day ("ok implement all 8! and for the 5 decisions go with the recommended").
+Built: steps 1 to 8, but for the Daily Shift, which waits for the Steam work (the fourth decision). What each step became, the
+numbers the bots measured and what is not met are in the README, "The fun plan, built". Still the creator's: to rank the perks,
+the day rules and the crossovers, and to say after playing whether weeks 2 and 3 ask too much or too little (`GOAL_SHARE`).
+The plan as it was proposed follows.**
 
 The question it answers: with everything the game already has, what is the least we must change so that every run feels fresh and
 rewarding, and a player always wants one more shift?

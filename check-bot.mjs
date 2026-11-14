@@ -33,10 +33,12 @@ export class CoachBot {
       tips = true,
       crew = null,
       sim = null,
+      perks = null,
     } = {},
   ) {
     // (`crew`: a co-op crew's looks, one coach each; `sim`: a crew's shared shift, for the second and third coach's bots: CrewBot)
-    this.s = sim || new PoolSimulation(level, seed, { config, drill, booking, crew });
+    this.s =
+      sim || new PoolSimulation(level, seed, { config, drill, booking, crew, ...(perks && { perks }) });
     this.helper = !!sim;
     this.crew = [this];
     this.doing = null;
@@ -45,6 +47,7 @@ export class CoachBot {
     this.tips = tips; // (answers coaching tips: tips.mjs)
     this.clearSplash = clearSplash;
     this.frames = 0;
+    this.idle = 0; // frames with no job for the coach's body (tools/fun-report.mjs)
   }
   // Plays one of the generators below to its end on its own, ticking the shift between its frames.
   drive(gen) {
@@ -1064,8 +1067,12 @@ export class CoachBot {
         yield* this[task.name + "$"]();
         this.doing = null;
         this.target = null;
-      } else if (distance(s.coach, standby) > 1.5) yield* this.walkTo$(standby, { limit: 20 });
-      else yield* this.frame$();
+      } else {
+        const from = this.frames;
+        if (distance(s.coach, standby) > 1.5) yield* this.walkTo$(standby, { limit: 20 });
+        else yield* this.frame$();
+        if (s.status === "playing") this.idle += this.frames - from;
+      }
     }
     return this;
   }

@@ -73,9 +73,12 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   and the next week starts, harder and better paid.
   **Short on Saturday night and it is game over**: a rain check from Marina, and the next START is a new run from week 1.
 - **A shift that is not passed pays nothing, but the week goes on** (its day shows ✗). Its pass mark is half its first star (`passMark`),
-  shown before the shift and in the HUD while the score is under it. Stars decide the pay: $15 for passing plus $15 a star, times the
-  week's pay and the card's. A week's goal is 300 × its pay × its share (`GOAL_SHARE`; pay 1 in week 1, +0.3 a week): $240, $420,
-  $520, $620, $690, $780, $840, $930, … (see "A run worth repeating" and "Depth and feel" for how they were tuned).
+  shown before the shift and in the HUD while the score is under it. Stars decide the pay: $15 for passing, $15 for each of the first two stars
+  and $25 for the third (since 14 November 2026; every star paid $15 until then), times the week's pay and the door's. A week's
+  goal is 300 × its pay × its share (`GOAL_SHARE`; pay 1 in week 1, +0.3 a week): $270, $590, $860, $1,110, $1,290, $1,460, …
+  (raised on 14 November 2026 from $240, $420, $520, $620, $690, …: see "The fun plan, built" for why and how they were measured,
+  and for what that plan changed in the week: doors instead of cards, a pick of perks instead of the shop, overtime, what a week
+  carries over, a veteran's Monday).
 - **The first shift of a run is a gentle minute** (`FIRST_SHIFT`): level 1 stretched to 60 s, seven swimmers, no roaming incident, its
   stars doubled so a pass (150 points) is very easy.
 - **Every later shift is a pool from the week's mix at a difficulty from the week's band** (difficulty by week, Phase 2, 19 October
@@ -466,7 +469,9 @@ scenes; `week-check.mjs`). The main screen has **one START** (CONTINUE when a we
   before it and ticked on the results: each one met pays extra into the Date Fund (never in a shift that served nobody). Marina never walks onto the deck: she is in her texts,
   her wishes and the full-screen scenes.
 - **The shop: one money** (Phase 2, 19 October 2026, the creator's choice; until then perks cost tips, a second money that never
-  touched the fund). Between shifts the pool shop sells three perks for the rest of the week (running shoes, turbo whistle, shady
+  touched the fund). **Since 14 November 2026 the shop is a pick on the results** (three perks after every shift passed, one to
+  take, a build of six that lasts the run: "The fun plan, built"); what follows is the shop as it was, whose twelve perks are
+  still in the deck at their prices. Between shifts the pool shop sells three perks for the rest of the week (running shoes, turbo whistle, shady
   benches, stretching poster, tummy alarm, megaphone, a No dogs or No bombs sign (offered only once that incident has been met), a
   tip jar (every VIP served tips $5 for the date), Marina's lucky charm, a local sponsor, a safety net that makes a failed shift pay
   half; 🎲 new stock for $10), **paid out of the Date Fund**: $20 to $40 in week 1, times the week's pay after (`perkPrice`), about
@@ -2201,6 +2206,105 @@ under the mouse, the sting, three stickers at once, a card under the mouse, the 
 the guided first shift. Not judged here: how subtle the glow reads on the creator's screens, which is theirs to say (its
 strength is two numbers in scene.mjs's `sync`).
 
+### The fun plan, built (14 November 2026)
+
+The creator: "analyze the game and propose a plan to make it addictive fun… a gem of an experience, repeatable loop,
+unexpectable, every run feels fresh and rewarding", then, on the plan (`docs/fun-plan.md`): "ok implement all 8! and for the 5
+decisions go with the recommended". What the plan found: the toy was strong and the run around it flat. Two runs differed in what
+happened to the player, not in who the player became (twelve perks that were flat bonuses, no build); only Saturday night decided
+anything; a lost run restarted at its dullest; after week 1 nothing was new. What was built, step by step:
+
+- **1. The fun report** (`tools/fun-report.mjs`): the coach bots play whole runs (an expert who stops trouble and answers tips, a
+  steady one without the tips, a novice who only cleans up) taking doors and perks, and it prints what the loop's numbers do: the
+  stars, how long the coach's body has nothing to do, how many things want him at once, the day a week is decided, where runs
+  end, how alike two runs are. `node tools/fun-report.mjs --runs 8 --weeks 5`. **Run it before and after anything that touches
+  the loop's numbers.** The bots are quicker and calmer than a person: read them against each other.
+- **2. Stakes in every shift** (week.mjs):
+  - **The third star pays most**: $15 to pass, $15 for each of the first two stars, $25 for the third (`PAY`; until now every star
+    paid $15), and the results say how close the next star was (*120 short of ★★★*).
+  - **Overtime**: short by a fifth or less on Saturday night (`OVERTIME_SHARE`), Marina waits for one last shift: Saturday's pool
+    again with a draw of its own, at the top of the week's levels, paying double. Pass it into a full fund and the date is on;
+    else the run is over. Once a run.
+  - **The surplus counts**: half of what is over the goal starts next week's fund (`CARRY_SHARE`), up to the deluxe line: a week
+    that ends at one and a half times its goal (`DELUXE`) is a **deluxe date** 💎 (gold in the album) and Marina has a gift on
+    Monday (three perks, one to take, for nothing).
+  - **A veteran's Monday**: from the third run (`VETERAN_RUNS`), no gentle minute: Monday is a real shift, the first week two
+    levels up (`VETERAN_LEVELS`), with doors from the first day and a perk on the house before it.
+  - **Making it up** (sim.mjs): a streak of three or more that breaks leaves 12 seconds; the next points earned count double, and
+    the next good thing gives half the streak back (`make-up`, `made-up`).
+- **3. The shift as a song** (sim.mjs, chaos.mjs; `config.fun`, `FUN`): **the last call**, the last 25 seconds, when everything
+  earned counts half as much again (the clock beats in gold; the number that floats up is the number earned: every `sim.score +=`
+  goes through one setter); a director that starts nothing new while three things want the coach (`pressure()`: incidents, a
+  rescue, a cleanup, a queasy swimmer, wet spots piling up; one more for each coach more), takes a breath of 8 seconds after
+  trouble ends, and from level 6 fills a calm of 10 seconds for the coach's body by bringing the plan's next incident forward, or
+  having a swimmer ask for a tip. The star targets of every shift played by these rules are a tenth higher (`FUN_SCALE`).
+  **A shift recorded before has no `config.fun` and replays as it was.**
+- **4. Perks become a build**: 31 perks (`PERKS`), the 19 new ones each bending a rule, most with a catch: *Showboat* (the streak
+  climbs twice as fast, no making it up), *Red carpet* (twice the VIPs, worth double, half the patience), *Roller skates* (30%
+  faster on the hot springs' ice, everywhere), *Karen's manager*, *Dog walker* and *Carl's fan club* (that incident every shift, and
+  it tips), *Hero's bonus*, *Open house* and *Members only* (the crowd), *High roller* (three stars pay double, under two nothing),
+  *Double or nothing*, *Piggy bank*, *Last orders*, *Cool head*, *Second wind*, *Encore*, *Tipster*, *Mop on wheels*, *Marco's
+  autograph*. **A pick, not a shop**: on the results of every shift passed, three to pick from and one to take; two cost what
+  they cost out of the Date Fund (one money, the creator's), one with a catch is free; three others for $10. **Six slots**, a
+  seventh takes the place of one, and **the build lasts the run** (a lost run keeps none).
+- **5. The day's doors**: before each shift, two or three doors, each **a pool, a day rule and what it pays** (`dayDoors`). The
+  first is the day's own pool; the second a pool from later in the week, and taking it swaps the two days, so a week is still six
+  different pools, never two days running (the creator's rule); some days a third, a mystery. 17 day rules (`RULES`), each only a
+  setting of what the game has: Heatwave, VIP night, Coach party, Wet floor day, Marco's fan day, Free entry day, Heavy legs,
+  Power saver, Dog show, Double date, Quiet day, and behind challenges Health inspector, Golden day, Full moon, Half day, Carl's
+  birthday, Complaints day. A door under the mouse shows its own pass mark and wishes. One door when there is no choice to make
+  (a first run's first two shifts, the finale, a lesson, the overtime).
+- **6. Surprise**: **golden guests** (about one shift in ten, a gold tag: sent home happy they pay a star's worth);
+  **crossovers** (`CROSSOVERS`, `sim.find`): a loose dog that comes near Karen sees her off, Karen in a power cut carries half as
+  far again, an influencer filming when the cannonball lands makes it go viral (+150), a VIP on the massage table; about one
+  shift in six is planned so two such incidents are on the deck together (`pairUp`); and **the scrapbook** in the coach's locker,
+  every day rule played, perk taken and crossover seen, with what is still to find left blank.
+- **7. What lasts**: eleven **coach's challenges** (`CHALLENGES`: serve 25 VIPs, mop 20 wet spots, ten three-star shifts…),
+  counted over every run, so a lost run still moves them; each one done adds perks and day rules to the decks for good, said on
+  the results. After the story's ending, **an endless week's conditions**, taken on before Monday (`HEAT_RULES`: short tempers,
+  double trouble, a packed house; a tenth more pay each, and two make a gold date). **Not built: the Daily Shift**, which waits
+  for the Steam work (the creator's choice among the five).
+- **8. The reward's feel**: a week's results sit beside the score, with the pick and the next day's doors under the fund, so the
+  next decision is one click from the last star; the shop's window is gone (it is Marina's gift now); a pool's intro cinematic
+  plays the first time the pool comes in a run, not before every shift.
+
+**The goals were raised** (`GOAL_SHARE`): a run now earns more as it goes, so the bots ended every week of the old goals at two
+to three times the goal by Wednesday. They are now $270, $590, $860, $1,110, $1,290, where they were $240, $420, $520, $620, $690: week 1 is still the
+learner's week, and from week 3 a week asks about what three stars in every shift and both wishes pay on regular days, so a
+build and a risky door are how a date is made.
+
+**What the bots measured** (`tools/fun-report.mjs`, 8 runs of 5 weeks each, before and after; the bots take the best-paid door
+they dare and a perk a shift):
+
+| | Expert before | after | Steady before | after | Novice before | after |
+| --- | --- | --- | --- | --- | --- | --- |
+| Stars a shift | 2.66 | 2.85 | 2.60 | 2.82 | 1.83 | 2.10 |
+| Weeks won | 40 of 40 | 40 of 40 | 40 of 40 | 40 of 40 | 27 of 34 | 34 of 37 |
+| A week ends at (times its goal) | 1.76 | 1.95 | 1.74 | 1.92 | 1.30 | 1.35 |
+| The date decided on Friday or Saturday | 15% | 5% | 20% | 8% | 65% | 57% |
+| A deluxe date (reached on Friday or Saturday, mostly) | none | 90% | none | 90% | none | 30% |
+| The coach's body with nothing to do | 52% | 39% | 66% | 53% | 94% | 93% |
+| ...from level 6 | 49% | 34% | 64% | 50% | 94% | 93% |
+| Two runs share (pools, day rules, perks) | 100% | 25% | 100% | 34% | 87% | 33% |
+
+(Before: the game of 13 November, the bots taking a regular day and no perk, as its shop was not theirs to use. The novice only
+cleans up what cannot be ignored and its body is idle by design; it is the nearest of the three to a person in what it earns.)
+
+Read plainly: runs are no longer alike (two runs shared everything, now a quarter to a third); the coach's body has less dead
+time; each bot ends a week about as far over its goal as it did, by design of the new goals. **The date itself is not decided
+later for the two better bots** (still Wednesday to Friday): what keeps them playing to Saturday is the deluxe date, which they
+reach on Friday or Saturday in nine weeks of ten. The plan's targets of an idle body 10 to 15% of the time and six weeks in ten
+decided on Friday or Saturday are **not met for those bots**; the novice is at 57%. One more incident a shift was tried and
+taken out again: it made the same incident come two shifts running too often for the creator's mix (`RECENT`).
+
+**Not verified here**: how any of it feels to a person. The goals, what the perks pay and the deluxe line are tuned against bots
+that play better than people, so the first thing to learn from the creator's play is whether week 2 and week 3 are too hard or
+too easy; the numbers to turn are `GOAL_SHARE`, `DELUXE`, `OVERTIME_SHARE` and `FUN` in week.mjs. The perks, the day rules and
+the crossovers are the creator's to rank, reorder or cut, like `INCIDENT_ORDER`. Checked by `fun-check.mjs` (every rule above,
+a built shift played the same twice, a bot through a week of doors and picks) and played in Chromium from START through a
+veteran's gift, the doors, a shift to its last call, the results with a pick taken, and on to the next day's doors (pictures
+looked at; no errors).
+
 ### The intro cinematic (every pool, 5 November 2026)
 
 The creator: "a system that I can turn off later in a toggle for game cinematics as intro… a close-up of the coach always, and
@@ -2638,6 +2742,7 @@ Self-contained static browser game using ES modules, locally included **Three.js
 | `dist/scene/fish-model.mjs` | The fish (`dist/assets/fish.glb`): loads it, stands it in a group of the fish's size, dresses the classic koi `fishObject` builds with it (now or when it arrives), and gives each fish its own swim wave in the vertex shader |
 | `dist/input.mjs` | Keyboard/touch intents and held input |
 | `dist/guidance.mjs` | Shared world/HUD guidance state and pulse |
+| `tools/fun-report.mjs` | The fun report: the coach bots play whole runs taking doors and perks, and it prints what the loop's numbers do (stars, idle, pressure, the day a week is decided, deluxe dates, how alike two runs are). Run before and after anything that touches them |
 | `dist/incident-cards.mjs` | What needs the coach now, as the HUD shows it: one card an incident pending (its sticker, a name, one short line), the sticker and the line of each sting; pure |
 | `dist/moments.mjs` | Incident moments: sting and stamp text, first sightings, queueing, slow motion and hit-stop timing, edge-arrow geometry |
 | `dist/progression.mjs` | Record normalization (levels and drills), stars, unlocks and the `UNLOCK_ALL` playtest switch |
@@ -3055,6 +3160,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node coachcam-check.mjs` | Coach Cam: facing follows the look, E prefers what is in view, view-relative movement, eye and water-level height with the body hidden, hand lag and settle, head bob (off with reduced motion), landing dip, items in hand, field of view, crosshair target |
 | `node fish-model-check.mjs` | The fish model: the file's shape (one mesh, matte, no skeleton, nose to +z and back to +y from its vertices), fish dressed when the model comes or when they are made, each with a wave of its own and one program, a model that does not load leaving the koi, and the fish of the incident seen in the pool only once the kid has tipped it out |
 | `node cinematic-check.mjs` | The intro cinematic: three shots in about five seconds in every venue (the coach's in front of him, the sweep low on the deck), the venues' own beats (the snow monkey, Valentina, the DJ and the bartender close up, the Jumping Pool's crane from low to high, the coach out of them), the world's camera and the coach's acting while it runs, the overview's lens back after (by itself or skipped), the shift held, the skip and the Settings switch, never in co-op, the Coach Cam or a replay |
+| `node fun-check.mjs` | The fun plan of 14 November 2026: the third star's pay; the day's doors (a later pool swaps the two days, never two days running, every rule fits its pool) and what each day rule makes of a shift; the pick (one free with a catch, six slots, a build that lasts the run) and what a build pays; overtime, the carry, a deluxe date and Marina's gift; a veteran's Monday; the challenges and the scrapbook; an endless week's conditions; the last call, making it up, the golden guest, the perks the simulation reads, the director's hold, breath and fill, the crossovers; a built shift played the same twice and a bot through a week of doors and picks; the page wired to it |
 | `node stickers-check.mjs` | The HUD of 13 November 2026: 25 stickers with their pictures, made by the tool from the game's own characters; a sticker and one line for every sting; one card an incident pending (three at once, the rescue first), a name and one short line that never names a key, in bot-played shifts in all 14 venues; the page with the stickers' row and card and no banner, status box or steps; no lane buttons, the chips that are left, and in every venue a place to click that glows softly while a waiting guest is selected and answers the mouse. |
 | `node perf-check.mjs` | Performance, kept from coming back: a venue's every texture, shader picture and skeleton freed with it; venues loaded when played; no layout read per frame; the crowd drawing one pose; and the second pass: the cues' pulse set where something pulses, a picture on the card sharpened there (the cast's before the first frame), flat see-through things in one pass, a shadow material each for the characters and the crowd, the tags, alert, prompt and HUD reading nothing from the page and writing only changes, the log's housekeeping between frames, the hitch line, nothing made new by the deck's contacts and the loose props. |
 | `node loose-check.mjs` | Loose props: a kit in every venue on free deck by the walls, apart, clear of the stations, the same places each time; a ball kicked away, a pot rocking at a walk and falling over at a run, a jump clearing a board, a guest strolling past toppling nothing, a new shift putting everything back, the cruise's chairs and balls sliding with the roll, the simulation untouched |
