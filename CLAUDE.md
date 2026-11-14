@@ -334,6 +334,7 @@ the app and depot ids, the store page, the price, written proof that the AI tool
 | --- | --- |
 | The brief, every system, the module map and the checks | `README.md` |
 | Every incident, how a shift picks them, the level table, the director proposal | `docs/incidents.md` |
+| The fun plan: how to make a run addictive (a proposal of 14 November 2026, awaiting the creator's review: do only what they approve) | `docs/fun-plan.md` |
 | The week: chapters, the director, cards, wishes, pay, the shop, Marina's scenes | `dist/week.mjs`, `dist/week-ui.mjs`, `dist/marina.mjs`, README "The week" |
 | The road to a Steam release, the build and upload, the achievements list | `desktop/README.md`, `desktop/steam/` |
 | The Steam store page: capsules, screenshots, clips, the cast posters (and Marina's poster-only model), copy, brand book, launch plan (and the tools that stage them) | `marketing/steam/` |
