@@ -118,7 +118,7 @@ export function giveTip(sim, p) {
       p.coached = true;
       p.boost = T.boost;
       p.h = Math.min(100, p.h + T.mood);
-      const value = p.vip ? T.vipPoints : T.points;
+      const value = Math.round((p.vip ? T.vipPoints : T.points) * (sim.perks?.tip || 1)); // (the tipster: double)
       sim.score += value;
       sim.stats.tips = (sim.stats.tips || 0) + 1;
       sim.emit("points", { x: p.x, z: p.z, value });

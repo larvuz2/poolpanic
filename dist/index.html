@@ -466,8 +466,20 @@
             the end, the shift's best moment plays again 🎬.
           </li>
           <li>
-            <b>The shop</b> 🛍️ between shifts sells perks for the rest of the week, paid out of the Date Fund:
-            spend now to earn more, or save for the date. A riskier gig pays more, not more points.
+            <b>A door a day</b> 🚪: before each shift, pick a pool, the day's rule and what it pays. A riskier
+            door pays more, not more points.
+          </li>
+          <li>
+            <b>A perk after every shift passed</b> 🎁: three to pick from, one to take. Two are paid out of
+            the Date Fund, one with a catch is free. Six at most, and they stay for the whole run.
+          </li>
+          <li>
+            <b>The last call</b> 🔔: in the last 25 seconds everything scores half as much again. A broken
+            streak? The next good thing within 12 seconds counts double and brings half of it back.
+          </li>
+          <li>
+            <b>Saturday night</b>: short by a fifth or less, one last shift decides it ⏰ (once a run). Over
+            the goal, half of what is over starts next week, and far over it is a deluxe date 💎.
           </li>
           <li>
             <b>What you keep</b> (🏅 Coach's locker, on the main screen): every date opens a new pool for
@@ -707,6 +719,7 @@
           <small id="wd-pace" class="wk-pace"></small>
         </div>
         <div id="wd-days" class="wk-days" aria-hidden="true"></div>
+        <div id="wd-heat" class="wd-heat" hidden></div>
         <div class="wd-row">
           <span id="wd-pass" class="wk-pass"></span><span id="wd-gear" class="wk-tips" hidden></span
           ><span id="wd-perks" class="wk-perks"></span>
@@ -723,7 +736,7 @@
           <small>💌 MARINA'S WISHES FOR THIS SHIFT</small>
           <ul id="wd-wishes"></ul>
         </div>
-        <p id="wd-cards-note" class="booking-note">Pick today's gig. More trouble pays more.</p>
+        <p id="wd-cards-note" class="booking-note">Pick a door: a pool, the day's rule, what it pays.</p>
         <div id="wd-cards" class="booking-cards"></div>
         <button id="wd-back" class="text-btn">Back to the menu</button>
       </dialog>
@@ -735,10 +748,7 @@
           <b id="shop-money"></b>
           <small id="shop-pace" class="wk-pace"></small>
         </div>
-        <p class="booking-note">
-          Perks for the rest of the week, paid out of the Date Fund: spend now to earn more, or save for the
-          date.
-        </p>
+        <p id="shop-note" class="booking-note">Three perks, one to take. It stays for the whole run.</p>
         <div id="shop-cards" class="booking-cards"></div>
         <div class="wd-row"><span id="shop-perks" class="wk-owned"></span></div>
         <div class="shop-actions">
@@ -766,6 +776,18 @@
           <h3>💖 Dates with Marina</h3>
           <p id="locker-album-note" class="booking-note"></p>
           <div id="locker-album" class="locker-grid album"></div>
+        </section>
+        <section class="locker-part">
+          <h3>🏆 Coach's challenges</h3>
+          <p class="booking-note">
+            They count over every run. Each one done adds perks and day rules to the game, for good.
+          </p>
+          <div id="locker-challenges" class="locker-grid challenges"></div>
+        </section>
+        <section class="locker-part">
+          <h3>📒 Scrapbook</h3>
+          <p id="locker-scrap-note" class="booking-note"></p>
+          <div id="locker-scrap" class="locker-scrap"></div>
         </section>
         <button id="locker-close" class="primary">Back ▶</button>
       </dialog>
@@ -837,6 +859,15 @@
             <b id="rw-money"></b>
           </div>
           <p id="rw-text" class="fund-text"></p>
+          <p id="rw-star" class="rw-star" hidden></p>
+          <div id="rw-pick" class="rw-pick" hidden>
+            <small id="rw-pick-title" class="rw-pick-title"></small>
+            <div id="rw-pick-cards" class="booking-cards pick-cards"></div>
+            <div class="rw-pick-foot">
+              <span id="rw-build" class="wk-owned"></span><button id="rw-reroll" class="text-btn"></button>
+            </div>
+          </div>
+          <div id="rw-doors" class="rw-doors" hidden></div>
         </div>
         <div id="result-chunk" class="chunk-row" hidden>
           <span class="chunk-main"

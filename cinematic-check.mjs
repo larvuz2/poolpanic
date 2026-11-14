@@ -205,7 +205,7 @@ for (const [id, shots] of Object.entries(VENUE_SHOTS))
   assert.match(app, /accumulator = lookFreeze \|\| world\.cinematic \? 0 :/);
   assert.match(
     app,
-    /settings\.cinematics !== false &&\s*!coop &&\s*world\.viewMode !== "coach" &&\s*!replayRun &&\s*!tuning\.has\("nocine"\)/,
+    /settings\.cinematics !== false &&\s*\(!week \|\| weekUi\?\.cinematicDue\?\.\(week\.pool\) !== false\) &&\s*!coop &&\s*world\.viewMode !== "coach" &&\s*!replayRun &&\s*!tuning\.has\("nocine"\)/,
   );
   assert.match(app, /document\.addEventListener\("keydown", skipCinematic, \{ capture: true \}\)/);
   assert.match(app, /document\.addEventListener\("pointerdown", skipCinematic, \{ capture: true \}\)/);

@@ -527,7 +527,8 @@ function live(sim, B, dt) {
 
 function finish(sim, B) {
   B.stage = "done";
-  const pts = T.points[B.result] - (B.result === "miss" && B.kind === "race" ? T.raceFail : 0);
+  const raw = T.points[B.result] - (B.result === "miss" && B.kind === "race" ? T.raceFail : 0),
+    pts = raw > 0 ? Math.round(raw * (sim.perks?.big || 1)) : raw; // (the encore, a perk: the big moment pays double)
   B.points = pts;
   sim.score += pts;
   sim.stats.big = { kind: B.kind, result: B.result, points: pts };

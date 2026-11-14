@@ -327,6 +327,11 @@ function cannonball(sim, k, v) {
   sim.stats.cannonballs = (sim.stats.cannonballs || 0) + 1;
   sim.emit("cannonball", { x: v.x, z: v.z });
   sim.emit("points", { x: v.x, z: v.z, value: -T.penalty });
+  // A crossover (the fun plan, week.mjs CROSSOVERS): an influencer filming on the deck caught it, and it goes viral.
+  if (sim.influencer && sim.find("viral", "📱 The cannonball went viral! +150", v)) {
+    sim.score += 150;
+    sim.emit("points", { x: v.x, z: v.z + 0.6, value: 150 });
+  }
   let lost = 0;
   for (const p of sim.people) {
     if (p.status !== "swim" || distance(p, v) > T.waveRadius) continue;

@@ -112,6 +112,17 @@ export const Karen = {
       return;
     }
     k.elapsed += dt;
+    // Crossovers (the fun plan, week.mjs CROSSOVERS): in a power cut she is harder to bear (`reach`), and a loose dog that
+    // comes too close sees her off.
+    if (v.status === "marching" || v.status === "ranting") {
+      if (sim.outage?.stage === "dark")
+        sim.find("dark", "🔦 Karen in the dark! She carries half as far again", v);
+      const dog = sim.dog && sim.dog.stage !== "leaving" ? sim.visitor(sim.dog.id) : null;
+      if (dog && distance(dog, v) < 2.2) {
+        sim.find("chase", "", v);
+        return calmed(sim, k, v, true);
+      }
+    }
     const c = sim.coach;
     switch (v.status) {
       case "entering":
@@ -230,7 +241,7 @@ function inReach(sim, v, c = sim.coach) {
 // Everybody on the deck within her range stops, covers their ears and loses a little happiness, once each.
 function annoyBystanders(sim, k, v) {
   for (const p of sim.people) {
-    if (!annoyable(p) || distance(p, v) > T.radius) continue;
+    if (!annoyable(p) || distance(p, v) > reach(sim)) continue;
     p.karenAnnoyed = T.linger;
     if (k.annoyed.has(p.id)) continue;
     k.annoyed.add(p.id);
@@ -241,7 +252,7 @@ function annoyBystanders(sim, k, v) {
     p.h = Math.max(0, p.h - T.deckPenalty);
     sim.emit("points", { x: p.x, z: p.z, value: -T.penalty });
   }
-  for (const o of sim.visitors) if (o !== v && distance(o, v) <= T.radius) o.karenAnnoyed = T.linger;
+  for (const o of sim.visitors) if (o !== v && distance(o, v) <= reach(sim)) o.karenAnnoyed = T.linger;
 }
 
 // The rant: which gesture she is in (the view plays it), where she looks, and her squawks.
@@ -314,7 +325,10 @@ function calm(sim, k, v, dt) {
   } else k.progress = Math.max(0, k.progress - dt / T.release);
 }
 
-function calmed(sim, k, v) {
+// How far she annoys: half as far again in the dark of a power cut.
+const reach = (sim) => T.radius * (sim.outage?.stage === "dark" ? 1.5 : 1);
+
+function calmed(sim, k, v, byDog = false) {
   const clean = k.annoyed.size === 0,
     value = T.reward + (clean ? T.cleanBonus : 0);
   k.calming = false;
@@ -336,6 +350,8 @@ function calmed(sim, k, v) {
   sim.save("karen", v, value, { name: "Karen" });
   sim.emit("karen-calmed", { x: v.x, z: v.z });
   sim.emit("toast", {
-    text: `Karen calms down and leaves. +${value}${clean ? " · nobody was annoyed" : ""}${k.team > 1 ? " · teamwork!" : ""}`,
+    text: byDog
+      ? `🐕 The dog saw Karen off! +${value}`
+      : `Karen calms down and leaves. +${value}${clean ? " · nobody was annoyed" : ""}${k.team > 1 ? " · teamwork!" : ""}`,
   });
 }

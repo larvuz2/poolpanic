@@ -144,6 +144,52 @@ export class ChaosController extends RescueController {
   canStartChaos(system) {
     return !this.chaosBlocker(system);
   }
+  // How many things want the coach right now (the fun plan's director: no new incident while it is `fun.hold`): the incidents
+  // going on, a rescue, a cleanup, a queasy swimmer, wet spots piling up.
+  pressure() {
+    let n = (this.rescue ? 1 : 0) + (this.cleanup ? 1 : 0);
+    for (const s of this.systems) if (typeof s.start === "function" && s.isActive(this)) n++;
+    if ((this.wetSpots?.length || 0) >= 2) n++;
+    for (const p of this.people)
+      if (p.stomachWarning) {
+        n++;
+        break;
+      }
+    return n;
+  }
+  // The shift as a song (`fun`, week.mjs FUN): a breath after trouble ends, and from level 6 no calm longer than `fun.calm`
+  // for the coach's body: the next incident of the plan comes now, or a swimmer asks for a tip.
+  paceChaos(dt) {
+    const fun = this.fun;
+    if (!fun) return;
+    const n = this.pressure();
+    if (n < (this.pressureBefore || 0)) this.breathUntil = this.arrivalTime + fun.breath;
+    this.pressureBefore = n;
+    const calm = n === 0 && !this.wetSpots?.length && !this.big?.stage?.match?.(/announce|live/);
+    this.calmFor = calm ? (this.calmFor || 0) + dt : 0;
+    if (
+      this.calmFor < fun.calm ||
+      this.level < 6 ||
+      this.config.tutorial ||
+      this.time < 20 ||
+      this.config.duration - this.time < 30
+    )
+      return;
+    this.calmFor = 0;
+    let next = null;
+    for (const entry of this.chaosPlan)
+      if (!entry.done && entry.kind !== "twist" && (!next || entry.at < next.at)) next = entry;
+    if (next && next.at > this.arrivalTime) {
+      next.at = this.arrivalTime;
+      this.breathUntil = 0;
+      return;
+    }
+    for (const p of this.people)
+      if (p.status === "swim" && p.tipAt === Infinity && !p.tipDone && !p.ask && !p.problem && !p.vip) {
+        p.tipAt = 0; // (tips.mjs: they ask at once, where swimmers ask at all)
+        return;
+      }
+  }
   // Debug/QA and checks can trigger an incident directly.
   triggerChaos(key) {
     const system = this.system(key);
@@ -154,6 +200,8 @@ export class ChaosController extends RescueController {
     return started;
   }
   updateChaos(dt) {
+    this.paceChaos(dt);
+    const full = this.fun ? this.fun.hold + this.coaches.length - 1 : Infinity;
     for (const entry of this.chaosPlan) {
       if (entry.done || this.arrivalTime < entry.at) continue;
       if (this.config.duration - this.time < 14) {
@@ -172,6 +220,11 @@ export class ChaosController extends RescueController {
         continue;
       }
       const system = this.system(entry.kind);
+      // (the fun plan's director: nothing new while the coach is full, nor in the breath after trouble ends)
+      if (this.fun && (this.pressure() >= full || this.arrivalTime < (this.breathUntil || 0))) {
+        entry.at = this.arrivalTime + 1.5;
+        continue;
+      }
       // (the second guided shift: the incidents wait until its fins and its cramp are done, sim.mjs lessonsDone)
       if (!system || !this.canStartChaos(system) || !this.lessonsDone()) {
         entry.at = this.arrivalTime + 2.5;

@@ -340,11 +340,14 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   const finale = normalizeWeekSave({ tutorial: true });
   finale.week = { ...newWeek(finale, 5), chapter: FINALE_WEEK, shift: SHIFTS_PER_WEEK - 1 };
   assert.equal(lessonDue(finale), false, "never on the finale Saturday");
-  assert.match(weekUi, /if \(!save\.tutorial && shift\.step === 0\)/);
+  assert.match(weekUi, /if \(!save\.tutorial && shift\.step === 0 && !save\.week\.veteran\)/);
   assert.match(weekUi, /tutorial: 1, duration: TUTORIAL_SECONDS/);
   assert.match(weekUi, /else if \(lessonDue\(save\)\) \{\s*const \{ big, \.\.\.config \} = shift\.config;/);
   assert.match(weekUi, /tutorial: 2, duration: config\.duration \+ LESSON_EXTRA/);
-  assert.match(weekUi, /if \(w === save\.week && lessonDue\(save\)\) pools\[w\.shift\] = LESSON_POOL/);
+  assert.match(
+    weekUi,
+    /lesson = w === save\.week && lessonDue\(save\);\s*if \(lesson\) pools\[w\.shift\] = LESSON_POOL/,
+  );
   assert.match(
     weekUi,
     /if \(shift\?\.config\?\.tutorial === 2\) save\.lesson2 = true;\s*else save\.tutorial = true;/,
@@ -405,7 +408,7 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   // (Never the old menu's picture behind it, 2 November 2026: the 3D stage, or a plain backdrop when it cannot load.)
   assert.doesNotMatch(css, /url\("assets\/story\/coach-pool\.webp"\)/);
   // One card is no choice: a plain start button.
-  assert.match(weekUi, /const single = shift\.cards\.length === 1/);
+  assert.match(weekUi, /single = shift\.cards\.length === 1/);
   assert.match(weekUi, /Start the shift ▶/);
   for (const id of [
     "wd-intro",

@@ -106,7 +106,7 @@ import { installLookTuner, antialiasOff, LOOK_DEFAULTS } from "./look-tuner.mjs"
 import { MenuStage, GUESTS, GUEST_FIGURES } from "./scene/menu-stage.mjs";
 import { installTitle, normalizeSettings, volumesOf, grainOpacity, motionReduced } from "./title.mjs";
 import { installFreePlay } from "./free-ui.mjs";
-import { freePlayShift, freeLevel, POOLS } from "./week.mjs";
+import { freePlayShift, freeLevel, POOLS, RULES } from "./week.mjs";
 import { installCoop } from "./coop-ui.mjs";
 import { CoopGuest, Predictor } from "./net.mjs";
 import { coachInfo } from "./crew.mjs";
@@ -2144,13 +2144,16 @@ function startNow(bookingId = null, week = null) {
   mode = "countdown";
   // The intro cinematic, before the countdown (scene/intro-cinematic.mjs): the shift waits until it is over or skipped. Not in
   // co-op (the crew's machines start together), the Coach Cam, a replay, or when Settings has it off.
+  // (in a run, a pool's cinematic plays the first time the pool comes, not every shift: the fun plan, "the reward's feel")
   const cinematic =
     settings.cinematics !== false &&
+    (!week || weekUi?.cinematicDue?.(week.pool) !== false) &&
     !coop &&
     world.viewMode !== "coach" &&
     !replayRun &&
     !tuning.has("nocine");
   snagged = false;
+  $("clock").classList.remove("last-call");
   for (const k of Object.keys(failing)) failing[k] = 0;
   moments.reset();
   hideMoments();
@@ -2446,7 +2449,13 @@ function fillPauseShift() {
   if (!live) return;
   const pool = POOLS[sim.config.pool]?.name || sim.config.place || sim.venue?.name || "";
   $("pause-venue").textContent = pool || sim.config.name;
-  $("pause-tag").textContent = [pool && sim.config.name !== pool ? sim.config.name : "", shiftTag()]
+  // (the day's rule, the fun plan: its name and what it does, here and nowhere over the pool)
+  const rule = RULES[sim.config.rule];
+  $("pause-tag").textContent = [
+    pool && sim.config.name !== pool ? sim.config.name : "",
+    shiftTag(),
+    rule ? rule.icon + " " + rule.name + ": " + rule.note : "",
+  ]
     .filter(Boolean)
     .join(" · ");
   const coins = (n) => Math.round(n).toLocaleString("en-US"),
@@ -2839,7 +2848,7 @@ function finishWeek() {
   $("result-eyebrow").textContent =
     `WEEK ${ws.chapter.id} · ${ws.day.toUpperCase()} · ${ws.place.toUpperCase()}` +
     (ws.finale ? " · SEASON FINALE" : "") +
-    (ws.card && ws.card.id !== "regular" ? " · " + ws.card.name.toUpperCase() : "") +
+    (ws.card && (ws.card.mystery || ws.card.rule !== "regular") ? " · " + ws.card.name.toUpperCase() : "") +
     (res.failed ? " · NOT PASSED" : " · SHIFT COMPLETE");
   $("result-stars").textContent = Array.from({ length: 3 }, (_, i) => (i < r.stars ? "★" : "☆")).join(" ");
   $("result-title").textContent = res.won
@@ -4716,6 +4725,30 @@ function events() {
         points({ x: e.x, z: e.z, text: "📣 " + e.text + " +" + e.value, tone: "good" });
       else if (e.type === "tip-ask") points({ x: e.x, z: e.z, text: "📣 " + e.text, tone: "ask" });
       else if (e.type === "streak-broken") streakBroken(e);
+      // The fun plan's moments (sim.mjs): the last call, making it up after a broken streak, a golden guest sent home happy.
+      else if (e.type === "last-call") {
+        $("clock").classList.add("last-call");
+        toast("🔔 Last call! Everything scores ×" + e.scale);
+        audio.effect("streak-tier", { mult: 2 });
+      } else if (e.type === "make-up") {
+        if (streakNote)
+          streakNote = {
+            ...streakNote,
+            text: streakNote.text + " · MAKE IT UP ×2",
+            until: performance.now() + 3400,
+          };
+      } else if (e.type === "made-up") {
+        points({
+          x: e.x ?? sim.coach.x,
+          z: e.z ?? sim.coach.z,
+          text: "🔥 Made up! Streak " + e.streak,
+          tone: "good",
+        });
+        audio.effect("streak-tier", { mult: 1.5 });
+      } else if (e.type === "golden") {
+        points({ x: e.x, z: e.z, text: "✨ Golden goodbye!", tone: "good" });
+        world.confetti();
+      }
       if (world.viewMode === "coach") world.coachCam.react(e.type, e);
       audio.effect(e.type, e);
     } catch (err) {

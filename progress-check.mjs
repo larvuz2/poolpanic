@@ -68,8 +68,13 @@ function playWeek(save, starsEach = 3) {
   let r = null;
   while (save.week) {
     const sh = buildShift(save.week, null, save.known, save.seen);
-    const score = starsEach > 0 ? sh.config.thresholds[starsEach - 1] : sh.pass;
-    r = finishShift(save, sh, result(score, starsEach, { lost: 0 }), { vips: 2, prevented: 1, flips: 3 });
+    // (`starsEach` under zero: no shift passed, so the week is lost whatever it started with)
+    const score = starsEach > 0 ? sh.config.thresholds[starsEach - 1] : starsEach < 0 ? 0 : sh.pass;
+    r = finishShift(save, sh, result(score, Math.max(0, starsEach), { lost: 0 }), {
+      vips: 2,
+      prevented: 1,
+      flips: 3,
+    });
   }
   return r;
 }
@@ -269,7 +274,7 @@ function playWeek(save, starsEach = 3) {
         const f = s.week.fund,
           price = perkPrice(id, chapterFor(s.week.chapter));
         if (buyPerk(s.week, id)) assert.equal(s.week.fund, f - price);
-        else assert.ok(f < price, "only too dear is refused");
+        else assert.ok(f < price || s.week.perks.length >= 6, "only too dear, or a full build, is refused");
       }
       assert.ok(s.week.fund >= 0);
     }
@@ -346,7 +351,7 @@ function playWeek(save, starsEach = 3) {
   // Endless: the arena in the draw; a game over keeps what lasts.
   save.week = newWeek(save, 55);
   const before = { ladder: save.ladder, album: [...save.album], stars: save.stars, best: { ...save.best } };
-  r = playWeek(save, 0);
+  r = playWeek(save, -1);
   assert.ok(r.over && save.chapter === 1 && save.dates.length === 0, "game over: week 1 again");
   assert.equal(save.ladder, before.ladder, "the pools stay open");
   assert.deepEqual(save.album, before.album, "the album stays");
@@ -464,15 +469,15 @@ function playWeek(save, starsEach = 3) {
     assert.ok(html.includes(`id="${id}"`), id + " is on the page");
   assert.ok(!html.includes('id="shop-tips"') && !html.includes('id="wd-tips"'), "no tips left on screen");
   assert.ok(!/tips\b.*pocket money/i.test(html), "Help says one money");
-  assert.match(html, /paid out of the Date Fund/);
+  assert.match(html, /paid out of\s+the\s+Date Fund/);
   assert.match(ui, /\$\("wk-locker"\)\.onclick = openLocker/);
-  assert.match(ui, /Leaves " \+ money\(w\.fund - price\)/);
+  assert.match(ui, /PICK ONE · IT STAYS FOR THE RUN/);
   assert.match(ui, /Start the finale 🏆/);
   assert.match(ui, /New gear in the locker/);
   assert.match(ui, /NEW POOL: /);
   assert.match(
     ui,
-    /const pools = \[\.\.\.itinerary\(w\)\];[\s\S]{0,120}return \{ \.\.\.w, pools, gear: save\.gear \};/,
+    /const pools = \[\.\.\.itinerary\(w\)\],[\s\S]{0,200}return \{ \.\.\.w, pools, gear: save\.gear, done: save\.done/,
   );
   assert.match(ui, /textsPassed\(result\.peakBefore, result\.fund, result\.goal\)/);
   assert.match(css, /\.locker-pools \{/);
