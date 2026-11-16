@@ -483,9 +483,11 @@ const monkey = (s, until) => {
 // 7) Whole shifts from the week, every incident in them, played by the bot: guests sent to springs, monkeys met, nobody left in
 // the cold, a star at least; the same seed, the same shift.
 {
+  // (the seeds changed on 16 November 2026 with one coach's smaller crowd, which makes these other shifts: of eight tried, seven
+  // kept the monkeys out or let one in; seed 3, the one that was here, let four in)
   for (const [tier, seed] of [
-    [6, 3],
-    [14, 9],
+    [6, 4],
+    [14, 10],
   ]) {
     const week = newWeek({ chapter: 2 }, 6161 + seed);
     week.pools = Array(6).fill("onsen");

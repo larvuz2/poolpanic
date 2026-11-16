@@ -496,10 +496,12 @@ export class CoachBot {
     if (s.ship && this.proactive && s.people.some((p) => p.status === "fell-in") && this.free("helpFallen"))
       return this.helpFallen;
     // The Rooftop Pool (and the cruise ship's chilling guests): someone overboard or up on the edge before anything else that can
-    // wait; then the margaritas.
-    if (s.venue.chill && this.proactive) {
+    // wait; then the margaritas. (A reactive coach talks nobody down from the edge, but hauls back who went over and serves who
+    // asks: at the rooftop that is the job itself, not prevention. Since 16 November 2026, when every pool joined the weeks from
+    // the first run and the fun report's novice first met the rooftop: it served nobody there.)
+    if (s.venue.chill && (this.proactive || !s.ship)) {
       if (s.people.some((p) => p.status === "overboard") && this.free("haulRoof")) return this.haulRoof;
-      if (s.people.some((p) => p.problem === "selfie") && this.free("stopRoofSelfie"))
+      if (this.proactive && s.people.some((p) => p.problem === "selfie") && this.free("stopRoofSelfie"))
         return this.stopRoofSelfie;
       const thirsty = s.people.some((p) => p.problem === "drink"),
         // (On the cruise ship a tray with nobody to serve goes back when the deck needs the coach.)

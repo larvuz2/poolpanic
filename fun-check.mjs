@@ -308,7 +308,7 @@ const end = (save, shift, stars, stats = {}, more = {}) =>
     );
   assert.ok(built.plan.incidents.includes("karen"));
   assert.ok(built.config.total > plain.config.total);
-  assert.equal(built.config.vipAt.length, Math.min(9, plain.config.vipAt.length * 2));
+  assert.ok(built.config.vipAt.length > plain.config.vipAt.length, "the red carpet: more VIPs");
   assert.equal(built.perks.vipScore, 2);
 }
 
@@ -420,32 +420,47 @@ const end = (save, shift, stars, stats = {}, more = {}) =>
   assert.ok(o.reached && o.deluxeNeed > 0 && o.deluxe === Math.round((goal * W.DELUXE) / 5) * 5);
 }
 
-// 7) A veteran's Monday: from the third run, no gentle minute, and a free pick before it.
+// 7) A run that starts again: from the second, no gentle minute (a real Monday with doors, at the pool the rotation gives); from
+// the third, a perk on the house before it. No harder levels for it.
 {
-  const rookie = fresh({ runs: 1 });
+  const rookie = fresh({});
   rookie.week = W.newWeek(rookie, 8);
   const gentle = W.buildShift(rookie.week, null, []);
-  assert.ok(!rookie.week.veteran && !rookie.week.pick);
+  assert.ok(!rookie.week.returning && !rookie.week.veteran && !rookie.week.pick);
   assert.equal(gentle.config.duration, W.FIRST_SHIFT.duration);
   assert.equal(gentle.config.big, undefined);
+  assert.equal(gentle.config.solo, undefined, "the gentle minute has its own seven guests");
+  const second = fresh({ runs: 1, known: ALL });
+  second.week = W.newWeek(second, 8);
+  assert.ok(second.week.returning && !second.week.veteran && !second.week.pick);
+  const real = W.buildShift(second.week, null, ALL);
+  assert.ok(real.tier >= 2 && real.config.big && real.config.solo === W.SOLO_CROWD, "a real shift");
+  assert.ok(real.tier <= W.bandOf(1)[1], "at the week's own levels");
   const vet = fresh({ runs: W.VETERAN_RUNS, known: ALL });
   vet.week = W.newWeek(vet, 8);
-  assert.ok(vet.week.veteran && vet.week.pick?.gift);
+  assert.ok(vet.week.returning && vet.week.veteran && vet.week.pick?.gift);
   const monday = W.buildShift(vet.week, null, ALL);
   assert.ok(
-    monday.tier >= 4 && monday.config.duration > W.FIRST_SHIFT.duration,
-    "a real shift, two levels up",
+    monday.tier >= 2 && monday.tier <= W.bandOf(1)[1],
+    "a real shift, no harder than anyone's week 1",
   );
-  assert.ok(monday.config.big && monday.config.total > W.FIRST_SHIFT.total);
-  assert.equal(monday.pool, "club");
+  assert.ok(monday.config.big && monday.config.solo === W.SOLO_CROWD);
   assert.ok(W.pickOffer(vet).every((o) => o.free));
-  // (only a run's first week: week 2 of a veteran's run is like anyone's)
+  // (doors from Monday for a run that starts again, somewhere in fifty weeks)
+  let doors = 0;
+  for (let seed = 1; seed <= 50; seed++) {
+    const again = fresh({ runs: 1, known: ALL, seen: Object.keys(W.POOLS) });
+    again.week = W.newWeek(again, seed);
+    doors += W.dayDoors(again.week, ALL, again.seen).length > 1 ? 1 : 0;
+  }
+  assert.ok(doors > 25, "a choice on Monday (" + doors + " of 50)");
+  // (only a run's first week: week 2 of such a run is like anyone's)
   const later = fresh({ runs: 5, chapter: 2 });
   later.week = W.newWeek(later, 8);
-  assert.ok(!later.week.veteran && !later.week.pick);
-  // A veteran save comes back as it was.
+  assert.ok(!later.week.veteran && !later.week.returning && !later.week.pick);
+  // A veteran's save comes back as it was.
   const back = W.normalizeWeekSave(JSON.parse(JSON.stringify(vet)));
-  assert.ok(back.week.veteran && back.week.pick.gift && back.runs === W.VETERAN_RUNS);
+  assert.ok(back.week.veteran && back.week.returning && back.week.pick.gift && back.runs === W.VETERAN_RUNS);
 }
 
 // 8) The challenges count over every run and add to the decks; the scrapbook keeps what was new.

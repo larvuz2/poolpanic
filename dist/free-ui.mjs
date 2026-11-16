@@ -1,5 +1,6 @@
-// FREE PLAY on the menu (21 October 2026): a window like the coach's locker with every pool as a card (the ones the ladder has
-// opened to play, the others locked), a difficulty, and PLAY. It replaced the cloud map of levels: the creator, "we see all of the
+// FREE PLAY on the menu (21 October 2026): a window like the coach's locker with every pool as a card (the ones a run has worked
+// at to play, the others locked: since 16 November 2026 every pool is in the runs' rotation, week.mjs `freePools`), a difficulty,
+// and PLAY. It replaced the cloud map of levels: the creator, "we see all of the
 // venues that we can choose to play in". The shift itself is the week's builder at that pool and difficulty (week.mjs
 // `freePlayShift`); its best score and stars per pool and difficulty are kept here (`FREE_KEY`, a save the desktop app keeps).
 import {
@@ -66,7 +67,7 @@ export function installFreePlay({ $, save, storage, onPlay, dev = () => false })
           note = !open
             ? id === FINALE_POOL
               ? `Week ${FINALE_WEEK} finale`
-              : "Opens with a date"
+              : "Work there in a run first"
             : best
               ? starsText(best.stars) + " · " + best.score.toLocaleString()
               : poolStars(state, id)

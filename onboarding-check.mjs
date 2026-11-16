@@ -148,7 +148,13 @@ const app = readFileSync("dist/app.mjs", "utf8"),
   // The second, at the Community Pool: the fin rack stands a few steps from the waiting line and the MEN's door.
   const save = normalizeWeekSave({ tutorial: true });
   save.week = { ...newWeek(save, 31), shift: LESSON_STEP };
-  const sh = buildShift({ ...save.week, pools: Array(6).fill(LESSON_POOL) }, null, INCIDENT_ORDER, []);
+  // (as the game builds it: week-ui's `planned` marks the lesson's day, which keeps the crowd the lesson was timed for)
+  const sh = buildShift(
+    { ...save.week, pools: Array(6).fill(LESSON_POOL), lesson: true },
+    null,
+    INCIDENT_ORDER,
+    [],
+  );
   const { big, ...config } = sh.config;
   assert.ok(sh.tier >= 2, "a level with cramps");
   const s = new PoolSimulation(sh.tier, 77, {
@@ -318,7 +324,13 @@ const app = readFileSync("dist/app.mjs", "utf8"),
     save.week.shift = shift;
     assert.equal(lessonDue(save), due, "shift " + shift);
   }
-  const sh = buildShift({ ...save.week, pools: Array(6).fill(LESSON_POOL) }, null, INCIDENT_ORDER, []);
+  // (as the game builds it: week-ui's `planned` marks the lesson's day, which keeps the crowd the lesson was timed for)
+  const sh = buildShift(
+    { ...save.week, pools: Array(6).fill(LESSON_POOL), lesson: true },
+    null,
+    INCIDENT_ORDER,
+    [],
+  );
   finishShift(
     save,
     { ...sh, config: { ...sh.config, tutorial: 2 } },

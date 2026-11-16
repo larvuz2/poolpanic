@@ -63,7 +63,9 @@ export function crewConfig(config, size) {
   if (n === 1 || !config) return config;
   const k = n - 1,
     out = { ...config, crewSize: n };
-  if (config.total) out.total = Math.round(config.total * CREW.guests[k]);
+  // (a shift built for one coach has three quarters of its level's crowd, week.mjs SOLO_CROWD: a crew starts from the whole one)
+  const solo = config.solo || 1;
+  if (config.total) out.total = Math.round((config.total / solo) * CREW.guests[k]);
   out.finBoost = (config.finBoost || 1) * CREW.fins[k];
   out.tipBoost = (config.tipBoost || 1) * CREW.tips[k];
   const chaos = config.chaos || [];
@@ -87,7 +89,7 @@ export function crewConfig(config, size) {
     out.chaos = [...chaos, ...extra];
   }
   out.maxChaos = (config.maxChaos || 1) + CREW.together[k];
-  if (config.thresholds) out.thresholds = config.thresholds.map((t) => round50(t * CREW.stars[k]));
+  if (config.thresholds) out.thresholds = config.thresholds.map((t) => round50((t / solo) * CREW.stars[k]));
   return out;
 }
 

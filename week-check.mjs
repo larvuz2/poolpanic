@@ -41,6 +41,9 @@ import {
   checkWishes,
   directShift,
   dayDoors,
+  VENUE_INCIDENTS,
+  SOLO_CROWD,
+  FUN_SCALE,
   buildShift,
   shiftPay,
   passMark,
@@ -163,7 +166,12 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     const w = { ...newWeek(freshSave(), 900 + step), chapter: Math.floor(step / 6) + 1, shift: step % 6 };
     assert.equal(stepOf(w), step);
     const sh = buildShift(w, null, INCIDENT_ORDER);
-    assert.ok((sh.config.vipAt || []).length >= vipCount(step), "VIPs in shift " + step);
+    // (never more than a quarter of one coach's crowd, 16 November 2026)
+    assert.ok(
+      (sh.config.vipAt || []).length >=
+        Math.min(vipCount(step), Math.max(1, Math.round(sh.config.total * 0.25))),
+      "VIPs in shift " + step,
+    );
     for (const f of sh.config.vipAt || []) assert.ok(f > 0.05 && f < 0.95);
     assert.deepEqual(
       buildShift(w, null, INCIDENT_ORDER).config,
@@ -175,9 +183,16 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
   const at = (chapter) => ({ ...newWeek(freshSave(), 7), chapter, shift: 5, pools: Array(6).fill("resort") });
   const past = buildShift(at(WEEK_BANDS.length + 2), null, INCIDENT_ORDER),
     plainTargets = SHIFTS[past.tier - 1].thresholds.map(
-      (t) => Math.round((t * poolScale("resort", past.tier) * tierScale(past.tier)) / 50) * 50,
+      // (one coach's crowd and the fun plan's points are in every target: SOLO_CROWD, FUN_SCALE)
+      (t) =>
+        Math.round(
+          (t * poolScale("resort", past.tier) * tierScale(past.tier) * SOLO_CROWD * FUN_SCALE) / 50,
+        ) * 50,
     );
-  assert.ok(past.config.total > SHIFTS[past.tier - 1].total, "past the last band: a bigger crowd");
+  assert.ok(
+    past.config.total > SHIFTS[past.tier - 1].total * SOLO_CROWD,
+    "past the last band: a bigger crowd than one coach's",
+  );
   assert.ok(past.config.thresholds[0] > plainTargets[0], "and higher targets");
   assert.equal(past.step, (WEEK_BANDS.length + 1) * 6 + 5);
 }
@@ -273,7 +288,10 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     assert.ok(c.mix[0] <= 0.1 && c.mix[2] - c.mix[0] >= 0.85, "mostly Intermediates and Pros");
     assert.ok(!c.daredevilAt, "no trampoline, no daredevils");
     assert.ok(!c.twist.some((t) => t.kind === "class" || t.kind === "storm"), "no aqua class, no storm");
-    assert.ok((c.vipAt || []).length >= Math.min(7, vipCount(step) + 1), "one more VIP than anywhere else");
+    assert.ok(
+      (c.vipAt || []).length >= Math.min(7, vipCount(step) + 1, Math.max(1, Math.round(c.total * 0.25))),
+      "one more VIP than anywhere else (a quarter of the crowd at most)",
+    );
     if (sh.step < TOP_TIER - 1)
       assert.ok(c.total < SHIFTS[sh.tier - 1].total || c.total <= 6, "a smaller crowd than the level's");
     const sim = new PoolSimulation(sh.tier, 5, { config: c }),
@@ -442,7 +460,12 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
       if (i === 0) assert.equal(kinds.length, 0, "the gentle first Monday has no roaming incident");
       const next = INCIDENT_ORDER.find((k) => !save.known.includes(k));
       for (const k of kinds)
-        assert.ok(save.known.includes(k) || k === next, `only met incidents, or the next (${k})`);
+        // (a pool's own incident, the massage or the influencer, comes whenever the pool has what it needs: since 16 November
+        // 2026 a first week can be at such a pool)
+        assert.ok(
+          save.known.includes(k) || k === next || VENUE_INCIDENTS[k],
+          `only met incidents, or the next (${k})`,
+        );
       if (i >= 1) assert.equal(sh.plan.surprise, next, "a new incident every shift from Tuesday");
       if (sh.plan.surprise) {
         assert.ok(kinds.includes(sh.plan.surprise), "the surprise comes");
@@ -594,7 +617,8 @@ for (const kind of Object.keys(TWIST_RULES)) assert.ok(TWISTS[kind], kind + " is
     let before = null;
     for (let d = 0; d < SHIFTS_PER_WEEK; d++) {
       const sh = buildShift(save.week, null, save.known);
-      const kinds = sh.plan.chaos.map((c) => c.kinds[0]);
+      // (the five that roam: a pool's own incident, the massage or the influencer, is not part of the mix)
+      const kinds = sh.plan.chaos.map((c) => c.kinds[0]).filter((k) => k in tally);
       for (const k of kinds) (tally[k]++, seen.add(k));
       if (before) {
         for (const k of new Set(kinds)) (pairs++, (repeats += before.has(k) ? 1 : 0));
