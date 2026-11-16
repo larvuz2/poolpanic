@@ -1,6 +1,6 @@
 // The fun report (docs/fun-plan.md, step 1): the coach bots play whole runs, and this prints the numbers the plan is tuned against.
 //
-//   node tools/fun-report.mjs [--runs 4] [--weeks 4] [--bots expert,steady,novice] [--policy build|plain] [--json file]
+//   node tools/fun-report.mjs [--runs 4] [--weeks 4] [--bots expert,steady,novice] [--policy build|plain] [--lost 0] [--json file]
 //
 //   per shift   how long the coach's body had nothing to do (idle), how many things wanted him at once (the pressure, the most
 //               at once, the longest calm), the stars
@@ -40,7 +40,8 @@ function playShift(shift, kind, seed) {
   });
   const s = bot.s,
     gen = bot.run$(),
-    curve = [];
+    curve = [],
+    waiting = [];
   let calm = 0,
     longestCalm = 0,
     frame = 0;
@@ -50,6 +51,8 @@ function playShift(shift, kind, seed) {
     if (s.status !== "playing" || ++frame % 60) continue;
     const demands = incidentCards(s).length;
     curve.push(demands);
+    // (the crowd: how many guests stand waiting to be sent somewhere, the plainest measure of "too many at once")
+    waiting.push(s.people.filter((p) => p.status === "queue").length);
     calm = demands === 0 && !bot.doing ? calm + 1 : 0;
     longestCalm = Math.max(longestCalm, calm);
   }
@@ -60,6 +63,11 @@ function playShift(shift, kind, seed) {
     seconds: s.config.duration,
     idle: bot.idle / Math.max(1, frame),
     pile: Math.max(0, ...curve),
+    queuePeak: Math.max(0, ...waiting),
+    queueMean: mean(waiting),
+    guests: s.config.total,
+    perMinute: (s.config.total / Math.max(30, s.config.duration - 30)) * 60,
+    lost: summary.lost || 0,
     busy: mean(curve.map((n) => (n > 0 ? 1 : 0))),
     longestCalm,
     curve,
@@ -99,8 +107,17 @@ function shop(save, kind) {
   return id && W.buyPerk(save.week, id) ? id : null;
 }
 
-function playRun(kind, seed) {
-  const save = W.normalizeWeekSave({ tutorial: true, lesson2: true });
+function playRun(kind, seed, recent = null) {
+  // (`--lost N`: a coach who has lost N runs before this one, so the run starts as a returning coach's does. `recent`: the pools
+  // the bot's run before this one worked at, the last one last: a player's runs follow one another in one save, and the weeks'
+  // rotation of pools goes on from where the last run stopped.)
+  const save = W.normalizeWeekSave({
+    v: 2,
+    tutorial: true,
+    lesson2: true,
+    runs: Number(args.lost) || 0,
+    ...(recent && { recent, seen: recent }),
+  });
   const run = { kind, seed, weeks: [], shifts: [], signature: new Set(), seconds: 0, ended: "playing" };
   for (let guard = 0; guard < WEEKS * 8; guard++) {
     if (!save.week) {
@@ -135,6 +152,11 @@ function playRun(kind, seed) {
       gained: result.gained,
       idle: played.idle,
       pile: played.pile,
+      queuePeak: played.queuePeak,
+      queueMean: played.queueMean,
+      guests: played.guests,
+      perMinute: played.perMinute,
+      lost: played.lost,
       busy: played.busy,
       longestCalm: played.longestCalm,
     });
@@ -159,6 +181,7 @@ function playRun(kind, seed) {
     if (bought) run.signature.add("perk:" + bought);
   }
   if (run.ended === "playing") run.ended = "week " + WEEKS + " done";
+  run.recent = save.recent || null;
   return run;
 }
 
@@ -171,7 +194,8 @@ const out = { policy: POLICY, runs: RUNS, weeks: WEEKS, bots: {} };
 console.log(`The fun report · ${RUNS} runs of up to ${WEEKS} weeks · policy ${POLICY}\n`);
 for (const kind of BOTS) {
   const started = Date.now(),
-    runs = Array.from({ length: RUNS }, (_, i) => playRun(kind, 4001 + i * 613));
+    runs = [];
+  for (let i = 0; i < RUNS; i++) runs.push(playRun(kind, 4001 + i * 613, runs[i - 1]?.recent));
   const shifts = runs.flatMap((r) => r.shifts),
     later = shifts.filter((s) => s.tier >= 6),
     weeks = runs.flatMap((r) => r.weeks).filter((w) => w.decided !== null),
@@ -201,6 +225,14 @@ for (const kind of BOTS) {
     minutes: mean(runs.map((r) => r.seconds / 60)),
     alike: mean(pairs),
     perks: mean(runs.map((r) => [...r.signature].filter((x) => x.startsWith("perk:")).length)),
+    // (the pools: how many different ones in a run's first twelve shifts, and how often the Community Pool or the Kids Pool)
+    pools12: mean(runs.map((r) => new Set(r.shifts.slice(0, 12).map((s) => s.pool)).size)),
+    clubKids: mean(shifts.map((s) => (s.pool === "club" || s.pool === "kids" ? 1 : 0))),
+    guests: mean(shifts.map((s) => s.guests)),
+    perMinute: mean(shifts.map((s) => s.perMinute)),
+    queuePeak: mean(shifts.map((s) => s.queuePeak)),
+    queueMean: mean(shifts.map((s) => s.queueMean)),
+    lost: mean(shifts.map((s) => s.lost)),
   };
   out.bots[kind] = { ...row, runs: runs.map((r) => ({ ...r, signature: [...r.signature] })) };
   console.log(
@@ -213,6 +245,8 @@ for (const kind of BOTS) {
       `  deluxe dates ${pct(row.deluxeWeeks)} of weeks (reached on day: ${row.deluxeDays || "none"})`,
       `  runs: ${row.endings.join(" · ")} · ${row.minutes.toFixed(0)} min of shifts a run`,
       `  two runs share ${pct(row.alike)} of their pools, day rules and perks · perks a run ${row.perks.toFixed(1)}`,
+      `  pools: ${row.pools12.toFixed(1)} different ones in a run's first twelve shifts · the Community Pool or the Kids Pool in ${pct(row.clubKids)} of shifts`,
+      `  crowd: ${row.guests.toFixed(1)} guests a shift, ${row.perMinute.toFixed(1)} a minute · waiting at once ${row.queueMean.toFixed(1)} on average, ${row.queuePeak.toFixed(1)} at the worst · ${row.lost.toFixed(2)} lost a shift`,
       "",
     ].join("\n"),
   );

@@ -16,10 +16,14 @@ the same twice: see `docs/incidents.md`).
 1. **The game (now).** Systems, mechanics, characters, incidents, the loop. It has to work *perfectly*. This is where effort goes. The loop
    is **the run** (restructured on 16 October 2026; README, "The week: the main loop"): one START on the main screen; six shifts a
    week, Monday to Saturday, then Sunday is a date with Marina if the Date Fund is full, and the next week is harder; short on Saturday
-   night is game over, and the next run starts at week 1. The first shift is a gentle minute; after it every shift is a pool from the
-   week's draw (`weekPools`: from the pools opened on the ladder, `LADDER`, three on a first run and one more with every date for
-   good; six different ones a week once six are open, a pool never played always in; a new venue joins by being added to `POOLS` and
-   `LADDER`) at a level from the week's band (`WEEK_BANDS`, `tierFor`: difficulty by week), with star targets made fair per pool
+   night is game over, and the next run starts at week 1. A new player's first shift is a gentle minute; every other shift is a pool from the
+   week's rotation (`weekPools`, since 16 November 2026, README "Every pool from the first run": **every pool is in the weeks from
+   the first run**, `LADDER` only the order a new player meets them in; a week is six different pools, the six played longest ago,
+   `save.recent`, so no week repeats a pool and **a run that starts again never starts at the same pool**, the creator's: "I don't
+   like to see the community pool all over and over… we have lots, so let's not be too repetitive"; a new venue joins by being
+   added to `POOLS` and `LADDER`) at a level from the week's band (`WEEK_BANDS`, `tierFor`: difficulty by week), **with three
+   guests in four of the level's crowd for one coach** (`SOLO_CROWD`, the creator: "too many swimmers… for a single player"; a
+   crew has the whole crowd and more), with star targets made fair per pool
    (`scoreScale`) and smoothed across the levels (`TIER_SCALE`) by the coach bot. Week 4's Saturday is the season finale at the Grand
    Gala Arena, and its date the story's ending (credits, then endless). The pools: the Community Pool (since 28 October 2026
    dressed as the **Harbourside Community Swim Club**, the Godot test's building and props made cheap for this game, its own
@@ -118,7 +122,7 @@ table glaring round the hall, `dist/scene/officials.mjs`), the **Aqua
    met in week 1, then a fair mix where one that just came is less likely, `RECENT`). A shift not passed pays nothing but the week goes on. Marina's
    wishes for each shift, and (since 14 November 2026, the fun plan below) a door to pick before each shift and a perk to pick after
    each one passed, two of the three paid out of the Date Fund (one money). **FREE PLAY** (on the menu since 21 October 2026, `dist/free-ui.mjs`) is
-   a window of every pool, like the coach's locker: the pools the ladder has opened, at a difficulty a run has reached (Easy to
+   a window of every pool, like the coach's locker: the pools a run has worked at, at a difficulty a run has reached (Easy to
    Expert), a shift without the week (`freePlayShift`) with its own bests; **dev mode** (`dist/dev.mjs`, Settings > Developer, `?dev=1`/`?dev=0`, on by default for
    the creator's tests: `DEV_DEFAULT`, to turn off before the Steam release) opens every pool and difficulty there. Marina never appears on the deck: only in texts, wishes and full-screen
    scenes, whose videos the creator will add (`VIDEOS` in `dist/marina.mjs`); until then each scene shows a still (`ART` in
@@ -192,14 +196,19 @@ into them trip, and a coach holds E (Karen's wheel, 8/5/3 s, many hands) until t
    the game has); after each shift passed **a pick** of three perks, one to take (two out of the Date Fund, one with a catch
    free), **a build of six that lasts the run** (31 perks in `PERKS`, the new ones change a rule); **the third star pays most**;
    **overtime** on a near miss (short by a fifth or less on Saturday night: one last shift, double pay, once a run); **half of
-   what is over the goal starts next week**, and far over it is a **deluxe date** and a gift; **a veteran's Monday** from the
-   third run (no gentle minute, two levels up, a perk on the house); in every shift **the last call** (the last 25 s score ×1.5)
+   what is over the goal starts next week**, and far over it is a **deluxe date** and a gift; a coach who has lost a run starts
+   the next on a real shift with doors (no gentle minute), and **a veteran's Monday** from the third run has a perk on the house
+   too (no harder levels: two levels up were tried and were too much); in every shift **the last call** (the last 25 s score ×1.5)
    and **making it up** (after a broken streak, 12 s: the next points double, half the streak back), a director that holds new
    trouble while three things are pending, breathes after trouble and fills a calm; **golden guests**, **crossovers** (the dog
    sees Karen off, the influencer films a cannonball) and **the scrapbook**; **coach's challenges** counted over every run that
    add perks and day rules to the decks; conditions for an endless week; a pool's intro cinematic once a run. The week's goals
-   were raised for the richer run (`GOAL_SHARE`), measured with `tools/fun-report.mjs`: **run it before and after anything that
-   touches the loop's numbers.** The simulation's new rules are switched on by the shift's config (`config.fun`), so a shift
+   were raised for the richer run (`GOAL_SHARE`; and brought part of the way down on 16 November, when the creator found single
+   player "too overwhelming": $260, $470, $650, $860; the day's own door is a regular day six times in ten and only ever a mild
+   rule; no more than a quarter of the guests are VIPs), measured with `tools/fun-report.mjs`: **run it before and after anything that
+   touches the loop's numbers** (`--lost 3` plays as a coach who has lost runs, the creator's case; its *pools* and *crowd*
+   lines say how varied and how busy a run is). **The creator plays alone and in short sessions: when in doubt, fewer guests and
+   another pool.** The simulation's new rules are switched on by the shift's config (`config.fun`), so a shift
    recorded before replays as it was. Not built: the Daily Shift (with the Steam work, the creator's choice). The creator has
    not ranked the perks, the day rules or the crossovers yet: they are theirs to reorder or cut, like `INCIDENT_ORDER`.
    **The Godot test (27 October 2026, `godot/README.md`)**: the creator wants to see how the game feels and looks in Godot instead

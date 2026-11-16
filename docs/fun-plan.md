@@ -4,7 +4,10 @@
 Built: steps 1 to 8, but for the Daily Shift, which waits for the Steam work (the fourth decision). What each step became, the
 numbers the bots measured and what is not met are in the README, "The fun plan, built". Still the creator's: to rank the perks,
 the day rules and the crossovers, and to say after playing whether weeks 2 and 3 ask too much or too little (`GOAL_SHARE`).
-The plan as it was proposed follows.**
+After playing it alone (16 November 2026) the creator found it too repetitive in its pools and too crowded for one coach: every
+pool is now in the weeks from the first run, a week takes the six pools played longest ago, one coach has three guests in four,
+the veteran's two levels up are gone and the goals came part of the way down (README, "Every pool from the first run, and a
+calmer deck for one coach"). The plan as it was proposed follows.**
 
 The question it answers: with everything the game already has, what is the least we must change so that every run feels fresh and
 rewarding, and a player always wants one more shift?

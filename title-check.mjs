@@ -408,17 +408,26 @@ const mixed = () => {
   assert.match(app, /world\?\.setBrightness\?\.\(s\.brightness \/ 100\)/);
 }
 
-// 7) FREE PLAY (21 October 2026): the pools, opened by the ladder; a difficulty opened by a run; a shift without the week.
+// 7) FREE PLAY (21 October 2026): the pools, opened by working there in a run (since 16 November 2026, when every pool joined the
+// runs' rotation; by the ladder before), the Community Pool always; a difficulty opened by a run; a shift without the week.
 {
   const week = await import("./dist/week.mjs");
-  const { FREE_LEVELS, freePools, freeLevelOpen, freePlayShift, LADDER, LADDER_START, POOLS } = week;
-  const first = freePools({ ladder: 3 });
+  const { FREE_LEVELS, freePools, freeLevelOpen, freePlayShift, LADDER, POOLS } = week;
+  const first = freePools({});
   assert.equal(first.length, LADDER.length + 1, "every pool on the ladder and the arena");
   assert.deepEqual(
     first.filter((p) => p.open).map((p) => p.id),
-    LADDER.slice(0, LADDER_START),
+    ["club"],
+    "a new save: the Community Pool",
   );
-  assert.ok(freePools({ ladder: 99, finale: true }).every((p) => p.open));
+  assert.deepEqual(
+    freePools({ seen: ["club", "wave", "roof"] })
+      .filter((p) => p.open)
+      .map((p) => p.id),
+    ["club", "wave", "roof"],
+    "then every pool a run has worked at",
+  );
+  assert.ok(freePools({ seen: [...LADDER], finale: true }).every((p) => p.open));
   assert.ok(freeLevelOpen("easy", 1) && !freeLevelOpen("normal", 5) && freeLevelOpen("normal", 8));
   assert.ok(!freeLevelOpen("expert", 17) && freeLevelOpen("expert", 18));
   // Dev mode (dev.mjs, 21 October 2026): every pool and every difficulty open, whatever the runs have opened; the setting

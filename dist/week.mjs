@@ -18,8 +18,12 @@
 //               at most): two are paid out of the Date Fund (Phase 2: one money, the creator's choice), one with a catch is free.
 //   THE STAKES  the third star pays most; short by a fifth or less on Saturday night, one last shift decides it (overtime, once
 //               a run); half of what is over the goal starts next week, and far over it is a deluxe date and a gift from Marina;
-//               from the third run a veteran's Monday is a real shift two levels up, with a perk on the house.
-//   FOR GOOD    what a run leaves behind (`normalizeWeekSave`): the pools opened (one more with every date), the dates had (the
+//               a coach who has run before starts on a real shift with doors, no gentle minute (`week.returning`), and from
+//               the third run with a perk on the house too (`week.veteran`).
+//   THE POOLS   every pool is in the weeks from the first run (16 November 2026): a week takes the six played longest ago
+//               (`weekPools`, `save.recent`), so no week repeats a pool and no run starts where the last one did. One coach
+//               has three guests in four of a level's crowd (`SOLO_CROWD`); a crew has all of it and more (`CREW`).
+//   FOR GOOD    what a run leaves behind (`normalizeWeekSave`): the pools worked at (`seen`, `recent`), the dates had (the
 //               album), the stars earned (they open the coach's gear, `GEAR`), the best stars at each pool, the story's ending,
 //               the challenges (`CHALLENGES`: counted over every run, each adds perks and day rules to the decks) and the
 //               scrapbook (`SCRAP`).
@@ -136,7 +140,11 @@ export const HEAT_DATES = [
 // goal as it did before the plan: week 1 is still the learner's week; from week 3 a week asks more than three stars in every
 // shift and both wishes pay on regular days, so a build and a better-paid door are how a date is made, and a careful coach is
 // still playing for it on Friday.
-export const GOAL_SHARE = [0.9, 1.5, 1.8, 1.95, 1.95, 1.95, 1.9];
+// Lowered again on 16 November 2026, after the creator played: the goals of the 14th were set so the bots ended a week where they
+// used to, and the bots play far better than a person. Worked out from the pay instead: a coach at two stars a shift with one wish
+// met, a better-paid door now and then and a little from the build earns about 510 times the week's pay; a week now asks 255 to
+// 450 of it, so that coach makes every date of the season with something over, and one at one star and a bit does not.
+export const GOAL_SHARE = [0.85, 1.2, 1.35, 1.5, 1.5, 1.5, 1.45];
 export function chapterFor(n) {
   const id = Math.max(1, Math.floor(n) || 1),
     heat = Math.max(0, id - CHAPTERS.length),
@@ -263,6 +271,7 @@ export const POOLS = {
   kids: {
     name: "Kids Pool",
     icon: "🦆",
+    crowd: 0.85, // every kid has to be caught on the deck: fewer of them than a lane pool has swimmers (16 November 2026)
     style: { venue: "kids", lighting: "day", sickRate: 0.32, peeShare: 0.5, noStar: true },
     events: [
       "Splash day",
@@ -451,10 +460,10 @@ export const POOL_INTROS = {
 };
 // ---- the pool ladder (Phase 2, 19 October 2026) -------------------------------------------------------------------------
 
-// The pools as a ladder, opened across runs (the creator's choice, "the ladder"): a first run works at the first three, and every
-// date with Marina opens the next one for good, whichever run it comes in (`save.ladder`, how many are open). The order is the
-// creator's to change, like INCIDENT_ORDER: gentle lane pools first, then one new set of rules at a time, the strangest last. The
-// Grand Gala Arena is not on it: it is the season finale, Saturday of week 4 (`FINALE_WEEK`), and joins the draw after it.
+// The pools in the order a new player meets them (the creator's to change, like INCIDENT_ORDER): gentle lane pools first, then one
+// new set of rules at a time, the strangest last. It was a ladder opened across runs (Phase 2: a first run worked at the first
+// three, and every date with Marina opened the next one for good, `save.ladder`); see `LADDER_START` below for what it is now.
+// The Grand Gala Arena is not on it: it is the season finale, Saturday of week 4 (`FINALE_WEEK`), and joins the draw after it.
 export const LADDER = [
   "club",
   "resort",
@@ -470,7 +479,10 @@ export const LADDER = [
   "roof",
   "dive",
 ];
-export const LADDER_START = 3;
+// (Since 16 November 2026 every pool is open from the first run: the creator, after playing, "I'm always seeing the kids' club or
+// the community pool… we have lots, so let's not be too repetitive". The ladder is now the order the pools are met in, the gentle
+// ones first; a week takes the six played longest ago, `weekPools`. Lower this to bring the opening by dates back.)
+export const LADDER_START = LADDER.length;
 export const FINALE_WEEK = 4;
 export const FINALE_POOL = "arena";
 // The pools a week can visit: the first `ladder` of the ladder, and the arena once a run is past its finale.
@@ -479,13 +491,24 @@ export function openPools(ladder = LADDER.length, chapter = 1) {
   return [...LADDER.slice(0, n), ...(chapter > FINALE_WEEK ? [FINALE_POOL] : [])];
 }
 
-// The week's itinerary, one pool a day, drawn at random from the pools open (`open`) when the week starts, and kept in the save:
-// - the run's very first shift is the Community Pool (the gentle minute), and Saturday of week 4 is the finale at the arena;
-// - a pool never played yet (`fresh`: one just opened on the ladder) is always in the week, so a new pool comes at once;
-// - with six pools or more open, six different ones, the ones left out changing week to week (the creator, 16 October 2026:
-//   "you cannot repeat venue per week"); with fewer (a first run has three), each comes as evenly as it can, never two days
-//   running.
-export function weekPools(chapter, seed, open = openPools(LADDER.length, chapter), fresh = []) {
+// The week's itinerary, one pool a day, from the pools open (`open`) when the week starts, and kept in the save:
+// - a new player's very first shift is the Community Pool (the gentle minute, the guided shift: `first`), and Saturday of week 4
+//   is the finale at the arena;
+// - six different pools (the creator, 16 October 2026: "you cannot repeat venue per week"), never the same one two days running.
+// With the pools played (`recent`: the save's, the one played last at the end), the week is a rotation, not a draw (16 November
+// 2026): the six pools played longest ago, a pool never played before any other (those in the ladder's order, the gentle ones
+// first), on days in a random order. So a week never repeats a pool, two weeks running share none while there are twelve to
+// choose from, and a run that starts again does not start at the same pool. Without `recent` (a check, a week from before), the
+// draw as it was: at random from `open`, a pool never played (`fresh`) always in, and with fewer than six in the list each as
+// evenly as it can.
+export function weekPools(
+  chapter,
+  seed,
+  open = openPools(LADDER.length, chapter),
+  fresh = [],
+  recent = null,
+  first = chapter === 1,
+) {
   const random = stream((seed ^ 0x51ed27 ^ Math.imul(chapter, 0x9e3779b1)) >>> 0),
     shuffle = (list) => {
       const a = [...list];
@@ -498,7 +521,7 @@ export function weekPools(chapter, seed, open = openPools(LADDER.length, chapter
   const pools = [...new Set(open.filter((id) => POOLS[id]))];
   if (!pools.length) pools.push("club");
   const fixed = Array(SHIFTS_PER_WEEK).fill(null);
-  if (chapter === 1) fixed[0] = "club";
+  if (chapter === 1 && first) fixed[0] = "club";
   if (chapter === FINALE_WEEK) fixed[SHIFTS_PER_WEEK - 1] = FINALE_POOL;
   const used = Object.fromEntries(pools.map((id) => [id, fixed.filter((f) => f === id).length])),
     free = fixed.filter((f) => !f).length,
@@ -507,9 +530,19 @@ export function weekPools(chapter, seed, open = openPools(LADDER.length, chapter
     bag.push(id);
     used[id] = (used[id] || 0) + 1;
   };
-  for (const id of shuffle(pools.filter((p) => fresh.includes(p))))
-    if (!used[id] && bag.length < free) add(id);
-  for (const id of shuffle(pools.filter((p) => !used[p]))) if (bag.length < free) add(id);
+  if (Array.isArray(recent)) {
+    // The rotation: never played first (the ladder's order), then the one played longest ago.
+    const rank = (id) => {
+      const i = recent.lastIndexOf(id);
+      return i < 0 ? -1000 + (LADDER.indexOf(id) < 0 ? LADDER.length : LADDER.indexOf(id)) : i;
+    };
+    for (const id of [...pools].sort((x, y) => rank(x) - rank(y)))
+      if (!used[id] && bag.length < free) add(id);
+  } else {
+    for (const id of shuffle(pools.filter((p) => fresh.includes(p))))
+      if (!used[id] && bag.length < free) add(id);
+    for (const id of shuffle(pools.filter((p) => !used[p]))) if (bag.length < free) add(id);
+  }
   while (bag.length < free) {
     const least = Math.min(...pools.map((p) => used[p])),
       options = pools.filter((p) => used[p] === least);
@@ -1397,11 +1430,11 @@ export const RULES = {
   heatwave: {
     icon: "🥵",
     name: "Heatwave",
-    note: "More guests, and nobody waits long",
+    note: "A few more guests, and nobody waits long",
     payout: 1.25,
     danger: 2,
-    crowd: 1.15,
-    sim: { patience: 0.75 },
+    crowd: 1.1,
+    sim: { patience: 0.8 },
   },
   vipnight: {
     icon: "👑",
@@ -1442,10 +1475,10 @@ export const RULES = {
   freeentry: {
     icon: "🎈",
     name: "Free entry day",
-    note: "A third more guests",
+    note: "A quarter more guests",
     payout: 1.25,
     danger: 2,
-    crowd: 1.35,
+    crowd: 1.25,
   },
   heavylegs: {
     icon: "🥱",
@@ -1582,7 +1615,8 @@ export function dayDoors(week, known = week.known || [], seen = null) {
     finale = week.chapter === FINALE_WEEK && index === SHIFTS_PER_WEEK - 1 && today === FINALE_POOL;
   if (week.overtime) return [doorOf("overtime", today)];
   // One door is no choice: the season finale, the first two shifts of a first run, a lesson.
-  if (finale || week.lesson || (step < 2 && !week.veteran)) return [doorOf("regular", today)];
+  if (finale || week.lesson || week.oneDoor || (step < 2 && !week.veteran && !week.returning))
+    return [doorOf("regular", today)];
   const random = stream((week.seed ^ Math.imul(index + 7, 40503)) >>> 0),
     pick = (list) => list[Math.floor(random() * list.length)],
     fresh = (p) => !!seen && !seen.includes(p),
@@ -1591,9 +1625,10 @@ export function dayDoors(week, known = week.known || [], seen = null) {
         (id) => id !== "regular" && ruleFits(id, pool, known, done) && test(RULES[id]),
       );
   const doors = [];
-  // The day's own pool: a regular day as often as not, else something mild.
-  const mild = fitting(today, (r) => r.danger <= 2);
-  doors.push(doorOf(fresh(today) || random() < 0.45 || !mild.length ? "regular" : pick(mild), today));
+  // The day's own pool is the calm door: a regular day more often than not, else a rule that asks no more of the coach (a quiet
+  // day, a double date, golden guests). What brings a bigger crowd or more trouble is behind the other doors, for who wants it.
+  const mild = fitting(today, (r) => r.danger <= 1);
+  doors.push(doorOf(fresh(today) || random() < 0.6 || !mild.length ? "regular" : pick(mild), today));
   // A pool from later in the week (never the finale's day), with something spicier. Taking it swaps the two days.
   const swapFine = (j) => {
     const after = [...pools];
@@ -1691,7 +1726,8 @@ export function buildShift(week, card = null, known = week.known || [], seen = n
     key = index + (week.overtime ? 40 : 0),
     step = stepOf(week),
     // A run's very first shift is the gentle minute, unless the coach is a veteran (a real Monday: the fun plan).
-    gentle = step <= 0 && !week.veteran && !week.overtime,
+    back = !!(week.veteran || week.returning),
+    gentle = step <= 0 && !back && !week.overtime,
     random = stream((week.seed ^ Math.imul(key + 1, 2654435761)) >>> 0),
     // The doors of the day, and the one taken: without one, the day's own pool on a regular day (the overtime has one door).
     doors = dayDoors(week, known, seen),
@@ -1710,14 +1746,10 @@ export function buildShift(week, card = null, known = week.known || [], seen = n
           : // (a veteran's Monday is a real shift: Tuesday's draw, not the gentle minute's level 1)
             tierFor(
               week.chapter,
-              week.veteran && step <= 0 ? 1 : index,
+              back && step <= 0 ? 1 : index,
               stream((week.seed ^ Math.imul(step + 11, 2246822519)) >>> 0),
             ),
-    // (a veteran's first week is two levels up: a run that starts again starts where the game is a game, VETERAN_LEVELS)
-    lifted = week.veteran && !week.tier ? Math.min(TOP_TIER, drawn + VETERAN_LEVELS) : drawn,
-    tier = firstVisit
-      ? Math.max(Math.min(lifted, bandOf(week.chapter)[0]), lifted - FIRST_VISIT_EASE)
-      : lifted,
+    tier = firstVisit ? Math.max(Math.min(drawn, bandOf(week.chapter)[0]), drawn - FIRST_VISIT_EASE) : drawn,
     heat = heatOf(week.chapter),
     // Past the last band: a bigger crowd and higher targets every week (at most half as much again).
     f = Math.min(1.5, 1 + 0.1 * heat);
@@ -1732,7 +1764,10 @@ export function buildShift(week, card = null, known = week.known || [], seen = n
     pool = POOLS[poolId],
     look = poolLook(poolId, tier, stream((week.seed ^ Math.imul(key + 5, 1597334677)) >>> 0)),
     ref = SHIFTS[tier - 1],
-    crowd = pool.crowd || 1,
+    // (one coach alone: three quarters of the level's crowd, SOLO_CROWD; the gentle minute has its own seven, and the second
+    // guided shift keeps the crowd its lesson was timed for)
+    solo = gentle || week.lesson ? 1 : SOLO_CROWD,
+    crowd = (pool.crowd || 1) * solo,
     // (the last call and making it up add points to every shift but the gentle minute: the star targets follow, FUN_SCALE)
     k = scoreScale(look.venue, tier) * tierScale(tier) * crowd * (gentle ? 1 : FUN_SCALE);
   let blueprint = {
@@ -1839,7 +1874,12 @@ export function buildShift(week, card = null, known = week.known || [], seen = n
   // VIPs: the run's count (none in the first shift), the lagoon's and arena's own share of their crowd, and the pool's extra;
   // twice as many on the red carpet, three more on a VIP night.
   const nativeVips = look.nativeVips ? Math.round((look.nativeVips * rest.total) / look.nativeTotal) : 0,
-    baseVips = Math.min(7, Math.max(vipCount(step), nativeVips) + (step <= 0 ? 0 : pool.vipBonus || 0)),
+    // (never more than a quarter of the crowd, now that the crowd is smaller: a VIP will not wait)
+    baseVips = Math.min(
+      7,
+      Math.max(1, Math.round(rest.total * 0.25)),
+      Math.max(vipCount(step), nativeVips) + (step <= 0 ? 0 : pool.vipBonus || 0),
+    ),
     vips = gentle ? baseVips : Math.min(9, Math.round(baseVips * effects.vips) + (rule.vipExtra || 0));
   // The golden guests (the fun plan: a rare jackpot): three on a golden day, else one in about one shift in ten from the first
   // Thursday, at a moment of the shift's own.
@@ -1870,6 +1910,7 @@ export function buildShift(week, card = null, known = week.known || [], seen = n
     ...(!gentle && { big: planBig(stream((week.seed ^ Math.imul(key + 13, 2654435761)) >>> 0)) }),
     // The rules of the fun plan the simulation plays by (last call, making it up, the director's breath: sim.mjs `fun`).
     fun: { ...FUN },
+    ...(solo !== 1 && { solo }),
     ...(golden.length && { golden }),
     ...(chosen && chosen.rule !== "regular" && { rule: chosen.rule }),
   };
@@ -1923,7 +1964,7 @@ export function buildShift(week, card = null, known = week.known || [], seen = n
 }
 
 // ---- free play (21 October 2026) -------------------------------------------------------------------------------------
-// The menu's FREE PLAY: any pool the ladder has opened (and the Grand Gala Arena once a run has reached its finale), at a
+// The menu's FREE PLAY: any pool a run has worked at (and the Grand Gala Arena once a run has reached its finale), at a
 // difficulty the player picks; nothing in it touches the week (no Date Fund, no wishes, no shop, no new pool). A difficulty is a
 // level of the season, open once a run has passed it (`save.unlocked`, the highest level a run has passed), Easy always.
 export const FREE_LEVELS = [
@@ -1937,10 +1978,11 @@ export const freeLevelOpen = (id, unlocked = 1, all = false) =>
   all || freeLevel(id).tier <= Math.max(FREE_LEVELS[0].tier, Math.floor(unlocked) || 1);
 // The pools in the ladder's order, then the arena: each open or not yet (`all`: dev mode, every one open, dev.mjs).
 export function freePools(save = {}, all = false) {
-  const open = Math.max(LADDER_START, Math.min(LADDER.length, Math.floor(save.ladder) || LADDER_START)),
-    seen = Array.isArray(save.seen) ? save.seen : [];
+  // (every pool is in the runs' rotation from the start, 16 November 2026: free play opens a pool once a run has worked there,
+  // the Community Pool always, so the runs are still where a pool is met)
+  const seen = Array.isArray(save.seen) ? save.seen : [];
   return [
-    ...LADDER.map((id, i) => ({ id, open: all || i < open })),
+    ...LADDER.map((id) => ({ id, open: all || id === "club" || seen.includes(id) })),
     {
       id: FINALE_POOL,
       open: all || !!save.finale || seen.includes(FINALE_POOL) || (save.bestWeek || 1) > FINALE_WEEK,
@@ -1961,7 +2003,7 @@ export function freePlayShift(poolId, levelId, seed, known = []) {
       perks: [],
       known,
       tier: level.tier,
-      lesson: true, // (one door: free play picks no day rule)
+      oneDoor: true, // (free play picks no day rule)
     },
     shift = buildShift(week, null, known);
   const { week: _week, day: _day, ...config } = shift.config;
@@ -2019,9 +2061,15 @@ export const OVERTIME_SHARE = 0.8;
 // date (a gold edge in the album, and a gift from Marina on Monday: three perks, one to take, for nothing).
 export const CARRY_SHARE = 0.5;
 export const DELUXE = 1.5;
-// A veteran's Monday: from the third run, no gentle minute, and a free pick of one perk from three before it.
+// A run that starts again (`week.returning`, from the second run) has no gentle minute: Monday is a real shift with doors, at the
+// pool the rotation gives. From the third (`week.veteran`) a free pick of one perk from three comes before it. (The two levels a
+// veteran's first week was lifted by, 14 November, are gone: the creator, 16 November 2026, "too overwhelming".)
 export const VETERAN_RUNS = 2;
-export const VETERAN_LEVELS = 2;
+// One coach alone gets three quarters of a level's crowd (16 November 2026, the creator after playing: "too many swimmers, too
+// many kids for a single player": a level sent a guest every four and a half seconds). The star targets follow in full, so a
+// shift is as hard to star as it was, with fewer people to keep an eye on. A crew gets the level's whole crowd (crew.mjs reads
+// `config.solo` and scales from the full one).
+export const SOLO_CROWD = 0.75;
 // The conditions of an endless week (after the story's ending): each makes every shift of the week harder and pays a tenth
 // more; a week won with two or more is a gold date too.
 export const HEAT_RULES = {
@@ -2107,14 +2155,25 @@ export function newWeek(save, seed = Date.now()) {
     // (a pool never played comes for sure; without a list of the pools played, none is new)
     fresh = Array.isArray(save.seen) ? open.filter((id) => !save.seen.includes(id)) : [],
     carry = Math.max(0, Math.floor(Number(save.carry)) || 0),
-    veteran = save.chapter === 1 && (save.runs || 0) >= VETERAN_RUNS,
-    gift = veteran || !!save.gift;
+    returning = save.chapter === 1 && (save.runs || 0) >= 1,
+    veteran = returning && (save.runs || 0) >= VETERAN_RUNS,
+    gift = veteran || !!save.gift,
+    // (the rotation: the pools played, the last one last; a save without the list draws as before)
+    recent = Array.isArray(save.recent) ? save.recent : null;
   save.carry = 0;
   save.gift = false;
   return {
     chapter: save.chapter,
     seed: s,
-    pools: weekPools(save.chapter, s, open, fresh),
+    // (only a player's very first shift, the guided one, is fixed at the Community Pool)
+    pools: weekPools(
+      save.chapter,
+      s,
+      open,
+      fresh,
+      recent,
+      save.chapter === 1 && !save.tutorial && !save.runs,
+    ),
     shift: 0,
     fund: carry,
     peak: carry, // the most the fund has held this week (Marina's texts come once, on the way up)
@@ -2124,6 +2183,7 @@ export function newWeek(save, seed = Date.now()) {
     rolls: 0,
     history: [],
     status: "playing", // "playing" | "won" | "lost"
+    ...(returning && { returning: true }),
     ...(veteran && { veteran: true }),
     pick: gift ? { gift: true, roll: 0 } : null,
     overtime: false,
@@ -2178,6 +2238,11 @@ export function normalizeWeekSave(saved = {}) {
   const best = {};
   for (const [id, n] of Object.entries(s.best && typeof s.best === "object" ? s.best : {}))
     if (POOLS[id]) best[id] = Math.min(3, count(n, 3));
+  // The pools played, the one played last at the end (the week's rotation, `weekPools`). A save from before has the pools it
+  // has seen, in the ladder's order.
+  const recent = Array.isArray(s.recent)
+    ? [...new Set(s.recent.filter((p) => POOLS[p]).reverse())].reverse()
+    : [...seen].sort((x, y) => LADDER.indexOf(x) - LADDER.indexOf(y));
   const perkList = (list) =>
     Array.isArray(list) ? [...new Set(list.filter((p) => PERKS[p]))].slice(0, BUILD_SLOTS) : [];
   const tally = {};
@@ -2191,6 +2256,18 @@ export function normalizeWeekSave(saved = {}) {
       Array.isArray(w.pools) && w.pools.length === SHIFTS_PER_WEEK && w.pools.every((p) => POOLS[p])
         ? [...w.pools]
         : weekPools(chapter, seed, openPools(ladder, chapter)); // (a week saved before the ladder: drawn again)
+    // A week under way from before the rotation (three pools, each twice): its days still to come are given the pools played
+    // longest ago, so the creator's own week stops repeating at once. Never the finale's day, nor an overtime.
+    const open = openPools(ladder, chapter),
+      at = count(w.shift, SHIFTS_PER_WEEK - 1);
+    if (new Set(pools).size < SHIFTS_PER_WEEK && open.length >= SHIFTS_PER_WEEK && !w.overtime) {
+      const played = pools.slice(0, at),
+        next = weekPools(chapter, seed, open, [], [...recent, ...played], false).filter(
+          (p) => !played.includes(p),
+        );
+      for (let i = at; i < SHIFTS_PER_WEEK; i++)
+        if (!(chapter === FINALE_WEEK && i === SHIFTS_PER_WEEK - 1) && next.length) pools[i] = next.shift();
+    }
     const fund = count(w.fund);
     week = {
       chapter,
@@ -2205,6 +2282,7 @@ export function normalizeWeekSave(saved = {}) {
       rolls: count(w.rolls, 1e4),
       history: Array.isArray(w.history) ? w.history.slice(0, SHIFTS_PER_WEEK + 1) : [],
       status: "playing",
+      ...(w.returning && { returning: true }),
       ...(w.veteran && { veteran: true }),
       pick:
         w.pick && typeof w.pick === "object" ? { gift: !!w.pick.gift, roll: count(w.pick.roll, 1e4) } : null,
@@ -2240,6 +2318,7 @@ export function normalizeWeekSave(saved = {}) {
     gift: !!s.gift,
     overtimeUsed: !!s.overtimeUsed,
     shown: Array.isArray(s.shown) ? [...new Set(s.shown.filter((p) => POOLS[p]))] : [],
+    recent,
     tally,
     done: Array.isArray(s.done) ? [...new Set(s.done.filter((id) => CHALLENGES[id]))] : [],
     scrap: Array.isArray(s.scrap) ? [...new Set(s.scrap.filter((id) => SCRAP[id]))] : [],
@@ -2254,8 +2333,9 @@ export function normalizeWeekSave(saved = {}) {
 //            `over`: the run is lost and the next one starts again at week 1, unless the fund is within a fifth of the goal and
 //            the run has not used it: then `overtime`, one last shift that pays double and decides it
 // A level passed opens in free play, with every level below it. What lasts (Phase 2): the stars go to the coach's total (and may
-// open gear, `newGear`), the pool's best stars; a date goes in the album (`newDate`) and opens the next pool on the ladder
-// (`newPool`); the date of week 4 is the story's ending (`ending`, true the first time). The fun plan: a shift passed leaves a
+// open gear, `newGear`), the pool's best stars and its place in the rotation (`save.recent`); a date goes in the album
+// (`newDate`; it opened the next pool on the ladder, `newPool`, while the ladder had pools still shut: none since 16 November
+// 2026); the date of week 4 is the story's ending (`ending`, true the first time). The fun plan: a shift passed leaves a
 // pick (`week.pick`); a door from later in the week swaps the two days; the challenges count and may be done (`challenges`);
 // what was new goes in the scrapbook (`finds`); a week won carries half its surplus over (`carry`) and may be deluxe.
 export function finishShift(save, shift, summary, stats = {}) {
@@ -2275,6 +2355,9 @@ export function finishShift(save, shift, summary, stats = {}) {
   for (const k of met) if (INCIDENTS[k] && !save.known.includes(k)) save.known.push(k);
   if (Array.isArray(save.seen) && POOLS[shift.pool] && !save.seen.includes(shift.pool))
     save.seen.push(shift.pool);
+  // (the rotation: this pool was played last)
+  if (Array.isArray(save.recent) && POOLS[shift.pool])
+    save.recent = [...save.recent.filter((p) => p !== shift.pool), shift.pool];
   if (shift.config?.tutorial) save.tutorial = true;
   if (shift.config?.tutorial === 2 && summary.lessons) save.lesson2 = true;
   // What lasts: the stars, and the best at this pool.
@@ -2416,7 +2499,7 @@ export function finishShift(save, shift, summary, stats = {}) {
         save.album.push(chapter.date.id);
         result.newDate = true;
       }
-      // Every date opens the next pool on the ladder, for good.
+      // A date opens the next pool on the ladder, for good (only while `LADDER_START` leaves some shut: none now).
       if (typeof save.ladder === "number" && save.ladder < LADDER.length) {
         save.ladder++;
         result.newPool = LADDER[save.ladder - 1];

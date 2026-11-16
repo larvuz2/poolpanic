@@ -160,7 +160,7 @@ export function installWeek({
     const met = INCIDENT_ORDER.filter((k) => save.known.includes(k)),
       build = w ? w.perks : save.build;
     $("wk-note").textContent =
-      `Pools open: ${openCount()} of ${LADDER.length} · ` +
+      `Pools worked at: ${save.seen.length} of ${LADDER.length + 1} · ` +
       (save.dates.length ? "Dates this run: " + save.dates.length + " 💖 · " : "") +
       (build.length ? `Build: ${buildIcons(build)} · ` : "") +
       `Incidents met: ${met.map((k) => INCIDENTS[k].icon).join(" ") || "none yet"} (${met.length}/${INCIDENT_ORDER.length})`;
@@ -168,7 +168,9 @@ export function installWeek({
       `<span class="ts-label">COACH'S LOCKER</span><small>${save.stars}★${GEAR[save.gear] ? " · " + GEAR[save.gear].icon : ""}</small>`;
     $("wk-free").innerHTML =
       `<span class="ts-label">FREE PLAY</span><small>` +
-      (dev() ? `${LADDER.length + 1} pools · dev` : `${openCount()} pools`) +
+      (dev()
+        ? `${LADDER.length + 1} pools · dev`
+        : `${Math.max(1, new Set([...save.seen, "club"]).size)} pools`) +
       `</small>`;
   }
   function hideMenu() {
@@ -620,11 +622,12 @@ export function installWeek({
   function openLocker() {
     const open = openCount();
     $("locker-stars").textContent = `${save.stars}★ EARNED IN ALL RUNS`;
-    // The pools: the ladder, opened by dates; each with its best stars.
+    // The pools: every one in the weeks' rotation (16 November 2026; opened one by one with the dates before), each with its
+    // best stars.
     $("locker-pools-note").textContent =
       open < LADDER.length
         ? `${open} of ${LADDER.length} open. Every date with Marina opens the next one, for good.`
-        : "Every pool is open. The Grand Gala Arena is the finale of week 4.";
+        : `${save.seen.length} of ${LADDER.length + 1} worked at. A week takes the six pools you have not seen for the longest. The Grand Gala Arena is the finale of week 4.`;
     $("locker-pools").innerHTML = [...LADDER, FINALE_POOL]
       .map((id, i) => {
         const p = POOLS[id],

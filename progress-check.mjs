@@ -79,7 +79,8 @@ function playWeek(save, starsEach = 3) {
   return r;
 }
 
-// 1) The ladder: twelve pools in the creator's order, the arena kept for the finale; three open on a first run.
+// 1) The ladder: thirteen pools in the creator's order, the arena kept for the finale. Since 16 November 2026 every pool is open
+// from the first run (the creator: "we have lots, so let's not be too repetitive"): the ladder is the order they are met in.
 {
   assert.equal(LADDER.length, 13);
   assert.deepEqual(
@@ -87,43 +88,47 @@ function playWeek(save, starsEach = 3) {
     [...POOL_IDS].sort(),
     "every pool is on the ladder or the finale",
   );
-  assert.deepEqual(LADDER.slice(0, LADDER_START), ["club", "resort", "kids"], "a first run: three pools");
+  assert.equal(LADDER_START, LADDER.length, "every pool is open from the first run");
+  assert.deepEqual(LADDER.slice(0, 3), ["club", "resort", "kids"], "the gentle ones come first");
   assert.ok(!LADDER.includes(FINALE_POOL));
-  assert.deepEqual(openPools(3, 1), ["club", "resort", "kids"]);
-  assert.deepEqual(openPools(0, 1), ["club", "resort", "kids"], "never fewer than three");
+  assert.deepEqual(openPools(3, 1), LADDER);
+  assert.deepEqual(openPools(0, 1), LADDER);
   assert.equal(openPools(99, 2).length, 13);
   assert.ok(!openPools(12, FINALE_WEEK).includes(FINALE_POOL), "the arena is only the finale in week 4");
   assert.ok(openPools(12, FINALE_WEEK + 1).includes(FINALE_POOL), "and joins the draw after it (endless)");
   const fresh = normalizeWeekSave({});
-  assert.equal(fresh.ladder, LADDER_START);
+  assert.equal(fresh.ladder, LADDER.length);
   assert.deepEqual(fresh.album, []);
+  assert.deepEqual(fresh.recent, []);
   assert.equal(fresh.stars, 0);
   assert.equal(fresh.gear, null);
   assert.equal(fresh.finale, false);
 }
 
-// 2) The week's draw from the pools open: a first run's week visits all three, never one two days running, the Community Pool
-// first; a pool never played is in the week for sure; six different pools once six are open; the finale on Saturday of week 4.
+// 2) The week's pools. Drawn from a list (without the pools played: a check, a week from before): never one two days running, a
+// pool never played in the week for sure, six different pools once six are in the list, the finale on Saturday of week 4. In a
+// run, a rotation: the six pools played longest ago, so a week never repeats a pool and a new run never starts where the last did.
 {
+  const THREE = ["club", "resort", "kids"];
   for (let seed = 1; seed <= 200; seed++) {
-    const three = weekPools(1, seed, openPools(3, 1), ["club", "resort", "kids"]);
+    const three = weekPools(1, seed, THREE, THREE);
     assert.equal(three.length, SHIFTS_PER_WEEK);
     assert.equal(three[0], "club");
-    assert.ok(three.every((d) => ["club", "resort", "kids"].includes(d)));
+    assert.ok(three.every((d) => THREE.includes(d)));
     assert.ok(
       three.every((d, i) => i === 0 || d !== three[i - 1]),
       "never two days running: " + three,
     );
-    for (const id of ["club", "resort", "kids"])
+    for (const id of THREE)
       assert.equal(three.filter((d) => d === id).length, 2, "each pool twice in a week of three");
     for (let n = 4; n <= 12; n++) {
-      const open = openPools(n, 2),
+      const open = LADDER.slice(0, n),
         newest = LADDER[n - 1],
         days = weekPools(2, seed * 31 + n, open, [newest]);
-      assert.ok(days.includes(newest), "the pool just opened comes at once (" + newest + ")");
+      assert.ok(days.includes(newest), "a pool never played comes at once (" + newest + ")");
       assert.ok(
         days.every((d) => open.includes(d)),
-        "only open pools",
+        "only the pools of the list",
       );
       assert.ok(days.every((d, i) => i === 0 || d !== days[i - 1]));
       if (n >= SHIFTS_PER_WEEK) assert.equal(new Set(days).size, SHIFTS_PER_WEEK, "six different pools");
@@ -136,6 +141,96 @@ function playWeek(save, starsEach = 3) {
         !weekPools(chapter, seed, openPools(12, chapter)).slice(0, 5).includes(FINALE_POOL) ||
           chapter > FINALE_WEEK,
       );
+  }
+  // The rotation, in a run. A new player: the Community Pool on Monday (the guided shift), the ladder's first six in week 1, six
+  // others in week 2, and by the end of week 3 every pool has been worked at.
+  for (let seed = 1; seed <= 60; seed++) {
+    const save = normalizeWeekSave({});
+    const weeks = [];
+    for (let n = 1; n <= 3; n++) {
+      save.week = newWeek(save, seed * 101 + n);
+      const days = [...save.week.pools];
+      weeks.push(days);
+      assert.equal(new Set(days).size, SHIFTS_PER_WEEK, "six different pools in a week: " + days);
+      for (const pool of days) save.recent = [...save.recent.filter((x) => x !== pool), pool];
+      save.seen = [...new Set([...save.seen, ...days])];
+      save.chapter = n + 1;
+      save.week = null;
+    }
+    assert.equal(weeks[0][0], "club", "a first run starts at the Community Pool");
+    assert.deepEqual([...weeks[0]].sort(), [...LADDER.slice(0, 6)].sort(), "week 1: the gentle six");
+    assert.ok(
+      weeks[1].every((pool) => !weeks[0].includes(pool)),
+      "week 2 shares no pool with week 1",
+    );
+    assert.equal(new Set(weeks.flat()).size, LADDER.length, "every pool worked at by the end of week 3");
+    assert.ok(
+      weeks[2].every((pool) => !weeks[1].includes(pool)),
+      "nor week 3 with week 2",
+    );
+  }
+  // Runs that are lost one after the other (the creator: "I don't like to see the community pool all over and over"): no run
+  // starts where the one before did, and two runs running share no pool.
+  {
+    const save = normalizeWeekSave({ v: 2, tutorial: true, lesson2: true, known: INCIDENT_ORDER });
+    const mondays = [],
+      runs = [];
+    for (let run = 0; run < 6; run++) {
+      const r = playWeek(save, -1);
+      assert.ok(r.over, "a lost week");
+      mondays.push(r.chapter && save.recent[save.recent.length - SHIFTS_PER_WEEK]);
+      runs.push(save.recent.slice(-SHIFTS_PER_WEEK));
+    }
+    for (let i = 1; i < runs.length; i++) {
+      assert.notEqual(mondays[i], mondays[i - 1], "a new run starts at another pool");
+      assert.ok(
+        runs[i].every((pool) => !runs[i - 1].includes(pool)),
+        "two runs running share no pool: " + runs[i - 1] + " | " + runs[i],
+      );
+    }
+    assert.ok(new Set(mondays).size >= 5, "Mondays all over town: " + mondays);
+    assert.equal(
+      mondays.filter((m) => m === "club").length <= 1,
+      true,
+      "the Community Pool is one pool of thirteen",
+    );
+    assert.equal(
+      save.recent.length,
+      new Set(save.recent).size,
+      "each pool once in the list, the last played last",
+    );
+  }
+  // A week under way from before the rotation (three pools, each twice): the days still to come get other pools; the days
+  // played stay as they were.
+  {
+    const old = normalizeWeekSave({
+      v: 2,
+      chapter: 1,
+      ladder: 3,
+      seen: ["club", "resort", "kids"],
+      runs: 2,
+      tutorial: true,
+      week: {
+        chapter: 1,
+        seed: 5,
+        pools: ["club", "kids", "resort", "kids", "club", "resort"],
+        shift: 2,
+        fund: 60,
+        perks: [],
+        history: [{}, {}],
+        status: "playing",
+      },
+    });
+    assert.deepEqual(old.week.pools.slice(0, 2), ["club", "kids"], "the days played are as they were");
+    assert.equal(
+      new Set(old.week.pools).size,
+      SHIFTS_PER_WEEK,
+      "the days to come: other pools (" + old.week.pools + ")",
+    );
+    assert.ok(old.week.pools.slice(2).every((pool) => !["club", "kids", "resort"].includes(pool)));
+    assert.deepEqual(old.recent, ["club", "resort", "kids"], "an older save: the pools it has seen");
+    const kept = normalizeWeekSave(JSON.parse(JSON.stringify(old)));
+    assert.deepEqual(kept.week.pools, old.week.pools, "and it stays as redrawn");
   }
   // A new week keeps its draw in the save (the pools seen change during the week, the itinerary does not).
   const s = normalizeWeekSave({});
@@ -330,15 +425,19 @@ function playWeek(save, starsEach = 3) {
 {
   const save = normalizeWeekSave({});
   let r = playWeek(save, 3);
-  assert.ok(r.won && r.newPool === "lagoon" && r.newDate, "week 1: a date, and the Sunset Lagoon opens");
-  assert.equal(save.ladder, 4);
+  assert.ok(r.won && r.newPool === null && r.newDate, "week 1: a date (every pool is open already)");
+  assert.equal(save.ladder, LADDER.length);
   assert.deepEqual(save.album, ["icecream"]);
   assert.ok(
     save.best.club === 3 && save.best.resort === 3 && save.best.kids === 3,
     "the best stars at each pool",
   );
+  assert.equal(save.seen.length, 6, "six pools worked at in a week");
   save.week = newWeek(save, 22);
-  assert.ok(save.week.pools.includes("lagoon"), "the new pool is in the very next week");
+  assert.ok(
+    save.week.pools.every((pool) => !save.seen.includes(pool)),
+    "the very next week: six pools not worked at yet (" + save.week.pools + ")",
+  );
   r = playWeek(save, 3);
   r = playWeek(save, 3);
   save.week = newWeek(save, 33);
@@ -347,7 +446,8 @@ function playWeek(save, starsEach = 3) {
   assert.ok(r.won && r.ending && save.finale && r.chapter.id === FINALE_WEEK, "the story's ending");
   assert.equal(save.chapter, FINALE_WEEK + 1, "and the run goes on");
   assert.deepEqual(save.album, ["icecream", "movie", "dinner", "ocean"]);
-  assert.equal(save.ladder, 3 + 4);
+  assert.equal(save.ladder, LADDER.length);
+  assert.equal(save.seen.length, LADDER.length + 1, "four weeks in: every pool and the arena worked at");
   // Endless: the arena in the draw; a game over keeps what lasts.
   save.week = newWeek(save, 55);
   const before = { ladder: save.ladder, album: [...save.album], stars: save.stars, best: { ...save.best } };
@@ -363,7 +463,7 @@ function playWeek(save, starsEach = 3) {
   again.week = newWeek(again, 66);
   r = playWeek(again, 3);
   assert.ok(r.won && !r.ending && again.finale);
-  // The ladder stops at the last pool.
+  // (No pool is left to open: a date is its scene, the album and the next week.)
   const full = normalizeWeekSave({ ladder: 13 });
   r = playWeek(full, 3);
   assert.ok(r.won && r.newPool === null && full.ladder === 13);
@@ -379,14 +479,11 @@ function playWeek(save, starsEach = 3) {
     seen: ["club", "wave"],
     dates: ["icecream"],
   });
-  assert.equal(
-    old.ladder,
-    LADDER.indexOf("wave") + 1,
-    "the Wave Pool was played: open, with every pool before it",
-  );
+  assert.equal(old.ladder, LADDER.length, "every pool is open, whatever the save had");
+  assert.deepEqual(old.recent, ["club", "wave"], "and the pools it played are the rotation's start");
   assert.deepEqual(old.album, ["icecream", "movie"], "the dates of the weeks reached");
   const reached = normalizeWeekSave({ v: 2, bestWeek: 3, seen: [] });
-  assert.equal(reached.ladder, LADDER_START + 2);
+  assert.equal(reached.ladder, LADDER.length);
   const junk = normalizeWeekSave({
     v: 2,
     ladder: 999,
@@ -486,8 +583,9 @@ function playWeek(save, starsEach = 3) {
 }
 
 console.log(
-  "Progress checks passed: the pools as a ladder (three to start, one more with every date, the arena the finale of week 4), the " +
-    "week's draw from the pools open (a new pool at once, never two days running, kept in the save); difficulty by week with " +
+  "Progress checks passed: every pool open from the first run, the ladder the order they are met in, the arena the finale of week " +
+    "4; the week's pools a rotation (the six played longest ago, never one twice in a week, no run starting where the last did, a " +
+    "week under way redrawn), kept in the save; difficulty by week with " +
     "smoothed levels and the first visit at the band's foot; the season finale; one money (perks out of the Date Fund, tips into " +
     "it, Marina's texts once); the coach's gear by stars; what a run leaves (album, pools, stars, best stars) and what a game over " +
     "keeps; an older save carried over; the album's stills and scenes, the ending and its credits; and the screens wired.",
