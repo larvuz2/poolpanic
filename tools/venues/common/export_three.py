@@ -10,7 +10,8 @@ an open-air venue lit at any hour needs. Made for Splash Park (30 October 2026),
   after dusk by the game), `nightglow` (lit windows and halos: drawn only after dusk, added onto the picture). A T_<set> material
   becomes `tile_<set>` with world-box UVs at the set's scale (kit.TILES), tinted by its `@rrggbb` if it has one; the signs share one atlas, the cut-outs (palm fronds,
   flowers: alpha-tested, two-sided, casting dappled shadows) another.
-- Keeps as their own nodes what the game moves: the cabanas' doors (Door_A, Door_B), the fins on the rack (Fins_1..3).
+- Keeps as their own nodes what the game moves: the cabanas' doors (Door_A, Door_B), the fins on the rack (Fins_1..3; since 18
+  November 2026 the game cuts a venue's own rack out and puts the shared fin station by the pool's corner: fin_station.py).
 - Leaves out what the game draws itself and records where it was: the life rings (anchors.LifeRing), the torch (anchors.Flashlight),
   and any object named `Anchor_<Name>` (anchors.<Name>: a place a venue's module puts one of the game's moving parts).
 - Bakes the paint on the deck (floor.glb: lane numbers, the splash zone's board, NO RUNNING) into one top-down picture, and the

@@ -8,6 +8,7 @@
 // the model's Light_* places); by day the shade of slow clouds over the sun's light.
 import { THREE } from "./kit.mjs";
 import { CAUSTIC_GLSL } from "./pool.mjs";
+import { finRack } from "./props.mjs";
 
 // (roughness of each tile set any dressed venue uses)
 const TILE_ROUGH = {
@@ -173,6 +174,7 @@ export function dressModel(w, model, { look, name, deckSet, hour = false, causti
   (w.liveProps ||= []).push(root); // (the model is batched already: never again by scene.mjs)
   if (frame) w.updaters.push(() => U.frame.value.copy(frame.matrixWorld).invert());
   const material = makeMaterials(w, U, model, deckSet);
+  root.userData.material = material; // (its classes' materials, lent to the shared props it stands with: the fin station)
   root.traverse((o) => {
     if (!o.isMesh) return;
     const cls = (o.material?.name || "satin").replace(/^H_/, "");
@@ -217,6 +219,95 @@ export function dressModel(w, model, { look, name, deckSet, hour = false, causti
     if (ring) ring.material.color.copy(horizonLight(L, tint, sky));
   });
   return root;
+}
+
+// Where each dressed venue's model has its own fin rack baked: its scripts put one at the plan's fin station (tools/venues/<venue>/),
+// until the stations moved to every pool's lower-left corner and became one shared station (18 November 2026). The box holds the
+// rack and the fins hanging on it, and nothing else: x and z in the game's frame, half its width and depth.
+export const BAKED_FIN_RACKS = {
+  resort: { x: -12.6, z: 7.9, hx: 0.5, hz: 1.05 },
+  lagoon: { x: -12.6, z: 7.9, hx: 0.5, hz: 1.05 },
+  arena: { x: -12.6, z: 7.9, hx: 0.5, hz: 1.05 },
+  aquatic: { x: -12.6, z: 7.9, hx: 0.5, hz: 1.05 },
+  disco: { x: -11.4, z: 7.2, hx: 0.5, hz: 1.05 },
+  kids: { x: -10.3, z: 7.8, hx: 0.5, hz: 1.06 },
+  senior: { x: 12.4, z: -5.6, hx: 0.45, hz: 1.06 },
+  cruise: { x: -13.4, z: -9.4, hx: 0.47, hz: 1.15 },
+};
+
+// What else of a dressed model goes so the station by the pool's lower-left corner can be seen: Splash Park's and the Sunset
+// Lagoon's deck palm in that corner (the plans' CORNER_PALM), whose crown, 5 m up and nearest the camera, hid the corner of the
+// pool and anything standing there. Its planter and trunk (within 0.75 m of its foot, and its leaning top, boot and coconuts within
+// 1 m above 3 m) and its fronds (the cut-out cards above 2.5 m within 3.4 m); the lifeguard tower and the railing beside it stay.
+const CORNER_PALM = [
+  { x: -14.7, z: -9.6, r: 0.75 },
+  { x: -14.7, z: -9.6, r: 1.0, minY: 3 },
+  { x: -14.7, z: -9.6, r: 3.4, minY: 2.5, classes: ["cut"] },
+];
+export const BAKED_CLEARANCE = { resort: CORNER_PALM, lagoon: CORNER_PALM };
+
+// The fin station in a dressed venue (scene/fin-station.mjs): the model's own rack and its pairs (Fins_1..3) taken out, and the
+// shared station put at the plan's place in the venue's own materials (the classic table until the station's model has loaded).
+export function dressedFinStation(w, root, venue) {
+  const baked = BAKED_FIN_RACKS[venue.id];
+  if (baked) cutBaked(root, baked, { names: ["Fins_1", "Fins_2", "Fins_3"] });
+  for (const area of BAKED_CLEARANCE[venue.id] || []) cutBaked(root, area, area);
+  finRack(w, venue.stations.fins, { material: root.userData.material });
+}
+
+// Takes a baked prop out of a dressed model: every triangle lying wholly inside `area` (in the model's own frame, the game's: a box,
+// its middle x and z and half its width hx and depth hz; or a round one, its middle and radius r) and rising above `minY` (the
+// floor by default; from higher up, lying wholly above it) collapses to nothing; the floor and whatever stands only partly inside stay as they are. `classes`: only the
+// meshes of those material classes (a dressed model's: matte, satin, cut…). `names`: the model's own nodes for it, taken away. The
+// clones of a model share its geometry, so a venue played again finds it done (and nothing is cut twice). Returns how many
+// triangles went.
+export function cutBaked(root, area, { minY = 0.004, classes = null, names = [] } = {}) {
+  for (const n of names) {
+    const o = root.getObjectByName(n);
+    o?.parent?.remove(o);
+  }
+  root.updateMatrixWorld(true);
+  const key = JSON.stringify([area.x, area.z, area.hx, area.hz, area.r, minY, classes]),
+    toRoot = new THREE.Matrix4().copy(root.matrixWorld).invert(),
+    m = new THREE.Matrix4(),
+    v = new THREE.Vector3(),
+    within = area.r
+      ? (x, z) => (x - area.x) ** 2 + (z - area.z) ** 2 < area.r * area.r
+      : (x, z) => Math.abs(x - area.x) < area.hx && Math.abs(z - area.z) < area.hz;
+  let cut = 0;
+  root.traverse((o) => {
+    const g = o.isMesh && o.geometry;
+    if (!g?.index || !g.attributes.position) return;
+    const cls = (o.material?.name || "").replace(/^(H_|dressed:)/, "").replace(/_n$/, "");
+    if (classes && !classes.includes(cls)) return;
+    const done = (g.userData.cutBaked ||= []);
+    if (done.includes(key)) return;
+    done.push(key);
+    m.multiplyMatrices(toRoot, o.matrixWorld);
+    const pos = g.attributes.position,
+      // (each vertex's height when it lies inside the area's footprint, -Infinity outside)
+      y = new Float32Array(pos.count);
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(m);
+      y[i] = within(v.x, v.z) ? v.y : -Infinity;
+    }
+    const index = g.index.array;
+    let changed = false;
+    for (let t = 0; t + 2 < index.length; t += 3) {
+      const a = y[index[t]],
+        b = y[index[t + 1]],
+        c = y[index[t + 2]];
+      if (a === -Infinity || b === -Infinity || c === -Infinity) continue;
+      // (from the floor: whatever rises off it; higher up: only what lies wholly above `minY`)
+      if (minY > 0.004 ? Math.min(a, b, c) <= minY : Math.max(a, b, c) <= minY) continue;
+      if (index[t] === index[t + 1] && index[t] === index[t + 2]) continue;
+      index[t + 1] = index[t + 2] = index[t];
+      changed = true;
+      cut++;
+    }
+    if (changed) g.index.needsUpdate = true;
+  });
+  return cut;
 }
 
 // How lit the lamps are for the hour's glow (dayLook: 0 at noon, 0.05 at golden hour, 0.2 at sunset, 0.7 at dusk, 1 at night).

@@ -3,6 +3,7 @@
 // (the same hit boxes and labels, the fins, the rings, the doors in the facade, the trampoline's bed, the medical kit), cost fewer
 // draw calls than the classic one, and stay within its budget (triangles, file sizes). The classic Splash Park is still the one
 // built until the model is in, and with ?nomodels; the Sunset Lagoon, which shares the floor plan, never takes the model.
+import { primeFinStation, assertFinStation } from "./fin-station-kit.mjs";
 import assert from "node:assert/strict";
 import { readFileSync, statSync, readdirSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -42,6 +43,8 @@ assert.deepEqual(
 
 // ---- before the model is in: the classic Splash Park ---------------------------------------------------------------------------
 assert.equal(splashReady(), false);
+// (the shared fin station, as the game has it once it has loaded behind the menu: fin-station-kit.mjs)
+await primeFinStation();
 const classic = new PoolWorld(container, () => {}, { headless: true, venue: resort, lighting: "day" });
 assert.equal(
   classic.scene.getObjectByName("splashpark"),
@@ -96,8 +99,8 @@ const hooks = (w) => w.clickables.map((c) => JSON.stringify({ ...c.userData })).
 assert.deepEqual(hooks(world), hooks(classic), "the same hit boxes as the classic Splash Park");
 const labels = (w) => w.labels.map((l) => l.text).sort();
 assert.deepEqual(labels(world), labels(classic), "the same labels as the classic Splash Park");
-assert.equal(world.finPairs.length, 3, "the model's three pairs of fins are the rack's");
-assert.ok(world.finPairs.every((f) => root.getObjectById(f.id)));
+// (its fin station the shared one, by the pool's lower-left corner; the model's own rack cut out: 18 November 2026)
+assertFinStation(world, resort, root);
 assert.equal(world.ringModels.length, classic.ringModels.length, "the life rings");
 assert.ok(world.ringAt.every(Boolean), "each ring hangs on the model's board");
 for (const k of ["fishNetRack", "flashlightRack", "medkitRack", "fuseLever", "trampolineBed", "water"])

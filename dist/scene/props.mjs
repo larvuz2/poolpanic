@@ -3,6 +3,7 @@
 import { THREE, COLORS } from "./kit.mjs";
 import { woodTexture } from "./textures.mjs";
 import { dressFish } from "./fish-model.mjs";
+import { placeFinStation } from "./fin-station.mjs";
 
 export function woodMaterial(w, base = "#d7a064", seed = 9) {
   const key = "wood:" + base + seed;
@@ -153,37 +154,49 @@ export function stationHit(w, data, p, width, height, angle = 0) {
   return m;
 }
 
-// With `rack: false` only the hit box and label: the Harbourside's rack is a model whose fins are the pairs (scene/harbourside.mjs).
-export function finRack(w, point, { rack = true } = {}) {
-  if (!rack) {
+// The fin station (18 November 2026: one station in every pool, the fins lying on top, seen from above; scene/fin-station.mjs):
+// the shared model where it has loaded, with a dressed venue's `material` for its classes; until then (and with ?nomodels) the
+// classic one, a low table of boxes with the three pairs lying in its bays. With `rack: false` only the hit box and label (the
+// Community Pool's rack is the Harbourside model's own, its pairs the model's Fins_1..3: scene/harbourside.mjs).
+export function finRack(w, point, { rack = true, material = null } = {}) {
+  const hit = () => {
     stationHit(w, { kind: "station", item: "fins" }, point, 2.2, 2.3, -Math.PI / 2);
     w.labels.push({ text: "E · FIN RACK", x: point.x, y: 2.55, z: point.z });
-    return;
-  }
-  const g = w.group(point.x, 0, point.z, w.scene, -Math.PI / 2);
-  for (const x of [-0.85, 0.85]) {
-    w.box(0.11, 1.72, 0.13, COLORS.navy, x, 0.86, 0, 0.035, g);
-    w.box(0.5, 0.12, 0.85, COLORS.navy, x, 0.06, 0, 0.025, g);
-  }
-  w.box(1.85, 0.12, 0.2, COLORS.navy, 0, 1.65, 0, 0.025, g);
-  w.box(1.7, 0.12, 0.8, 0xe8bb73, 0, 0.54, 0, 0.025, g);
+  };
+  if (!rack || placeFinStation(w, point, { material })) return hit();
+  // (local x along the lanes' ends, the camera's side local +z, as the model's: 2.06 by 0.96, its top at 0.72)
+  const g = w.group(point.x, 0, point.z, w.scene, -Math.PI / 2),
+    top = 0.72;
+  for (const x of [-0.98, 0.98])
+    for (const z of [-0.42, 0.42]) w.box(0.06, top, 0.06, COLORS.navy, x, top / 2, z, 0.015, g);
+  for (const z of [-0.45, 0.45]) w.box(1.96, 0.14, 0.03, COLORS.navy, 0, top - 0.08, z, 0.01, g);
+  w.box(2.06, 0.05, 0.96, 0xc98a4e, 0, top + 0.02, 0, 0.012, g);
+  w.box(1.94, 0.03, 0.82, 0x8a5a33, 0, 0.16, 0, 0.01, g);
+  for (const x of [-0.53, -0.03, 0.47]) w.box(0.035, 0.035, 0.9, 0x8a5a33, x, top + 0.06, 0, 0.008, g);
   w.finPairs = [];
   for (let i = 0; i < 3; i++) {
-    const pair = finsObject(w);
-    pair.position.set(-0.57 + i * 0.57, 0.82, -0.05);
-    pair.rotation.x = -0.2;
+    const pair = finsObject(w, [COLORS.blue, COLORS.yellow, COLORS.coral][i]);
+    pair.position.set(-0.78 + i * 0.5, top + 0.07, 0.02);
+    pair.rotation.set(Math.PI / 2, 0, 0); // (lying flat, the blades toward the camera)
     g.add(pair);
     w.finPairs.push(pair);
   }
-  w.textPlane("FIN RENTAL", 1.72, 0.34, "#fff1ce", "#245c63", 0, 1.99, 0.04, g, 45);
-  stationHit(w, { kind: "station", item: "fins" }, point, 2.2, 2.3, -Math.PI / 2);
-  w.labels.push({ text: "E · FIN RACK", x: point.x, y: 2.55, z: point.z });
+  // a crate of pull-buoys in the end bay
+  w.box(0.46, 0.22, 0.4, 0x2f8c88, 0.76, top + 0.14, 0, 0.02, g);
+  for (const [x, z, c] of [
+    [0.68, -0.08, 0xf6cf45],
+    [0.84, 0.07, 0xef7aa6],
+    [0.7, 0.1, 0xf4f1ea],
+  ])
+    w.box(0.14, 0.1, 0.2, c, x, top + 0.29, z, 0.03, g);
+  w.textPlane("FINS · PLEASE RETURN", 1.5, 0.12, "#22426b", "#f3e6c9", 0, top - 0.08, 0.47, g, 40);
+  hit();
 }
 
-export function finsObject(w) {
+export function finsObject(w, color = COLORS.yellow) {
   const g = new THREE.Group();
   for (const x of [-0.14, 0.14]) {
-    const m = w.box(0.22, 0.51, 0.08, w.mat(COLORS.yellow, { roughness: 0.5 }), x, 0, 0, 0.035, g);
+    const m = w.box(0.22, 0.51, 0.08, w.mat(color, { roughness: 0.5 }), x, 0, 0, 0.035, g);
     m.rotation.z = x > 0 ? -0.06 : 0.06;
     w.box(0.14, 0.16, 0.11, COLORS.teal, x, 0.15, 0.015, 0.03, g);
   }

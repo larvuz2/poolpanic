@@ -1102,7 +1102,8 @@ banners, trophies, posters, plants, the compass rose and anchor on the deck. The
   z 7.8) to the open deck between the MEN's door and the left-hand line (x −8.2, z −11.0), 3.6 m from its first place. The model's
   rack is baked into its merged meshes, so `moveFinRack` (harbourside.mjs) moves its triangles there as it loads (those inside
   `BAKED_RACK`, above the floor, shared vertices left alone) and the `Fins_1..3` nodes with them; its contact shadow moved in
-  `floor_ao.webp`. The classic pool's rack follows `stations.fins` by itself.
+  `floor_ao.webp`. The classic pool's rack follows `stations.fins` by itself. (Since 18 November 2026 every pool's fin station
+  stands where this one does from its own pool's corner, and is this one: "One fin station, by every pool's lower-left corner".)
 
 **Splash Park dressed for real** (30–31 October 2026, `dist/scene/splashpark.mjs`; the creator: "do the same Harbourside treatment
 for the next venue! same details, amazing lighting, new props!… always considering performance and triangle count… work on only 1
@@ -2387,6 +2388,47 @@ coach's Monday, the doors), `onboarding-check.mjs` (the lessons keep their crowd
 in Chromium (software drawing): START on a save with three lost runs to Monday's doors and through a shift, and a new save
 into the guided first shift.
 
+### One fin station, by every pool's lower-left corner (18 November 2026)
+
+The creator: "in some levels, the fin station is different than the others… a rack where I don't even see the fins. The fins
+should always be on top of the station, like we have it on some other levels… We always can see the fins from a top-down view.
+It's a similar station, and they're always in the same place… The fin station should be in the lower-left corner, really close
+to the lower-left corner of the pool, if you are seeing it from the top-down perspective." Until then the Community Pool had its
+own table with the fins lying on it, by the waiting line, and every dressed venue a rack of its own (an A-frame with a FIN RENTAL
+board, the fins hanging on its side, small blocks from the camera), most of them by the pool's lower-right corner, Senior Aqua
+Fit's along the far wall.
+
+- **One station** (`dist/scene/fin-station.mjs`, `dist/assets/models/fin-station.glb`): the Community Pool's own fins rack, the
+  low timber-topped navy table with a pair of fins lying in each of its three bays and a crate of pull-buoys (the Harbourside's
+  Godot prop, `godot/assets/venue/props/fins_rack.glb`, read only), made small by `tools/venues/common/fin_station.py` (Blender:
+  simplified to 6,000 triangles, one mesh per material class with the colours and the occlusion in the vertex colours, the pairs
+  `Fins_1..3` their own nodes; 266 kB) and loaded behind the menu with the dog. A dressed venue lends it its own materials, so
+  it takes the venue's light. Until it has loaded, and with `?nomodels`, the classic table of boxes stands in, its three pairs
+  lying on its top too (props.mjs `finRack`).
+- **One place**: the camera looks across the pool from its −x side, so the screen's lower-left corner is the pool's −x, −z
+  corner. Every pool that hands out fins has the station as far out from that corner as the Community Pool's has stood since 5
+  November (2.9 m nearer the camera, 2.35 m to the left, lying along the lanes' ends): `FIN_CORNER`, `finCorner(pool)` in
+  spatial.mjs. The Community Pool's is where it was (−8.2, −11.0); Splash Park, the Sunset Lagoon, the Grand Gala Arena and the
+  Aquatic Centre (−11.4, −11.0), the Aqua Disco and Senior Aqua Fit (−9.8, −11.0), the Kids Pool (−8.2, −11.0), the Cruise Ship
+  (−6.6, −11.0; its walkers go round it, `CRUISE.fins` in cruise-plan.mjs). The Lazy River and the Wave Pool hand out tubes from
+  their rack and hut, already by that corner; nobody needs fins at the Mountain Hot Springs or the Jumping Pool (towels there),
+  nor at the Rooftop Pool.
+- **The dressed venues' own racks are cut out as they load** (dressed.mjs `cutBaked`, `BAKED_FIN_RACKS`): every triangle of the
+  model wholly inside the old rack's box and above the floor collapses to nothing, its `Fins_1..3` nodes go; the model's file is
+  as it was. Their decks' contact shadows (`floor_ao.webp`) were redone once by `tools/venues/common/fin_shadow.py`: the old
+  rack's shade filled in from round it, the station's own laid where it stands (baked under it by `fin_station.py`); each venue's
+  JSON says it was (`finStation`).
+- **Splash Park's and the Sunset Lagoon's deck palm in that corner is gone** (−14.7, −9.6: `BAKED_CLEARANCE`, and from their
+  plans): its crown, 5 m up and nearest the camera, hid the pool's lower-left corner and anything standing there. Its planter, its
+  trunk and its fronds are cut; the lifeguard tower and the railing beside it stay. The Grand Gala Arena keeps its urn there.
+
+Checked by `fin-station-check.mjs` (the model's budget and shape, the fins lying on top and seen from straight above over most of
+each pair, the place in all nine pools by the corner, nothing in its way and the coach able to walk up to it, the decks' shadows
+redone, the classic table till the model is in) and the eight dressed venues' checks (`fin-station-kit.mjs`: the shared station
+at the plan's place, the model's own rack and pairs gone), and played in Chromium (software drawing, pictures looked at) in the
+nine pools with the coach by the station. The guided fins lesson is the Community Pool's, whose rack did not move. **Not
+verified**: how it looks on the creator's machines.
+
 ### The intro cinematic (every pool, 5 November 2026)
 
 The creator: "a system that I can turn off later in a toggle for game cinematics as intro… a close-up of the coach always, and
@@ -3180,6 +3222,7 @@ Generated media costs fal credits per run. Commit finished assets under `dist/as
 | `node sprint-check.mjs` | Dash and guidance |
 | `node coach-check.mjs` | Movement, interactions and carrying |
 | `node simulation-check.mjs` | Lane traffic, resources, chemistry, scoring and deterministic shifts |
+| `node fin-station-check.mjs` | One fin station in every pool that hands out fins (18 November 2026): the model within budget, its fins lying on its top and seen from above, its place by each pool's lower-left corner on screen (`FIN_CORNER`) with nothing in its way, the dressed decks' shadows redone, the classic table until the model is in |
 | `node sanitation-check.mjs` | Sickness prevention and complete manual recovery |
 | `node rescue-check.mjs` | Cramp onset and physical pickup/swim/rescue/rest/return loop |
 | `node deck-collision-check.mjs` | Deck contacts, crowded routes and destinations |

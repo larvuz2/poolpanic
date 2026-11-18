@@ -112,6 +112,7 @@ import { CoopGuest, Predictor } from "./net.mjs";
 import { coachInfo } from "./crew.mjs";
 import { snapshotFor } from "./sound-mix.mjs";
 import { loadDog } from "./scene/dog-model.mjs";
+import { loadFinStation } from "./scene/fin-station.mjs";
 import { loadMacaws } from "./scene/macaws.mjs";
 import { pendingInvite } from "./steam-net.mjs";
 import { COACH_TUNING } from "./spatial.mjs";
@@ -5418,6 +5419,8 @@ try {
   // is loaded or compiled when he turns up mid-shift. (Karen is not loaded for the menu: the first shift's warm-up fetches her,
   // incident-view.mjs warmCast, and draws her once she is in, long before she can come.)
   if (!tuning.has("nomodels")) loadDog();
+  // (the fin station every pool puts by its pool's lower-left corner, the classic table until it has loaded: scene/fin-station.mjs)
+  if (!tuning.has("nomodels")) loadFinStation();
   if (swimmersLoading && waitForSwimmers) fetching.push(swimmersLoading);
   // The Community Pool as the Harbourside (scene/harbourside.mjs): a few MB, behind the menu like the swimmers; the classic pool
   // stands in until it is in (and for ?nomodels, the crash hunt's switch for every model). START waits for it with the swimmers.

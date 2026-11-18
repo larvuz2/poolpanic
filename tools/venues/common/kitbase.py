@@ -14,6 +14,9 @@ what that returns. Conventions:
     emission          a lamp's glass (`lamp`: pale by day, lit after dusk)
 - Object names: Light_<kind> (a lamp: glows, pools of light after dusk), NightGlow_* (lit only after dusk, added), Glass_*,
   Door_A/Door_B and Fins_1..3 (kept as the game's own nodes), LifeRing and Flashlight (left out; their places recorded).
+  (Since 18 November 2026 every pool's fin station is one shared model the game puts by its pool's lower-left corner
+  (fin_station.py, scene/fin-station.mjs): a venue's own rack, where its scripts still make one at the plan's old station, is cut
+  out by the game as it loads (dressed.mjs BAKED_FIN_RACKS). A venue made again needs no rack of its own; drop its entry there.)
 """
 
 import os, sys, math, json
