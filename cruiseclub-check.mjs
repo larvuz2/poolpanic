@@ -6,6 +6,8 @@
 // the game's plan has them (nothing in anyone's way where the guests queue, evacuate and walk; open water over the pool; the
 // anchors where the game needs them), cost fewer draw calls than the classic one and stay within its budget. The classic ship is
 // still the one built until the model is in, and with ?nomodels.
+import { cutBaked, BAKED_FIN_RACKS } from "./dist/scene/dressed.mjs";
+import { primeFinStation, assertFinStation } from "./fin-station-kit.mjs";
 import assert from "node:assert/strict";
 import { readFileSync, statSync, readdirSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -52,6 +54,8 @@ assert.deepEqual(
 
 // ---- before the model is in: the classic jungle -------------------------------------------------------------------------------
 assert.equal(cruiseClubReady(), false);
+// (the shared fin station, as the game has it once it has loaded behind the menu: fin-station-kit.mjs)
+await primeFinStation();
 const classic = new PoolWorld(container, () => {}, { headless: true, venue });
 assert.equal(
   classic.scene.getObjectByName("cruiseclub"),
@@ -105,6 +109,9 @@ assert.ok(
 assert.ok(Math.abs(torch[1] - 1.24) < 0.05, "the torch where the game puts it, 1.24 m up");
 
 // ---- placement: nothing in the way where the guests queue, evacuate and walk; the pool's water open --------------------------
+// (the model's own fin rack, cut out by the game where the shared fin station took its place, so its old spot is open deck now:
+// dressed.mjs cutBaked; the station itself stands by the pool's lower-left corner, the plan's furniture)
+cutBaked(gltf.scene, BAKED_FIN_RACKS.cruise, { names: ["Fins_1", "Fins_2", "Fins_3"] });
 gltf.scene.updateMatrixWorld(true);
 const meshes = [];
 gltf.scene.traverse((o) => o.isMesh && meshes.push(o));
@@ -203,11 +210,8 @@ console.warn = quiet;
 
 for (const k of ["fishNetRack", "flashlightRack", "fuseLever", "skimmerRack", "medkitRack"])
   assert.ok(world[k], k + " is there, as in the classic ship");
-assert.equal(world.finPairs.length, 3, "the model's three pairs of fins");
-assert.ok(
-  world.finPairs.every((f) => /^Fins_/.test(f.name)),
-  "the fins on the model's rack, hidden by the game as they are taken",
-);
+// (its fin station the shared one, by the pool's lower-left corner; the model's own rack cut out: 18 November 2026)
+assertFinStation(world, venue, root);
 console.log(
   `Cruise Ship checks passed: the model (${(glbBytes / 1e6).toFixed(1)} MB, ${Math.round(triangles / 1000)}k triangles, ${classes.size} materials) and its photographic pictures (${(pictureBytes / 1e6).toFixed(2)} MB); the classic ship till it is in; the same hit boxes and labels; nothing in the way at the queue, the ${venue.evacSpots.length} evacuation spots, the far walk, the lobbies' doors and ${walked} points of the deck; open water at ${open} points of the pool; the anchors for the rings and the torch; ${drawn(world)} draw calls against ${drawn(classic)}.`,
 );

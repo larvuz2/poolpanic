@@ -19,7 +19,6 @@
 import { THREE } from "./kit.mjs";
 import { buildPool } from "./pool.mjs";
 import {
-  finRack,
   station,
   rescueStations,
   sanitationCorner,
@@ -29,7 +28,7 @@ import {
   medkitCabinet,
 } from "./props.mjs";
 import { kioskTreats } from "./resort.mjs";
-import { dressedVenue, dressModel, ringsFromModel } from "./dressed.mjs";
+import { dressedVenue, dressModel, ringsFromModel, dressedFinStation } from "./dressed.mjs";
 import { timingWall, stands, crowdLife } from "./aquatic.mjs";
 import { rngOf } from "./geom.mjs";
 import { seatOfficials } from "./officials.mjs";
@@ -97,10 +96,8 @@ export function buildAquaticClub(w, venue) {
 function liveParts(w, venue, root, info) {
   const S = venue.stations,
     F = venue.fixtures;
-  const fins = [1, 2, 3].map((i) => root.getObjectByName("Fins_" + i)).filter(Boolean);
-  // (the model's rack and pairs; a model without them has the classic rack)
-  finRack(w, S.fins, { rack: fins.length !== 3 });
-  if (fins.length === 3) w.finPairs = fins;
+  // (the fin station: the model's own rack taken out, the shared one at the plan's place, 18 November 2026)
+  dressedFinStation(w, root, venue);
   station(w, "chlorine", S.chlorine, 0, "", -Math.PI / 2, { body: false });
   station(w, "relief", S.relief, 0, "", -Math.PI / 2, { body: false });
   rescueStations(w, venue, { mounts: false });

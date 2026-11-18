@@ -4,6 +4,7 @@
 // board, the pace clocks, the club flags, the crowds and their ribbons), show its roof and near stand to the Coach Cam only, cost fewer
 // draw calls than the classic one and stay within its budget. The classic Aquatic Centre is still the one built until the model is
 // in, and with ?nomodels.
+import { primeFinStation, assertFinStation } from "./fin-station-kit.mjs";
 import assert from "node:assert/strict";
 import { readFileSync, statSync, readdirSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -56,6 +57,8 @@ assert.ok(
 
 // ---- before the model is in: the classic Aquatic Centre --------------------------------------------------------------------------
 assert.equal(aquaticClubReady(), false);
+// (the shared fin station, as the game has it once it has loaded behind the menu: fin-station-kit.mjs)
+await primeFinStation();
 const classic = new PoolWorld(container, () => {}, { headless: true, venue: aquatic });
 assert.equal(
   classic.scene.getObjectByName("aquaticclub"),
@@ -164,8 +167,8 @@ const hooks = (w) => w.clickables.map((c) => JSON.stringify({ ...c.userData })).
 assert.deepEqual(hooks(world), hooks(classic), "the same hit boxes as the classic Aquatic Centre");
 const labels = (w) => w.labels.map((l) => l.text).sort();
 assert.deepEqual(labels(world), labels(classic), "the same labels as the classic Aquatic Centre");
-assert.equal(world.finPairs.length, 3, "the model's three pairs of fins are the rack's");
-assert.ok(world.finPairs.every((f) => root.getObjectById(f.id)));
+// (its fin station the shared one, by the pool's lower-left corner; the model's own rack cut out: 18 November 2026)
+assertFinStation(world, aquatic, root);
 assert.equal(world.ringModels.length, classic.ringModels.length, "the life rings");
 assert.ok(world.ringAt.every(Boolean), "each ring hangs on the model's board");
 for (const k of ["fishNetRack", "flashlightRack", "fuseLever", "water", "poolLamps"])

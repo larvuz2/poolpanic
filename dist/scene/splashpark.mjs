@@ -10,7 +10,7 @@
 // horizon are shared with the Kids Pool (scene/dressed.mjs).
 //
 // What the game moves stays its own: the water, the lane ropes and pennants (pool.mjs), the trampoline's bed, the life rings, the
-// fins (the model's Fins_1..3), the changing rooms' doors in the hotel's wall (the model's Door_A/Door_B, swung by the game's door sync), the medical kit,
+// fins (the shared fin station's since 18 November 2026: the model's own rack is cut out, dressed.mjs), the changing rooms' doors in the hotel's wall (the model's Door_A/Door_B, swung by the game's door sync), the medical kit,
 // the dog treats, the fish net, the torch, the fuse box, the mop, and every hit box and label (props.mjs, with their bodies left
 // out where the model has its own).
 //
@@ -21,7 +21,6 @@
 import { buildPool } from "./pool.mjs";
 import {
   station,
-  finRack,
   rescueStations,
   sanitationCorner,
   fishNetHook,
@@ -31,7 +30,7 @@ import {
   trampolineTower,
 } from "./props.mjs";
 import { kioskTreats } from "./resort.mjs";
-import { dressedVenue, dressModel, ringsFromModel } from "./dressed.mjs";
+import { dressedVenue, dressModel, ringsFromModel, dressedFinStation } from "./dressed.mjs";
 
 // Each hour's light at Splash Park, over the game's own (scene.mjs LIGHTING.day/sunset/night): a strong warm sun by day and soft
 // blue shade; a long low gold at sunset with the lamps coming on; a cool moon at night with every lamp lit. `lamps` lights the
@@ -137,10 +136,8 @@ export function buildSplashPark(w, venue, lighting) {
 function liveParts(w, venue, root, info) {
   const S = venue.stations,
     F = venue.fixtures;
-  const fins = [1, 2, 3].map((i) => root.getObjectByName("Fins_" + i)).filter(Boolean);
-  // (the model's rack and pairs; a model without them has the classic rack)
-  finRack(w, S.fins, { rack: fins.length !== 3 });
-  if (fins.length === 3) w.finPairs = fins;
+  // (the fin station: the model's own rack taken out, the shared one at the plan's place, 18 November 2026)
+  dressedFinStation(w, root, venue);
   station(w, "chlorine", S.chlorine, 0, "", -Math.PI / 2, { body: false });
   station(w, "relief", S.relief, 0, "", -Math.PI / 2, { body: false });
   rescueStations(w, venue, { mounts: false });

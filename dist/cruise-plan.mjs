@@ -23,6 +23,9 @@ export const CRUISE = {
   farWalk: 10.95, // where a guest stands on the far walk to step into the free water
   bar: { x: 14.6, z: -9.4, hx: 1.7, hz: 1.7 }, // the Lido Bar (serving the pool, -x)
   tubs: [{ x: 14.2, z: 13.0, r: 1.45 }], // a hot tub in the far right corner
+  // the fin station by the pool's lower-left corner on screen, as every pool's (spatial.mjs FIN_CORNER, 18 November 2026), lying
+  // along the lanes' ends: walkers go round it
+  fins: { x: -6.6, z: -11.0, hx: 0.48, hz: 1.03 },
   lounger: { hx: 1.0, hz: 0.36 }, // half a sun lounger: 2 m long (along x), 0.72 wide
   // Rows of loungers (they slide along their row when the ship rolls): `x` the row's centre line, `facing` the way their guests
   // look (+1: +x, the pool, from the near deck; -1: from the far deck), `z0`..`z1` the row's length, `homes` where each lounger
@@ -71,6 +74,12 @@ export const CRUISE_BLOCKS = (() => {
     blocks.push([row.x - L.hx - 0.15, row.x + L.hx + 0.15, row.z0 - 0.2, row.z1 + 0.2]);
   blocks.push([H.bar.x - H.bar.hx, H.bar.x + H.bar.hx, H.bar.z - H.bar.hz, H.bar.z + H.bar.hz]);
   for (const t of H.tubs) blocks.push([t.x - t.r, t.x + t.r, t.z - t.r, t.z + t.r]);
+  blocks.push([
+    H.fins.x - H.fins.hx - 0.15,
+    H.fins.x + H.fins.hx + 0.15,
+    H.fins.z - H.fins.hz - 0.15,
+    H.fins.z + H.fins.hz + 0.15,
+  ]);
   for (const s of [-1, 1]) blocks.push(s < 0 ? [-13.6, -9.6, -15.4, -13.3] : [9.6, 13.6, -15.4, -13.3]);
   return blocks;
 })();

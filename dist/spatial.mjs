@@ -466,6 +466,19 @@ function makeVenue(spec) {
   return venue;
 }
 
+// The fin station's place in every pool that hands out fins (18 November 2026, the creator: "the fin station should be in the
+// lower-left corner, really close to the lower-left corner of the pool, if you are seeing it from the top-down perspective"; "they're
+// always in the same place"): the camera looks across the pool from its -x side, so the lower-left corner of the screen is the
+// pool's -x, -z corner, and the station stands as far out from it as the Community Pool's rack has stood since 5 November 2026 (by
+// the waiting line), 2.9 m nearer the camera and 2.35 m to the left, lying along the lanes' ends. One station, the Community Pool's
+// own table with the fins lying on top (scene/fin-station.mjs). The Lazy River and the Wave Pool hand out tubes from their own rack
+// and hut (already by that corner); nobody needs fins at the Mountain Hot Springs or the Jumping Pool, where the place holds towels.
+export const FIN_CORNER = { x: -2.9, z: -2.35 };
+export const finCorner = (pool) => ({
+  x: Math.round((-pool.solidX + FIN_CORNER.x) * 100) / 100,
+  z: Math.round((-pool.solidZ + FIN_CORNER.z) * 100) / 100,
+});
+
 // Classic indoor community club: three lanes, office in the upper-right corner. No locker rooms since 30 October 2026 (the
 // creator: "remove the lockers and place the doors on the same axis as the wall"): the MEN's and the WOMEN's doors are flush in
 // the back wall where the locker rooms stood, each crossed along z (inside behind the wall, out on the deck), as the Aqua Disco's.
@@ -534,7 +547,7 @@ const RESORT_SPEC = {
   cameraScale: 1.08,
   cameraFollow: { kx: 0.3, maxX: 4.4 },
   stations: {
-    fins: { x: -12.6, z: 7.9 },
+    fins: { x: -11.4, z: -11.0 }, // (by the pool's lower-left corner on screen: FIN_CORNER)
     chlorine: { x: 13.6, z: 8.1 },
     relief: { x: 13.6, z: 0.4 },
   },
@@ -567,7 +580,7 @@ const RESORT_SPEC = {
   furniture: [
     { kind: "bench", x: -12.2, z: -0.9, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
     { kind: "bench", x: 13.9, z: -6.2, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
-    { kind: "rack", x: -12.6, z: 7.9, hx: 0.48, hz: 1.03 },
+    { kind: "rack", x: -11.4, z: -11.0, hx: 0.48, hz: 1.03 },
     { kind: "station", x: 13.6, z: 8.1, hx: 0.6, hz: 0.9 },
     { kind: "station", x: 13.6, z: 0.4, hx: 0.9, hz: 0.6 },
     { kind: "medkit-cabinet", x: -15.35, z: 4.7, hx: 0.3, hz: 0.7 },
@@ -615,6 +628,10 @@ const WALL_DOORS = {
   lockers: [],
   furniture: RESORT_SPEC.furniture.filter((f) => f.kind !== "locker-wall" && f.kind !== "locker-bench"),
 };
+// (Splash Park and the Sunset Lagoon have no palm in the deck's corner by the fin station since 18 November 2026: its crown, 5 m up
+// and nearest the camera, hid the pool's lower-left corner and the station; their models' own is cut out, dressed.mjs
+// BAKED_CLEARANCE. The Grand Gala Arena keeps its urn there.)
+const CORNER_PALM = (f) => !(f.kind === "palm" && f.x === -14.7 && f.z === -9.6);
 export const RESORT = makeVenue({
   ...RESORT_SPEC,
   id: "resort",
@@ -622,6 +639,7 @@ export const RESORT = makeVenue({
   scenery: "park",
   sunAzimuth: 2.65,
   ...WALL_DOORS,
+  furniture: WALL_DOORS.furniture.filter(CORNER_PALM),
 });
 // Open-air beach club on a lagoon: the sun sinks into the sea behind the start line, from golden hour into dusk.
 export const LAGOON = makeVenue({
@@ -633,6 +651,7 @@ export const LAGOON = makeVenue({
   lighting: "golden",
   fixtures: { ...RESORT_SPEC.fixtures, massage: MASSAGE_TABLE },
   ...WALL_DOORS,
+  furniture: WALL_DOORS.furniture.filter(CORNER_PALM),
 });
 // A domed indoor arena for the season finale: grandstands, spotlights and a very tall roof.
 export const ARENA = makeVenue({
@@ -705,7 +724,7 @@ export const DISCO = makeVenue({
   // Where the class looks: Valentina's stage, past the far end of the pool.
   stage: { x: 0, z: 11.6, y: 0.62 },
   stations: {
-    fins: { x: -11.4, z: 7.2 },
+    fins: { x: -9.8, z: -11.0 }, // (by the pool's lower-left corner on screen: FIN_CORNER)
     chlorine: { x: 11.6, z: 7.0 },
     relief: { x: 11.6, z: 2.8 },
   },
@@ -726,7 +745,7 @@ export const DISCO = makeVenue({
   furniture: [
     { kind: "bench", x: -10.4, z: -1.85, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
     { kind: "bench", x: 10.6, z: -2.6, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
-    { kind: "rack", x: -11.4, z: 7.2, hx: 0.48, hz: 1.03 },
+    { kind: "rack", x: -9.8, z: -11.0, hx: 0.48, hz: 1.03 },
     { kind: "station", x: 11.6, z: 7.0, hx: 0.6, hz: 0.9 },
     { kind: "station", x: 11.6, z: 2.8, hx: 0.9, hz: 0.6 },
     { kind: "stage", x: 0, z: 11.6, hx: 2.8, hz: 1.0 },
@@ -763,7 +782,7 @@ export const KIDS = makeVenue({
   cameraFollow: { kx: 0.22, maxX: 2.4 },
   props: ["mop", "mop-bucket", "duck", "swim-ring"],
   stations: {
-    fins: { x: -10.3, z: 7.8 },
+    fins: { x: -8.2, z: -11.0 }, // (by the pool's lower-left corner on screen: FIN_CORNER)
     chlorine: { x: 10.8, z: 7.8 },
     relief: { x: 10.8, z: 3.9 },
   },
@@ -784,7 +803,7 @@ export const KIDS = makeVenue({
   furniture: [
     { kind: "bench", x: -10.2, z: -0.9, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
     { kind: "bench", x: 10.3, z: -0.5, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
-    { kind: "rack", x: -10.3, z: 7.8, hx: 0.48, hz: 1.03 },
+    { kind: "rack", x: -8.2, z: -11.0, hx: 0.48, hz: 1.03 },
     { kind: "station", x: 10.8, z: 7.8, hx: 0.6, hz: 0.9 },
     { kind: "station", x: 10.8, z: 3.9, hx: 0.9, hz: 0.6 },
     { kind: "treat-table", x: -13.4, z: 8.4, hx: 0.36, hz: 0.36 },
@@ -829,7 +848,7 @@ export const SENIOR = makeVenue({
     "lounger",
   ],
   stations: {
-    fins: { x: 12.4, z: -5.6 },
+    fins: { x: -9.8, z: -11.0 }, // (by the pool's lower-left corner on screen: FIN_CORNER)
     chlorine: { x: 12.4, z: 7.4 },
     relief: { x: 12.4, z: 3.4 },
   },
@@ -851,7 +870,7 @@ export const SENIOR = makeVenue({
   trampoline: null,
   furniture: [
     { kind: "bench", x: -11.4, z: 1.75, angle: Math.PI / 2, hx: 0.49, hz: 1.7 },
-    { kind: "rack", x: 12.4, z: -5.6, hx: 0.48, hz: 1.03 },
+    { kind: "rack", x: -9.8, z: -11.0, hx: 0.48, hz: 1.03 },
     { kind: "station", x: 12.4, z: 7.4, hx: 0.6, hz: 0.9 },
     { kind: "station", x: 12.4, z: 3.4, hx: 0.9, hz: 0.6 },
     { kind: "spa", x: -11.7, z: 8.0, hx: 1.55, hz: 1.55 },
@@ -1222,7 +1241,7 @@ export const CRUISE = makeVenue({
   beds: LOUNGERS,
   stations: {
     bar: { x: CP.bar.x - CP.bar.hx - 0.6, z: CP.bar.z }, // the trays of margaritas, on the far walk
-    fins: { x: -13.4, z: -9.4 },
+    fins: { x: CP.fins.x, z: CP.fins.z }, // (by the pool's lower-left corner on screen: FIN_CORNER; walkers go round it)
     chlorine: { x: -13.4, z: 10.6 },
     relief: { x: -9.4, z: 11.9 },
   },
@@ -1266,7 +1285,7 @@ export const CRUISE = makeVenue({
     { kind: "lobby", side: -1, x: -11.6, z: -14.35, hx: 2.0, hz: 1.05 },
     { kind: "lobby", side: 1, x: 11.6, z: -14.35, hx: 2.0, hz: 1.05 },
     { kind: "bench", x: -9.6, z: -11.0, angle: Math.PI / 2, hx: 0.49, hz: 1.2 },
-    { kind: "rack", x: -13.4, z: -9.4, hx: 0.48, hz: 1.03 },
+    { kind: "rack", x: CP.fins.x, z: CP.fins.z, hx: CP.fins.hx, hz: CP.fins.hz },
     { kind: "station", x: -13.4, z: 10.6, hx: 0.6, hz: 0.9 },
     { kind: "station", x: -9.4, z: 11.9, hx: 0.9, hz: 0.6 },
     { kind: "medkit-cabinet", x: -15.0, z: 6.0, hx: 0.3, hz: 0.7 },

@@ -334,5 +334,25 @@
   "S_tile_stucco",
   "S_tile_teak",
   "S_tile_travertine"
- ]
+ ],
+ "finStation": {
+  "made": "tools/venues/common/fin_shadow.py",
+  "cut": {
+   "x": -12.6,
+   "z": 7.9,
+   "hx": 0.5,
+   "hz": 1.05
+  },
+  "at": {
+   "x": -11.4,
+   "z": -11.0
+  },
+  "cleared": [
+   [
+    -14.7,
+    -9.6,
+    0.75
+   ]
+  ]
+ }
 }

@@ -18,7 +18,6 @@
 import { buildPool } from "./pool.mjs";
 import {
   station,
-  finRack,
   rescueStations,
   sanitationCorner,
   fishNetHook,
@@ -28,7 +27,7 @@ import {
   trampolineTower,
 } from "./props.mjs";
 import { kioskTreats } from "./resort.mjs";
-import { dressedVenue, dressModel, ringsFromModel } from "./dressed.mjs";
+import { dressedVenue, dressModel, ringsFromModel, dressedFinStation } from "./dressed.mjs";
 
 // The model (dist/assets/lagoon/) and its horizon: a painted tropical coast (palm groves on the dunes, jungle hills with
 // bungalows on stilts, volcanic peaks in the haze; tools/venues/lagoon/horizon.sh) on an arc 60 m out round the land sides, its
@@ -101,9 +100,8 @@ export function faceUp(mesh) {
 function liveParts(w, venue, root, info) {
   const S = venue.stations,
     F = venue.fixtures;
-  const fins = [1, 2, 3].map((i) => root.getObjectByName("Fins_" + i)).filter(Boolean);
-  finRack(w, S.fins, { rack: fins.length !== 3 });
-  if (fins.length === 3) w.finPairs = fins;
+  // (the fin station: the model's own rack taken out, the shared one at the plan's place, 18 November 2026)
+  dressedFinStation(w, root, venue);
   station(w, "chlorine", S.chlorine, 0, "", -Math.PI / 2, { body: false });
   station(w, "relief", S.relief, 0, "", -Math.PI / 2, { body: false });
   rescueStations(w, venue, { mounts: false });
