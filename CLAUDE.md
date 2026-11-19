@@ -243,7 +243,9 @@ into them trip, and a coach holds E (Karen's wheel, 8/5/3 s, many hands) until t
    2026): in dev mode F9 opens the Look tuner (`dist/look-tuner.mjs`, `dist/scene/look.mjs`, README "The Look tuner"), 32 live knobs
    of light, shadows, materials, textures, water, fog, colour grade, resolution and antialiasing, kept per venue; the creator will
    send its *Copy settings* text to make a venue's values its own default look.
-4. **Launch.** Store page, trailer, wishlists, a demo, review, release.
+4. **Launch.** Store page, trailer, wishlists, a demo, review, release. **The creator's date (19 November 2026): the February 2027
+   Steam Next Fest** (22 February to 1 March; registration closes 10 January, the demo in review by 8 February), launch right
+   after it: two months of polish. The investor deck (`marketing/deck/`) says so; the Steam kit's plan still says June.
 
 What only the creator can do (do not pretend to do it, and remind them when it blocks something): the Steamworks account and the $100 app fee,
 the app and depot ids, the store page, the price, written proof that the AI tools used allow commercial use, the Steam AI disclosure.
@@ -376,6 +378,7 @@ the app and depot ids, the store page, the price, written proof that the AI tool
 | The week: chapters, the director, cards, wishes, pay, the shop, Marina's scenes | `dist/week.mjs`, `dist/week-ui.mjs`, `dist/marina.mjs`, README "The week" |
 | The road to a Steam release, the build and upload, the achievements list | `desktop/README.md`, `desktop/steam/` |
 | The Steam store page: capsules, screenshots, clips, the cast posters (and Marina's poster-only model), copy, brand book, launch plan (and the tools that stage them) | `marketing/steam/` |
+| The investor deck (ten pages as a PDF: the mechanic, the loop, comparable games, the cast, the incidents, the venues, the work in numbers, the team, the release plan) | `marketing/deck/` (`node marketing/deck/build.cjs`) |
 | The character pipeline (Blender rigs, clips, grounding) | `tools/blender/README.md`, `tools/viewer/` (Anim Bench) |
 | The Godot test (one venue in Godot, a feel and look test) | `godot/README.md`, `godot/docs/` |
 | A crash on a device | the README's "Crash log", `dist/crashlog.mjs`, `dist/trace.mjs` (the shift's diary), `?bisect`, `docs/crash-watch.md` |

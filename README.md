@@ -51,6 +51,13 @@ tags, a brand book (logo use, colours, type, voice, rules for pictures and clips
 spring, the June 2027 Next Fest, launch after it). Its `index.html` is the review page; `tools/photo.cjs` stages and films more moments
 (one JSON a moment). Stage 4 can start on it as soon as the Steamworks app exists. No trailer yet, on purpose.
 
+**The investor deck (19 November 2026)** is in [`marketing/deck/`](marketing/deck/README.md): ten 16:9 pages as a PDF, in the
+poster's style (the main mechanic, the loop, comparable games with their Steam headers and review counts, the cast, the 25
+incidents as stickers, the 14 venues from their intro cinematics, the work in numbers, the team of three at Phatty Acid, and the
+release plan), made by `node marketing/deck/build.cjs`. It carries the creator's new date: **the February 2027 Steam Next Fest**
+(22 February to 1 March; registration closes 10 January, the demo in review by 8 February), launch right after it, two months
+of polish from now; the kit's plan above still says June.
+
 ## Project locations and repository relationship
 
 - Hosted game: https://pool-panic.larvuz.chatgpt.site

@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pool Panic: investor deck</title>
+<style>
+@font-face { font-family: "Barlow Condensed"; font-weight: 600; src: url(../../dist/assets/fonts/barlow-condensed-600.woff2); }
+@font-face { font-family: "Barlow Condensed"; font-weight: 700; src: url(../../dist/assets/fonts/barlow-condensed-700.woff2); }
+@font-face { font-family: "Barlow Condensed"; font-weight: 800; src: url(../../dist/assets/fonts/barlow-condensed-800.woff2); }
+@font-face { font-family: "Barlow Condensed"; font-weight: 900; src: url(../../dist/assets/fonts/barlow-condensed-900.woff2); }
+@font-face { font-family: "DM Sans"; font-weight: 100 1000; src: url(../../dist/assets/fonts/dm-sans-variable.woff2); }
+
+/* The brand book's colours (marketing/steam/README.md) on the poster's paper */
+:root {
+  --paper: #f2eee6;
+  --ink: #151515;
+  --muted: #6a655d;
+  --yellow: #fdd106;
+  --red: #c62828;
+  --navy: #022763;
+  --cyan: #19b1f8;
+  --deep: #092b38;
+  --mint: #a9e6db;
+  --cream: #fff4cf;
+  --brush: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 100' preserveAspectRatio='none'%3E%3Cpath fill='%23fdd106' d='M7 13 L70 9 L160 11 L250 5 L330 8 L393 6 L387 21 L398 34 L389 47 L397 61 L388 75 L395 92 L300 96 L210 93 L120 97 L40 94 L9 97 L15 82 L3 68 L12 54 L2 40 L11 27 Z'/%3E%3C/svg%3E");
+  --blob: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300' preserveAspectRatio='none'%3E%3Cpath fill='%23fdd106' d='M30 22 L120 10 L210 18 L300 6 L385 20 L378 70 L396 120 L382 170 L394 225 L372 290 L280 280 L190 292 L100 284 L18 294 L28 240 L6 190 L22 140 L4 90 L20 50 Z'/%3E%3C/svg%3E");
+}
+@page { size: 1920px 1080px; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #8a857c; }
+body { font-family: "DM Sans", system-ui, sans-serif; color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page {
+  width: 1920px; height: 1080px; position: relative; overflow: hidden; background: var(--paper);
+  break-after: page; page-break-after: always;
+}
+.page:last-child { break-after: auto; page-break-after: auto; }
+.abs { position: absolute; }
+b { font-weight: 800; }
+
+/* type */
+.kick { position: absolute; left: 80px; top: 52px; display: flex; align-items: center; gap: 14px;
+  font: 700 26px/1 "Barlow Condensed"; letter-spacing: .16em; text-transform: uppercase; }
+.kick .n { background: var(--ink); color: var(--yellow); padding: 6px 12px 5px; letter-spacing: .08em; }
+.h { font: 900 128px/.86 "Barlow Condensed"; text-transform: uppercase; letter-spacing: -.004em; text-wrap: balance; }
+.hl { background: var(--brush) center / 100% 100% no-repeat; padding: 0 .1em .02em; margin: 0 -.04em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.sub { font: 400 32px/1.3 "DM Sans"; color: #2a2723; }
+.sub b { font-weight: 800; }
+.folio { position: absolute; right: 80px; bottom: 34px; font: 700 21px/1 "Barlow Condensed"; letter-spacing: .16em; color: var(--muted); text-transform: uppercase; }
+.folio i { font-style: normal; color: var(--ink); }
+.photo { border: 12px solid #fff; box-shadow: 0 18px 40px rgba(40, 30, 10, .28); display: block; background: #fff; }
+.blobbg { background: var(--blob) center / 100% 100% no-repeat; }
+.badge { display: inline-flex; align-items: center; justify-content: center; width: 58px; height: 58px; border-radius: 50%;
+  background: var(--ink); color: var(--yellow); font: 900 38px/1 "Barlow Condensed"; flex: none; }
+
+/* ---------- 1 · cover ---------- */
+.cover .h { position: absolute; left: 80px; top: 104px; font-size: 156px; }
+.cover .emoji { font-family: "Noto Color Emoji"; font-size: .78em; vertical-align: .04em; }
+.marks { position: absolute; left: 1530px; top: 92px; width: 120px; }
+.cover .logo { position: absolute; left: 62px; top: 410px; width: 600px; }
+.cover .lines { position: absolute; left: 84px; top: 770px; width: 740px; font: 400 29px/1.34 "DM Sans"; }
+.cover .lines p + p { margin-top: 14px; color: #3a3631; }
+.perfect { position: absolute; left: 70px; top: 950px; display: flex; align-items: center; gap: 18px; padding: 14px 34px 14px 20px;
+  background: var(--brush) center / 100% 100% no-repeat; }
+.perfect .arr { font: 900 64px/1 "Barlow Condensed"; }
+.perfect div { font: italic 900 40px/1 "Barlow Condensed"; text-transform: uppercase; }
+.perfect div span { display: block; font-size: 28px; font-weight: 800; margin-top: 4px; }
+.cover .art { position: absolute; left: 870px; top: 436px; width: 1100px; transform: rotate(-2.2deg); }
+.cover .art .blobbg { position: absolute; left: -46px; top: -34px; right: 60px; bottom: -30px; transform: rotate(4deg); }
+.cover .art img { position: relative; width: 1100px; }
+
+/* ---------- 2 · the game ---------- */
+.game .h { position: absolute; left: 80px; top: 104px; }
+.game .sub { position: absolute; left: 84px; top: 236px; width: 1500px; }
+.cards4 { position: absolute; left: 80px; top: 318px; width: 1760px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 36px; }
+.card4 .photo { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.card4:nth-child(odd) .photo { transform: rotate(-1.4deg); }
+.card4:nth-child(even) .photo { transform: rotate(1.2deg); }
+.card4 .cap { display: flex; gap: 16px; align-items: center; margin-top: 24px; }
+.card4 .cap h3 { font: 900 52px/.9 "Barlow Condensed"; text-transform: uppercase; }
+.card4 .cap p { font: 400 22px/1.2 "DM Sans"; margin-top: 4px; color: #2f2b26; white-space: nowrap; }
+.bigline { position: absolute; left: 60px; top: 690px; padding: 20px 50px 20px 34px; background: var(--brush) center / 100% 100% no-repeat;
+  font: italic 900 60px/1 "Barlow Condensed"; text-transform: uppercase; }
+.striplabel { position: absolute; right: 80px; top: 726px; font: 800 26px/1 "Barlow Condensed"; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.strip { position: absolute; left: 80px; top: 820px; width: 1760px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 22px; }
+.strip img { width: 100%; aspect-ratio: 1280 / 560; object-fit: cover; border-width: 8px; }
+.strip img:nth-child(odd) { transform: rotate(-1.6deg); }
+.strip img:nth-child(even) { transform: rotate(1.4deg) translateY(8px); }
+
+/* ---------- 3 · the loop ---------- */
+.loop .h { position: absolute; left: 80px; top: 104px; }
+.loop .sub { position: absolute; left: 84px; top: 232px; }
+.steps { position: absolute; left: 80px; top: 330px; width: 1760px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 56px; }
+.step { position: relative; }
+.step .vis { height: 200px; border: 10px solid #fff; box-shadow: 0 14px 30px rgba(40, 30, 10, .24); background: var(--deep); position: relative; overflow: hidden; }
+.step .vis img.fill { width: 100%; height: 100%; object-fit: cover; display: block; }
+.step:not(:last-child)::after { content: ""; position: absolute; right: -50px; top: 78px; width: 44px; height: 44px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'%3E%3Cpath d='M4 22 H34 M24 10 L36 22 L24 34' stroke='%23151515' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+.step .row { display: flex; gap: 14px; align-items: center; margin-top: 22px; }
+.step h3 { font: 900 44px/.92 "Barlow Condensed"; text-transform: uppercase; }
+.step p { font: 400 23px/1.28 "DM Sans"; margin-top: 10px; color: #2f2b26; }
+.pill { position: absolute; left: 12px; bottom: 12px; background: var(--paper); border-radius: 30px; padding: 6px 16px 6px 10px;
+  font: 800 26px/1 "Barlow Condensed"; text-transform: uppercase; display: flex; gap: 8px; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,.3); }
+.pill .e, .perk .e { font-family: "Noto Color Emoji"; font-size: 24px; }
+.paid { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 6px; background: var(--deep); }
+.paid .coins { display: flex; align-items: center; gap: 10px; font: 900 64px/1 "Barlow Condensed"; color: var(--yellow); }
+.paid .coins img { width: 70px; }
+.paid .stars { font: 900 50px/1 "Barlow Condensed"; color: var(--yellow); letter-spacing: .08em; }
+.perks { display: flex; flex-direction: column; gap: 9px; justify-content: center; height: 100%; padding: 0 16px; background: var(--deep); }
+.perk { background: var(--cream); border-radius: 8px; padding: 7px 12px; display: flex; gap: 10px; align-items: center; font: 800 25px/1 "Barlow Condensed"; text-transform: uppercase; }
+.perk:nth-child(2) { margin-left: 18px; background: var(--yellow); }
+.back { position: absolute; left: 80px; top: 690px; width: 1760px; height: 150px; }
+.back svg { width: 100%; height: 100%; overflow: visible; display: block; }
+.backlabel { position: absolute; left: 50%; top: 798px; transform: translateX(-50%); display: flex; gap: 24px; align-items: center; white-space: nowrap; }
+.backlabel span { font: 900 40px/1 "Barlow Condensed"; text-transform: uppercase; background: var(--paper); padding: 0 18px; }
+.backlabel span i { font-style: normal; color: var(--red); }
+.backlabel span.lose { color: var(--red); }
+.never { position: absolute; left: 80px; top: 936px; display: flex; gap: 18px; align-items: baseline; flex-wrap: wrap; width: 1760px; }
+.never .lead { font: 800 30px/1 "Barlow Condensed"; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.never .x { font: 900 48px/1 "Barlow Condensed"; text-transform: uppercase; }
+.never .x em { font-style: normal; color: var(--red); padding: 0 8px; }
+
+/* ---------- 4 · the market ---------- */
+.market .h { position: absolute; left: 80px; top: 104px; }
+.market .sub { position: absolute; left: 84px; top: 232px; font-weight: 700; }
+.market .source { left: auto; right: 80px; bottom: auto; top: 60px; }
+.comps { position: absolute; left: 80px; top: 300px; width: 1760px; display: grid; grid-template-columns: repeat(3, 470px); justify-content: space-between; row-gap: 28px; }
+.comp .photo { width: 100%; aspect-ratio: 460 / 215; object-fit: cover; border-width: 10px; }
+.comp h3 { font: 900 38px/1 "Barlow Condensed"; text-transform: uppercase; margin-top: 14px; }
+.comp .meta { font: 400 20px/1.25 "DM Sans"; color: var(--muted); margin-top: 4px; white-space: nowrap; }
+.comp .stat { font: 800 27px/1 "Barlow Condensed"; color: var(--navy); margin-top: 8px; text-transform: uppercase; letter-spacing: .02em; }
+.comp.us .photo { border-color: var(--yellow); box-shadow: 0 0 0 6px var(--ink), 0 18px 40px rgba(40, 30, 10, .3); }
+.comp.us h3 { display: inline-block; }
+.comp.us .stat { color: var(--red); }
+.source { position: absolute; left: 80px; bottom: 34px; font: 400 17px/1 "DM Sans"; color: var(--muted); }
+
+/* ---------- 5 · the cast ---------- */
+.cast .h { position: absolute; left: 80px; top: 104px; }
+.cast .poster { position: absolute; left: 80px; top: 280px; width: 1000px; transform: rotate(-1.6deg); }
+.cast .count { position: absolute; left: 84px; top: 900px; display: flex; gap: 46px; }
+.count div { font: 900 74px/.9 "Barlow Condensed"; text-transform: uppercase; }
+.count div small { display: block; font: 800 26px/1 "Barlow Condensed"; letter-spacing: .12em; color: var(--muted); margin-top: 6px; }
+.right { position: absolute; left: 1150px; top: 258px; width: 690px; }
+.label { font: 800 24px/1 "Barlow Condensed"; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+.coaches { display: flex; align-items: flex-end; justify-content: space-between; height: 252px; padding: 0 6px; }
+.coaches figure { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.coaches img { height: 206px; }
+.coaches figcaption { font: 800 21px/1 "Barlow Condensed"; letter-spacing: .06em; text-transform: uppercase; }
+.coaches figure:first-child figcaption { background: var(--yellow); padding: 3px 6px 2px; }
+.guests { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 14px; margin-top: 30px; }
+.guest { display: flex; gap: 12px; align-items: center; }
+.guest img { width: 86px; height: 86px; flex: none; object-fit: contain; }
+.guest img.round { border-radius: 50%; border: 4px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,.2); object-fit: cover; }
+.guest h4 { font: 900 27px/.95 "Barlow Condensed"; text-transform: uppercase; }
+.guest p { font: 400 17px/1.2 "DM Sans"; color: #3a3631; margin-top: 3px; }
+
+/* ---------- 6 · the incidents ---------- */
+.incid .h { position: absolute; left: 80px; top: 104px; }
+.incid .sub { position: absolute; left: 1010px; top: 150px; width: 820px; font-weight: 700; }
+.grid25 { position: absolute; left: 80px; top: 258px; width: 1760px; display: grid; grid-template-columns: repeat(5, 1fr); grid-auto-rows: 146px; gap: 8px 24px; }
+.inc { display: flex; gap: 14px; align-items: center; }
+.inc img { width: 118px; height: 118px; flex: none; }
+.inc h4 { font: 900 31px/.92 "Barlow Condensed"; text-transform: uppercase; }
+.inc p { font: 400 19px/1.22 "DM Sans"; color: #36322d; margin-top: 4px; }
+
+/* ---------- 7 · the venues ---------- */
+.venues .grid { position: absolute; left: 80px; top: 50px; width: 1760px; display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 226px; gap: 13px 26px; }
+.venues .head { grid-column: span 2; padding-top: 0; }
+.venues .head .kick { position: static; }
+.venues .head .h { font-size: 104px; margin-top: 18px; }
+.ven img { width: 100%; aspect-ratio: 1280 / 560; object-fit: cover; display: block; border: 7px solid #fff; box-shadow: 0 10px 22px rgba(40, 30, 10, .22); }
+.ven .cap { display: flex; align-items: baseline; gap: 10px; margin-top: 11px; white-space: nowrap; }
+.ven h4 { font: 900 29px/1 "Barlow Condensed"; text-transform: uppercase; }
+.ven p { font: 400 18px/1 "DM Sans"; color: #4a453f; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- 8 · the work ---------- */
+.work .h { position: absolute; left: 80px; top: 104px; }
+.work .sub { position: absolute; left: 84px; top: 236px; width: 1700px; }
+.nums { position: absolute; left: 80px; top: 304px; width: 1760px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.num { background: #fff; padding: 16px 24px 18px; box-shadow: 0 8px 20px rgba(40, 30, 10, .1); position: relative; overflow: hidden; }
+.num .v { font: 900 84px/.86 "Barlow Condensed"; letter-spacing: -.01em; }
+.num .k { font: 800 25px/1 "Barlow Condensed"; letter-spacing: .08em; text-transform: uppercase; margin-top: 10px; }
+.num .d { font: 400 17px/1.25 "DM Sans"; color: var(--muted); margin-top: 5px; }
+.num.y { background: var(--yellow); }
+.num.y .d { color: #4a3d00; }
+.num.n { background: var(--deep); color: #fff; }
+.num.n .v { color: var(--yellow); }
+.num.n .d { color: var(--mint); }
+.tools { position: absolute; left: 80px; top: 884px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; width: 1500px; }
+.tools .lead { font: 800 24px/1 "Barlow Condensed"; letter-spacing: .14em; color: var(--muted); margin-right: 8px; }
+.tools span:not(.lead) { font: 800 25px/1 "Barlow Condensed"; text-transform: uppercase; border: 3px solid var(--ink); padding: 6px 12px 5px; }
+.work .source { bottom: 26px; }
+
+/* ---------- 9 · the team ---------- */
+.team .h { position: absolute; left: 80px; top: 104px; }
+.studio { position: absolute; right: 80px; top: 48px; text-align: right; }
+.studio img { width: 320px; filter: invert(1); mix-blend-mode: multiply; display: block; margin-left: auto; }
+.studio div { font: 800 24px/1 "Barlow Condensed"; letter-spacing: .12em; margin-top: -4px; }
+.people { position: absolute; left: 80px; top: 296px; width: 1760px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 80px; }
+.person { position: relative; }
+.person .frame { position: relative; width: 470px; height: 560px; margin: 0 auto; }
+.person .frame .blobbg { position: absolute; inset: -26px -34px 30px 24px; transform: rotate(3deg); }
+.person:nth-child(2) .frame .blobbg { transform: rotate(-3deg); inset: -20px 24px 36px -34px; }
+.person .frame img { position: relative; width: 470px; height: 560px; object-fit: cover; object-position: center 22%; border: 12px solid #fff; box-shadow: 0 18px 40px rgba(40, 30, 10, .28); }
+.person:nth-child(1) .frame img { transform: rotate(-1.6deg); }
+.person:nth-child(2) .frame img { transform: rotate(1.4deg); }
+.person:nth-child(3) .frame img { transform: rotate(-1deg); }
+.person h3 { font: 900 66px/.9 "Barlow Condensed"; text-transform: uppercase; text-align: center; margin-top: 34px; }
+.person .role { display: table; margin: 14px auto 0; padding: 8px 26px 7px; background: var(--ink); color: var(--yellow); font: italic 900 34px/1 "Barlow Condensed"; text-transform: uppercase; letter-spacing: .02em; }
+
+/* ---------- 10 · Steam ---------- */
+.steam .h { position: absolute; left: 236px; top: 104px; }
+.steamlogo { position: absolute; left: 80px; top: 104px; width: 128px; height: 128px; border-radius: 50%; background: #171a21; display: flex; align-items: center; justify-content: center; }
+.steamlogo img { width: 94px; filter: invert(1); }
+.steam .sub { position: absolute; left: 84px; top: 360px; width: 960px; }
+.steam .art { position: absolute; left: 1130px; top: 70px; width: 770px; transform: rotate(2deg); }
+.steam .art .blobbg { position: absolute; inset: -40px 30px -40px -50px; transform: rotate(-4deg); }
+.steam .art img { position: relative; width: 770px; }
+.timeline { position: absolute; left: 80px; top: 590px; width: 1760px; display: grid; grid-template-columns: 1fr 1.25fr 1fr 1fr 1.5fr 1.15fr; }
+.timeline::before { content: ""; position: absolute; left: 0; right: 0; top: 23px; height: 8px; background: var(--ink); border-radius: 4px; }
+.ms { position: relative; padding-right: 22px; }
+.ms .dot { width: 54px; height: 54px; border-radius: 50%; background: var(--paper); border: 8px solid var(--ink); }
+.ms .when { font: 900 38px/1 "Barlow Condensed"; text-transform: uppercase; margin-top: 18px; }
+.ms .what { font: 400 21px/1.25 "DM Sans"; color: #36322d; margin-top: 6px; }
+.ms.fest .dot { background: var(--yellow); width: 70px; height: 70px; margin-top: -8px; border-width: 9px; }
+.ms.fest .when { font-size: 46px; background: var(--brush) center / 100% 100% no-repeat; display: inline-block; padding: 4px 16px 2px 10px; margin-left: -10px; }
+.ms.launch .dot { background: var(--red); }
+.ms.launch .when { color: var(--red); font-size: 46px; }
+.money { position: absolute; left: 80px; top: 826px; width: 1760px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+.mo { border-top: 6px solid var(--ink); padding-top: 16px; }
+.mo .k { font: 800 24px/1 "Barlow Condensed"; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.mo .v { font: 900 64px/1 "Barlow Condensed"; text-transform: uppercase; margin-top: 8px; }
+.mo .v small { font-size: 34px; }
+.mo .d { font: 400 21px/1.3 "DM Sans"; color: #36322d; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<!-- 1 · cover -->
+<section class="page cover">
+  <div class="kick"><span class="n">Game #1</span> Phatty Acid Generative Studios</div>
+  <h1 class="h">What if your friends<br><span class="hl">controlled</span> a pool? <span class="emoji">💀</span></h1>
+  <svg class="marks" viewBox="0 0 120 110"><g stroke="#151515" stroke-width="9" stroke-linecap="round"><path d="M20 70 L44 20"/><path d="M58 82 L100 54"/><path d="M62 104 L106 102"/></g></svg>
+  <img class="logo" src="../../dist/assets/brand/logo.webp" alt="Pool Panic">
+  <div class="lines">
+    <p>Up to <b>3</b> players. <b>1</b> runs the lanes. <b>2</b> run the deck.</p>
+    <p>Net the runaway fish. Chase the loose dog. Red-card the cannonball guy.</p>
+  </div>
+  <div class="perfect"><span class="arr">→</span><div>Perfect for:<span>Friend groups + pure panic</span></div></div>
+  <div class="art bleed"><div class="blobbg"></div><img class="photo" src="../steam/caps/art/c1-panic.jpg" alt=""></div>
+</section>
+
+<!-- 2 · the game -->
+<section class="page game">
+  <div class="kick"><span class="n">01</span> The game</div>
+  <h2 class="h">You are the <span class="hl">only</span> lifeguard.</h2>
+  <p class="sub">Swimmers pour in. Send each one to the right lane. Then <b>everything goes wrong at once.</b></p>
+  <div class="cards4">
+    <div class="card4"><img class="photo" src="../steam/shots/02.jpg" alt=""><div class="cap"><span class="badge">1</span><div><h3>Sort</h3><p>Fast swimmers, fast lanes.</p></div></div></div>
+    <div class="card4"><img class="photo" src="../steam/shots/16.jpg" alt=""><div class="cap"><span class="badge">2</span><div><h3>Rescue</h3><p>Throw the ring. Haul them in.</p></div></div></div>
+    <div class="card4"><img class="photo" src="../steam/shots/03.jpg" alt=""><div class="cap"><span class="badge">3</span><div><h3>Handle</h3><p>Karen. The dog. Carl.</p></div></div></div>
+    <div class="card4"><img class="photo" src="../steam/shots/11.jpg" alt=""><div class="cap"><span class="badge">4</span><div><h3>Survive</h3><p>Beat the clock. Earn stars.</p></div></div></div>
+  </div>
+  <div class="bigline">Basically, you decide how bad the panic gets.</div>
+  <div class="striplabel">The first five seconds of every shift ↓</div>
+  <div class="strip">
+    <img class="photo" src="img/freak-wave.jpg" alt=""><img class="photo" src="img/freak-lagoon.jpg" alt=""><img class="photo" src="img/freak-onsen.jpg" alt=""><img class="photo" src="img/freak-kids.jpg" alt=""><img class="photo" src="img/freak-roof.jpg" alt="">
+  </div>
+  <div class="folio">Pool Panic · <i>02</i> / 10</div>
+</section>
+
+<!-- 3 · the loop -->
+<section class="page loop">
+  <div class="kick"><span class="n">02</span> The core loop</div>
+  <h2 class="h">One more <span class="hl">shift.</span></h2>
+  <p class="sub">A run is a week of <b>two-minute shifts</b>, Monday to Saturday. Sunday is the reward.</p>
+  <div class="steps">
+    <div class="step"><div class="vis"><img class="fill" src="img/venue-roof.jpg" alt="" style="object-position: 80% 0"><span class="pill"><span class="e">🐩</span>Dog show</span></div>
+      <div class="row"><span class="badge">1</span><h3>Pick a door</h3></div><p>Tonight's pool and a twist for the day.</p></div>
+    <div class="step"><div class="vis"><img class="fill" src="img/freak-resort.jpg" alt="" style="object-position: 0 50%"></div>
+      <div class="row"><span class="badge">2</span><h3>The shift</h3></div><p>Two minutes of lanes, rescues and chaos.</p></div>
+    <div class="step"><div class="vis"><div class="paid"><div class="coins"><img src="../../dist/assets/hud/coin.webp" alt="">+$120</div><div class="stars">★ ★ ★</div></div></div>
+      <div class="row"><span class="badge">3</span><h3>Get paid</h3></div><p>Splash Coins and up to three stars.</p></div>
+    <div class="step"><div class="vis"><div class="perks"><div class="perk"><span class="e">👟</span>Running shoes</div><div class="perk"><span class="e">🛼</span>Roller skates</div><div class="perk"><span class="e">🎰</span>High roller</div></div></div>
+      <div class="row"><span class="badge">4</span><h3>Pick a perk</h3></div><p>One of three. A build of six for the run.</p></div>
+    <div class="step"><div class="vis"><img class="fill" src="../../dist/assets/story/date-dinner.webp" alt=""></div>
+      <div class="row"><span class="badge">5</span><h3>Sunday date</h3></div><p>Hit the week's goal: a date with Marina.</p></div>
+  </div>
+  <div class="back"><svg viewBox="0 0 1760 150" preserveAspectRatio="none"><path d="M1606 6 V88 Q1606 128 1566 128 H194 Q154 128 154 88 V16" fill="none" stroke="#151515" stroke-width="7" stroke-dasharray="2 16" stroke-linecap="round"/><path d="M134 34 L154 6 L174 34" fill="none" stroke="#151515" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+  <div class="backlabel"><span>Next week: harder · <i>miss the goal: new run</i></span></div>
+  <div class="never"><span class="lead">Never the same twice</span><span class="x">14 pools<em>×</em>17 day rules<em>×</em>31 perks<em>×</em>25 incidents</span></div>
+  <div class="folio">Pool Panic · <i>03</i> / 10</div>
+</section>
+
+<!-- 4 · the market -->
+<section class="page market">
+  <div class="kick"><span class="n">03</span> If you like these</div>
+  <h2 class="h">Co-op chaos <span class="hl">sells.</span></h2>
+  <p class="sub">Nobody owns the pool. Yet.</p>
+  <div class="comps">
+    <div class="comp"><img class="photo" src=".cache/overcooked2.jpg" alt=""><h3>Overcooked! 2</h3><div class="meta">Ghost Town Games · Team17 · 2018 · $24.99</div><div class="stat">62,870 Steam reviews</div></div>
+    <div class="comp"><img class="photo" src=".cache/twopoint.jpg" alt=""><h3>Two Point Hospital</h3><div class="meta">Two Point Studios · SEGA · 2018 · $29.99</div><div class="stat">26,763 Steam reviews</div></div>
+    <div class="comp"><img class="photo" src=".cache/plateup.jpg" alt=""><h3>PlateUp!</h3><div class="meta">It's happening · Yogscast · 2022 · $19.99</div><div class="stat">19,301 Steam reviews</div></div>
+    <div class="comp"><img class="photo" src=".cache/movingout.jpg" alt=""><h3>Moving Out</h3><div class="meta">SMG Studio · Team17 · 2020 · $24.99</div><div class="stat">1,835 Steam reviews</div></div>
+    <div class="comp"><img class="photo" src=".cache/dearpassengers.jpg" alt=""><h3>Dear Passengers</h3><div class="meta">FLEXUS · coming 2026</div><div class="stat">Co-op chaos at 30,000 feet</div></div>
+    <div class="comp us"><img class="photo" src="../steam/caps/c1-panic-header.jpg" alt=""><h3><span class="hl">Pool Panic</span></h3><div class="meta">Phatty Acid · 2027 · $14.99</div><div class="stat">Co-op chaos at the pool</div></div>
+  </div>
+  <div class="source">Review counts and prices: the Steam store, 19 November 2026.</div>
+  <div class="folio">Pool Panic · <i>04</i> / 10</div>
+</section>
+
+<!-- 5 · the cast -->
+<section class="page cast">
+  <div class="kick"><span class="n">04</span> The cast</div>
+  <h2 class="h">Meet the <span class="hl">regulars.</span></h2>
+  <img class="poster photo" src="../steam/posters/stack-2-clean.jpg" alt="">
+  <div class="count"><div>30+<small>Characters</small></div><div>6<small>Playable coaches</small></div><div>1<small>Date to save up for</small></div></div>
+  <div class="right">
+    <div class="label">Playable coaches</div>
+    <div class="coaches">
+      <figure><img src="../../dist/assets/coach-waters.webp" alt=""><figcaption>Waters</figcaption></figure>
+      <figure><img src="../../dist/assets/coach-brooks.webp" alt=""><figcaption>Brooks</figcaption></figure>
+      <figure><img src="../../dist/assets/coach-rivers.webp" alt=""><figcaption>Rivers</figcaption></figure>
+      <figure><img src="../../dist/assets/coach-storm.webp" alt=""><figcaption>Storm</figcaption></figure>
+      <figure><img src="../../dist/assets/coach-fontaine.webp" alt=""><figcaption>Fontaine</figcaption></figure>
+      <figure><img src="../../dist/assets/coach-marsh.webp" alt=""><figcaption>Marsh</figcaption></figure>
+    </div>
+    <div class="label" style="margin-top: 34px">The guests</div>
+    <div class="guests">
+      <div class="guest"><img src="../../dist/assets/hud/stickers/carl.webp" alt=""><div><h4>Cannonball Carl</h4><p>Lives for the splash</p></div></div>
+      <div class="guest"><img src="../../dist/assets/hud/stickers/karen.webp" alt=""><div><h4>Karen</h4><p>Wants the manager</p></div></div>
+      <div class="guest"><img src="../../dist/assets/hud/stickers/fish.webp" alt=""><div><h4>Fish Kid</h4><p>Brought a fish</p></div></div>
+      <div class="guest"><img src="../../dist/assets/hud/stickers/leopard.webp" alt=""><div><h4>Leopard Man</h4><p>Cannonballs in leopard</p></div></div>
+      <div class="guest"><img src="../../dist/assets/hud/stickers/dog.webp" alt=""><div><h4>The Dog</h4><p>Nobody's dog</p></div></div>
+      <div class="guest"><img src="../../dist/assets/hud/stickers/monkey.webp" alt=""><div><h4>Snow Monkey</h4><p>Wants the hot spring</p></div></div>
+      <div class="guest"><img src="../../dist/assets/hud/stickers/drop.webp" alt=""><div><h4>The DJ</h4><p>Drops the beat, and the water</p></div></div>
+      <div class="guest"><img src="../../dist/assets/hud/stickers/influencer.webp" alt=""><div><h4>Influencer</h4><p>Filming. Always.</p></div></div>
+      <div class="guest"><img class="round" src="img/marina-face.jpg" alt=""><div><h4>Marina</h4><p>The reason he works</p></div></div>
+    </div>
+  </div>
+  <div class="folio">Pool Panic · <i>05</i> / 10</div>
+</section>
+
+<!-- 6 · the incidents -->
+<section class="page incid">
+  <div class="kick"><span class="n">05</span> The incidents</div>
+  <h2 class="h">25 ways to <span class="hl">panic.</span></h2>
+  <p class="sub">Drawn fresh every shift. Each one: a warning, a chance to stop it, a comic disaster.</p>
+  <div class="grid25">
+    <div class="inc"><img src="../../dist/assets/hud/stickers/karen.webp" alt=""><div><h4>Karen</h4><p>Complaining. Calm her down.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/carl.webp" alt=""><div><h4>Cannonball</h4><p>Red-card him before he jumps.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/fish.webp" alt=""><div><h4>Fish kid</h4><p>A fish in the pool. Net it.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/dog.webp" alt=""><div><h4>Loose dog</h4><p>Lure it out with treats.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/outage.webp" alt=""><div><h4>Blackout</h4><p>Reset the fuse box. Fast.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/rescue.webp" alt=""><div><h4>Cramp</h4><p>Throw the ring. Haul them in.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/tummy.webp" alt=""><div><h4>Tummy ache</h4><p>Get them out before it's too late.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/poo.webp" alt=""><div><h4>Floater</h4><p>Everybody out. Skim it.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/pee.webp" alt=""><div><h4>Who peed?!</h4><p>Yellow water. Chlorine.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/wet.webp" alt=""><div><h4>Wet spot</h4><p>Mop it, or slip in it.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/firstaid.webp" alt=""><div><h4>Crash</h4><p>Swimmers collide. First aid.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/influencer.webp" alt=""><div><h4>Influencer</h4><p>Filming on the deck. Everyone trips.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/massage.webp" alt=""><div><h4>Massage</h4><p>Keep kneading, or they storm off.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/linecut.webp" alt=""><div><h4>Line cutter</h4><p>Back of the queue.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/trampoline.webp" alt=""><div><h4>Daredevil</h4><p>Flip incoming. Clear the lane.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/leopard.webp" alt=""><div><h4>Leopard man</h4><p>A cannonball, in leopard print.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/dizzy.webp" alt=""><div><h4>Dizzy bather</h4><p>One more wave and they're under.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/monster.webp" alt=""><div><h4>Monster wave</h4><p>The siren. Brace.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/swell.webp" alt=""><div><h4>The swell</h4><p>The ship leans. Everything slides.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/monkey.webp" alt=""><div><h4>Snow monkey</h4><p>In the hot spring. Shoo it.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/drop.webp" alt=""><div><h4>The drop</h4><p>The DJ drops. The water slops.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/storm.webp" alt=""><div><h4>Storm</h4><p>Thunder. The lights may go.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/rush.webp" alt=""><div><h4>The rush</h4><p>A crowd, all at once.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/closure.webp" alt=""><div><h4>Lane closed</h4><p>One lane fewer for a while.</p></div></div>
+    <div class="inc"><img src="../../dist/assets/hud/stickers/big.webp" alt=""><div><h4>Big moment</h4><p>The race. The dive show.</p></div></div>
+  </div>
+  <div class="folio">Pool Panic · <i>06</i> / 10</div>
+</section>
+
+<!-- 7 · the venues -->
+<section class="page venues">
+  <div class="grid">
+    <div class="head"><div class="kick"><span class="n">06</span> The venues</div><h2 class="h">14 pools.<br><span class="hl">14 rule books.</span></h2></div>
+    <div class="ven"><img src="img/venue-club.jpg" alt=""><div class="cap"><h4>Community Pool</h4><p>where it starts</p></div></div>
+    <div class="ven"><img src="img/venue-resort.jpg" alt=""><div class="cap"><h4>Splash Park</h4><p>a seaside resort</p></div></div>
+    <div class="ven"><img src="img/venue-lagoon.jpg" alt=""><div class="cap"><h4>Sunset Lagoon</h4><p>a storm rolls in</p></div></div>
+    <div class="ven"><img src="img/venue-aquatic.jpg" alt=""><div class="cap"><h4>Aquatic Centre</h4><p>Marco races</p></div></div>
+    <div class="ven"><img src="img/venue-disco.jpg" alt=""><div class="cap"><h4>Aqua Disco</h4><p>one dance routine</p></div></div>
+    <div class="ven"><img src="img/venue-kids.jpg" alt=""><div class="cap"><h4>Kids Pool</h4><p>only kids</p></div></div>
+    <div class="ven"><img src="img/venue-senior.jpg" alt=""><div class="cap"><h4>Senior Aqua Fit</h4><p>slow and stooped</p></div></div>
+    <div class="ven"><img src="img/venue-river.jpg" alt=""><div class="cap"><h4>Lazy River</h4><p>tubes and rapids</p></div></div>
+    <div class="ven"><img src="img/venue-wave.jpg" alt=""><div class="cap"><h4>Wave Pool</h4><p>monster waves</p></div></div>
+    <div class="ven"><img src="img/venue-roof.jpg" alt=""><div class="cap"><h4>Rooftop Pool</h4><p>185 m up</p></div></div>
+    <div class="ven"><img src="img/venue-cruise.jpg" alt=""><div class="cap"><h4>Cruise Ship</h4><p>the deck rolls</p></div></div>
+    <div class="ven"><img src="img/venue-onsen.jpg" alt=""><div class="cap"><h4>Hot Springs</h4><p>snow monkeys</p></div></div>
+    <div class="ven"><img src="img/venue-dive.jpg" alt=""><div class="cap"><h4>Jumping Pool</h4><p>three boards</p></div></div>
+    <div class="ven"><img src="img/venue-arena.jpg" alt=""><div class="cap"><h4>Grand Gala Arena</h4><p>the finale</p></div></div>
+  </div>
+  <div class="folio">Pool Panic · <i>07</i> / 10</div>
+</section>
+
+<!-- 8 · the work -->
+<section class="page work">
+  <div class="kick"><span class="n">07</span> The work behind it</div>
+  <h2 class="h">Not a <span class="hl">one-prompt</span> game.</h2>
+  <p class="sub">Seven weeks of daily production: game developers directing AI agents, and every change tested.</p>
+  <div class="nums">
+    <div class="num y"><div class="v">50</div><div class="k">Days in production</div><div class="d">29 Sep → 18 Nov 2026, every day</div></div>
+    <div class="num"><div class="v">259</div><div class="k">Commits</div><div class="d">116 pull requests, each through the full test suite</div></div>
+    <div class="num"><div class="v">163K</div><div class="k">Lines of code</div><div class="d">71K in the game, the rest its tools and pipeline</div></div>
+    <div class="num"><div class="v">85</div><div class="k">Automated checks</div><div class="d">whole shifts replayed bit for bit on every push</div></div>
+    <div class="num"><div class="v">91</div><div class="k">3D models in the game</div><div class="d">180 in the pipeline: rigged, animated, optimised</div></div>
+    <div class="num"><div class="v">676</div><div class="k">Images &amp; textures</div><div class="d">venues, stickers, key art, story scenes</div></div>
+    <div class="num"><div class="v">229</div><div class="k">Sound files</div><div class="d">recorded effects and songs, an FMOD-style mix</div></div>
+    <div class="num"><div class="v">280</div><div class="k">Levels</div><div class="d">14 pools × 20 difficulty levels</div></div>
+    <div class="num n"><div class="v">7.2B+</div><div class="k">AI tokens</div><div class="d">read and written, most of it context read again</div></div>
+    <div class="num n"><div class="v">18,600+</div><div class="k">Agent actions</div><div class="d">code, renders, tests and builds</div></div>
+    <div class="num n"><div class="v">200+</div><div class="k">Design directions</div><div class="d">the team's messages that steered every system</div></div>
+    <div class="num n"><div class="v">88K</div><div class="k">Words of design docs</div><div class="d">the game's bible, kept true with every change</div></div>
+  </div>
+  <div class="tools"><span class="lead">MADE WITH</span><span>three.js</span><span>Blender</span><span>Meshy</span><span>Tripo</span><span>GPT Image</span><span>ElevenLabs</span><span>Electron</span><span>Steamworks</span><span>Claude</span></div>
+  <div class="source">Counted on 19 November 2026 from the repository and the AI sessions' own logs. The session numbers are at least.</div>
+  <div class="folio">Pool Panic · <i>08</i> / 10</div>
+</section>
+
+<!-- 9 · the team -->
+<section class="page team">
+  <div class="kick"><span class="n">08</span> The team</div>
+  <h2 class="h">A team of <span class="hl">three.</span></h2>
+  <div class="studio"><img src=".cache/phatty-logo.png" alt="Phatty Acid Generative Studios"><div>PHATTYACID.STUDIO</div></div>
+  <div class="people">
+    <div class="person"><div class="frame"><div class="blobbg"></div><img src=".cache/gus.jpg" alt=""></div><h3>Gustavo Garza</h3><div class="role">AI Engineer</div></div>
+    <div class="person"><div class="frame"><div class="blobbg"></div><img src=".cache/paul.jpg" alt=""></div><h3>Paul Limon</h3><div class="role">Ex-Blizzard</div></div>
+    <div class="person"><div class="frame"><div class="blobbg"></div><img src=".cache/kali.jpg" alt=""></div><h3>Manuel R. Kali</h3><div class="role">Game Developer</div></div>
+  </div>
+  <div class="folio">Pool Panic · <i>09</i> / 10</div>
+</section>
+
+<!-- 10 · Steam -->
+<section class="page steam">
+  <div class="kick"><span class="n">09</span> Release &amp; revenue</div>
+  <div class="steamlogo"><img src=".cache/steam.svg" alt="Steam"></div>
+  <h2 class="h">Coming to<br><span class="hl">Steam.</span></h2>
+  <p class="sub">Launch through <b>Steam Next Fest</b> in February. Two months to polish, then release.</p>
+  <div class="art bleed"><div class="blobbg"></div><img class="photo" src="../steam/caps/art/c5-crew.jpg" alt=""></div>
+  <div class="timeline">
+    <div class="ms"><div class="dot"></div><div class="when">Nov 2026</div><div class="what">Store page live. Wishlists start.</div></div>
+    <div class="ms"><div class="dot"></div><div class="when">Dec – Jan</div><div class="what">Two months of polish. Demo and trailer.</div></div>
+    <div class="ms"><div class="dot"></div><div class="when">Jan 10</div><div class="what">Next Fest registration closes.</div></div>
+    <div class="ms"><div class="dot"></div><div class="when">Feb 8</div><div class="what">Demo in Valve's review.</div></div>
+    <div class="ms fest"><div class="dot"></div><div class="when">Feb 22 – Mar 1</div><div class="what"><b>Steam Next Fest:</b> the public demo, co-op included.</div></div>
+    <div class="ms launch"><div class="dot"></div><div class="when">Mar 2027</div><div class="what"><b>Launch.</b> Ride the fest's wishlists.</div></div>
+  </div>
+  <div class="money">
+    <div class="mo"><div class="k">The price</div><div class="v">$14.99 <small>premium</small></div><div class="d">One purchase. No ads, no pay-to-win. 15% off in launch week.</div></div>
+    <div class="mo"><div class="k">Built to spread</div><div class="v">Co-op for 3</div><div class="d">Online over Steam with friends. Every crew needs three copies.</div></div>
+    <div class="mo"><div class="k">After launch</div><div class="v">More pools</div><div class="d">Venue packs (DLC), coach outfits, seasonal events, Steam Deck.</div></div>
+  </div>
+  <div class="folio">Pool Panic · <i>10</i> / 10</div>
+</section>
+
+</body>
+</html>
