@@ -174,6 +174,8 @@ b { font-weight: 800; }
 
 /* ---------- 8 · the work ---------- */
 .work .h { position: absolute; left: 80px; top: 104px; }
+/* (the leopard man flexing on the numbers, standing on the top row) */
+.work .flexer { position: absolute; right: 74px; top: 20px; height: 300px; z-index: 2; }
 .work .sub { position: absolute; left: 84px; top: 236px; width: 1700px; }
 .nums { position: absolute; left: 80px; top: 304px; width: 1760px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .num { background: #fff; padding: 16px 24px 18px; box-shadow: 0 8px 20px rgba(40, 30, 10, .1); position: relative; overflow: hidden; }
@@ -215,6 +217,8 @@ b { font-weight: 800; }
 .steam .art { position: absolute; left: 1130px; top: 70px; width: 770px; transform: rotate(2deg); }
 .steam .art .blobbg { position: absolute; inset: -40px 30px -40px -50px; transform: rotate(-4deg); }
 .steam .art img { position: relative; width: 770px; }
+.steam .art .draft { position: absolute; left: 26px; top: -20px; background: var(--ink); color: var(--yellow); padding: 7px 14px 5px;
+  font: 800 22px/1 "Barlow Condensed"; letter-spacing: .12em; text-transform: uppercase; transform: rotate(-3deg); }
 .timeline { position: absolute; left: 80px; top: 590px; width: 1760px; display: grid; grid-template-columns: 1fr 1.25fr 1fr 1fr 1.5fr 1.15fr; }
 .timeline::before { content: ""; position: absolute; left: 0; right: 0; top: 23px; height: 8px; background: var(--ink); border-radius: 4px; }
 .ms { position: relative; padding-right: 22px; }
@@ -409,7 +413,7 @@ b { font-weight: 800; }
   <div class="steamlogo"><img src=".cache/steam.svg" alt="Steam"></div>
   <h2 class="h">March 2027<br>on <span class="hl">Steam.</span></h2>
   <p class="sub">The content is in. About <b>two months</b> of release work left.</p>
-  <div class="art bleed"><div class="blobbg"></div><img class="photo" src="../steam/caps/art/c3-diorama.jpg" alt=""></div>
+  <div class="art bleed"><div class="blobbg"></div><img class="photo" src="img/steam-page.jpg" alt="The Steam page, a draft"><div class="draft">Our Steam page · draft</div></div>
   <div class="timeline">
     <div class="ms"><div class="dot"></div><div class="when">Nov 2026</div><div class="what">Store page live. Wishlists start.</div></div>
     <div class="ms"><div class="dot"></div><div class="when">Dec – Jan</div><div class="what">Release work. Demo and trailer.</div></div>
@@ -444,6 +448,7 @@ b { font-weight: 800; }
 <!-- the work -->
 <section class="page work">
   <div class="kick"><span class="n">00</span> The work behind it</div>
+  <img class="flexer" src="img/leopard-flex.png" alt="">
   <h2 class="h">Not a <span class="hl">one-prompt</span> game.</h2>
   <p class="sub">Seven weeks of daily production: game developers directing AI agents, and every change tested.</p>
   <div class="nums">
