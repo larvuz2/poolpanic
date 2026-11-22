@@ -1,4 +1,4 @@
-// The investor deck (19 November 2026): deck.html, ten 1920×1080 pages, printed to a PDF by the browser.
+// The investor deck (19 November 2026): deck.html, its 1920×1080 pages printed to a PDF by the browser.
 //
 //   node marketing/deck/build.cjs            (writes marketing/deck/out/pool-panic-deck.pdf and a picture of every page)
 //
@@ -6,7 +6,7 @@
 // studio's logo from its site, the comparable games' Steam headers, the Steam logo) is fetched once into .cache/, which git
 // ignores: it is used in the deck, never kept in the public repo.
 const { chromium } = require("playwright"); // (CommonJS, as marketing/steam/tools: the machine's own Playwright)
-const { mkdirSync, existsSync, writeFileSync } = require("node:fs");
+const { mkdirSync, existsSync, writeFileSync, readFileSync } = require("node:fs");
 const { pathToFileURL } = require("node:url");
 const { join } = require("node:path");
 
@@ -48,6 +48,37 @@ const REMOTE = {
   page.on("requestfailed", (r) => problems.push("failed: " + r.url()));
   page.on("pageerror", (e) => problems.push("error: " + e.message));
   await page.goto(pathToFileURL(join(HERE, "deck.html")).href, { waitUntil: "load" });
+  // The private pages (private/pages.html, which git ignores: the funding ask, the team's past projects) go in their slots; without
+  // the file the deck is printed without them.
+  const PRIVATE = join(HERE, "private", "pages.html");
+  const slots = await page.evaluate(
+    (html) => {
+      const box = document.createElement("div");
+      box.innerHTML = html || "";
+      for (const style of box.querySelectorAll("style")) document.head.append(style);
+      let n = 0;
+      for (const t of document.querySelectorAll("template[data-private]")) {
+        const s = box.querySelector(`section[data-slot="${t.dataset.private}"]`);
+        if (s) (t.replaceWith(s), n++);
+        else t.remove();
+      }
+      return n;
+    },
+    existsSync(PRIVATE) ? readFileSync(PRIVATE, "utf8") : null,
+  );
+  console.log(slots ? `${slots} private pages in` : "no private pages (private/pages.html is not here)");
+  await page.waitForFunction(() => [...document.images].every((i) => i.complete), null, { timeout: 30000 });
+  // The numbers: each page's section number in its kicker (the cover has none) and its folio.
+  await page.evaluate(() => {
+    const pages = [...document.querySelectorAll(".page")];
+    pages.forEach((p, i) => {
+      const n = p.querySelector(".kick .n");
+      if (i && n) n.textContent = String(i).padStart(2, "0");
+      const f = p.querySelector(".folio i");
+      if (f)
+        f.parentElement.innerHTML = `Pool Panic · <i>${String(i + 1).padStart(2, "0")}</i> / ${pages.length}`;
+    });
+  });
   await page.evaluate(() => document.fonts.ready);
   const broken = await page.evaluate(() =>
     [...document.images].filter((i) => !i.complete || !i.naturalWidth).map((i) => i.getAttribute("src")),
