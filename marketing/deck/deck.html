@@ -231,11 +231,62 @@ b { font-weight: 800; }
 .mo .v { font: 900 64px/1 "Barlow Condensed"; text-transform: uppercase; margin-top: 8px; }
 .mo .v small { font-size: 34px; }
 .mo .d { font: 400 21px/1.3 "DM Sans"; color: #36322d; margin-top: 4px; }
+
+/* ---------- the plan: play together ---------- */
+.crew .h { position: absolute; left: 80px; top: 104px; }
+.cols { position: absolute; left: 80px; top: 270px; width: 1760px; display: grid; grid-template-columns: 1fr 1fr; gap: 70px; }
+.tag { display: inline-block; font: 900 34px/1 "Barlow Condensed"; text-transform: uppercase; padding: 8px 18px 6px; }
+.tag.ok { background: var(--brush) center / 100% 100% no-repeat; }
+.tag.full { background: var(--ink); color: var(--yellow); }
+.cols ul { list-style: none; margin-top: 22px; display: grid; gap: 16px; }
+.cols li { position: relative; padding-left: 52px; font: 400 23px/1.25 "DM Sans"; color: #36322d; }
+.cols li b { display: block; font: 900 36px/1 "Barlow Condensed"; text-transform: uppercase; color: var(--ink); margin-bottom: 3px; }
+.cols li::before { position: absolute; left: 0; top: 0; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font: 900 26px/1 "Barlow Condensed"; }
+.ticks li::before { content: "✓"; background: var(--ink); color: var(--yellow); }
+.plus li::before { content: "+"; background: var(--yellow); color: var(--ink); font-size: 32px; }
+.note { margin-top: 22px; font: italic 700 24px/1.2 "DM Sans"; color: var(--red); }
+.crewrow { position: absolute; left: 80px; bottom: 70px; display: flex; gap: 26px; align-items: flex-end; }
+.crewrow figure { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.crewrow img { height: 170px; }
+.crewrow figcaption { font: 800 19px/1 "Barlow Condensed"; letter-spacing: .06em; text-transform: uppercase; }
+
+/* ---------- the plan: Next Fest ---------- */
+.fest .h { position: absolute; left: 80px; top: 104px; }
+.fest .sub { position: absolute; left: 84px; top: 236px; }
+.festrow { position: absolute; left: 80px; top: 318px; width: 1760px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 34px; }
+.fs .photo { width: 100%; aspect-ratio: 460 / 215; object-fit: cover; border-width: 9px; }
+.fs:nth-child(odd) .photo { transform: rotate(-1.2deg); }
+.fs:nth-child(even) .photo { transform: rotate(1.2deg); }
+.fs .when { display: inline-block; margin-top: 22px; background: var(--ink); color: var(--yellow); font: 900 26px/1 "Barlow Condensed"; text-transform: uppercase; padding: 6px 12px 4px; }
+.fs .when.hot { background: var(--brush) center / 100% 100% no-repeat; color: var(--ink); }
+.fs h3 { font: 900 44px/.95 "Barlow Condensed"; text-transform: uppercase; margin-top: 12px; }
+.fs p { font: 400 22px/1.25 "DM Sans"; color: #36322d; margin-top: 6px; }
+.success { position: absolute; left: 80px; top: 790px; width: 1760px; background: var(--deep); color: #fff; padding: 26px 34px; display: grid;
+  grid-template-columns: 220px 1fr 1fr 1fr; gap: 24px; align-items: center; }
+.success .lead { font: 900 36px/.95 "Barlow Condensed"; text-transform: uppercase; color: var(--yellow); }
+.goal b { display: block; font: 900 74px/.9 "Barlow Condensed"; color: var(--yellow); }
+.goal span { font: 400 22px/1.2 "DM Sans"; color: var(--mint); }
+.success .aim { position: absolute; right: 18px; bottom: 10px; font: 700 15px/1 "DM Sans"; color: var(--mint); opacity: .7; text-transform: uppercase; letter-spacing: .12em; }
+
+/* ---------- the plan: confidence ---------- */
+.conf .h { position: absolute; left: 80px; top: 104px; }
+.why { position: absolute; left: 80px; top: 286px; width: 1760px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 56px; }
+.w .photo { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.w:nth-child(odd) .photo { transform: rotate(-1.3deg); }
+.w:nth-child(even) .photo { transform: rotate(1.1deg); }
+.w .stickers { background: var(--deep); display: grid; grid-template-columns: repeat(4, 1fr); align-items: center; justify-items: center; padding: 10px; }
+.w .stickers img { width: 110px; height: 110px; }
+.w .mosaic { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: #fff; }
+.w .mosaic img { width: 100%; height: 100%; object-fit: cover; min-height: 0; }
+.w h3 { display: flex; gap: 14px; align-items: center; font: 900 50px/1 "Barlow Condensed"; text-transform: uppercase; margin-top: 30px; }
+.w p { font: 400 25px/1.3 "DM Sans"; color: #2f2b26; margin-top: 10px; }
+.tested { position: absolute; left: 80px; top: 846px; width: 1500px; font: italic 700 27px/1.3 "DM Sans"; color: #3a3631; }
 </style>
 </head>
 <body>
 
-<!-- 1 · cover -->
+<!-- cover -->
 <section class="page cover">
   <div class="kick"><span class="n">Game #1</span> Phatty Acid Generative Studios</div>
   <h1 class="h">What if your friends<br><span class="hl">controlled</span> a pool? <span class="emoji">💀</span></h1>
@@ -249,9 +300,9 @@ b { font-weight: 800; }
   <div class="art bleed"><div class="blobbg"></div><img class="photo" src="../steam/caps/art/c1-panic.jpg" alt=""></div>
 </section>
 
-<!-- 2 · the game -->
+<!-- the game -->
 <section class="page game">
-  <div class="kick"><span class="n">01</span> The game</div>
+  <div class="kick"><span class="n">00</span> The game</div>
   <h2 class="h">You are the <span class="hl">only</span> lifeguard.</h2>
   <p class="sub">Swimmers pour in. Send each one to the right lane. Then <b>everything goes wrong at once.</b></p>
   <div class="cards4">
@@ -265,12 +316,12 @@ b { font-weight: 800; }
   <div class="strip">
     <img class="photo" src="img/freak-wave.jpg" alt=""><img class="photo" src="img/freak-lagoon.jpg" alt=""><img class="photo" src="img/freak-onsen.jpg" alt=""><img class="photo" src="img/freak-kids.jpg" alt=""><img class="photo" src="img/freak-roof.jpg" alt="">
   </div>
-  <div class="folio">Pool Panic · <i>02</i> / 10</div>
+  <div class="folio">Pool Panic · <i>00</i> / 00</div>
 </section>
 
-<!-- 3 · the loop -->
+<!-- the loop -->
 <section class="page loop">
-  <div class="kick"><span class="n">02</span> The core loop</div>
+  <div class="kick"><span class="n">00</span> The core loop</div>
   <h2 class="h">One more <span class="hl">shift.</span></h2>
   <p class="sub">A run is a week of <b>two-minute shifts</b>, Monday to Saturday. Sunday is the reward.</p>
   <div class="steps">
@@ -288,12 +339,151 @@ b { font-weight: 800; }
   <div class="back"><svg viewBox="0 0 1760 150" preserveAspectRatio="none"><path d="M1606 6 V88 Q1606 128 1566 128 H194 Q154 128 154 88 V16" fill="none" stroke="#151515" stroke-width="7" stroke-dasharray="2 16" stroke-linecap="round"/><path d="M134 34 L154 6 L174 34" fill="none" stroke="#151515" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
   <div class="backlabel"><span>Next week: harder · <i>miss the goal: new run</i></span></div>
   <div class="never"><span class="lead">Never the same twice</span><span class="x">14 pools<em>×</em>17 day rules<em>×</em>31 perks<em>×</em>25 incidents</span></div>
-  <div class="folio">Pool Panic · <i>03</i> / 10</div>
+  <div class="folio">Pool Panic · <i>00</i> / 00</div>
 </section>
 
-<!-- 4 · the market -->
+<!-- private: funding (private/pages.html; left out when it is not there) -->
+<template data-private="funding"></template>
+
+<!-- crew -->
+<section class="page crew">
+  <div class="kick"><span class="n">00</span> The plan · play together</div>
+  <h2 class="h">Bring two <span class="hl">friends.</span></h2>
+  <div class="cols">
+    <div class="col">
+      <div class="lbl"><span class="tag ok">Playable today</span></div>
+      <ul class="ticks">
+        <li><b>The whole game</b>14 pools, 20 levels, 25 incidents, the run to the finale</li>
+        <li><b>Online co-op for 3</b>a friends-only lobby, invites, a coach each</li>
+        <li><b>Many hands</b>Karen calms in 8 s alone, 3 s with three of you</li>
+        <li><b>A bigger crowd</b>a crew gets more guests, more trouble, more tips</li>
+      </ul>
+      <div class="note">Next: the first co-op sessions over Steam, in December.</div>
+    </div>
+    <div class="col">
+      <div class="lbl"><span class="tag full">In the full game · March</span></div>
+      <ul class="plus">
+        <li><b>Controller and Steam Deck</b></li>
+        <li><b>Achievements and cloud saves</b></li>
+        <li><b>The Daily Shift</b>one seeded shift for everyone, every day</li>
+        <li><b>Animated Sunday dates</b>with Marina</li>
+        <li><b>More languages</b></li>
+      </ul>
+    </div>
+  </div>
+  <div class="crewrow">
+    <figure><img src="../../dist/assets/coach-waters.webp" alt=""><figcaption>Waters</figcaption></figure>
+    <figure><img src="../../dist/assets/coach-brooks.webp" alt=""><figcaption>Brooks</figcaption></figure>
+    <figure><img src="../../dist/assets/coach-rivers.webp" alt=""><figcaption>Rivers</figcaption></figure>
+    <figure><img src="../../dist/assets/coach-storm.webp" alt=""><figcaption>Storm</figcaption></figure>
+    <figure><img src="../../dist/assets/coach-fontaine.webp" alt=""><figcaption>Fontaine</figcaption></figure>
+    <figure><img src="../../dist/assets/coach-marsh.webp" alt=""><figcaption>Marsh</figcaption></figure>
+  </div>
+  <div class="folio">Pool Panic · <i>00</i> / 00</div>
+</section>
+
+<!-- fest -->
+<section class="page fest">
+  <div class="kick"><span class="n">00</span> The plan · Next Fest</div>
+  <h2 class="h">Win <span class="hl">Next Fest.</span></h2>
+  <p class="sub">We lead with the <b>uh-oh moments</b>: they sell the game in five seconds.</p>
+  <div class="festrow">
+    <div class="fs"><img class="photo" src="../steam/caps/c1-panic-header.jpg" alt=""><div class="when">Now</div><h3>Steam page live</h3><p>Wishlists start the day it is public.</p></div>
+    <div class="fs"><img class="photo" src="img/freak-wave.jpg" alt=""><div class="when">Dec – Jan</div><h3>Two clips a week</h3><p>TikTok, Shorts, Reels. And the trailer.</p></div>
+    <div class="fs"><img class="photo" src="../steam/shots/03.jpg" alt=""><div class="when">Jan – Feb</div><h3>Creators</h3><p>Demo keys for Overcooked, PlateUp! and Two Point players.</p></div>
+    <div class="fs"><img class="photo" src="../steam/caps/art/c5-crew.jpg" alt=""><div class="when hot">Feb 22 – Mar 1</div><h3>The co-op demo</h3><p>Friend groups and streamers play it together.</p></div>
+  </div>
+  <div class="success">
+    <div class="lead">Success looks like</div>
+    <div class="goal"><b>10,000</b><span>wishlists by March 1</span></div>
+    <div class="goal"><b>25+</b><span>creators streaming the demo</span></div>
+    <div class="goal"><b>20 min</b><span>median demo session</span></div>
+    <div class="aim">our targets</div>
+  </div>
+  <div class="folio">Pool Panic · <i>00</i> / 00</div>
+</section>
+
+<!-- steam -->
+<section class="page steam">
+  <div class="kick"><span class="n">00</span> The plan · work left, date, price</div>
+  <div class="steamlogo"><img src=".cache/steam.svg" alt="Steam"></div>
+  <h2 class="h">March 2027<br>on <span class="hl">Steam.</span></h2>
+  <p class="sub">The content is in. About <b>two months</b> of release work left.</p>
+  <div class="art bleed"><div class="blobbg"></div><img class="photo" src="../steam/caps/art/c3-diorama.jpg" alt=""></div>
+  <div class="timeline">
+    <div class="ms"><div class="dot"></div><div class="when">Nov 2026</div><div class="what">Store page live. Wishlists start.</div></div>
+    <div class="ms"><div class="dot"></div><div class="when">Dec – Jan</div><div class="what">Release work. Demo and trailer.</div></div>
+    <div class="ms"><div class="dot"></div><div class="when">Jan 10</div><div class="what">Next Fest registration closes.</div></div>
+    <div class="ms"><div class="dot"></div><div class="when">Feb 8</div><div class="what">Demo in Valve's review.</div></div>
+    <div class="ms fest"><div class="dot"></div><div class="when">Feb 22 – Mar 1</div><div class="what"><b>Steam Next Fest:</b> the public demo, co-op included.</div></div>
+    <div class="ms launch"><div class="dot"></div><div class="when">March 2027</div><div class="what"><b>Launch,</b> riding the fest's wishlists.</div></div>
+  </div>
+  <div class="money">
+    <div class="mo"><div class="k">Done</div><div class="v">The content</div><div class="d">14 pools, 20 levels, 25 incidents, 6 coaches, co-op for 3.</div></div>
+    <div class="mo"><div class="k">Left · about 2 months</div><div class="v">Release work</div><div class="d">Co-op over Steam, controller and Steam Deck, low-end PCs, languages, balance from playtests.</div></div>
+    <div class="mo"><div class="k">The price</div><div class="v">$14.99 <small>premium</small></div><div class="d">15% off in launch week. Below the $20–30 of the games it sits beside.</div></div>
+  </div>
+  <div class="folio">Pool Panic · <i>00</i> / 00</div>
+</section>
+
+<!-- conf -->
+<section class="page conf">
+  <div class="kick"><span class="n">00</span> The plan · confidence</div>
+  <h2 class="h">Why we <span class="hl">believe</span> in it.</h2>
+  <div class="why">
+    <div class="w"><img class="photo" src="../steam/shots/13.jpg" alt=""><h3><span class="badge">1</span>Funny in seconds</h3><p>Nobody needs the rules to laugh at a dog loose on the deck.</p></div>
+    <div class="w"><div class="photo stickers">
+        <img src="../../dist/assets/hud/stickers/carl.webp" alt=""><img src="../../dist/assets/hud/stickers/karen.webp" alt=""><img src="../../dist/assets/hud/stickers/dog.webp" alt=""><img src="../../dist/assets/hud/stickers/fish.webp" alt=""><img src="../../dist/assets/hud/stickers/monkey.webp" alt=""><img src="../../dist/assets/hud/stickers/poo.webp" alt=""><img src="../../dist/assets/hud/stickers/outage.webp" alt=""><img src="../../dist/assets/hud/stickers/monster.webp" alt="">
+      </div><h3><span class="badge">2</span>Never the same shift</h3><p>25 incidents, drawn fresh by a director in every shift.</p></div>
+    <div class="w"><div class="photo mosaic"><img src="../steam/shots/06.jpg" alt=""><img src="../steam/shots/19.jpg" alt=""><img src="../steam/shots/05.jpg" alt=""><img src="../steam/shots/18.jpg" alt=""></div><h3><span class="badge">3</span>We ship fast</h3><p>13 venues fully dressed in three days. New content after launch is cheap for us.</p></div>
+  </div>
+  <div class="tested">And it is tested like a studio's game: bots play whole runs, and 85 checks replay every shift bit for bit on every push.</div>
+  <div class="folio">Pool Panic · <i>00</i> / 00</div>
+</section>
+
+<!-- the work -->
+<section class="page work">
+  <div class="kick"><span class="n">00</span> The work behind it</div>
+  <h2 class="h">Not a <span class="hl">one-prompt</span> game.</h2>
+  <p class="sub">Seven weeks of daily production: game developers directing AI agents, and every change tested.</p>
+  <div class="nums">
+    <div class="num y"><div class="v">50</div><div class="k">Days in production</div><div class="d">29 Sep → 18 Nov 2026, every day</div></div>
+    <div class="num"><div class="v">259</div><div class="k">Commits</div><div class="d">116 pull requests, each through the full test suite</div></div>
+    <div class="num"><div class="v">163K</div><div class="k">Lines of code</div><div class="d">71K in the game, the rest its tools and pipeline</div></div>
+    <div class="num"><div class="v">85</div><div class="k">Automated checks</div><div class="d">whole shifts replayed bit for bit on every push</div></div>
+    <div class="num"><div class="v">91</div><div class="k">3D models in the game</div><div class="d">180 in the pipeline: rigged, animated, optimised</div></div>
+    <div class="num"><div class="v">676</div><div class="k">Images &amp; textures</div><div class="d">venues, stickers, key art, story scenes</div></div>
+    <div class="num"><div class="v">229</div><div class="k">Sound files</div><div class="d">recorded effects and songs, an FMOD-style mix</div></div>
+    <div class="num"><div class="v">20</div><div class="k">Levels</div><div class="d">from Morning Dip to the Grand Gala</div></div>
+    <div class="num n"><div class="v">7.2B+</div><div class="k">AI tokens</div><div class="d">read and written, most of it context read again</div></div>
+    <div class="num n"><div class="v">18,600+</div><div class="k">Agent actions</div><div class="d">code, renders, tests and builds</div></div>
+    <div class="num n"><div class="v">200+</div><div class="k">Design directions</div><div class="d">the team's messages that steered every system</div></div>
+    <div class="num n"><div class="v">88K</div><div class="k">Words of design docs</div><div class="d">the game's bible, kept true with every change</div></div>
+  </div>
+  <div class="tools"><span class="lead">MADE WITH</span><span>three.js</span><span>Blender</span><span>Meshy</span><span>Tripo</span><span>GPT Image</span><span>ElevenLabs</span><span>Electron</span><span>Steamworks</span><span>Claude</span></div>
+  <div class="source">Counted on 19 November 2026 from the repository and the AI sessions' own logs. The session numbers are at least.</div>
+  <div class="folio">Pool Panic · <i>00</i> / 00</div>
+</section>
+
+<!-- private: track (private/pages.html; left out when it is not there) -->
+<template data-private="track"></template>
+
+<!-- the team -->
+<section class="page team">
+  <div class="kick"><span class="n">00</span> The team</div>
+  <h2 class="h">A team of <span class="hl">three.</span></h2>
+  <div class="studio"><img src=".cache/phatty-logo.png" alt="Phatty Acid Generative Studios"><div>PHATTYACID.STUDIO</div></div>
+  <div class="people">
+    <div class="person"><div class="frame"><div class="blobbg"></div><img src=".cache/gus.jpg" alt=""></div><h3>Gustavo Garza</h3><div class="role">AI Engineer</div></div>
+    <div class="person"><div class="frame"><div class="blobbg"></div><img src=".cache/paul.jpg" alt=""></div><h3>Paul Limon</h3><div class="role">Ex-Blizzard</div></div>
+    <div class="person"><div class="frame"><div class="blobbg"></div><img src=".cache/kali.jpg" alt=""></div><h3>Manuel R. Kali</h3><div class="role">Game Developer</div></div>
+  </div>
+  <div class="folio">Pool Panic · <i>00</i> / 00</div>
+</section>
+
+<!-- the market -->
 <section class="page market">
-  <div class="kick"><span class="n">03</span> If you like these</div>
+  <div class="kick"><span class="n">00</span> If you like these</div>
   <h2 class="h">Co-op chaos <span class="hl">sells.</span></h2>
   <p class="sub">Nobody owns the pool. Yet.</p>
   <div class="comps">
@@ -305,12 +495,12 @@ b { font-weight: 800; }
     <div class="comp us"><img class="photo" src="../steam/caps/c1-panic-header.jpg" alt=""><h3><span class="hl">Pool Panic</span></h3><div class="meta">Phatty Acid · 2027 · $14.99</div><div class="stat">Co-op chaos at the pool</div></div>
   </div>
   <div class="source">Review counts and prices: the Steam store, 19 November 2026.</div>
-  <div class="folio">Pool Panic · <i>04</i> / 10</div>
+  <div class="folio">Pool Panic · <i>00</i> / 00</div>
 </section>
 
-<!-- 5 · the cast -->
+<!-- the cast -->
 <section class="page cast">
-  <div class="kick"><span class="n">04</span> The cast</div>
+  <div class="kick"><span class="n">00</span> The cast</div>
   <h2 class="h">Meet the <span class="hl">regulars.</span></h2>
   <img class="poster photo" src="../steam/posters/stack-2-clean.jpg" alt="">
   <div class="count"><div>30+<small>Characters</small></div><div>6<small>Playable coaches</small></div><div>1<small>Date to save up for</small></div></div>
@@ -337,12 +527,12 @@ b { font-weight: 800; }
       <div class="guest"><img class="round" src="img/marina-face.jpg" alt=""><div><h4>Marina</h4><p>The reason he works</p></div></div>
     </div>
   </div>
-  <div class="folio">Pool Panic · <i>05</i> / 10</div>
+  <div class="folio">Pool Panic · <i>00</i> / 00</div>
 </section>
 
-<!-- 6 · the incidents -->
+<!-- the incidents -->
 <section class="page incid">
-  <div class="kick"><span class="n">05</span> The incidents</div>
+  <div class="kick"><span class="n">00</span> The incidents</div>
   <h2 class="h">25 ways to <span class="hl">panic.</span></h2>
   <p class="sub">Drawn fresh every shift. Each one: a warning, a chance to stop it, a comic disaster.</p>
   <div class="grid25">
@@ -372,13 +562,13 @@ b { font-weight: 800; }
     <div class="inc"><img src="../../dist/assets/hud/stickers/closure.webp" alt=""><div><h4>Lane closed</h4><p>One lane fewer for a while.</p></div></div>
     <div class="inc"><img src="../../dist/assets/hud/stickers/big.webp" alt=""><div><h4>Big moment</h4><p>The race. The dive show.</p></div></div>
   </div>
-  <div class="folio">Pool Panic · <i>06</i> / 10</div>
+  <div class="folio">Pool Panic · <i>00</i> / 00</div>
 </section>
 
-<!-- 7 · the venues -->
+<!-- the venues -->
 <section class="page venues">
   <div class="grid">
-    <div class="head"><div class="kick"><span class="n">06</span> The venues</div><h2 class="h">14 pools.<br><span class="hl">14 rule books.</span></h2></div>
+    <div class="head"><div class="kick"><span class="n">00</span> The venues</div><h2 class="h">14 pools.<br><span class="hl">14 rule books.</span></h2></div>
     <div class="ven"><img src="img/venue-club.jpg" alt=""><div class="cap"><h4>Community Pool</h4><p>where it starts</p></div></div>
     <div class="ven"><img src="img/venue-resort.jpg" alt=""><div class="cap"><h4>Splash Park</h4><p>a seaside resort</p></div></div>
     <div class="ven"><img src="img/venue-lagoon.jpg" alt=""><div class="cap"><h4>Sunset Lagoon</h4><p>a storm rolls in</p></div></div>
@@ -394,67 +584,7 @@ b { font-weight: 800; }
     <div class="ven"><img src="img/venue-dive.jpg" alt=""><div class="cap"><h4>Jumping Pool</h4><p>three boards</p></div></div>
     <div class="ven"><img src="img/venue-arena.jpg" alt=""><div class="cap"><h4>Grand Gala Arena</h4><p>the finale</p></div></div>
   </div>
-  <div class="folio">Pool Panic · <i>07</i> / 10</div>
-</section>
-
-<!-- 8 · the work -->
-<section class="page work">
-  <div class="kick"><span class="n">07</span> The work behind it</div>
-  <h2 class="h">Not a <span class="hl">one-prompt</span> game.</h2>
-  <p class="sub">Seven weeks of daily production: game developers directing AI agents, and every change tested.</p>
-  <div class="nums">
-    <div class="num y"><div class="v">50</div><div class="k">Days in production</div><div class="d">29 Sep → 18 Nov 2026, every day</div></div>
-    <div class="num"><div class="v">259</div><div class="k">Commits</div><div class="d">116 pull requests, each through the full test suite</div></div>
-    <div class="num"><div class="v">163K</div><div class="k">Lines of code</div><div class="d">71K in the game, the rest its tools and pipeline</div></div>
-    <div class="num"><div class="v">85</div><div class="k">Automated checks</div><div class="d">whole shifts replayed bit for bit on every push</div></div>
-    <div class="num"><div class="v">91</div><div class="k">3D models in the game</div><div class="d">180 in the pipeline: rigged, animated, optimised</div></div>
-    <div class="num"><div class="v">676</div><div class="k">Images &amp; textures</div><div class="d">venues, stickers, key art, story scenes</div></div>
-    <div class="num"><div class="v">229</div><div class="k">Sound files</div><div class="d">recorded effects and songs, an FMOD-style mix</div></div>
-    <div class="num"><div class="v">20</div><div class="k">Levels</div><div class="d">from Morning Dip to the Grand Gala</div></div>
-    <div class="num n"><div class="v">7.2B+</div><div class="k">AI tokens</div><div class="d">read and written, most of it context read again</div></div>
-    <div class="num n"><div class="v">18,600+</div><div class="k">Agent actions</div><div class="d">code, renders, tests and builds</div></div>
-    <div class="num n"><div class="v">200+</div><div class="k">Design directions</div><div class="d">the team's messages that steered every system</div></div>
-    <div class="num n"><div class="v">88K</div><div class="k">Words of design docs</div><div class="d">the game's bible, kept true with every change</div></div>
-  </div>
-  <div class="tools"><span class="lead">MADE WITH</span><span>three.js</span><span>Blender</span><span>Meshy</span><span>Tripo</span><span>GPT Image</span><span>ElevenLabs</span><span>Electron</span><span>Steamworks</span><span>Claude</span></div>
-  <div class="source">Counted on 19 November 2026 from the repository and the AI sessions' own logs. The session numbers are at least.</div>
-  <div class="folio">Pool Panic · <i>08</i> / 10</div>
-</section>
-
-<!-- 9 · the team -->
-<section class="page team">
-  <div class="kick"><span class="n">08</span> The team</div>
-  <h2 class="h">A team of <span class="hl">three.</span></h2>
-  <div class="studio"><img src=".cache/phatty-logo.png" alt="Phatty Acid Generative Studios"><div>PHATTYACID.STUDIO</div></div>
-  <div class="people">
-    <div class="person"><div class="frame"><div class="blobbg"></div><img src=".cache/gus.jpg" alt=""></div><h3>Gustavo Garza</h3><div class="role">AI Engineer</div></div>
-    <div class="person"><div class="frame"><div class="blobbg"></div><img src=".cache/paul.jpg" alt=""></div><h3>Paul Limon</h3><div class="role">Ex-Blizzard</div></div>
-    <div class="person"><div class="frame"><div class="blobbg"></div><img src=".cache/kali.jpg" alt=""></div><h3>Manuel R. Kali</h3><div class="role">Game Developer</div></div>
-  </div>
-  <div class="folio">Pool Panic · <i>09</i> / 10</div>
-</section>
-
-<!-- 10 · Steam -->
-<section class="page steam">
-  <div class="kick"><span class="n">09</span> Release &amp; revenue</div>
-  <div class="steamlogo"><img src=".cache/steam.svg" alt="Steam"></div>
-  <h2 class="h">Coming to<br><span class="hl">Steam.</span></h2>
-  <p class="sub">Launch through <b>Steam Next Fest</b> in February. Two months to polish, then release.</p>
-  <div class="art bleed"><div class="blobbg"></div><img class="photo" src="../steam/caps/art/c5-crew.jpg" alt=""></div>
-  <div class="timeline">
-    <div class="ms"><div class="dot"></div><div class="when">Nov 2026</div><div class="what">Store page live. Wishlists start.</div></div>
-    <div class="ms"><div class="dot"></div><div class="when">Dec – Jan</div><div class="what">Two months of polish. Demo and trailer.</div></div>
-    <div class="ms"><div class="dot"></div><div class="when">Jan 10</div><div class="what">Next Fest registration closes.</div></div>
-    <div class="ms"><div class="dot"></div><div class="when">Feb 8</div><div class="what">Demo in Valve's review.</div></div>
-    <div class="ms fest"><div class="dot"></div><div class="when">Feb 22 – Mar 1</div><div class="what"><b>Steam Next Fest:</b> the public demo, co-op included.</div></div>
-    <div class="ms launch"><div class="dot"></div><div class="when">Mar 2027</div><div class="what"><b>Launch.</b> Ride the fest's wishlists.</div></div>
-  </div>
-  <div class="money">
-    <div class="mo"><div class="k">The price</div><div class="v">$14.99 <small>premium</small></div><div class="d">One purchase. No ads, no pay-to-win. 15% off in launch week.</div></div>
-    <div class="mo"><div class="k">Built to spread</div><div class="v">Co-op for 3</div><div class="d">Online over Steam with friends. Every crew needs three copies.</div></div>
-    <div class="mo"><div class="k">After launch</div><div class="v">More pools</div><div class="d">Venue packs (DLC), coach outfits, seasonal events, Steam Deck.</div></div>
-  </div>
-  <div class="folio">Pool Panic · <i>10</i> / 10</div>
+  <div class="folio">Pool Panic · <i>00</i> / 00</div>
 </section>
 
 </body>
