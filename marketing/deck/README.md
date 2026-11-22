@@ -15,9 +15,9 @@ the incident stickers, as few words as will do.
 | 4 | *(private)* The funding: what it buys and what comes first | |
 | 5 | Bring two friends: what a crew plays today, what the full game adds | the six coaches |
 | 6 | Win Next Fest: the campaign, and what success looks like (our targets) | key art, a freak-out, a screenshot |
-| 7 | March 2027 on Steam: the timeline, the work left, the price | the Steam logo, the C3 key art |
+| 7 | March 2027 on Steam: the timeline, the work left, the price | the Steam logo, our Steam page (a draft) |
 | 8 | Why we believe in it | a screenshot, the stickers, four venues |
-| 9 | Not a one-prompt game: the work in numbers | |
+| 9 | Not a one-prompt game: the work in numbers | the leopard man, flexing on them |
 | 10 | *(private)* The team's track record: past projects, revenue, events | from the creator's own slides |
 | 11 | A team of three: Gustavo Garza, Paul Limon, Manuel R. Kali; Phatty Acid | their photos, the studio's logo |
 | 12 | Co-op chaos sells: Overcooked! 2, Two Point Hospital, PlateUp!, Moving Out, Dear Passengers | their Steam headers, ours |
@@ -30,6 +30,11 @@ first, what a group can play now and what the full game adds, the Next Fest camp
 the date and the price, and what gives us confidence; page 10 is the past projects they asked for. The build numbers the pages
 (each kicker's section number and each folio) as it prints, so a page added or left out renumbers the rest.
 
+- **Two pictures made for it (22 November 2026).** `img/steam-page.jpg` is the creator's mockup of the Steam page with its
+  made-up review score taken out and its release date set to the plan's (March 2027), labelled a draft on the page.
+  `img/leopard-flex.png` is the leopard man in a double-biceps flex, drawn by GPT Image 2.5 on fal (the stickers' endpoint,
+  `tools/hud/stickers.mjs`) from the game's own render of him (`tools/hud/ref/leopard.jpg`), on a transparent background:
+  the creator wanted him somewhere in the deck for the comedy, and he stands on the numbers.
 - **The private pages.** The funding ask and the team's past projects (their revenue, their clients, photos of people) are not for
   a public repo: they live in `private/pages.html` and `private/img/`, which git ignores, and the build puts each of its
   `<section data-slot>` into the `<template data-private>` of the same name in `deck.html`. Without that folder the deck prints
